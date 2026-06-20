@@ -1,0 +1,86 @@
+etc/kaas.toml
+  5ebbc19bfbb91b81 1-24
+py/src/kb_ai/vectordb.py
+  193a48ad564f85f0 304-329
+py/pyproject.toml
+  193a48ad564f85f0 1-32
+py/src/kb_ai/llm.py
+  193a48ad564f85f0 13-302
+docs/assets/architecture.svg
+  5ebbc19bfbb91b81 1-143
+py/src/kb_ai/prompts/defaults/classify.md
+  193a48ad564f85f0 1-22
+py/src/kb_ai/prompts/defaults/chat-with-sources.md
+  193a48ad564f85f0 1-9
+Dockerfile
+  5ebbc19bfbb91b81 1-42
+py/tests/test_smoke.py
+  193a48ad564f85f0 1-107
+docker-compose.yml
+  5ebbc19bfbb91b81 1-12
+.gitignore
+  5ebbc19bfbb91b81 1-30
+py/src/kb_ai/prompts/__init__.py
+  193a48ad564f85f0 1-34
+py/src/kb_ai/server_http.py
+  193a48ad564f85f0 1-427
+py/src/kb_ai/prompts/defaults/merge-diff.md
+  193a48ad564f85f0 1-29
+py/src/kb_ai/prompts/defaults/merge-rewrite.md
+  193a48ad564f85f0 1-12
+docs/open-source-plan.md
+  5ebbc19bfbb91b81 1-204
+py/src/kb_ai/prompts/defaults/chat-no-sources.md
+  193a48ad564f85f0 1-10
+py/src/kb_ai/extract.py
+  193a48ad564f85f0 86-89
+py/src/kb_ai/__init__.py
+  193a48ad564f85f0 1
+py/src/kb_ai/prompts/defaults/rewrite.md
+  193a48ad564f85f0 1
+py/README.md
+  193a48ad564f85f0 1-69
+README.md
+  5ebbc19bfbb91b81 1-77
+py/src/kb_ai/prompts/defaults/suggest.md
+  193a48ad564f85f0 1
+Makefile
+  5ebbc19bfbb91b81 1-28
+py/src/kb_ai/__main__.py
+  193a48ad564f85f0 1-48
+py/src/kb_ai/prompts/registry.py
+  193a48ad564f85f0 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "bd5b578b6a0957d24d198734370f3deedba8ac4c",
+  "prompts": {
+    "193a48ad564f85f0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4b331c16-056e-45d5-8922-5a4d7096c5f3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 1057,
+      "total_deletions": 359,
+      "accepted_lines": 909,
+      "overriden_lines": 0
+    },
+    "5ebbc19bfbb91b81": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f3cd207-c8b5-4c11-b3a8-5b6f00b65ffc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 561,
+      "total_deletions": 1,
+      "accepted_lines": 560,
+      "overriden_lines": 0
+    }
+  }
+}
