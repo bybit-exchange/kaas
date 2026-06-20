@@ -1,0 +1,33 @@
+internal/bridge/api.go
+  6ec9ae3df99ca4e8 1-239
+docs/features/go-backend-bridge/notes.md
+  6ec9ae3df99ca4e8 1-23
+internal/bridge/client.go
+  6ec9ae3df99ca4e8 1-160
+internal/bridge/client_test.go
+  6ec9ae3df99ca4e8 1-220
+internal/bridge/sse.go
+  6ec9ae3df99ca4e8 1-116
+internal/bridge/sse_test.go
+  6ec9ae3df99ca4e8 1-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "66e0a75a87e2a4d62dcdf1f914779c0e56f19e26",
+  "prompts": {
+    "6ec9ae3df99ca4e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce3c0ab0-8256-40fc-b089-a68691e92a75",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1006,
+      "overriden_lines": 0
+    }
+  }
+}
