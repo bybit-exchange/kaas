@@ -1,0 +1,23 @@
+docs/assets/architecture.svg
+  ab5b5e4b8d0315a8 105-107,111,116,119,123,126,129,131-133,136,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "0deef97bdedbee2fa399517e984c84246598ca18",
+  "prompts": {
+    "ab5b5e4b8d0315a8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "21246d88-fa77-40e3-a1d5-8e9999d31933",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 17,
+      "accepted_lines": 221,
+      "overriden_lines": 0
+    }
+  }
+}
