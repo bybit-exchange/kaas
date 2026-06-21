@@ -1,0 +1,25 @@
+web/src/store/prefs.ts
+  c8043354d54a3a66 22-24
+web/src/i18n/i18n.test.tsx
+  c8043354d54a3a66 56-65,76-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "2c210d2755a460d64cec95511c10ac65b42f764a",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 19,
+      "total_deletions": 11,
+      "accepted_lines": 23,
+      "overriden_lines": 0
+    }
+  }
+}
