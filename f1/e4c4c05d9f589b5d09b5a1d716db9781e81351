@@ -1,0 +1,60 @@
+web/src/test-setup.ts
+  c8043354d54a3a66 1
+web/src/lib/cn.ts
+  c8043354d54a3a66 1-6
+web/tsconfig.node.json
+  c8043354d54a3a66 1-14
+web/index.html
+  c8043354d54a3a66 1-13
+web/.gitignore
+  c8043354d54a3a66 1-5
+web/tsconfig.json
+  c8043354d54a3a66 1-18
+web/src/lib/cn.test.ts
+  c8043354d54a3a66 1-9
+web/package.json
+  c8043354d54a3a66 1-52
+web/src/main.tsx
+  c8043354d54a3a66 1-10
+web/vite.config.ts
+  c8043354d54a3a66 1-34
+web/src/App.tsx
+  c8043354d54a3a66 1-3
+web/pnpm-workspace.yaml
+  c8043354d54a3a66 2
+web/src/index.css
+  c8043354d54a3a66 1-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "f1e4c4c05d9f589b5d09b5a1d716db9781e81351",
+  "prompts": {
+    "05e796cca14fb6b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "76cad519-9e0b-444d-b8c8-2ba7e244195e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 189,
+      "total_deletions": 30,
+      "accepted_lines": 183,
+      "overriden_lines": 0
+    },
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 431,
+      "total_deletions": 10,
+      "accepted_lines": 423,
+      "overriden_lines": 0
+    }
+  }
+}
