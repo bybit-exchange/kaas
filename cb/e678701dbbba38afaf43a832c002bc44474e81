@@ -1,0 +1,33 @@
+web/src/i18n/index.tsx
+  c8043354d54a3a66 1-45
+web/src/test-setup.ts
+  c8043354d54a3a66 2-24
+web/src/store/prefs.ts
+  c8043354d54a3a66 1-51
+web/src/i18n/i18n.test.tsx
+  c8043354d54a3a66 1-78
+web/src/store/prefs.test.ts
+  c8043354d54a3a66 1-109
+web/src/i18n/strings.ts
+  c8043354d54a3a66 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "cbe678701dbbba38afaf43a832c002bc44474e81",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 382,
+      "total_deletions": 61,
+      "accepted_lines": 333,
+      "overriden_lines": 0
+    }
+  }
+}
