@@ -1,0 +1,41 @@
+internal/api/api_test.go
+  9306744ad773ddc6 1-534
+internal/api/server.go
+  9306744ad773ddc6 1-131
+internal/api/respond.go
+  9306744ad773ddc6 1-37
+go.mod
+  9306744ad773ddc6 6
+internal/api/submit.go
+  9306744ad773ddc6 1-125
+internal/api/chat.go
+  9306744ad773ddc6 1-78
+docs/features/go-backend-rest/tech-design.md
+  9306744ad773ddc6 1-86
+internal/api/wiki.go
+  9306744ad773ddc6 1-146
+cmd/kaas/main.go
+  9306744ad773ddc6 14,18-19,23,78-83,91-122
+internal/api/tasks.go
+  9306744ad773ddc6 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "79cb500baf39acdb676bc1a18573e61727d461e1",
+  "prompts": {
+    "9306744ad773ddc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e94a1f54-9f7b-4932-9848-2a263c60baf2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 1279,
+      "total_deletions": 22,
+      "accepted_lines": 1260,
+      "overriden_lines": 0
+    }
+  }
+}
