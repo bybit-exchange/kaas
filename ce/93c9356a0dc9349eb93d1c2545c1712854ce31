@@ -1,0 +1,23 @@
+.github/workflows/claude-interactive.yml
+  efa7c6b5d64b2147 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "ce93c9356a0dc9349eb93d1c2545c1712854ce31",
+  "prompts": {
+    "efa7c6b5d64b2147": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d80cada8-f2c6-4b8f-a98f-6a3cda7cb8f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 0,
+      "accepted_lines": 1216,
+      "overriden_lines": 0
+    }
+  }
+}
