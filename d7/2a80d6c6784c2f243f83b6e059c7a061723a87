@@ -1,0 +1,23 @@
+docs/assets/kaas-vs-rag.en.svg
+  a83018f717a275e7 120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d72a80d6c6784c2f243f83b6e059c7a061723a87",
+  "prompts": {
+    "a83018f717a275e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11330f93-ed86-42d7-bd3c-38f987eebc3f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 162,
+      "overriden_lines": 0
+    }
+  }
+}
