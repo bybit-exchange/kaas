@@ -1,0 +1,25 @@
+py/src/kb_ai/compile.py
+  a83018f717a275e7 43-53,56,76,81,140-141,393,407-424
+py/tests/test_distill.py
+  a83018f717a275e7 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f596e96db71882506276abba240ad39a6d02c3c3",
+  "prompts": {
+    "a83018f717a275e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11330f93-ed86-42d7-bd3c-38f987eebc3f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 48,
+      "total_deletions": 19,
+      "accepted_lines": 52,
+      "overriden_lines": 0
+    }
+  }
+}
