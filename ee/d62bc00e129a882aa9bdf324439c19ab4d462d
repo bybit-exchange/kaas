@@ -1,0 +1,56 @@
+py/src/kb_ai/commands/suggest.py
+  eca815de3aeb6a68 1-66
+py/src/kb_ai/server_chat.py
+  eca815de3aeb6a68 1-18
+py/src/kb_ai/fetch.py
+  eca815de3aeb6a68 1,3
+py/src/kb_ai/server_mcp.py
+  eca815de3aeb6a68 27
+py/src/kb_ai/compile.py
+  eca815de3aeb6a68 1,3,5-6
+py/src/kb_ai/commands/fetch.py
+  eca815de3aeb6a68 1-48
+py/src/kb_ai/commands/rewrite.py
+  eca815de3aeb6a68 1-111
+py/src/kb_ai/server_suggest.py
+  eca815de3aeb6a68 1,3
+py/tests/test_retrieve.py
+  eca815de3aeb6a68 164-165
+py/src/kb_ai/commands/chat.py
+  eca815de3aeb6a68 1-320
+py/src/kb_ai/server_http.py
+  eca815de3aeb6a68 220,235,251,286
+py/src/kb_ai/llm/_cache.py
+  eca815de3aeb6a68 33,35,95
+py/src/kb_ai/__main__.py
+  eca815de3aeb6a68 3-5,10,13,22-56,59,72-75,77-78,80-81
+py/src/kb_ai/server_rewrite.py
+  eca815de3aeb6a68 1,3-6
+py/src/kb_ai/commands/compile.py
+  eca815de3aeb6a68 1-388
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "eed62bc00e129a882aa9bdf324439c19ab4d462d",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2154,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+py/tests/test_llm_client.py
+  eca815de3aeb6a68 1-60
+py/src/kb_ai/llm/_shared.py
+  eca815de3aeb6a68 1-45
+py/tests/test_llm_cache.py
+  eca815de3aeb6a68 1-120
+py/src/kb_ai/llm/_client.py
+  eca815de3aeb6a68 1-51
+py/src/kb_ai/llm/_usage.py
+  eca815de3aeb6a68 1-60
+py/src/kb_ai/llm/_cache.py
+  eca815de3aeb6a68 1-132
+py/src/kb_ai/llm/_cost_record.py
+  eca815de3aeb6a68 1-98
+py/tests/test_llm_usage.py
+  eca815de3aeb6a68 1-87
+py/src/kb_ai/llm/_completion.py
+  eca815de3aeb6a68 1-245
+py/tests/test_llm_completion.py
+  eca815de3aeb6a68 1-122
+py/src/kb_ai/llm/__init__.py
+  eca815de3aeb6a68 1-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "5c451e8cdc97dee597840f03b975552810c952a6",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 1254,
+      "total_deletions": 610,
+      "accepted_lines": 2354,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}

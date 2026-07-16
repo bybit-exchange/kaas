@@ -1,0 +1,29 @@
+.gitignore
+  eca815de3aeb6a68 34
+  h_65cf5194933221 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "60698faaa7c031c81e4180765deca10dcf1ce399",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 297,
+      "total_deletions": 1,
+      "accepted_lines": 1109,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}
