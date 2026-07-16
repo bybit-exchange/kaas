@@ -1,0 +1,29 @@
+py/pyproject.toml
+  0510805afee64b90 9,26-30
+py/tests/test_server_mcp.py
+  0510805afee64b90 1-242
+py/src/kb_ai/server_mcp.py
+  0510805afee64b90 1-165
+py/src/kb_ai/__main__.py
+  0510805afee64b90 25-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "db9e3780774515b8dfd48d5afb7c396d92968c99",
+  "prompts": {
+    "0510805afee64b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b57d7cf3-c6d1-4ee0-b159-c0f166fa2d6b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 421,
+      "total_deletions": 0,
+      "accepted_lines": 421,
+      "overriden_lines": 0
+    }
+  }
+}

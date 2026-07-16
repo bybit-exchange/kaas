@@ -1,0 +1,23 @@
+internal/worker/dispatcher.go
+  b6f305f4cdb9cf40 90-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "1ed4df303a1588592acdcae0e25d77c977b0ac31",
+  "prompts": {
+    "b6f305f4cdb9cf40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e32fdf43-89e6-4d50-a1dc-4e6107c11be8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 0,
+      "accepted_lines": 1758,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,23 @@
+internal/circuit/breaker.go
+  b6f305f4cdb9cf40 124-126,129-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "e00de0789316ed2adfa1c6221b1206fc982ce287",
+  "prompts": {
+    "b6f305f4cdb9cf40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e32fdf43-89e6-4d50-a1dc-4e6107c11be8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 2,
+      "accepted_lines": 1758,
+      "overriden_lines": 0
+    }
+  }
+}

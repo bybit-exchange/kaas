@@ -1,0 +1,45 @@
+internal/config/config_test.go
+  6ec9ae3df99ca4e8 1-121
+internal/store/store.go
+  6ec9ae3df99ca4e8 1-107
+docs/features/go-backend-foundation/tech-design.md
+  6ec9ae3df99ca4e8 1-83
+internal/store/sqlite/sqlite_test.go
+  6ec9ae3df99ca4e8 1-285
+internal/store/sqlite/sqlite.go
+  6ec9ae3df99ca4e8 1-290
+Dockerfile
+  6ec9ae3df99ca4e8 4-5,8
+internal/config/config.go
+  6ec9ae3df99ca4e8 1-92
+go.mod
+  6ec9ae3df99ca4e8 1-30
+docs/features/go-backend-foundation/notes.md
+  6ec9ae3df99ca4e8 1-27
+cmd/kaas/main.go
+  6ec9ae3df99ca4e8 1-65
+internal/queue/queue.go
+  6ec9ae3df99ca4e8 1-102
+internal/queue/queue_test.go
+  6ec9ae3df99ca4e8 1-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "0e9fcb5df5c45500f63498c785a8d586d5b49a4e",
+  "prompts": {
+    "6ec9ae3df99ca4e8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce3c0ab0-8256-40fc-b089-a68691e92a75",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 2375,
+      "total_deletions": 15,
+      "accepted_lines": 2362,
+      "overriden_lines": 0
+    }
+  }
+}

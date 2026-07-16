@@ -1,0 +1,27 @@
+py/src/kb_ai/server_mcp.py
+  0510805afee64b90 21,109-139,145-146,156
+internal/api/server.go
+  0510805afee64b90 123-126
+py/tests/test_server_mcp.py
+  0510805afee64b90 177-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "c92129142e0305813701381e1bcbb8ed3324cdf0",
+  "prompts": {
+    "0510805afee64b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b57d7cf3-c6d1-4ee0-b159-c0f166fa2d6b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 427,
+      "total_deletions": 49,
+      "accepted_lines": 237,
+      "overriden_lines": 0
+    }
+  }
+}

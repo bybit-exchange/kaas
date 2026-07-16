@@ -1,0 +1,41 @@
+web/src/features/chat/SourcePanel.tsx
+  c8043354d54a3a66 1-42
+web/src/features/chat/SourcePanel.test.tsx
+  c8043354d54a3a66 1-43
+web/src/features/chat/CitationMarker.tsx
+  c8043354d54a3a66 1-17
+web/src/pages/Chat.test.tsx
+  c8043354d54a3a66 1-102
+web/src/App.tsx
+  c8043354d54a3a66 3,19
+web/src/pages/Chat.tsx
+  c8043354d54a3a66 1-164
+web/src/features/chat/MessageList.tsx
+  c8043354d54a3a66 1-143
+web/src/features/chat/MarkdownRenderer.tsx
+  c8043354d54a3a66 1-87
+web/src/i18n/strings.ts
+  c8043354d54a3a66 21-30,46-55
+web/src/features/chat/MessageInput.tsx
+  c8043354d54a3a66 1-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "83ed9fc5f8ffe390fdbca0148e3396322d3f01c8",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 720,
+      "total_deletions": 13,
+      "accepted_lines": 716,
+      "overriden_lines": 0
+    }
+  }
+}

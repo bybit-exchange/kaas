@@ -1,0 +1,25 @@
+web/src/features/chat/MarkdownRenderer.tsx
+  c8043354d54a3a66 3,7-33,35-41,43-46,49-66,69-83,85-93,95-97,100-118,125-132,136-142
+web/src/features/chat/MarkdownRenderer.test.tsx
+  c8043354d54a3a66 1-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "94b53f0321386d7321d791c394285e9c0928d56a",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 219,
+      "total_deletions": 88,
+      "accepted_lines": 197,
+      "overriden_lines": 0
+    }
+  }
+}

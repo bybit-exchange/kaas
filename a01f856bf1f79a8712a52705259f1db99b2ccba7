@@ -1,0 +1,48 @@
+web/src/pages/Status.tsx
+  c8043354d54a3a66 186,216
+web/src/pages/Submit.tsx
+  c8043354d54a3a66 121-127,201
+web/src/i18n/strings.ts
+  c8043354d54a3a66 38,100
+web/src/pages/Submit.test.tsx
+  c8043354d54a3a66 36,176
+web/src/i18n/i18n.parity.test.ts
+  c8043354d54a3a66 1-15
+web/README.md
+  c8043354d54a3a66 1-33
+web/src/pages/Status.test.tsx
+  c8043354d54a3a66 92-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "a01f856bf1f79a8712a52705259f1db99b2ccba7",
+  "prompts": {
+    "05e796cca14fb6b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "76cad519-9e0b-444d-b8c8-2ba7e244195e",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 392,
+      "total_deletions": 18,
+      "accepted_lines": 495,
+      "overriden_lines": 0
+    },
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 65,
+      "total_deletions": 293,
+      "accepted_lines": 69,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,37 @@
+docs/assets/architecture.zh.svg
+  a83018f717a275e7 1-140
+docs/assets/architecture.en.svg
+  a83018f717a275e7 1-140
+docs/assets/kaas-vs-rag.zh.svg
+  a83018f717a275e7 1-122
+docs/assets/distill-flow.zh.svg
+  a83018f717a275e7 1-144
+README.md
+  a83018f717a275e7 3-4,7,19,58
+docs/assets/distill-flow.en.svg
+  a83018f717a275e7 1-142
+README.zh-CN.md
+  a83018f717a275e7 1-140
+docs/assets/kaas-vs-rag.en.svg
+  a83018f717a275e7 1-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b9974c42a0d36bda16dfa921b7952d81964ca8d9",
+  "prompts": {
+    "a83018f717a275e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11330f93-ed86-42d7-bd3c-38f987eebc3f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 1100,
+      "total_deletions": 6,
+      "accepted_lines": 1116,
+      "overriden_lines": 0
+    }
+  }
+}
