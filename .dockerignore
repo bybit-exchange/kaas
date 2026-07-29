@@ -1,0 +1,25 @@
+# Keep host build artifacts and arch-specific deps out of the build context:
+# COPY would otherwise clobber the images' freshly installed, Linux-native deps.
+**/node_modules
+**/.venv
+web/dist
+bin/
+data/
+*.db
+
+.git
+.gitignore
+.dockerignore
+.superpowers/
+.env
+.env.*
+**/__pycache__
+*.pyc
+.idea/
+.vscode/
+.DS_Store
+
+# Docs and the old artifacts aren't needed at build time.
+docs/
+*.md
+!py/README.md

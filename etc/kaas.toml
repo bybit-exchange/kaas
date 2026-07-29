@@ -1,0 +1,67 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[storage]
+# "sqlite" or "mysql"
+driver = "sqlite"
+sqlite_path = "./data/kaas.db"
+# mysql_dsn = "user:pass@tcp(127.0.0.1:3306)/kaas"
+kb_dir = "./data"
+
+[worker]
+extract_workers = 4
+pipeline_concurrency = 2
+poll_interval_ms = 1000
+lease_timeout_sec = 300
+# 连续失败多少次后熔断 LLM 调用
+cb_failure_threshold = 5
+# 熔断后多少秒进入半开试探
+cb_cooldown_sec = 30
+
+[ai]
+# 远程 MCP（streamable-http）上游地址；留空则不暴露 /mcp 反代（远程 MCP 关闭）。
+# compose 下设为 http://ai-mcp:8082（也可用环境变量 KAAS_AI_MCP_URL 覆盖）。
+mcp_url = ""
+
+[ai.daemon]
+# kaas 启动时自动 spawn Python daemon 进程，通过 stdin/stdout 多路复用协议通信。
+command = "uv"
+args = ["run", "--directory", "py", "kb-ai", "daemon"]
+concurrency = 8
+warmup_timeout_sec = 30
+max_restarts = 5
+
+[ai.mcp]
+# 是否启用 Go 原生 MCP streamable-http 端点 (/mcp)。默认关闭。
+# 可通过环境变量 KAAS_MCP_ENABLED=true 覆盖。
+enabled = false
+# Bearer token 验证；空值则不验证（仅限内网部署）。
+# 可通过环境变量 KAAS_MCP_TOKEN 覆盖。
+token = ""
+# tools/call 请求超时（秒），超时返回 JSON-RPC internal error。
+timeout_sec = 120
+
+[llm]
+api_key = ""
+base_url = "https://api.openai.com/v1"
+model = "gpt-4o-mini"
+# summarize_model 默认与 model 一致；需要使用不同的轻量模型进行摘要时显式设置
+# summarize_model = ""
+
+# --- Logging ---
+[log]
+# level: debug | info | warn | error (default: info)
+level = "info"
+# format: json | text (default: json)
+format = "json"
+
+# --- Upload limits (POST /api/submit/files) ---
+# All values below show defaults; uncomment and adjust as needed.
+[upload]
+# max_body_bytes = 31457280        # 30 MiB — total multipart body limit
+# max_file_size = 1048576          # 1 MiB — max per individual file
+# max_zip_file_size = 5242880      # 5 MiB — max for a .zip archive
+# max_files_per_upload = 20        # max top-level files in one request
+# max_zip_entries = 200            # max entries extracted from a zip
+# max_zip_extracted_size = 31457280 # 30 MiB — total extracted bytes cap

@@ -1,0 +1,44 @@
+# Data
+data/
+*.db
+
+# Go
+/cmd/kaas/kaas
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Node
+node_modules/
+web/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# Superpowers SDD scratch
+.superpowers/
+
+.ghs
+
+/etc/kaas-dev.toml
+.playwright-mcp/
+screenshots/
+./kaas
+
+# Build artifacts
+dist/
+build/

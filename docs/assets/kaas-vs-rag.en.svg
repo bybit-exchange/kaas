@@ -1,0 +1,123 @@
+<svg viewBox="0 0 1120 705" width="1120" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#ec4899"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <!-- ===== Title ===== -->
+  <text x="560" y="36" font-size="20" fill="#1e293b" text-anchor="middle" font-weight="bold">KaaS vs. naive RAG &#x2014; not just another RAG</text>
+  <text x="560" y="58" font-size="12" fill="#64748b" text-anchor="middle">compile-then-retrieve &#x2014; distill knowledge into a structured Wiki, then retrieve</text>
+
+  <!-- ===== Center divider (background layer) ===== -->
+  <line x1="560" y1="132" x2="560" y2="632" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,6"/>
+
+  <!-- ===== Column headers ===== -->
+  <!-- Left: Naive RAG, muted/negative -->
+  <rect x="60" y="80" width="460" height="40" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="290" y="105" font-size="13" fill="#475569" text-anchor="middle" font-weight="bold">Naive RAG (chunk + vector store)</text>
+
+  <!-- Right: KaaS, positive -->
+  <rect x="600" y="80" width="460" height="40" rx="8" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="105" font-size="13" fill="#166534" text-anchor="middle" font-weight="bold">KaaS &#x2014; compile then retrieve</text>
+
+  <!-- VS badge -->
+  <circle cx="560" cy="100" r="22" fill="#1e293b"/>
+  <text x="560" y="105" font-size="14" fill="#f8fafc" text-anchor="middle" font-weight="bold">VS</text>
+
+  <!-- ================= Left column · flow (center x=290) ================= -->
+  <!-- Arrows (downward) -->
+  <path d="M290,185 L290,193" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,249 L290,257" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,313 L290,321" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,377 L290,385" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-red)"/>
+  <path d="M290,441 L290,449" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-red)"/>
+
+  <!-- B1 Raw text (input) -->
+  <rect x="180" y="140" width="220" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="290" y="164" font-size="12" fill="#1e40af" text-anchor="middle">Raw text / scattered notes</text>
+
+  <!-- B2 Chunk (process) -->
+  <rect x="180" y="204" width="220" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="290" y="228" font-size="12" fill="#b45309" text-anchor="middle">Chunk (mechanical split)</text>
+
+  <!-- B3 Embed (process) -->
+  <rect x="180" y="268" width="220" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="290" y="292" font-size="12" fill="#b45309" text-anchor="middle">Embed</text>
+
+  <!-- B4 Vector store (dark) -->
+  <rect x="180" y="332" width="220" height="40" rx="6" fill="#334155" stroke="#1e293b" stroke-width="1.5"/>
+  <text x="290" y="356" font-size="12" fill="#f1f5f9" text-anchor="middle">Vector store (black box &#xB7; unreadable)</text>
+
+  <!-- B5 Similarity recall (warning) -->
+  <rect x="180" y="396" width="220" height="40" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="290" y="420" font-size="12" fill="#9d174d" text-anchor="middle">Similarity recall &#x2192; fragments</text>
+
+  <!-- B6 Stitched answer (warning) -->
+  <rect x="180" y="460" width="220" height="40" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="290" y="484" font-size="12" fill="#9d174d" text-anchor="middle">Stitched answer (fragmented)</text>
+
+  <!-- ================= Right column · flow (center x=830) ================= -->
+  <!-- Arrows (downward) -->
+  <path d="M830,185 L830,193" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <path d="M830,265 L830,273" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M830,345 L830,353" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <path d="M830,409 L830,417" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+
+  <!-- R1 Raw content (input) -->
+  <rect x="720" y="140" width="220" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="830" y="164" font-size="12" fill="#1e40af" text-anchor="middle">Raw content / scattered notes</text>
+
+  <!-- R2 Distill pipeline (AI, 2 lines) -->
+  <rect x="720" y="204" width="220" height="56" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="830" y="226" font-size="12" fill="#6b21a8" text-anchor="middle">Distill pipeline (denoise + dedup)</text>
+  <text x="830" y="244" font-size="10" fill="#6b21a8" text-anchor="middle">Extract &#x2192; Classify &#x2192; Write &#x2192; Index</text>
+
+  <!-- R3 Structured Markdown Wiki (output, 2 lines) -->
+  <rect x="720" y="284" width="220" height="56" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="306" font-size="12" fill="#166534" text-anchor="middle">Structured Markdown Wiki</text>
+  <text x="830" y="324" font-size="10" fill="#166534" text-anchor="middle">Human-readable &#xB7; git-versioned</text>
+
+  <!-- R4 LLM iteration (AI) -->
+  <rect x="720" y="364" width="220" height="40" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="830" y="381" font-size="11" fill="#6b21a8" text-anchor="middle">LLM iterates, selects pages</text>
+  <text x="830" y="397" font-size="10" fill="#6b21a8" text-anchor="middle">reads full article text</text>
+
+  <!-- R5 Answer + attribution (output, 2 lines) -->
+  <rect x="720" y="428" width="220" height="56" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="450" font-size="12" fill="#166534" text-anchor="middle">Answer + source attribution</text>
+  <text x="830" y="468" font-size="10" fill="#166534" text-anchor="middle">Links to specific articles (clickable)</text>
+
+  <!-- ================= Bottom comparison panels ================= -->
+  <!-- Left: pain points -->
+  <rect x="60" y="520" width="460" height="112" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="76" y="540" font-size="11" fill="#9d174d" font-weight="bold">Pain points &#xB7; the cost of Naive RAG</text>
+  <text x="80" y="562" font-size="10" fill="#9d174d">&#xB7; Noise / duplication / contradiction unresolvable</text>
+  <text x="80" y="580" font-size="10" fill="#9d174d">&#xB7; Fragmented answers &#x2014; stitched together</text>
+  <text x="80" y="598" font-size="10" fill="#9d174d">&#xB7; Vector store black box &#x2014; unreadable, uneditable</text>
+  <text x="80" y="616" font-size="10" fill="#9d174d">&#xB7; Unclear sources, hard to trace</text>
+
+  <!-- Right: advantages -->
+  <rect x="600" y="520" width="460" height="112" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="616" y="540" font-size="11" fill="#166534" font-weight="bold">Advantages &#xB7; KaaS benefits</text>
+  <text x="620" y="562" font-size="10" fill="#166534">&#xB7; Denoise + dedup, structured distillation</text>
+  <text x="620" y="580" font-size="10" fill="#166534">&#xB7; Output is human-readable, git-editable</text>
+  <text x="620" y="598" font-size="10" fill="#166534">&#xB7; Answers with citations, traceable per item</text>
+  <text x="620" y="616" font-size="10" fill="#166534">&#xB7; No vector store dependency</text>
+
+  <!-- ================= Bottom conclusion ================= -->
+  <rect x="240" y="650" width="640" height="34" rx="17" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="560" y="672" font-size="13" fill="#1e293b" text-anchor="middle" font-weight="bold">Don&#x27;t chunk into a vector store &#x2014; distill the knowledge first, then retrieve. Not another RAG.</text>
+</svg>

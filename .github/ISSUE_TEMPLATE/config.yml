@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 使用问题 / Usage question
+    url: https://github.com/bybit-exchange/kaas/discussions
+    about: 用法 / 求助类问题请走 Discussions（如已开启）。Questions go to Discussions.

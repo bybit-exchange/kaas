@@ -1,0 +1,52 @@
+name: Bug report
+description: 报告一个缺陷 / Report a bug
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请尽量填全以下信息，便于我们快速定位。
+        Thanks! Filling these in helps us reproduce and fix faster.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象 / What happened
+      description: 实际发生了什么？/ What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 一步步如何触发 / Minimal steps to trigger it
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为 / Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境 / Environment
+      description: 部署方式（docker / 本地 dev）、OS、Go/Python/Node 版本、LLM endpoint 类型
+      placeholder: |
+        - 部署 / Deploy: docker compose
+        - OS:
+        - Go / Python / Node:
+        - LLM endpoint:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志 / Relevant logs
+      render: shell
+    validations:
+      required: false

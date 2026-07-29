@@ -1,0 +1,142 @@
+<svg viewBox="0 0 1146 392" width="1146" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-blue-lg" markerWidth="12" markerHeight="12" refX="3" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L12,6 L0,12 L3,6 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green-lg" markerWidth="12" markerHeight="12" refX="3" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L12,6 L0,12 L3,6 z" fill="#22c55e"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1146" height="392" fill="#ffffff"/>
+
+  <!-- ===== Title ===== -->
+  <text x="573" y="36" font-size="22" font-weight="bold" fill="#1e293b" text-anchor="middle">Distill, then retrieve</text>
+  <text x="573" y="58" font-size="12" fill="#64748b" text-anchor="middle">KaaS — auto-distills notes / docs / transcripts / URLs into a structured knowledge base, then retrieves for Q&amp;A</text>
+
+  <!-- ===== Section titles ===== -->
+  <text x="180" y="88" font-size="13" font-weight="bold" fill="#64748b" text-anchor="middle">① Messy Input</text>
+  <text x="570" y="88" font-size="13" font-weight="bold" fill="#64748b" text-anchor="middle">② Distill Pipeline</text>
+  <text x="959" y="88" font-size="13" font-weight="bold" fill="#64748b" text-anchor="middle">③ Clean Knowledge</text>
+
+  <!-- ============ Background: distill funnel ============ -->
+  <polygon points="378,152 762,200 762,266 378,314" fill="#f3e8ff" fill-opacity="0.7" stroke="#a855f7" stroke-dasharray="6,4" stroke-width="1.5"/>
+
+  <!-- ============ Connectors ============ -->
+  <!-- Left → funnel (big blue arrow) -->
+  <path d="M300,234 L364,234" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue-lg)"/>
+  <text x="331" y="224" font-size="10" fill="#64748b" text-anchor="middle">ingest</text>
+
+  <!-- Funnel → clean Wiki (big green curve arrow) -->
+  <path d="M758,230 C 786,214 782,152 806,152" fill="none" stroke="#22c55e" stroke-width="2" marker-end="url(#arrow-green-lg)"/>
+  <text x="784" y="250" font-size="10" fill="#64748b" text-anchor="middle">output</text>
+
+  <!-- 4-stage connectors -->
+  <path d="M468,234 L474,234" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <path d="M566,234 L572,234" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <path d="M664,234 L670,234" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- ============ Content ============ -->
+
+  <!-- Left: Messy Input — ghost cards -->
+  <g transform="translate(66,124) rotate(-11)">
+    <rect width="100" height="46" rx="6" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+  <g transform="translate(150,134) rotate(10)">
+    <rect width="100" height="46" rx="6" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+  <g transform="translate(92,206) rotate(-6)">
+    <rect width="108" height="46" rx="6" fill="#eef2f7" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+
+  <!-- Type cards (rotated, scattered) — English only, re-centered to y=29 -->
+  <g transform="translate(52,110) rotate(-7)">
+    <rect width="100" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="50" y="29" font-size="12" fill="#1e40af" text-anchor="middle">Notes</text>
+  </g>
+  <g transform="translate(170,102) rotate(9)">
+    <rect width="100" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="50" y="29" font-size="12" fill="#1e40af" text-anchor="middle">Docs</text>
+  </g>
+  <g transform="translate(56,192) rotate(6)">
+    <rect width="112" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="56" y="29" font-size="12" fill="#1e40af" text-anchor="middle">Transcripts</text>
+  </g>
+  <g transform="translate(178,196) rotate(-9)">
+    <rect width="100" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="50" y="29" font-size="12" fill="#1e40af" text-anchor="middle">URLs</text>
+  </g>
+
+  <!-- Decorative: all-English translation of all-Chinese original -->
+  <text x="180" y="298" font-size="10" fill="#94a3b8" text-anchor="middle">Overlap · Duplicate · Contradict · Noise</text>
+
+  <!-- Center: 4-stage Distill Pipeline -->
+  <text x="570" y="162" font-size="10" fill="#94a3b8" text-anchor="middle">4-stage Distill Pipeline</text>
+
+  <!-- Extract — English only, re-centered to y=237 -->
+  <rect x="387" y="207" width="76" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="425" y="237" font-size="12" fill="#b45309" text-anchor="middle">Extract</text>
+  <!-- Classify -->
+  <rect x="485" y="207" width="76" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="523" y="237" font-size="12" fill="#b45309" text-anchor="middle">Classify</text>
+  <!-- Write -->
+  <rect x="583" y="207" width="76" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="621" y="237" font-size="12" fill="#b45309" text-anchor="middle">Write</text>
+  <!-- Index -->
+  <rect x="681" y="207" width="76" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="719" y="237" font-size="12" fill="#b45309" text-anchor="middle">Index</text>
+
+  <!-- Paired-inline: English side only -->
+  <text x="570" y="338" font-size="10" fill="#64748b" text-anchor="middle">denoise · dedup · merge</text>
+
+  <!-- Right: Clean Knowledge — Wiki card grid 3x2 -->
+  <g transform="translate(812,104)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># Concepts</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">Concepts.md</text>
+  </g>
+  <g transform="translate(912,104)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># Decisions</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">Decisions.md</text>
+  </g>
+  <g transform="translate(1012,104)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># People</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">People.md</text>
+  </g>
+  <g transform="translate(812,160)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># Projects</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">Projects.md</text>
+  </g>
+  <g transform="translate(912,160)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># Meetings</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">Meetings.md</text>
+  </g>
+  <g transform="translate(1012,160)">
+    <rect width="94" height="48" rx="6" fill="#ffffff" stroke="#22c55e" stroke-width="1.5"/>
+    <text x="10" y="20" font-size="11" font-weight="bold" fill="#166534"># Glossary</text>
+    <text x="10" y="37" font-size="9" fill="#64748b">Glossary.md</text>
+  </g>
+
+  <!-- Q&A bubbles -->
+  <!-- Question bubble — font-size 10 to fit 208px box -->
+  <rect x="898" y="226" width="208" height="32" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="1002" y="246" font-size="10" fill="#1e40af" text-anchor="middle">Q: How to search this knowledge base?</text>
+  <!-- Answer bubble (with citation) -->
+  <rect x="812" y="270" width="252" height="70" rx="8" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="824" y="295" font-size="12" fill="#6b21a8">A: Distill to Wiki, then retrieve</text>
+  <rect x="824" y="310" width="118" height="24" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1"/>
+  <text x="883" y="326" font-size="10" fill="#166534" text-anchor="middle">cited: [Concepts.md]</text>
+
+  <!-- Footer: English side only -->
+  <text x="959" y="360" font-size="10" fill="#64748b" text-anchor="middle">cited answers</text>
+</svg>

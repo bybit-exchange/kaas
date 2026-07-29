@@ -1,0 +1,24 @@
+# KaaS 开源仓库标签集。激活时同步到 GitHub（见 docs/agent-github-ops-runbook.md）：
+#   gh label create <name> --color <color> --description "<description>"
+# L1 自动 triage 只应用此处已存在的标签，绝不新建标签。
+- name: bug
+  color: d73a4a
+  description: 确认或疑似的缺陷
+- name: enhancement
+  color: a2eeef
+  description: 新功能或改进建议
+- name: question
+  color: d876e3
+  description: 使用问题 / 求助
+- name: documentation
+  color: 0075ca
+  description: 文档相关
+- name: good-first-issue
+  color: 7057ff
+  description: 适合新贡献者上手
+- name: duplicate
+  color: cfd3d7
+  description: 与已有 issue 重复
+- name: needs-repro
+  color: fbca04
+  description: 缺少复现信息，待补充

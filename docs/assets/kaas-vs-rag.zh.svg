@@ -1,0 +1,122 @@
+<svg viewBox="0 0 1120 705" width="1120" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#ec4899"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <!-- ===== 标题 ===== -->
+  <text x="560" y="36" font-size="20" fill="#1e293b" text-anchor="middle" font-weight="bold">KaaS vs 传统 RAG：不是又一个 RAG</text>
+  <text x="560" y="58" font-size="12" fill="#64748b" text-anchor="middle">compile-then-retrieve &#x2014; 先把知识蒸馏成结构化 Wiki，再检索</text>
+
+  <!-- ===== 中间分隔虚线 (背景层) ===== -->
+  <line x1="560" y1="132" x2="560" y2="632" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6,6"/>
+
+  <!-- ===== 栏目头 ===== -->
+  <!-- 左：传统做法，muted/负向 -->
+  <rect x="60" y="80" width="460" height="40" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="290" y="105" font-size="13" fill="#475569" text-anchor="middle" font-weight="bold">传统做法：切块 + 向量库</text>
+
+  <!-- 右：KaaS，正向 -->
+  <rect x="600" y="80" width="460" height="40" rx="8" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="105" font-size="13" fill="#166534" text-anchor="middle" font-weight="bold">KaaS · 先蒸馏再检索</text>
+
+  <!-- VS 徽标 -->
+  <circle cx="560" cy="100" r="22" fill="#1e293b"/>
+  <text x="560" y="105" font-size="14" fill="#f8fafc" text-anchor="middle" font-weight="bold">VS</text>
+
+  <!-- ================= 左栏 · 流程 (center x=290) ================= -->
+  <!-- 箭头 (向下) -->
+  <path d="M290,185 L290,193" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,249 L290,257" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,313 L290,321" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+  <path d="M290,377 L290,385" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-red)"/>
+  <path d="M290,441 L290,449" stroke="#ec4899" stroke-width="1.5" fill="none" marker-end="url(#arrow-red)"/>
+
+  <!-- B1 原始文本 (input) -->
+  <rect x="180" y="140" width="220" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="290" y="164" font-size="12" fill="#1e40af" text-anchor="middle">原始文本 / 散乱笔记</text>
+
+  <!-- B2 切块 (process) -->
+  <rect x="180" y="204" width="220" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="290" y="228" font-size="12" fill="#b45309" text-anchor="middle">切块（机械切分）</text>
+
+  <!-- B3 向量化 (process) -->
+  <rect x="180" y="268" width="220" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="290" y="292" font-size="12" fill="#b45309" text-anchor="middle">向量化</text>
+
+  <!-- B4 向量库黑箱 (dark) -->
+  <rect x="180" y="332" width="220" height="40" rx="6" fill="#334155" stroke="#1e293b" stroke-width="1.5"/>
+  <text x="290" y="356" font-size="12" fill="#f1f5f9" text-anchor="middle">向量库（黑箱 · 不可读）</text>
+
+  <!-- B5 相似度召回碎片 (warning) -->
+  <rect x="180" y="396" width="220" height="40" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="290" y="420" font-size="12" fill="#9d174d" text-anchor="middle">相似度召回一堆碎片</text>
+
+  <!-- B6 拼接成答案 (warning) -->
+  <rect x="180" y="460" width="220" height="40" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="290" y="484" font-size="12" fill="#9d174d" text-anchor="middle">拼接成答案（易碎片化）</text>
+
+  <!-- ================= 右栏 · 流程 (center x=830) ================= -->
+  <!-- 箭头 (向下) -->
+  <path d="M830,185 L830,193" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <path d="M830,265 L830,273" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+  <path d="M830,345 L830,353" stroke="#a855f7" stroke-width="1.5" fill="none" marker-end="url(#arrow-purple)"/>
+  <path d="M830,409 L830,417" stroke="#22c55e" stroke-width="1.5" fill="none" marker-end="url(#arrow-green)"/>
+
+  <!-- R1 原始内容 (input) -->
+  <rect x="720" y="140" width="220" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="830" y="164" font-size="12" fill="#1e40af" text-anchor="middle">原始内容 / 散乱笔记</text>
+
+  <!-- R2 蒸馏流水线 (AI, 2行) -->
+  <rect x="720" y="204" width="220" height="56" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="830" y="226" font-size="12" fill="#6b21a8" text-anchor="middle">蒸馏流水线（去噪去重）</text>
+  <text x="830" y="244" font-size="10" fill="#6b21a8" text-anchor="middle">提取 &#x2192; 分类 &#x2192; 写作 &#x2192; 索引</text>
+
+  <!-- R3 结构化 Markdown Wiki (output, 2行) -->
+  <rect x="720" y="284" width="220" height="56" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="306" font-size="12" fill="#166534" text-anchor="middle">结构化 Markdown Wiki</text>
+  <text x="830" y="324" font-size="10" fill="#166534" text-anchor="middle">人可读 · 可 git 版本管理</text>
+
+  <!-- R4 LLM 迭代选页 (AI) -->
+  <rect x="720" y="364" width="220" height="40" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="830" y="388" font-size="12" fill="#6b21a8" text-anchor="middle">LLM 迭代选页读全文</text>
+
+  <!-- R5 答案 + 引用溯源 (output, 2行) -->
+  <rect x="720" y="428" width="220" height="56" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="830" y="450" font-size="12" fill="#166534" text-anchor="middle">答案 + 引用溯源</text>
+  <text x="830" y="468" font-size="10" fill="#166534" text-anchor="middle">指回具体文章（可点击）</text>
+
+  <!-- ================= 底部对比面板 ================= -->
+  <!-- 左：痛点 -->
+  <rect x="60" y="520" width="460" height="112" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="76" y="540" font-size="11" fill="#9d174d" font-weight="bold">痛点 · 传统 RAG 的代价</text>
+  <text x="80" y="562" font-size="10" fill="#9d174d">· 噪声 / 重复 / 矛盾无法消解</text>
+  <text x="80" y="580" font-size="10" fill="#9d174d">· 答案碎片化，靠拼接凑答案</text>
+  <text x="80" y="598" font-size="10" fill="#9d174d">· 向量库黑箱，不可读、不可编辑</text>
+  <text x="80" y="616" font-size="10" fill="#9d174d">· 来源不清，难以溯源</text>
+
+  <!-- 右：优势 -->
+  <rect x="600" y="520" width="460" height="112" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="1.5" stroke-dasharray="6,4"/>
+  <text x="616" y="540" font-size="11" fill="#166534" font-weight="bold">优势 · KaaS 的收益</text>
+  <text x="620" y="562" font-size="10" fill="#166534">· 去噪去重，结构化蒸馏</text>
+  <text x="620" y="580" font-size="10" fill="#166534">· 产物人可读、可 git 编辑</text>
+  <text x="620" y="598" font-size="10" fill="#166534">· 答案带引用，可逐条溯源</text>
+  <text x="620" y="616" font-size="10" fill="#166534">· 无向量库依赖</text>
+
+  <!-- ================= 底部结论 ================= -->
+  <rect x="330" y="650" width="460" height="34" rx="17" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
+  <text x="560" y="672" font-size="13" fill="#1e293b" text-anchor="middle" font-weight="bold">不切块塞向量库 &#x2014;&#x2014; 先把知识蒸馏干净，再检索。</text>
+</svg>

@@ -1,0 +1,30 @@
+[project]
+name = "kb-ai"
+version = "0.1.0"
+description = "KaaS AI Engine — LLM-powered knowledge compilation pipeline + LLM iterative retrieval + streaming chat"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "json-repair>=0.30",
+    "mcp>=1.2",
+    "openai>=1.60",
+    "pyyaml>=6.0",
+    "trafilatura>=2.0",
+]
+
+[project.scripts]
+kb-ai = "kb_ai.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: end-to-end tests that spawn a subprocess (deselect with -m 'not slow')",
+]

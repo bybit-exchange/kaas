@@ -1,0 +1,44 @@
+name: Claude Interactive (@claude)
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+# contents:write 允许改文件/建分支；不自动 merge（无 merge 步骤）
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  claude:
+    # 只有评论包含 @claude 才进入（action 内部还会再判 trigger_phrase）
+    if: contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      # 默认 checkout 触发上下文的分支。本 workflow 仅 write 权限用户可触发，注入面小；
+      # 若将来开放外部用户 @claude，需改为只 checkout base branch、不 checkout 不可信 PR ref
+      # （见 docs/agent-github-ops-runbook.md 安全护栏）。
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (OIDC -> Bedrock)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_bedrock: "true"
+          trigger_phrase: "@claude"
+          # 默认仅 write 权限用户可触发；**不设 allowed_non_write_users**（不开放外部用户召唤）
+          claude_args: |
+            --model ${{ vars.BEDROCK_MODEL_ID }}
+            --max-turns 15

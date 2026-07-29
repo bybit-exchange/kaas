@@ -1,0 +1,1 @@
+Given the conversation history, rewrite the latest question as a self-contained search query. Output ONLY the rewritten query, nothing else.

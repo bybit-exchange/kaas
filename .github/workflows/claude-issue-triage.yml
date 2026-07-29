@@ -1,0 +1,43 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+# 最小权限：读代码、写 issue（打标签/评论）、OIDC 取 AWS 凭证
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC -> Bedrock)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Claude triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_bedrock: "true"
+          claude_args: |
+            --model ${{ vars.BEDROCK_MODEL_ID }}
+            --max-turns 6
+            --allowedTools "Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue list:*),Bash(gh issue comment:*),Bash(gh label list:*)"
+          prompt: |
+            你在为开源仓库 KaaS 做 issue 自动 triage。当前 issue：#${{ github.event.issue.number }}。
+            语气友好、专业，回复语言跟随 issue 正文的语言。只做以下事：
+            1. 读 issue 标题与正文，从仓库**已存在的标签**里选最贴切的打上
+               （类型：bug / enhancement / question / documentation；若明显适合新手，加 good-first-issue）。
+               先用 `gh label list` 确认标签存在，**只用已存在的标签，绝不新建**。
+            2. 用 `gh issue list` 粗查是否有明显重复的已存在 issue；若有，礼貌评论指出可能重复并贴出编号，并打上 duplicate 标签。
+            3. 若是 bug 但缺少复现步骤 / 环境 / 期望行为，礼貌追问缺失信息，并打上 needs-repro 标签。
+            4. 用 `gh issue edit` 应用标签；用 `gh issue comment` 发出追问 / 重复说明。
+            红线：**不要修改任何代码、不要关闭 issue、不要打无关标签、不要执行 gh 之外的命令。**
