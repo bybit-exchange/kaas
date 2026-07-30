@@ -1,0 +1,25 @@
+docs/assets/architecture.zh.svg
+  c36a0bbd3d4a112f 49
+docs/assets/architecture.en.svg
+  c36a0bbd3d4a112f 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "13eee242f86ddc6221d9ce402644786016eed289",
+  "prompts": {
+    "c36a0bbd3d4a112f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "27a60c85-a2e6-4bbd-b367-cc3c21e7c094",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 5801,
+      "total_deletions": 2,
+      "accepted_lines": 5801,
+      "overriden_lines": 0
+    }
+  }
+}
