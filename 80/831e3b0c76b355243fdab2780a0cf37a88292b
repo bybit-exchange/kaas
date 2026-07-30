@@ -1,0 +1,23 @@
+install.sh
+  a67ec4a7895ac7dc 23-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "80831e3b0c76b355243fdab2780a0cf37a88292b",
+  "prompts": {
+    "a67ec4a7895ac7dc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5944730d-7c9d-43bf-96b8-a20a1a64e387",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
