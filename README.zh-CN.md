@@ -192,6 +192,14 @@ Docker 部署时，通过 `-e` 传入环境变量即可覆盖 TOML 配置：
 最快的本地启动方式：
 
 ```bash
+# 首次开发：创建本地配置文件（已被 .gitignore 忽略）
+cp etc/kaas.toml etc/kaas-dev.toml
+# 编辑 etc/kaas-dev.toml —— 填入你的 LLM 配置：
+#   [llm]
+#   api_key = "sk-..."
+#   base_url = "https://api.openai.com/v1"   # 或你使用的 API 端点
+#   model = "gpt-4o-mini"
+
 make dev
 ```
 
