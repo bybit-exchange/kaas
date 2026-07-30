@@ -38,13 +38,58 @@ echo "[2/4] Building web frontend..."
 (cd "${ROOT_DIR}/web" && pnpm install --frozen-lockfile && pnpm build)
 cp -r "${ROOT_DIR}/web/dist" "${BUILD_DIR}/web/dist"
 
-# --- Step 3: Python venv (relocatable) ---
-echo "[3/4] Building Python venv (relocatable)..."
-uv python install 3.12
+# --- Step 3: Python venv (self-contained) ---
+echo "[3/4] Building Python venv (self-contained)..."
+
+# Install Python INTO the build directory so it ships with the tarball.
+# Without this, the venv's python symlink points to the build machine's path
+# (e.g. /Users/runner/.local/share/uv/python/...) which breaks on the user's machine.
+PYTHON_INSTALL_DIR="${BUILD_DIR}/py/.python"
+UV_PYTHON_INSTALL_DIR="$PYTHON_INSTALL_DIR" uv python install 3.12
+BUNDLED_PYTHON=$(find "$PYTHON_INSTALL_DIR" -name "python3.12" -type f -path "*/bin/*" | head -1)
+if [ -z "$BUNDLED_PYTHON" ]; then
+    echo "ERROR: Could not find bundled python3.12 binary" >&2
+    exit 1
+fi
+PYTHON_INSTALL_NAME=$(basename "$(dirname "$(dirname "$BUNDLED_PYTHON")")")
+
 VENV_TARGET="${BUILD_DIR}/py/.venv"
-uv venv --relocatable --python 3.12 "${VENV_TARGET}"
+uv venv --relocatable --python "$BUNDLED_PYTHON" "${VENV_TARGET}"
 (cd "${ROOT_DIR}/py" && UV_PROJECT_ENVIRONMENT="${VENV_TARGET}" \
-    uv sync --frozen --python 3.12)
+    uv sync --frozen --python "$BUNDLED_PYTHON")
+
+# Fix the venv's python symlink: replace the absolute path (pointing to the build
+# machine) with a relative path to the bundled Python interpreter.
+# From py/.venv/bin/python → py/.python/<install-name>/bin/python3.12
+rm -f "${VENV_TARGET}/bin/python"
+ln -s "../../.python/${PYTHON_INSTALL_NAME}/bin/python3.12" "${VENV_TARGET}/bin/python"
+
+# Fix pyvenv.cfg home path to be relative as well.
+if grep -q "^home = /" "${VENV_TARGET}/pyvenv.cfg"; then
+    sed -i.bak "s|^home = .*|home = ../../.python/${PYTHON_INSTALL_NAME}/bin|" "${VENV_TARGET}/pyvenv.cfg"
+    rm -f "${VENV_TARGET}/pyvenv.cfg.bak"
+fi
+
+# Clean up uv metadata and fix any absolute symlinks in the Python install dir.
+rm -rf "${PYTHON_INSTALL_DIR}/.temp" "${PYTHON_INSTALL_DIR}/.lock" "${PYTHON_INSTALL_DIR}/.gitignore"
+# uv creates a short-name symlink (e.g. cpython-3.12-...) as an absolute link;
+# replace with relative or remove since we reference the versioned dir directly.
+find "${PYTHON_INSTALL_DIR}" -maxdepth 1 -type l | while read -r link; do
+    target=$(readlink "$link")
+    if echo "$target" | grep -q "^/"; then
+        basename_target=$(basename "$target")
+        rm "$link"
+        ln -s "$basename_target" "$link"
+    fi
+done
+
+# Strip unnecessary files from bundled Python to reduce tarball size.
+rm -rf "${PYTHON_INSTALL_DIR}/${PYTHON_INSTALL_NAME}/include"
+rm -rf "${PYTHON_INSTALL_DIR}/${PYTHON_INSTALL_NAME}/share"
+find "${PYTHON_INSTALL_DIR}" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+find "${PYTHON_INSTALL_DIR}" -name "*.pyc" -delete 2>/dev/null || true
+find "${PYTHON_INSTALL_DIR}" -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
+find "${PYTHON_INSTALL_DIR}" -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Verify shebang is not absolute to build machine
 if [ -f "${VENV_TARGET}/bin/kb-ai" ]; then

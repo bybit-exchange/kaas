@@ -47,6 +47,28 @@ for f in "${REQUIRED_FILES[@]}"; do
   fi
 done
 
+# --- 2b. Bundled Python interpreter must exist (not just a broken symlink) ---
+if ! grep -q "kaas/py/.python/.*/bin/python3.12" "$FILE_LIST_FILE"; then
+  echo "FAIL: bundled Python interpreter not found (kaas/py/.python/*/bin/python3.12)"
+  echo "  The venv's python symlink will be broken without the bundled interpreter."
+  ERRORS=$((ERRORS + 1))
+fi
+
+# --- 2c. Venv python symlink must be relative (not absolute to build machine) ---
+PYTHON_LINK_TMP=$(mktemp -d "${TMPDIR:-/tmp}/kaas-pylink-XXXXXX")
+if grep -qx "kaas/py/.venv/bin/python" "$FILE_LIST_FILE"; then
+  tar -xzf "$TARBALL" -C "$PYTHON_LINK_TMP" "kaas/py/.venv/bin/python" 2>/dev/null || true
+  if [ -L "$PYTHON_LINK_TMP/kaas/py/.venv/bin/python" ]; then
+    LINK_TARGET=$(readlink "$PYTHON_LINK_TMP/kaas/py/.venv/bin/python")
+    if echo "$LINK_TARGET" | grep -q "^/"; then
+      echo "FAIL: py/.venv/bin/python is an absolute symlink: $LINK_TARGET"
+      echo "  This will break on the user's machine. Must be relative."
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
+fi
+rm -rf "$PYTHON_LINK_TMP"
+
 # --- 3. Shebang check on kaas/py/.venv/bin/kb-ai ---
 SHEBANG_TMP=$(mktemp -d "${TMPDIR:-/tmp}/kaas-shebang-XXXXXX")
 trap 'rm -rf "$SHEBANG_TMP" "$FILE_LIST_FILE"' EXIT
