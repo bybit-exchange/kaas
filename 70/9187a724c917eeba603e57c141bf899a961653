@@ -1,0 +1,23 @@
+.claude/skills/kaas-article/SKILL.md
+  efa7c6b5d64b2147 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "709187a724c917eeba603e57c141bf899a961653",
+  "prompts": {
+    "efa7c6b5d64b2147": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d80cada8-f2c6-4b8f-a98f-6a3cda7cb8f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 51,
+      "total_deletions": 0,
+      "accepted_lines": 639,
+      "overriden_lines": 0
+    }
+  }
+}

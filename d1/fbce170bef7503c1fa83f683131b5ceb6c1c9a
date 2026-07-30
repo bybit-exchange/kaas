@@ -1,0 +1,52 @@
+py/src/kb_ai/server_http.py
+  eca815de3aeb6a68 93
+py/src/kb_ai/commands/pipeline/_phase_write.py
+  eca815de3aeb6a68 26-28,31
+py/src/kb_ai/llm/_completion_json.py
+  eca815de3aeb6a68 1-49
+py/src/kb_ai/llm/_completion.py
+  eca815de3aeb6a68 1,200
+py/src/kb_ai/llm/__init__.py
+  eca815de3aeb6a68 50-51
+py/src/kb_ai/commands/pipeline/_phase_dedup.py
+  eca815de3aeb6a68 14-16
+py/src/kb_ai/commands/chat.py
+  eca815de3aeb6a68 27
+py/src/kb_ai/commands/pipeline/_orchestrator.py
+  eca815de3aeb6a68 23
+py/tests/test_llm_completion.py
+  eca815de3aeb6a68 19-20
+py/src/kb_ai/commands/pipeline/_entry.py
+  eca815de3aeb6a68 17,19-20
+py/tests/test_pipeline_integration.py
+  eca815de3aeb6a68 1-217
+py/tests/test_main_registry.py
+  eca815de3aeb6a68 1-122
+py/src/kb_ai/commands/pipeline/_phase_classify.py
+  eca815de3aeb6a68 22-24,27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d1fbce170bef7503c1fa83f683131b5ceb6c1c9a",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 525,
+      "total_deletions": 2803,
+      "accepted_lines": 1519,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}

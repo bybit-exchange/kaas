@@ -1,0 +1,72 @@
+py/tests/test_core_extract_combine.py
+  eca815de3aeb6a68 1-67
+py/src/kb_ai/core/merge.py
+  eca815de3aeb6a68 6
+py/src/kb_ai/store.py
+  eca815de3aeb6a68 1-3
+py/src/kb_ai/query.py
+  eca815de3aeb6a68 1-3
+py/src/kb_ai/core/classify.py
+  eca815de3aeb6a68 8-11
+py/src/kb_ai/retrieval/retrieve.py
+  eca815de3aeb6a68 24-25
+py/src/kb_ai/extract.py
+  eca815de3aeb6a68 1-37
+py/src/kb_ai/compile.py
+  eca815de3aeb6a68 11-14,16-17
+py/src/kb_ai/retrieval/__init__.py
+  eca815de3aeb6a68 1
+py/src/kb_ai/retrieval/query.py
+  eca815de3aeb6a68 1-67
+py/tests/test_storage.py
+  eca815de3aeb6a68 1-47
+py/src/kb_ai/core/extract.py
+  eca815de3aeb6a68 730-750
+py/src/kb_ai/storage/index.py
+  eca815de3aeb6a68 7
+py/src/kb_ai/storage/store.py
+  eca815de3aeb6a68 1-202
+py/src/kb_ai/core/people.py
+  eca815de3aeb6a68 9
+py/src/kb_ai/merge.py
+  eca815de3aeb6a68 1-22
+py/src/kb_ai/people.py
+  eca815de3aeb6a68 1-13
+py/src/kb_ai/classify.py
+  eca815de3aeb6a68 1-11
+py/src/kb_ai/retrieve.py
+  eca815de3aeb6a68 1,3-6,12-34,36-38,41-49
+py/src/kb_ai/storage/__init__.py
+  eca815de3aeb6a68 1
+py/tests/test_core_classify.py
+  eca815de3aeb6a68 1-61
+py/src/kb_ai/core/__init__.py
+  eca815de3aeb6a68 1
+py/src/kb_ai/index.py
+  eca815de3aeb6a68 1-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "7c43bbfdb80f78e341d5f030b3b291158850c99d",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 692,
+      "total_deletions": 2120,
+      "accepted_lines": 1730,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}

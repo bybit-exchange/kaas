@@ -1,0 +1,29 @@
+py/tests/test_types.py
+  eca815de3aeb6a68 1-191
+py/src/kb_ai/_types.py
+  eca815de3aeb6a68 1-126
+py/src/kb_ai/_protocol.py
+  eca815de3aeb6a68 1-106
+py/tests/test_protocol.py
+  eca815de3aeb6a68 1-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "96a45fabc259a9a3849f0fdd983a0d05a41138f2",
+  "prompts": {
+    "eca815de3aeb6a68": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fec1f41-937e-4619-9cdb-8dc995c2df70",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 634,
+      "total_deletions": 0,
+      "accepted_lines": 1742,
+      "overriden_lines": 0
+    }
+  }
+}

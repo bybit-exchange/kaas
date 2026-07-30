@@ -1,0 +1,27 @@
+docs/assets/distill-flow.zh.svg
+  a83018f717a275e7 81
+docs/assets/distill-flow.en.svg
+  a83018f717a275e7 80
+docs/assets/distill-flow.svg
+  a83018f717a275e7 85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "529848a3bec928230ae7aed0ab700b24904e6859",
+  "prompts": {
+    "a83018f717a275e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11330f93-ed86-42d7-bd3c-38f987eebc3f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 3,
+      "accepted_lines": 164,
+      "overriden_lines": 0
+    }
+  }
+}

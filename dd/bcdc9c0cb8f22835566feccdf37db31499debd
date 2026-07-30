@@ -1,0 +1,36 @@
+docs/open-source-proposal.md
+  58b449f5c0e74211 252,257-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "ddbcdc9c0cb8f22835566feccdf37db31499debd",
+  "prompts": {
+    "58b449f5c0e74211": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b9c83ce8-738d-4d9c-b127-49964a103399",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 2,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    },
+    "aee2b9c2c3b95a70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "da5f0136-5314-4f7a-8895-f1f6ae0e5b1a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 123,
+      "total_deletions": 90,
+      "accepted_lines": 123,
+      "overriden_lines": 0
+    }
+  }
+}

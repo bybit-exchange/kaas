@@ -1,0 +1,27 @@
+.github/ISSUE_TEMPLATE/feature_request.yml
+  efa7c6b5d64b2147 1-28
+.github/ISSUE_TEMPLATE/bug_report.yml
+  efa7c6b5d64b2147 1-52
+.github/ISSUE_TEMPLATE/config.yml
+  efa7c6b5d64b2147 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "786768a8ff629c5f8aae4cce53218609bd4d0954",
+  "prompts": {
+    "efa7c6b5d64b2147": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d80cada8-f2c6-4b8f-a98f-6a3cda7cb8f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 93,
+      "total_deletions": 7,
+      "accepted_lines": 1261,
+      "overriden_lines": 0
+    }
+  }
+}

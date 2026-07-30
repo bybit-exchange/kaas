@@ -1,0 +1,53 @@
+web/src/components/ui/button.tsx
+  c8043354d54a3a66 1-34
+web/src/components/ui/card.tsx
+  c8043354d54a3a66 1-17
+web/src/components/ui/select.tsx
+  c8043354d54a3a66 1-147
+web/src/layouts/AppLayout.tsx
+  c8043354d54a3a66 1-87
+web/src/main.tsx
+  c8043354d54a3a66 3-7,13-18
+web/src/layouts/AppLayout.test.tsx
+  c8043354d54a3a66 1-92
+web/src/components/ui/dropdown-menu.tsx
+  c8043354d54a3a66 1-77
+web/src/App.tsx
+  c8043354d54a3a66 1-19,21-32
+web/src/components/ui/scroll-area.tsx
+  c8043354d54a3a66 1-9
+web/src/components/ui/dialog.tsx
+  c8043354d54a3a66 1-99
+web/src/components/ui/separator.tsx
+  c8043354d54a3a66 1-18
+web/src/components/ui/textarea.tsx
+  c8043354d54a3a66 1-15
+web/src/components/ui/skeleton.tsx
+  c8043354d54a3a66 1-7
+web/src/components/ui/badge.tsx
+  c8043354d54a3a66 1-25
+web/src/components/ui/input.tsx
+  c8043354d54a3a66 1-16
+web/src/components/ui/tabs.tsx
+  c8043354d54a3a66 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "a51a12bb74892714f7e05f8ff567a7ddce3d984d",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 760,
+      "total_deletions": 2,
+      "accepted_lines": 764,
+      "overriden_lines": 0
+    }
+  }
+}

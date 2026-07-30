@@ -1,0 +1,44 @@
+docs/agent-article-writer-plan.md
+  efa7c6b5d64b2147 1-307
+docs/agent-article-writer-design.md
+  efa7c6b5d64b2147 1-68
+docs/features/agent-mcp-access/tech-design.md
+  aee2b9c2c3b95a70 1-174
+docs/agent-github-ops-plan.md
+  efa7c6b5d64b2147 1-588
+docs/agent-github-ops-design.md
+  efa7c6b5d64b2147 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "35e4d731100c369383577cac075f3251d13c0d58",
+  "prompts": {
+    "aee2b9c2c3b95a70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "da5f0136-5314-4f7a-8895-f1f6ae0e5b1a",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 970752,
+      "total_deletions": 4096,
+      "accepted_lines": 174,
+      "overriden_lines": 0
+    },
+    "efa7c6b5d64b2147": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d80cada8-f2c6-4b8f-a98f-6a3cda7cb8f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1176,
+      "overriden_lines": 0
+    }
+  }
+}

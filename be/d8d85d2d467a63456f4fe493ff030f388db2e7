@@ -1,0 +1,25 @@
+docs/agent-github-ops-runbook.md
+  efa7c6b5d64b2147 3-6,84-90
+.github/workflows/claude-interactive.yml
+  efa7c6b5d64b2147 23-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "bed8d85d2d467a63456f4fe493ff030f388db2e7",
+  "prompts": {
+    "efa7c6b5d64b2147": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d80cada8-f2c6-4b8f-a98f-6a3cda7cb8f3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 3,
+      "accepted_lines": 1190,
+      "overriden_lines": 0
+    }
+  }
+}

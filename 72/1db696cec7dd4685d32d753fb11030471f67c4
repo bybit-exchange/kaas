@@ -1,0 +1,39 @@
+cmd/kaas/main.go
+  b6f305f4cdb9cf40 3-6,15,17-18,20-21,23,26,54-76,80-84,88-94
+.gitignore
+  b6f305f4cdb9cf40 31-33
+internal/config/config_test.go
+  b6f305f4cdb9cf40 87-89
+docs/features/go-backend-worker/implementation-plan.md
+  b6f305f4cdb9cf40 1-1559
+docs/assets/architecture.svg
+  b6f305f4cdb9cf40 96,98,111,138,141
+etc/kaas.toml
+  b6f305f4cdb9cf40 17-20
+docs/open-source-plan.md
+  b6f305f4cdb9cf40 7,25,27,36,46,58,201
+internal/config/config.go
+  b6f305f4cdb9cf40 46-47
+docs/features/go-backend-worker/tech-design.md
+  b6f305f4cdb9cf40 1-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "721db696cec7dd4685d32d753fb11030471f67c4",
+  "prompts": {
+    "b6f305f4cdb9cf40": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e32fdf43-89e6-4d50-a1dc-4e6107c11be8",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 66,
+      "total_deletions": 6,
+      "accepted_lines": 1817,
+      "overriden_lines": 1
+    }
+  }
+}

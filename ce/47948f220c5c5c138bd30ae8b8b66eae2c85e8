@@ -1,0 +1,25 @@
+web/index.html
+  c8043354d54a3a66 7
+web/src/pages/Status.tsx
+  c8043354d54a3a66 20-25,192,222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "ce47948f220c5c5c138bd30ae8b8b66eae2c85e8",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 6,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    }
+  }
+}

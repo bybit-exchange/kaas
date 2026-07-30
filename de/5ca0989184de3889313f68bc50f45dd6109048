@@ -1,0 +1,29 @@
+py/tests/test_retrieve.py
+  9306744ad773ddc6 1-185
+docs/features/chat-iterative-retrieval/tech-design.md
+  9306744ad773ddc6 1-77
+py/src/kb_ai/retrieve.py
+  9306744ad773ddc6 1-108
+py/src/kb_ai/server_chat.py
+  9306744ad773ddc6 182-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "de5ca0989184de3889313f68bc50f45dd6109048",
+  "prompts": {
+    "9306744ad773ddc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e94a1f54-9f7b-4932-9848-2a263c60baf2",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 1391,
+      "total_deletions": 229,
+      "accepted_lines": 380,
+      "overriden_lines": 0
+    }
+  }
+}

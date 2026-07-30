@@ -1,0 +1,39 @@
+web/src/i18n/strings.ts
+  c8043354d54a3a66 14-20,29-35
+web/src/App.tsx
+  c8043354d54a3a66 3,24
+web/src/pages/Wiki.test.tsx
+  c8043354d54a3a66 1-76
+web/src/features/wiki/MarkdownArticle.tsx
+  c8043354d54a3a66 1-126
+web/src/features/wiki/TableOfContents.test.tsx
+  c8043354d54a3a66 1-36
+web/src/features/wiki/TableOfContents.tsx
+  c8043354d54a3a66 1-89
+web/src/features/wiki/MermaidBlock.tsx
+  c8043354d54a3a66 1-48
+web/src/pages/Wiki.tsx
+  c8043354d54a3a66 1-157
+web/src/test-setup.ts
+  c8043354d54a3a66 3-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "d9aa194ce6b3c640f2501089b659d903f63d05c9",
+  "prompts": {
+    "c8043354d54a3a66": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fec1f849-dcd2-4600-92fd-361a6115718c",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 568,
+      "total_deletions": 9,
+      "accepted_lines": 568,
+      "overriden_lines": 0
+    }
+  }
+}

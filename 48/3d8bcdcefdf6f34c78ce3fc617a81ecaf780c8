@@ -1,0 +1,23 @@
+docs/open-source-plan.md
+  df9ea03637d39b64 5,16,33,57,97,113,149,170,175,244,247-248,267
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "483d8bcdcefdf6f34c78ce3fc617a81ecaf780c8",
+  "prompts": {
+    "df9ea03637d39b64": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dd310cf5-ff42-47b4-b1b9-96373d57f213",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 12,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    }
+  }
+}

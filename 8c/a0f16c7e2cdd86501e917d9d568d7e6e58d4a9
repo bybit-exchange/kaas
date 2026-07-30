@@ -1,0 +1,25 @@
+LICENSE
+  58b449f5c0e74211 1-21
+py/pyproject.toml
+  58b449f5c0e74211 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "8ca0f16c7e2cdd86501e917d9d568d7e6e58d4a9",
+  "prompts": {
+    "58b449f5c0e74211": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b9c83ce8-738d-4d9c-b127-49964a103399",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 76,
+      "total_deletions": 0,
+      "accepted_lines": 43,
+      "overriden_lines": 0
+    }
+  }
+}

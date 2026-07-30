@@ -1,0 +1,23 @@
+docs/agent-quickstart.md
+  a83018f717a275e7 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "40d5d56f87207e61abfaade683ebb755b95c0ed7",
+  "prompts": {
+    "a83018f717a275e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "11330f93-ed86-42d7-bd3c-38f987eebc3f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 2,
+      "accepted_lines": 87,
+      "overriden_lines": 0
+    }
+  }
+}

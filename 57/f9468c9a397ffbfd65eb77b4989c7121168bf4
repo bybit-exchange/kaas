@@ -1,0 +1,33 @@
+internal/config/config.go
+  0510805afee64b90 57-60,92-94
+internal/api/server.go
+  0510805afee64b90 18-19,62-64,91-97,106-125
+cmd/kaas/main.go
+  0510805afee64b90 83
+etc/kaas.toml
+  0510805afee64b90 24-26
+internal/config/config_test.go
+  0510805afee64b90 38,52-54,91-93,129,142-144
+internal/api/api_test.go
+  0510805afee64b90 8,609-689
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.9+daa2e24",
+  "base_commit_sha": "57f9468c9a397ffbfd65eb77b4989c7121168bf4",
+  "prompts": {
+    "0510805afee64b90": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b57d7cf3-c6d1-4ee0-b159-c0f166fa2d6b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "lucas.wan",
+      "messages": [],
+      "total_additions": 136,
+      "total_deletions": 0,
+      "accepted_lines": 136,
+      "overriden_lines": 0
+    }
+  }
+}
