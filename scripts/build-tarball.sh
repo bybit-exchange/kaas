@@ -56,7 +56,7 @@ PYTHON_INSTALL_NAME=$(basename "$(dirname "$(dirname "$BUNDLED_PYTHON")")")
 VENV_TARGET="${BUILD_DIR}/py/.venv"
 uv venv --relocatable --python "$BUNDLED_PYTHON" "${VENV_TARGET}"
 (cd "${ROOT_DIR}/py" && UV_PROJECT_ENVIRONMENT="${VENV_TARGET}" \
-    uv sync --frozen --python "$BUNDLED_PYTHON")
+    uv sync --frozen --no-editable --python "$BUNDLED_PYTHON")
 
 # Fix the venv's python symlink: replace the absolute path (pointing to the build
 # machine) with a relative path to the bundled Python interpreter.
