@@ -46,7 +46,7 @@
   <!-- ===== Go Backend Layer ===== -->
   <!-- Dashed group box -->
   <rect x="25" y="150" width="750" height="155" rx="10" stroke="#f59e0b" stroke-dasharray="6,4" fill="#fffbeb" fill-opacity="0.3"/>
-  <text x="35" y="164" font-size="11" fill="#b45309">Go Backend (go-zero)</text>
+  <text x="35" y="164" font-size="11" fill="#b45309">Go Backend</text>
 
   <!-- REST API -->
   <rect x="55" y="175" width="160" height="36" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
