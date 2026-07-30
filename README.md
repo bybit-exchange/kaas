@@ -207,6 +207,14 @@ startup:
 The quickest way to start all services locally:
 
 ```bash
+# First time: create your local config (not tracked by git)
+cp etc/kaas.toml etc/kaas-dev.toml
+# Edit etc/kaas-dev.toml — set your LLM credentials:
+#   [llm]
+#   api_key = "sk-..."
+#   base_url = "https://api.openai.com/v1"   # or your preferred endpoint
+#   model = "gpt-4o-mini"
+
 make dev
 ```
 
