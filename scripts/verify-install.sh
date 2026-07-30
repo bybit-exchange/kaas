@@ -103,6 +103,52 @@ test -x "$INSTALL_DIR/py/.venv/bin/python3" || { echo "FAIL: python3 not found";
 test -d "$INSTALL_DIR/data/raw" || { echo "FAIL: data directory not created"; exit 1; }
 echo "  Install result: OK"
 
+# Step 4b: Cross-machine portability checks
+# These catch issues that only manifest when the tarball is built on one machine
+# and installed on another (e.g. CI → user). On the same machine, absolute paths
+# resolve fine, masking broken symlinks and .pth files.
+echo ""
+echo "  Verifying cross-machine portability..."
+PORTABILITY_ERRORS=0
+
+# Check: no absolute symlinks under py/ that point outside the install dir
+while IFS= read -r link; do
+    target=$(readlink "$link")
+    if echo "$target" | grep -q "^/" && ! echo "$target" | grep -q "^$INSTALL_DIR"; then
+        echo "  FAIL: absolute symlink escapes install dir: $link → $target"
+        PORTABILITY_ERRORS=$((PORTABILITY_ERRORS + 1))
+    fi
+done < <(find "$INSTALL_DIR/py" -type l 2>/dev/null)
+
+# Check: no .pth files with absolute paths (editable installs)
+while IFS= read -r pth; do
+    if grep -q "^/" "$pth" 2>/dev/null; then
+        PTH_CONTENT=$(cat "$pth")
+        echo "  FAIL: .pth file contains absolute path: $pth → $PTH_CONTENT"
+        PORTABILITY_ERRORS=$((PORTABILITY_ERRORS + 1))
+    fi
+done < <(find "$INSTALL_DIR/py/.venv" -name "*.pth" 2>/dev/null)
+
+# Check: pyvenv.cfg home is not an absolute path to a foreign location
+PYVENV_HOME=$(grep "^home = " "$INSTALL_DIR/py/.venv/pyvenv.cfg" 2>/dev/null | sed 's/^home = //')
+if echo "$PYVENV_HOME" | grep -q "^/" && ! echo "$PYVENV_HOME" | grep -q "^$INSTALL_DIR"; then
+    echo "  FAIL: pyvenv.cfg home points outside install dir: $PYVENV_HOME"
+    PORTABILITY_ERRORS=$((PORTABILITY_ERRORS + 1))
+fi
+
+# Check: kb_ai is importable
+if ! "$INSTALL_DIR/py/.venv/bin/python3" -c "import kb_ai" 2>/dev/null; then
+    echo "  FAIL: python3 -c 'import kb_ai' failed"
+    PORTABILITY_ERRORS=$((PORTABILITY_ERRORS + 1))
+fi
+
+if [ "$PORTABILITY_ERRORS" -gt 0 ]; then
+    echo "  FAIL: $PORTABILITY_ERRORS portability error(s) found"
+    echo "  These will cause failures when installed on a different machine."
+    exit 1
+fi
+echo "  Portability checks: OK"
+
 # Step 5: Smoke test
 echo ""
 echo "[5/6] Running smoke tests..."
