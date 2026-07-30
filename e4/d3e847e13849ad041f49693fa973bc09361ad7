@@ -1,0 +1,23 @@
+scripts/build-tarball.sh
+  4dee2b6bb33aa441 59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e4d3e847e13849ad041f49693fa973bc09361ad7",
+  "prompts": {
+    "4dee2b6bb33aa441": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bfbce13e-06e5-4b2c-a1c4-0d76c58a2cf0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 113,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
