@@ -20,8 +20,8 @@ esac
 
 # 2. Get latest version (or use KAAS_VERSION env var)
 if [ -z "$KAAS_VERSION" ]; then
-    KAAS_VERSION="$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" \
-        | grep '"tag_name"' | sed 's/.*"v\(.*\)".*/\1/')"
+    KAAS_VERSION="$(curl -fsSI "https://github.com/${REPO}/releases/latest" 2>/dev/null \
+        | grep -i '^location:' | sed 's|.*/v||' | tr -d '\r')"
 fi
 if [ -z "$KAAS_VERSION" ]; then
     echo "kaas: failed to detect latest version" >&2; exit 1
