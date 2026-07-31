@@ -81,5 +81,19 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
     globals: true,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      // Still emit the report when a test fails — otherwise a single failure
+      // hides the whole coverage picture.
+      reportOnFailure: true,
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/main.tsx',
+        'src/test-setup.ts',
+        'src/vite-env.d.ts',
+      ],
+    },
   },
 })

@@ -23,7 +23,8 @@ func mockChatSuccess(_ context.Context, _ bridge.ChatRequest, onEvent func(json.
 }
 
 func mockChatError(_ context.Context, _ bridge.ChatRequest, onEvent func(json.RawMessage) error) error {
-	onEvent(json.RawMessage(`{"type":"error","error":"LLM unavailable"}`))
+	// Mirrors the real kb_ai error-event contract: {"type","code","message"}.
+	onEvent(json.RawMessage(`{"type":"error","code":"INTERNAL_ERROR","message":"LLM unavailable"}`))
 	return nil
 }
 
@@ -395,6 +396,50 @@ func TestHandler_ToolsCall_Ask_ChatError(t *testing.T) {
 	}
 	if result.Content[0].Text != "LLM unavailable" {
 		t.Errorf("error text = %q, want %q", result.Content[0].Text, "LLM unavailable")
+	}
+}
+
+// An error event must never yield a successful empty answer, whatever subset of
+// {code, message} it carries.
+func TestHandler_ToolsCall_Ask_ChatErrorVariants(t *testing.T) {
+	tests := []struct {
+		name  string
+		event string
+		want  string
+	}{
+		{"code and message", `{"type":"error","code":"INTERNAL_ERROR","message":"boom"}`, "boom"},
+		{"code only", `{"type":"error","code":"CANCELLED"}`, "CANCELLED"},
+		{"neither", `{"type":"error"}`, "chat failed"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			chat := func(_ context.Context, _ bridge.ChatRequest, onEvent func(json.RawMessage) error) error {
+				onEvent(json.RawMessage(tt.event))
+				return nil
+			}
+			h := newHandler(chat, "", 5*time.Second)
+			params := map[string]any{
+				"name":      "ask",
+				"arguments": map[string]any{"query": "What is KaaS?"},
+			}
+			w := doPost(h, rpcBody(1, "tools/call", params), nil)
+
+			resp := parseResponse(t, w.Body)
+			if resp.Error != nil {
+				t.Fatalf("unexpected JSON-RPC error: %+v", resp.Error)
+			}
+			resultBytes, _ := json.Marshal(resp.Result)
+			var result ToolResult
+			if err := json.Unmarshal(resultBytes, &result); err != nil {
+				t.Fatalf("failed to unmarshal result: %v", err)
+			}
+			if !result.IsError {
+				t.Fatal("result.isError should be true")
+			}
+			if len(result.Content) != 1 || result.Content[0].Text != tt.want {
+				t.Errorf("error text = %+v, want %q", result.Content, tt.want)
+			}
+		})
 	}
 }
 

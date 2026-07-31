@@ -42,3 +42,7 @@ screenshots/
 # Build artifacts
 dist/
 build/
+# Coverage artifacts
+.coverage
+coverage/
+coverage.out
