@@ -83,8 +83,10 @@ def _strip_frontmatter(content: str) -> str:
 def _read_selected(store: KBStore, meta_by_path: dict, paths: list[str]) -> list[dict]:
     """Read the given article paths in full (frontmatter stripped, truncated).
 
-    Returns ``[{title, path, content}]``; silently skips non-string or
-    unreadable paths.
+    Returns ``[{title, path, content}]``; skips non-string, unreadable, and
+    out-of-KB paths. paths comes from the client-supplied MCP `ask` argument, so
+    one bad entry must not discard the articles that did resolve -- and the
+    caller learns nothing about what lies outside the KB.
     """
     articles: list[dict] = []
     for path in paths:
@@ -93,6 +95,9 @@ def _read_selected(store: KBStore, meta_by_path: dict, paths: list[str]) -> list
         try:
             raw = store.read_article(path)
         except OSError:
+            continue
+        except ValueError as e:
+            print(f"[retrieve] skipping path: {e}", file=sys.stderr, flush=True)
             continue
         meta = meta_by_path.get(path)
         title = meta.title if meta else path.rsplit("/", 1)[-1].removesuffix(".md")

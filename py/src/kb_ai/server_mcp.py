@@ -77,7 +77,7 @@ def ask(query: str, paths: list[str] | None = None, model: str | None = None) ->
         elif kind == "done":
             done.update(ev)
         elif kind == "error":
-            raise RuntimeError(ev.get("error") or "chat failed")
+            raise RuntimeError(ev.get("message") or ev.get("code") or "chat failed")
         # "status" and any unknown event types are ignored.
 
     input_data: dict = {"query": query, "kb_dir": _kb_dir(), "include_sources": True}

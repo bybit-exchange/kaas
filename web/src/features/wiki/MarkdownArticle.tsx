@@ -61,7 +61,10 @@ export function MarkdownArticle({ content }: MarkdownArticleProps) {
     },
     pre({ children }) {
       const child = Array.isArray(children) ? children[0] : children
-      const lang = (child as React.ReactElement<{ className?: string }>)?.props?.className?.replace('language-', '')
+      // rehype-highlight rewrites the class to "hljs language-ts", so extract the
+      // language instead of stripping the prefix -- otherwise "hljs " leaks into the label.
+      const codeClass = (child as React.ReactElement<{ className?: string }>)?.props?.className
+      const lang = /language-(\w+)/.exec(codeClass || '')?.[1]
       return (
         <div className="not-prose my-3 overflow-hidden rounded-lg border border-border">
           <div className="flex h-10 items-center border-b border-border bg-muted px-4 text-xs text-muted-foreground">

@@ -95,8 +95,10 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             break
         except (APITimeoutError, APIStatusError) as e:
             elapsed = round(time.monotonic() - t0, 1)
-            ctx = (f"op={op} model={model} attempt={attempt + 1}/{_TIMEOUT_RETRIES + 1} "
-                   f"prompt_chars={prompt_chars} elapsed={elapsed}s")
+            # Must not shadow ctx -- the retry path below still reads
+            # ctx.deadline_abs / ctx.cancel_event, and record_cost closes over it.
+            detail = (f"op={op} model={model} attempt={attempt + 1}/{_TIMEOUT_RETRIES + 1} "
+                      f"prompt_chars={prompt_chars} elapsed={elapsed}s")
 
             is_timeout = isinstance(e, APITimeoutError)
             is_retryable_gateway = (
@@ -107,7 +109,7 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             kind = "api_timeout_error" if is_timeout else (
                 f"gateway_{e.status_code}" if is_retryable_gateway else f"http_{e.status_code}"
             )
-            emit_alert(f"{ctx} | {e}", model, attempt + 1, kind,
+            emit_alert(f"{detail} | {e}", model, attempt + 1, kind,
                        content_hash=content_hash, caller=_ALERT_CALLER)
 
             if not can_retry:
@@ -121,13 +123,13 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             wait = _TIMEOUT_BACKOFF_BASE * (2 ** attempt)
             if (dl := ctx.deadline_abs) and time.monotonic() + wait + 60 > dl:
                 label = "timeout" if is_timeout else f"gateway_{e.status_code}"
-                print(f"  [{label}] {ctx}, deadline_too_close, raising", file=sys.stderr)
+                print(f"  [{label}] {detail}, deadline_too_close, raising", file=sys.stderr)
                 raise DeadlineExceededError(
                     f"deadline_too_close: op={op} model={model} attempts={attempt + 1} "
                     f"prompt_chars={prompt_chars} elapsed={elapsed}s base_url={base_url}"
                 )
             label = "timeout" if is_timeout else f"gateway_{e.status_code}"
-            print(f"  [{label}] {ctx}, retrying in {wait}s...", file=sys.stderr)
+            print(f"  [{label}] {detail}, retrying in {wait}s...", file=sys.stderr)
             time.sleep(wait)
 
     # Parse usage and record cost

@@ -24,6 +24,11 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
             fm = yaml.safe_load(parts[1])
         except yaml.YAMLError:
             continue
+        # Empty frontmatter loads as None and scalar frontmatter as str. Skip
+        # like the other malformed cases above -- one bad article must not abort
+        # the whole index rebuild.
+        if not isinstance(fm, dict):
+            continue
 
         rel_path = str(md_file.relative_to(store.base_dir))
         title = fm.get("title", md_file.stem)
