@@ -1,0 +1,33 @@
+py/tests/test_core_merge.py
+  83bf1eb37d0062ae 1-640
+py/tests/test_core_extract.py
+  83bf1eb37d0062ae 1-832
+py/tests/test_commands_compile.py
+  83bf1eb37d0062ae 1-519
+py/tests/test_server_daemon.py
+  83bf1eb37d0062ae 1-812
+py/tests/test_pipeline_write.py
+  83bf1eb37d0062ae 1-442
+py/tests/test_core_classify_scoring.py
+  83bf1eb37d0062ae 1-333
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "35988eb2d446e5109c33bf27cf7b7bffec6b0c80",
+  "prompts": {
+    "83bf1eb37d0062ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7661459e-e4ab-4384-9b38-f1bfc808b887",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3605,
+      "total_deletions": 3605,
+      "accepted_lines": 4426,
+      "overriden_lines": 0
+    }
+  }
+}
