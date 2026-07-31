@@ -114,6 +114,26 @@ class KBStore:
                 size_bytes=size_bytes,
             )
 
+    def _resolve(self, rel_path: str) -> Path:
+        """Resolve rel_path inside base_dir, rejecting anything that escapes it.
+
+        rel_path reaches these methods from LLM output and from client-supplied
+        MCP arguments (the `paths` argument of the ask tool), so "../" segments
+        and absolute paths are attacker-influenced. pathlib replaces the whole
+        path on an absolute operand, which makes the naive `base_dir / rel_path`
+        an arbitrary-file read.
+
+        By design this resolves symlinks, so a symlinked subtree pointing outside
+        base_dir is rejected. That deliberately differs from the lexical
+        containment check in the Go layer (internal/api/wiki.go safeJoin): a
+        symlink planted under wiki/ is exactly the case worth rejecting here.
+        base_dir itself is also rejected -- every caller addresses a file.
+        """
+        full = (self.base_dir / rel_path).resolve()
+        if full == self.base_dir or not full.is_relative_to(self.base_dir):
+            raise ValueError(f"path escapes kb_dir: {rel_path}")
+        return full
+
     def read_raw(self, rel_path: str) -> str:
         """Read a raw/*.md file by rel_path (relative to base_dir).
 
@@ -122,22 +142,22 @@ class KBStore:
         of this method (vs. inlining (base_dir / rel_path).read_text())
         is to give tests a stable monkeypatch point for read counting.
         """
-        return (self.base_dir / rel_path).read_text()
+        return self._resolve(rel_path).read_text()
 
     def read_article(self, rel_path: str) -> str:
-        return (self.base_dir / rel_path).read_text()
+        return self._resolve(rel_path).read_text()
 
     def write_article(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
-        full = self.base_dir / rel_path
+        full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
         full.write_text(content)
 
     def write_raw(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
-        full = self.base_dir / rel_path
+        full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
         full.write_text(content)
 

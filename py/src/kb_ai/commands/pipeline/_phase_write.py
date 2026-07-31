@@ -135,7 +135,10 @@ def run_write_phase(
     Returns:
         Tuple of (item_results list, articles_written count)
     """
-    kb_root = store.base_dir
+    # Article paths come from LLM output, so containment must be checked against
+    # the wiki subtree itself -- a path like "wiki/../raw/a.md" passes the wiki/
+    # prefix check and still resolves inside kb_dir.
+    wiki_root = (store.base_dir / "wiki").resolve()
 
     # Group by target article path, validate paths
     article_ops: dict[str, list[tuple[str, str, ExtractionResult, str, CreateTarget | MergeTarget]]] = {}
@@ -155,11 +158,11 @@ def run_write_phase(
                 })
                 continue
             full_resolved = (store.base_dir / art_path).resolve()
-            if not str(full_resolved).startswith(str(kb_root) + os.sep):
+            if not str(full_resolved).startswith(str(wiki_root) + os.sep):
                 item_results.append({
                     "content_hash": content_hash,
                     "status": "error",
-                    "error": f"path escapes kb_dir: {art_path}",
+                    "error": f"path escapes wiki/: {art_path}",
                     "phase": "write",
                 })
                 continue
@@ -177,11 +180,11 @@ def run_write_phase(
                 })
                 continue
             full_resolved = (store.base_dir / art_path).resolve()
-            if not str(full_resolved).startswith(str(kb_root) + os.sep):
+            if not str(full_resolved).startswith(str(wiki_root) + os.sep):
                 item_results.append({
                     "content_hash": content_hash,
                     "status": "error",
-                    "error": f"path escapes kb_dir: {art_path}",
+                    "error": f"path escapes wiki/: {art_path}",
                     "phase": "write",
                 })
                 continue

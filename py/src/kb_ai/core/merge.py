@@ -26,7 +26,10 @@ def _estimate_full_extraction_size(extraction: ExtractionResult, source_path: st
     size = len(f"- Source: {source_path}\n")
     for field_name, field_type in _FIELD_PRIORITY:
         value = getattr(extraction, field_name, None)
-        if value is None:
+        # Skip falsy the same way _fit_extraction_to_budget does, otherwise the
+        # estimate counts lines the output never emits and every merge would
+        # report a truncation that never happened.
+        if not value:
             continue
         if field_type == "str":
             size += len(f"- {field_name.replace('_', ' ').title()}: {value}\n")
@@ -288,6 +291,13 @@ def _apply_diff(article_content: str, diff: dict, source_path: str, today: str) 
         if end_idx:
             fm_lines = lines[1:end_idx]
             source_line = f"  - {source_path}"
+            # Compare normalized on both sides -- existing_sources is stripped,
+            # so an indented source_line would never match.
+            source_key = source_line.strip()
+            # Scope note: this collects every "  - " item in the frontmatter, not
+            # only the ones under sources:. A same-named item under another list
+            # key would suppress the source append. create_new_article emits
+            # flow-style tags, so no other key produces "  - " items today.
             existing_sources = {fl.strip() for fl in fm_lines if fl.startswith("  - ")}
             new_fm = []
             found_updated = False
@@ -303,16 +313,16 @@ def _apply_diff(article_content: str, diff: dict, source_path: str, today: str) 
                     new_fm.append(fl)
                     next_is_source = (fm_idx + 1 < len(fm_lines) and fm_lines[fm_idx + 1].startswith("  - "))
                     if not next_is_source:
-                        if source_line not in existing_sources:
+                        if source_key not in existing_sources:
                             new_fm.append(source_line)
                         found_sources = False
                 else:
                     if found_sources:
-                        if source_line not in existing_sources:
+                        if source_key not in existing_sources:
                             new_fm.append(source_line)
                         found_sources = False
                     new_fm.append(fl)
-            if found_sources and source_line not in existing_sources:
+            if found_sources and source_key not in existing_sources:
                 new_fm.append(source_line)
             if not found_updated:
                 new_fm.append(f"updated: {today}")
