@@ -1,0 +1,59 @@
+internal/circuit/breaker_state_test.go
+  83bf1eb37d0062ae 1-121
+internal/api/task_content_test.go
+  83bf1eb37d0062ae 1-233
+internal/store/sqlite/backfill_test.go
+  83bf1eb37d0062ae 1-144
+internal/version/version_test.go
+  83bf1eb37d0062ae 1-38
+py/tests/test_command_entrypoints.py
+  83bf1eb37d0062ae 1-130
+web/src/api/sessions.test.ts
+  83bf1eb37d0062ae 1-177
+py/tests/test_commands_suggest.py
+  83bf1eb37d0062ae 1-141
+internal/api/status_recorder_test.go
+  83bf1eb37d0062ae 1-93
+py/tests/test_commands_fetch.py
+  83bf1eb37d0062ae 1-111
+web/src/api/upload-config.test.ts
+  83bf1eb37d0062ae 1-91
+web/src/features/chat/CitationMarker.test.tsx
+  83bf1eb37d0062ae 1-24,27-39,42-54
+internal/worker/worker_id_test.go
+  83bf1eb37d0062ae 1-56
+py/tests/test_retrieval_query.py
+  83bf1eb37d0062ae 1-122
+internal/bridge/daemon_client_test.go
+  83bf1eb37d0062ae 1-782
+py/tests/test_commands_rewrite.py
+  83bf1eb37d0062ae 1-148
+py/tests/test_core_people.py
+  83bf1eb37d0062ae 1-288
+web/src/lib/groupSessionsByDate.test.ts
+  83bf1eb37d0062ae 1-155
+web/src/hooks/useUploadConfig.test.ts
+  83bf1eb37d0062ae 1-82
+internal/bridge/daemon_lifecycle_test.go
+  83bf1eb37d0062ae 1-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "363ae4c39fe2e00d068d511f5e1da0aef7091e94",
+  "prompts": {
+    "83bf1eb37d0062ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7661459e-e4ab-4384-9b38-f1bfc808b887",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 4297,
+      "total_deletions": 1914,
+      "accepted_lines": 4107,
+      "overriden_lines": 4
+    }
+  }
+}
