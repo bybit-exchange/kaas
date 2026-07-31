@@ -1,16 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { MarkdownRenderer, isInternalWikiLink, resolveWikiPath } from './MarkdownRenderer'
-
-const mockNavigate = vi.fn()
-vi.mock('react-router-dom', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react-router-dom')>()
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  }
-})
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return <MemoryRouter>{children}</MemoryRouter>
@@ -153,7 +144,7 @@ describe('MarkdownRenderer', () => {
     expect(handleClick).toHaveBeenCalledWith(3)
   })
 
-  it('navigates via useNavigate when clicking a wiki link', () => {
+  it('renders an internal wiki link as a new-tab anchor to the canonical /wiki path', () => {
     render(
       <Wrapper>
         <MarkdownRenderer
@@ -163,8 +154,22 @@ describe('MarkdownRenderer', () => {
     )
 
     const link = screen.getByRole('link', { name: 'the guide' })
-    fireEvent.click(link)
-    expect(mockNavigate).toHaveBeenCalledWith('/wiki/team/guide.md')
+    expect(link).toHaveAttribute('href', '/wiki/team/guide.md')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('normalizes a ./relative wiki link into /wiki/{path} on the rendered anchor', () => {
+    render(
+      <Wrapper>
+        <MarkdownRenderer content="See [the guide](./team/guide.md) now." />
+      </Wrapper>,
+    )
+
+    expect(screen.getByRole('link', { name: 'the guide' })).toHaveAttribute(
+      'href',
+      '/wiki/team/guide.md',
+    )
   })
 
   it('renders external link with target="_blank"', () => {

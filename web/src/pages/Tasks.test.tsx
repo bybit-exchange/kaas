@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, act, fireEvent } from '@testing-library/react'
+import { render, screen, act, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
@@ -142,7 +142,7 @@ describe('Tasks page', () => {
     expect(mockListTasks).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
-  it('clicking a row calls getTask and shows result in dialog', async () => {
+  it('clicking the row Detail button calls getTask and shows result in dialog', async () => {
     const taskWithResult = { ...TASK_1, result: { answer: 42 } }
     mockGetTask.mockResolvedValue(taskWithResult)
 
@@ -155,18 +155,19 @@ describe('Tasks page', () => {
     await flushPromises()
     expect(screen.getByText('Alpha Task')).toBeInTheDocument()
 
-    // Click the row for TASK_1
+    // Detail is opened by the per-row "Detail" action button, not by the <tr>.
     const row = screen.getByText('Alpha Task').closest('tr')
     expect(row).not.toBeNull()
-    fireEvent.click(row!)
+    const detailBtn = within(row!).getByRole('button', { name: 'Detail' })
+    fireEvent.click(detailBtn)
 
     await flushPromises()
 
     expect(mockGetTask).toHaveBeenCalledWith('task-1')
 
     const dialog = screen.getByRole('dialog')
-    const pre = dialog.querySelector('pre')
-    expect(pre).not.toBeNull()
-    expect(pre!.textContent).toContain('42')
+    expect(within(dialog).getByText('Result')).toBeInTheDocument()
+    // The JSON result is rendered line-by-line with gutter line numbers.
+    expect(dialog.textContent).toContain('"answer": 42')
   })
 })

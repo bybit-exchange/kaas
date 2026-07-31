@@ -98,13 +98,19 @@ def test_ask_empty_sources_no_footer(monkeypatch):
     assert out["answer"] == "Answer with no sources."
 
 
-def test_ask_raises_on_error_event(monkeypatch):
-    events = [
-        {"type": "delta", "content": "partial"},
-        {"type": "error", "error": "LLM exploded"},
-    ]
+@pytest.mark.parametrize(
+    "error_event, expected",
+    [
+        ({"type": "error", "code": "INTERNAL_ERROR", "message": "LLM exploded"}, "LLM exploded"),
+        ({"type": "error", "code": "CANCELLED"}, "CANCELLED"),
+        ({"type": "error"}, "chat failed"),
+    ],
+)
+def test_ask_raises_on_error_event(monkeypatch, error_event, expected):
+    """Error events carry {code, message}; the daemon's CANCELLED has code only."""
+    events = [{"type": "delta", "content": "partial"}, error_event]
     monkeypatch.setattr(mcp_server, "run_server_chat_http", _fake_core(events))
-    with pytest.raises(RuntimeError, match="LLM exploded"):
+    with pytest.raises(RuntimeError, match=expected):
         mcp_server.ask("q")
 
 

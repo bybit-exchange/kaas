@@ -1,11 +1,79 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
+	"log"
+	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+// safeBuffer serializes writes so log output captured during a test cannot race
+// with logging from the daemon's own goroutines.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *safeBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *safeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// captureLog redirects the standard logger into a buffer for the duration of the
+// test. supervisorLoop owns no exported state, so its log output is the only
+// observable record of the decisions it makes.
+func captureLog(t *testing.T) *safeBuffer {
+	t.Helper()
+	buf := &safeBuffer{}
+	prevOut, prevFlags := log.Writer(), log.Flags()
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(prevOut)
+		log.SetFlags(prevFlags)
+	})
+	return buf
+}
+
+// waitForLog polls the captured log until it contains want, so tests observe the
+// supervisor's progress by condition rather than by a fixed sleep.
+func waitForLog(t *testing.T, logs *safeBuffer, want string) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		if strings.Contains(logs.String(), want) {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatalf("log never contained %q; got: %q", want, logs.String())
+}
+
+// waitForSupervisor fails the test unless the supervisor goroutine exits.
+func waitForSupervisor(t *testing.T, c *DaemonClient) {
+	t.Helper()
+	exited := make(chan struct{})
+	go func() {
+		c.supervWg.Wait()
+		close(exited)
+	}()
+	select {
+	case <-exited:
+	case <-time.After(3 * time.Second):
+		t.Fatal("supervisor did not exit")
+	}
+}
 
 // fakeDaemonClient creates a DaemonClient with a mock daemon that can simulate
 // crashes via closing the done channel. Does NOT start a real process.
@@ -32,148 +100,61 @@ func fakeDaemonClient(maxRestarts int) *DaemonClient {
 	return c
 }
 
-func TestSupervisorAutoRestart(t *testing.T) {
+// TestSupervisorBacksOffBeforeRestarting exercises the crash path of the real
+// supervisorLoop: a crash within the restart budget schedules an exponential
+// backoff, and cancelling the context during that backoff aborts the restart
+// before any process is spawned.
+func TestSupervisorBacksOffBeforeRestarting(t *testing.T) {
+	logs := captureLog(t)
 	c := fakeDaemonClient(3)
 
-	// Track restart attempts by monkey-patching Restart behavior.
-	// We replace the supervisorLoop with a controlled version that counts
-	// restarts without actually spawning a process.
-	restartCount := 0
-	var mu sync.Mutex
-
-	// Override supervisorLoop inline: we'll run our own test-only loop.
-	c.cancel() // cancel the context so we can control things
-
-	// Re-create context for the test.
-	ctx, cancel := context.WithCancel(context.Background())
-	c.ctx = ctx
-	c.cancel = cancel
-
-	// We'll test the actual supervisorLoop logic by simulating daemon crash
-	// and verifying it attempts restart. Since we can't spawn a real process,
-	// we test the loop mechanics directly.
-
-	// Start supervisor.
 	c.supervWg.Add(1)
-	go func() {
-		defer c.supervWg.Done()
-		for {
-			select {
-			case <-c.ctx.Done():
-				return
-			case <-c.daemon.done:
-				if c.daemon.stopping.Load() {
-					return
-				}
-				mu.Lock()
-				restartCount++
-				count := restartCount
-				mu.Unlock()
+	go c.supervisorLoop()
 
-				if count > c.cfg.MaxRestarts {
-					return
-				}
+	close(c.daemon.done) // simulate a crash
 
-				// Simulate successful restart: rebuild done channel.
-				c.daemon.done = make(chan struct{})
-				c.daemon.ready.Store(true)
-			}
-		}
-	}()
+	waitForLog(t, logs, "restarting in 1s (attempt 1/3)")
 
-	// Simulate first crash.
-	close(c.daemon.done)
-	time.Sleep(50 * time.Millisecond)
-
-	mu.Lock()
-	if restartCount != 1 {
-		t.Fatalf("expected 1 restart, got %d", restartCount)
-	}
-	mu.Unlock()
-
-	// Simulate second crash.
-	close(c.daemon.done)
-	time.Sleep(50 * time.Millisecond)
-
-	mu.Lock()
-	if restartCount != 2 {
-		t.Fatalf("expected 2 restarts, got %d", restartCount)
-	}
-	mu.Unlock()
-
-	cancel()
-	c.supervWg.Wait()
+	c.cancel()
+	waitForSupervisor(t, c)
 }
 
-func TestSupervisorMaxRestartsLimit(t *testing.T) {
-	c := fakeDaemonClient(2) // max 2 restarts
-
-	ctx, cancel := context.WithCancel(context.Background())
-	c.ctx = ctx
-	c.cancel = cancel
-
-	restartCount := 0
-	var mu sync.Mutex
+// TestSupervisorGivesUpAfterMaxRestarts drives the real supervisorLoop with a
+// restart budget of zero, so the first crash immediately exceeds it. This covers
+// the give-up branch without a backoff sleep or a spawned process.
+func TestSupervisorGivesUpAfterMaxRestarts(t *testing.T) {
+	logs := captureLog(t)
+	c := fakeDaemonClient(0)
+	defer c.cancel()
 
 	c.supervWg.Add(1)
-	go func() {
-		defer c.supervWg.Done()
-		for {
-			select {
-			case <-c.ctx.Done():
-				return
-			case <-c.daemon.done:
-				if c.daemon.stopping.Load() {
-					return
-				}
-				mu.Lock()
-				restartCount++
-				count := restartCount
-				mu.Unlock()
+	go c.supervisorLoop()
 
-				if count > c.cfg.MaxRestarts {
-					return
-				}
-				// Simulate restart.
-				c.daemon.done = make(chan struct{})
-				c.daemon.ready.Store(true)
-			}
-		}
-	}()
-
-	// Crash 1.
 	close(c.daemon.done)
-	time.Sleep(50 * time.Millisecond)
 
-	// Crash 2.
-	close(c.daemon.done)
-	time.Sleep(50 * time.Millisecond)
-
-	// Crash 3 — should exceed limit and loop should exit.
-	close(c.daemon.done)
-	time.Sleep(50 * time.Millisecond)
-
-	// Supervisor should have exited.
-	done := make(chan struct{})
-	go func() {
-		c.supervWg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		// Good — supervisor exited.
-	case <-time.After(1 * time.Second):
-		t.Fatal("supervisor did not exit after exceeding max restarts")
+	waitForSupervisor(t, c)
+	if got := logs.String(); !strings.Contains(got, "max restarts (0) reached") {
+		t.Fatalf("expected the loop to report giving up, got log: %q", got)
 	}
+}
 
-	mu.Lock()
-	if restartCount != 3 {
-		t.Fatalf("expected 3 restart attempts (2 successful + 1 over limit), got %d", restartCount)
-	}
-	mu.Unlock()
+// TestSupervisorReportsFailedRestart lets the loop run through the backoff and
+// actually call Restart. The daemon command does not exist, so the restart fails
+// fast and the loop must report it rather than propagate the error.
+func TestSupervisorReportsFailedRestart(t *testing.T) {
+	logs := captureLog(t)
+	c := fakeDaemonClient(1)
+	c.daemon.command = filepath.Join(t.TempDir(), "no-such-daemon")
 
-	cancel()
+	c.supervWg.Add(1)
+	go c.supervisorLoop()
+
+	close(c.daemon.done)
+
+	waitForLog(t, logs, "restart failed")
+
+	c.cancel()
+	waitForSupervisor(t, c)
 }
 
 func TestSupervisorGracefulStop(t *testing.T) {

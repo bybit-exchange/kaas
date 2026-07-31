@@ -24,19 +24,27 @@ def _extraction(**kwargs) -> ExtractionResult:
 
 # ── _estimate_full_extraction_size ──────────────────────────────────
 
-def test_estimate_size_counts_empty_list_fields():
-    """Documents current behaviour: the estimator skips only None, so an empty
-    ExtractionResult is still counted as eight `- Field: []` lines. This is
-    inconsistent with _fit_extraction_to_budget, which skips any falsy value —
-    see test_fit_extraction_silent_when_complete for the consequence.
+def test_estimate_size_skips_empty_fields():
+    """The estimator must skip falsy fields exactly like
+    _fit_extraction_to_budget does — otherwise an empty ExtractionResult is
+    counted as eight `- Field: []` lines the output never emits, and every merge
+    reports a truncation that never happened.
     """
     size = mg._estimate_full_extraction_size(_extraction(), "raw/a.md")
 
-    assert size > len("- Source: raw/a.md\n")
-    assert size == len("- Source: raw/a.md\n") + sum(
-        len(f"- {name.replace('_', ' ').title()}: []\n")
-        for name, ftype in mg._FIELD_PRIORITY if ftype == "list"
-    ) + len("- Summary: \n")
+    assert size == len("- Source: raw/a.md\n")
+
+
+def test_estimate_matches_the_text_produced_with_an_ample_budget():
+    """The invariant the estimator exists to satisfy: with a budget nothing can
+    exceed, the estimate must equal the emitted length — otherwise the
+    truncation warning fires on complete output (or stays silent on truncated
+    output). Pins the two functions' skip rules and format strings together.
+    """
+    e = _extraction(summary="s", topics=["a", "b"], concepts=[{"title": "c"}])
+
+    assert mg._estimate_full_extraction_size(e, "raw/a.md") == len(
+        mg._fit_extraction_to_budget(e, "raw/a.md", 1_000_000))
 
 
 def test_estimate_size_grows_with_content():
@@ -113,19 +121,21 @@ def test_fit_extraction_skips_empty_fields():
     assert "Topics" not in out
 
 
+def test_fit_extraction_drops_a_string_field_that_cannot_fit_its_own_label():
+    """When the leftover budget is smaller than the `- Summary: ` label itself,
+    the field is skipped entirely — emitting a bare label with an empty (or
+    negatively sliced) value would ship a misleading field to the model."""
+    out = mg._fit_extraction_to_budget(_extraction(summary="s" * 100), "raw/a.md", 24)
+
+    assert out == "- Source: raw/a.md\n"
+    assert "Summary" not in out
+
+
 def test_fit_extraction_warns_when_truncating(capsys):
     mg._fit_extraction_to_budget(_extraction(summary="s" * 5000), "raw/a.md", 300)
     assert "extraction truncated" in capsys.readouterr().err
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: _estimate_full_extraction_size skips only None while "
-           "_fit_extraction_to_budget skips any falsy value, so the estimate "
-           "counts empty '- Field: []' lines the output omits. Every merge logs "
-           "'extraction truncated' even when nothing was dropped, making the "
-           "log useless for diagnosing real prompt-size problems.",
-)
 def test_fit_extraction_silent_when_complete(capsys):
     mg._fit_extraction_to_budget(_extraction(summary="short"), "raw/a.md", 10_000)
     assert "extraction truncated" not in capsys.readouterr().err
@@ -208,6 +218,20 @@ def test_truncate_by_sections_handles_none_topics():
     article = "## One\nbody\n"
     out = mg._truncate_article_by_sections(article, topics=None, budget_chars=10_000)
     assert "## One" in out
+
+
+def test_truncate_by_sections_stops_filling_once_the_budget_is_spent():
+    """The greedy fill stops at an exhausted budget instead of continuing to
+    scan: a later empty-bodied section would otherwise still be "included" and
+    inject a stray blank line into the skeleton handed to the diff model."""
+    article = "## A\n" + "x" * 10 + "\n## B\n## C"
+    # Exactly the three-heading skeleton (each heading costs len + 1) plus
+    # section A's 10-char body, so the budget is spent after section A.
+    budget = 3 * (len("## A") + 1) + 10
+
+    out = mg._truncate_article_by_sections(article, topics=[], budget_chars=budget)
+
+    assert out == "## A\n" + "x" * 10 + "\n## B\n## C"
 
 
 def test_truncate_by_sections_reports_truncation(capsys):
@@ -309,14 +333,6 @@ def test_apply_diff_refreshes_updated_and_appends_source():
     assert "  - raw/new.md" in out
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: the dedup guard compares an indented source_line "
-           "('  - raw/a.md') against existing_sources built with .strip() "
-           "('- raw/a.md'), so it never matches. Re-merging the same source "
-           "appends a duplicate every time and the frontmatter sources list "
-           "grows without bound.",
-)
 def test_apply_diff_does_not_duplicate_an_existing_source():
     article = (
         "---\ntitle: A\nupdated: 2024-01-01\nsources:\n  - raw/a.md\n---\nbody\n"
@@ -326,14 +342,13 @@ def test_apply_diff_does_not_duplicate_an_existing_source():
     assert out.count("  - raw/a.md") == 1
 
 
-def test_apply_diff_source_duplication_is_unbounded():
-    """Pins the current (buggy) behaviour so the growth is visible in the suite
-    rather than only in production frontmatter."""
+def test_apply_diff_is_idempotent_for_a_repeated_source():
+    """Re-merging the same source must not grow the frontmatter sources list."""
     out = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
     for _ in range(3):
         out = mg._apply_diff(out, {"patches": []}, "raw/a.md", TODAY)
 
-    assert out.count("  - raw/a.md") == 4
+    assert out.count("  - raw/a.md") == 1
 
 
 def test_apply_diff_adds_updated_when_missing():
@@ -372,6 +387,27 @@ def test_apply_diff_inserts_source_before_a_following_key():
 
     lines = out.split("\n")
     assert lines.index("  - raw/new.md") < lines.index("created: 2024-01-01")
+
+
+def test_apply_diff_fills_an_empty_sources_key_before_the_next_key():
+    """`sources:` with no items yet: the new source must land under it rather
+    than after the following key (or be dropped)."""
+    article = "---\ntitle: A\nsources:\ncreated: 2024-01-01\n---\nbody\n"
+    out = mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
+
+    lines = out.split("\n")
+    assert lines[lines.index("sources:") + 1] == "  - raw/new.md"
+    assert lines.index("  - raw/new.md") < lines.index("created: 2024-01-01")
+
+
+def test_apply_diff_fills_an_empty_sources_key_at_the_end_of_frontmatter():
+    """`sources:` with no items as the last frontmatter key: the source is
+    appended after the loop ends, so it must not be lost."""
+    article = "---\ntitle: A\nupdated: 2024-01-01\nsources:\n---\nbody\n"
+    out = mg._apply_diff(article, {"patches": []}, "raw/a.md", TODAY)
+
+    assert "sources:\n  - raw/a.md\n---" in out
+    assert f"updated: {TODAY}" in out
 
 
 # ── _apply_diff: patches ────────────────────────────────────────────

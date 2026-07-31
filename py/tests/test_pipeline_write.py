@@ -1,7 +1,7 @@
 """Offline tests for the pipeline write phase (kb_ai.commands.pipeline._phase_write).
 
 The article writers are monkeypatched. What matters here is the orchestration:
-path validation (wiki/ prefix and no escape out of kb_dir), grouping several
+path validation (wiki/ prefix and no escape out of wiki/), grouping several
 sources into one article call, per-article error containment, cancellation, and
 the per-item result / emit contract the streaming protocol depends on.
 """
@@ -184,7 +184,7 @@ def test_write_rejects_paths_outside_wiki(store, writers, bad_path):
     assert r["phase"] == "write"
 
 
-def test_write_rejects_a_path_escaping_the_kb_dir(store, writers):
+def test_write_rejects_a_path_escaping_the_wiki_dir(store, writers):
     """A wiki/-prefixed path can still escape via .., so the resolved path is
     checked too."""
     items = [item("h1", creates=[("wiki/../../etc/passwd", "concept", "T")])]
@@ -193,7 +193,7 @@ def test_write_rejects_a_path_escaping_the_kb_dir(store, writers):
 
     assert written == 0
     assert writers["created"] == []
-    assert "escapes kb_dir" in by_hash(results)["h1"]["error"]
+    assert "escapes wiki/" in by_hash(results)["h1"]["error"]
 
 
 def test_write_rejects_bad_merge_paths(store, writers):
@@ -205,12 +205,12 @@ def test_write_rejects_bad_merge_paths(store, writers):
     assert "must start with wiki/" in by_hash(results)["h1"]["error"]
 
 
-def test_write_rejects_merge_paths_escaping_the_kb_dir(store, writers):
+def test_write_rejects_merge_paths_escaping_the_wiki_dir(store, writers):
     items = [item("h1", merges=["wiki/../../outside.md"])]
 
     results, _ = pw.run_write_phase(items, store)
 
-    assert "escapes kb_dir" in by_hash(results)["h1"]["error"]
+    assert "escapes wiki/" in by_hash(results)["h1"]["error"]
     assert writers["created"] == [] and writers["merged"] == []
 
 
@@ -219,16 +219,7 @@ def test_write_rejects_merge_paths_escaping_the_kb_dir(store, writers):
     "wiki/../.compile.log",              # clobbers the compile log
     "wiki/../index/master-index.md",     # clobbers a generated index
 ])
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: the guard checks containment in kb_dir, not in wiki/. A "
-           "classifier path like 'wiki/../raw/a.md' passes the wiki/ prefix "
-           "check and still resolves inside kb_dir, so the write lands outside "
-           "the wiki subtree and can overwrite raw inputs, the compile log, or "
-           "generated indexes. Article paths come from LLM output, so this is "
-           "attacker-influenced in the prompt-injection sense.",
-)
-def test_write_should_reject_paths_leaving_the_wiki_subtree(store, writers, escaping_path):
+def test_write_rejects_paths_leaving_the_wiki_subtree(store, writers, escaping_path):
     items = [item("h1", creates=[(escaping_path, "concept", "Outside")])]
 
     results, _ = pw.run_write_phase(items, store)
@@ -347,6 +338,49 @@ def test_write_failure_is_shared_across_batched_sources(store, writers):
     assert by_hash(results)["h2"]["status"] == "error"
 
 
+def test_write_records_a_worker_crash_as_an_item_error(store, writers, monkeypatch):
+    """_process_article contains its own writer errors, so a future that raises
+    means the worker itself died (context propagation, MemoryError, ...). Those
+    items must still get an error result instead of vanishing from the output."""
+    def crash(*args, **kwargs):
+        raise RuntimeError("worker died")
+
+    monkeypatch.setattr(pw, "_process_article", crash)
+    items = [
+        item("h1", creates=[("wiki/concept/a.md", "concept", "A")]),
+        item("h2", creates=[("wiki/concept/b.md", "concept", "B")]),
+    ]
+    emitted = []
+
+    results, written = pw.run_write_phase(items, store, emit=emitted.append)
+
+    assert written == 2
+    assert by_hash(results)["h1"]["status"] == "error"
+    assert by_hash(results)["h1"]["error"] == "worker died"
+    assert by_hash(results)["h2"]["error"] == "worker died"
+    assert {e["content_hash"] for e in emitted} == {"h1", "h2"}
+
+
+def test_write_credits_every_batched_source_of_a_crashed_worker(store, writers, monkeypatch):
+    """One dead worker covers several items when sources were batched into one
+    article -- all of them need the error, not just the first."""
+    store.write_article("wiki/concept/shared.md", "existing")
+
+    def crash(*args, **kwargs):
+        raise RuntimeError("worker died")
+
+    monkeypatch.setattr(pw, "_process_article", crash)
+    items = [
+        item("h1", merges=["wiki/concept/shared.md"]),
+        item("h2", merges=["wiki/concept/shared.md"]),
+    ]
+
+    results, _ = pw.run_write_phase(items, store)
+
+    assert by_hash(results)["h1"]["error"] == "worker died"
+    assert by_hash(results)["h2"]["error"] == "worker died"
+
+
 # ── cancellation ────────────────────────────────────────────────────
 
 def test_write_records_cancellation_as_an_item_error(store, writers, monkeypatch):
@@ -374,6 +408,51 @@ def test_write_stops_early_when_cancelled_before_start(store, writers, capsys):
     pw.run_write_phase(items, store, workers=1, cancel_event=cancel)
 
     assert "cancel detected in write" in capsys.readouterr().err
+
+
+def test_write_still_reports_a_finished_write_when_cancelled_afterwards(store, writers, monkeypatch):
+    """Cancelling right after a write lands makes the result loop break before
+    emitting, so the finished article has to be reported by the final pass --
+    otherwise a completed write would be dropped from the response."""
+    cancel = threading.Event()
+    store.write_article("wiki/concept/topic.md", "existing")
+
+    def merge_then_cancel(art_path, old_content, extraction, source_path, model="m"):
+        # The client disconnects while this write is in flight.
+        cancel.set()
+        return old_content + "\nmerged\n"
+
+    monkeypatch.setattr(pw, "merge_into_article", merge_then_cancel)
+    emitted = []
+
+    results, _ = pw.run_write_phase([item("h1", merges=["wiki/concept/topic.md"])], store,
+                                    cancel_event=cancel, emit=emitted.append)
+
+    r = by_hash(results)["h1"]
+    assert r["status"] == "ok"
+    assert r["merged"] == ["wiki/concept/topic.md"]
+    assert emitted == [r]
+
+
+def test_write_still_reports_an_error_when_cancelled_afterwards(store, writers, monkeypatch):
+    """Same final pass, failing article: the error must survive the early break
+    instead of leaving the item with no result at all."""
+    cancel = threading.Event()
+
+    def fail_then_cancel(article_type, title, extraction, source_path, model="m"):
+        cancel.set()
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(pw, "create_new_article", fail_then_cancel)
+    emitted = []
+
+    results, _ = pw.run_write_phase([item("h1", creates=[("wiki/concept/a.md", "concept", "A")])],
+                                    store, cancel_event=cancel, emit=emitted.append)
+
+    r = by_hash(results)["h1"]
+    assert r["status"] == "error"
+    assert "disk full" in r["error"]
+    assert emitted == [r]
 
 
 # ── emit contract ───────────────────────────────────────────────────
