@@ -1,0 +1,25 @@
+README.md
+  ff022125aa8d3c86 72-75,100
+README.zh-CN.md
+  ff022125aa8d3c86 65-67,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "999cef3c1af28209eec57bd64044b769be40dce0",
+  "prompts": {
+    "ff022125aa8d3c86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7cae3b1-2922-414f-98d3-984d6f9a749e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 2,
+      "accepted_lines": 11,
+      "overriden_lines": 0
+    }
+  }
+}
