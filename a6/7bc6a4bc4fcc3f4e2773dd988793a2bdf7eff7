@@ -1,0 +1,25 @@
+README.md
+  0e29a7961d9e9095 7-11,14-20,50,52-58,66-67,69,85,100,102-104,106,110-112,203-204,217-220
+README.zh-CN.md
+  0e29a7961d9e9095 7-11,14-19,44,46-50,58,60,76,91,93,95,99,183,196-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "a67bc6a4bc4fcc3f4e2773dd988793a2bdf7eff7",
+  "prompts": {
+    "0e29a7961d9e9095": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c48e5dbc-6b01-493c-bd14-141e4d5896a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 638,
+      "total_deletions": 59,
+      "accepted_lines": 583,
+      "overriden_lines": 15
+    }
+  }
+}
