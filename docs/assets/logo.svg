@@ -1,0 +1,27 @@
+<svg viewBox="0 0 164 78" width="164" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="kaas-logo-title">
+  <title id="kaas-logo-title">KaaS — Knowledge-as-a-Service</title>
+
+  <!-- Paper panel. Inset by 0.5 so the 1px border renders in full instead of being
+       clipped in half by the viewBox edge. Self-contained background = identical
+       rendering under light and dark themes, no prefers-color-scheme needed. -->
+  <rect x="0.5" y="0.5" width="163" height="77" rx="16" fill="#fdfaf1" stroke="#eadfc4"/>
+
+  <!-- ===== Hand-drawn wordmark: stroked bezier paths, no font dependency =====
+       Ink block spans 123x46.5 at (20,16), leaving 20px side and 16px top/bottom padding.
+       Slanted 8deg; per-letter baselines bounce (K 61, a1 58, a2 59, S 56) for a written feel. -->
+  <g transform="translate(4.25,-1.25)">
+    <g transform="skewX(-8)" fill="none" stroke="#1e293b" stroke-linecap="round" stroke-linejoin="round">
+      <!-- K: stem, then one continuous arm-to-leg stroke -->
+      <path d="M30,20 C 29,34 27,47 27,61" stroke-width="5.2"/>
+      <path d="M53,22 C 45,30 35,37 29,42 C 37,47 47,54 56,61" stroke-width="5.2"/>
+      <!-- a: bowl closing onto the stem at top and mid, stem exits with a tick -->
+      <path d="M77,41 C 73,36 63,36 60,43 C 57,50 63,58 71,56 C 75,55 77,52 78,48" stroke-width="4.8"/>
+      <path d="M78,39 C 78,46 77,52 78,58 C 79,60 81,60 83,58" stroke-width="4.8"/>
+      <!-- a: repeated at +28, marginally lighter stroke -->
+      <path d="M105,42 C 101,37 91,37 88,44 C 85,51 91,59 99,57 C 103,56 105,53 106,49" stroke-width="4.6"/>
+      <path d="M106,40 C 106,47 105,53 106,59 C 107,61 109,61 111,59" stroke-width="4.6"/>
+      <!-- S -->
+      <path d="M140,27 C 136,20 124,20 122,28 C 120,36 133,39 136,45 C 139,52 130,59 121,56 C 119,55 118,54 117,52" stroke-width="5.0"/>
+    </g>
+  </g>
+</svg>
