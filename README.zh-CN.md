@@ -4,6 +4,7 @@
 
 [English](README.md) · **中文**
 
+[![Tests](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml/badge.svg)](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/bybit-exchange/kaas?color=blue)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
 [![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
