@@ -1,0 +1,23 @@
+CLAUDE.md
+  baac2e2430ec8a88 66-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e63e9af5f7064cbfae31b6657f30460e806d40a2",
+  "prompts": {
+    "baac2e2430ec8a88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62e25325-23a3-42da-8b98-2b165e3b8613",
+        "model": "claude-opus-5"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 2725,
+      "overriden_lines": 0
+    }
+  }
+}
