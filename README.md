@@ -4,7 +4,19 @@
 
 **English** · [中文](README.zh-CN.md)
 
+[![License](https://img.shields.io/github/license/bybit-exchange/kaas?color=blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
+[![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
+[![MCP](https://img.shields.io/badge/MCP-ask%20tool-black)](#mcp-access)
+
 Turn scattered notes, documents, and transcripts into a searchable, queryable personal Wiki — powered by LLM-driven knowledge compilation.
+
+**[Documentation](https://bybit-exchange.github.io/kaas-doc/)** · [Quick Start](#quick-start) · [MCP access](#mcp-access)
+
+> **Project status: release candidate.** The newest tag is `v0.1.0-rc.1`. We run
+> KaaS internally, and the compile pipeline, web UI and MCP surface all work end
+> to end. It is still pre-1.0 though: config keys and REST endpoints can change
+> between tags. If you self-host, pin a release instead of tracking `main`.
 
 ![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
 
@@ -35,11 +47,15 @@ The result is human-readable Markdown articles — not a black-box vector store.
 
 ![KaaS vs. naive RAG: compile-then-retrieve instead of chunk-and-embed](docs/assets/kaas-vs-rag.en.svg)
 
-## Quick Start with your AI agent
+## Quick Start
 
-Already living in a coding agent (Claude Code, Codex, openclaw, …)? Skip Docker.
-Copy this and paste it to your agent — it will install `kb-ai`, ask what to
-distill, build the wiki, and wire up MCP so you can query it in any later session:
+KaaS calls LLMs through any **OpenAI-compatible** API (OpenAI, DeepSeek, Ollama, vLLM, Azure OpenAI, etc.). Pick one of the three paths below.
+
+### Option A: Your AI agent (no Docker)
+
+Already living in a coding agent (Claude Code, Codex, openclaw, …)? Copy this and
+paste it to your agent — it will install `kb-ai`, ask what to distill, build the
+wiki, and wire up MCP so you can query it in any later session:
 
 ```
 Set up KaaS to build a queryable knowledge base from my files.
@@ -47,13 +63,10 @@ Fetch https://raw.githubusercontent.com/bybit-exchange/kaas/main/docs/agent-quic
 and follow it exactly.
 ```
 
-Prefer a web UI, or want the full backend? Use the Docker path below.
+This path gives you the AI engine and the MCP server, not the web UI. Want the web
+UI, or the full backend? Take Option B or C.
 
-## Quick Start
-
-KaaS calls LLMs through any **OpenAI-compatible** API (OpenAI, DeepSeek, Ollama, vLLM, Azure OpenAI, etc.). Pick either method below:
-
-### Option A: Docker
+### Option B: Docker
 
 ```bash
 # Build the image
@@ -69,7 +82,7 @@ docker run -d --name kaas \
   kaas
 ```
 
-### Option B: CLI Install
+### Option C: CLI install
 
 ```bash
 # Install (Linux/macOS, amd64/arm64)
@@ -84,16 +97,19 @@ kaas serve                                          # Default: http://localhost:
 
 Supported platforms: Linux/macOS, amd64/arm64. Uninstall: `rm -rf ~/.local/share/kaas ~/.local/bin/kaas`.
 
----
+### After it starts (Options B and C)
 
-> `LLM_BASE_URL` defaults to `https://api.openai.com/v1` and `LLM_MODEL` defaults to `gpt-4o-mini`.
-> Change them to point at any OpenAI-compatible endpoint.
+`LLM_BASE_URL` defaults to `https://api.openai.com/v1` and `LLM_MODEL` defaults to
+`gpt-4o-mini`. Change them to point at any OpenAI-compatible endpoint, then open
+http://localhost:8080.
 
-Open http://localhost:8080.
+Running from a checkout instead of a release? See [Development](#development).
 
 ### Enable remote MCP (optional)
 
-To let Claude Code or other MCP clients connect to the knowledge base:
+To let Claude Code or other MCP clients connect to the knowledge base, set
+`KAAS_MCP_ENABLED=true`. Environment variables override `kaas.toml` on every
+start, so this works for both Docker and `kaas serve`:
 
 ```bash
 docker run -d --name kaas \
@@ -106,12 +122,6 @@ docker run -d --name kaas \
 ```
 
 MCP client URL: `http://<host>:8080/mcp`, Authorization: `Bearer your-secret-token`.
-
-Or run locally:
-
-```bash
-make dev
-```
 
 ## Architecture
 
@@ -190,8 +200,8 @@ token = ""               # bearer token for MCP auth (empty = no auth)
 timeout_sec = 120        # tools/call timeout
 ```
 
-With Docker, pass secrets as environment variables — they override the TOML at
-startup:
+With Docker or the CLI, pass secrets as environment variables — they override the
+TOML at startup:
 
 | Env Var | Overrides | Default |
 |---------|-----------|---------|
@@ -203,6 +213,10 @@ startup:
 | `KAAS_MCP_TOKEN` | `[ai.mcp] token` | _(empty = no auth)_ |
 | `KAAS_WEB_DIR` | `[server] web_dir` | `/app/web/dist` (in Docker) |
 | `KAAS_AI_MCP_URL` | `[ai] mcp_url` | _(deprecated — use `KAAS_MCP_ENABLED`)_ |
+
+The docs site has a
+[full configuration reference](https://bybit-exchange.github.io/kaas-doc/getting-started/configuration.html)
+covering the settings not listed here.
 
 ## Development
 
