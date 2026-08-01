@@ -110,34 +110,37 @@ cp "${ROOT_DIR}/etc/kaas.toml" "${BUILD_DIR}/etc/kaas.toml"
 cat > "${BUILD_DIR}/README.md" << 'EOF'
 # KaaS - Knowledge as a Service
 
-## 快速开始
+## Quick start
 
 ```bash
-# 设置 LLM API Key
+# The binary is symlinked into ~/.kaas, which is usually not on PATH
+export PATH="$HOME/.kaas:$PATH"
+
+# Set the LLM API key
 export LLM_API_KEY="your-api-key"
 
-# 启动服务
+# Start the service
 kaas serve
 
-# 查看版本
+# Show the version
 kaas version
 ```
 
-## 目录结构
+## Layout
 
-- `bin/kaas` — 主程序
-- `py/.venv/` — Python AI 引擎运行时
-- `web/dist/` — Web UI 静态文件
-- `etc/kaas.toml` — 配置文件模板
-- `data/` — 运行时数据目录（自动创建）
+- `bin/kaas` — the main binary
+- `py/.venv/` — Python AI engine runtime
+- `web/dist/` — Web UI static files
+- `etc/kaas.toml` — configuration template
+- `data/` — runtime data directory (created automatically)
 
-## 卸载
+## Uninstall
 
 ```bash
 rm -rf ~/.local/share/kaas ~/.kaas/kaas
 ```
 
-## 文档
+## Documentation
 
 https://github.com/bybit-exchange/kaas
 EOF

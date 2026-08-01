@@ -87,7 +87,7 @@ version for anything you actually depend on. To build from source instead:
 ### Option C: CLI install
 
 ```bash
-# Install (Linux/macOS, amd64/arm64)
+# Install (Linux amd64/arm64, macOS arm64)
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 
 # Start the service
@@ -97,7 +97,8 @@ export LLM_MODEL="gpt-4o-mini"                      # Model name
 kaas serve                                          # Default: http://localhost:8080
 ```
 
-Supported platforms: Linux/macOS, amd64/arm64. The binary is symlinked into
+Supported platforms: Linux amd64/arm64 and macOS arm64 (Apple Silicon); there is
+no darwin/amd64 build, so Intel Macs need Option A or B. The binary is symlinked into
 `~/.kaas`, which the installer will tell you to add to PATH. Uninstall:
 `rm -rf ~/.local/share/kaas ~/.kaas/kaas`.
 

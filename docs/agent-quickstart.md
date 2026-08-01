@@ -110,8 +110,9 @@ something left running before you start it.
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 ```
 
-Linux and macOS, amd64 and arm64. The release unpacks into
-`~/.local/share/kaas` and is symlinked as `~/.kaas/kaas`.
+Linux amd64/arm64 and macOS arm64 only — there is no darwin/amd64 release, so on
+an Intel Mac this fails at the download. Use the container below, or Path 1, there.
+The release unpacks into `~/.local/share/kaas` and is symlinked as `~/.kaas/kaas`.
 
 **`~/.kaas` is usually not on PATH**, so a bare `kaas serve` will fail right after
 installing. Either export it first or invoke the absolute path:

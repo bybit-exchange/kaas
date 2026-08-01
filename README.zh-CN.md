@@ -80,7 +80,7 @@ release 起还会有版本号 tag 和 `latest` —— 真正依赖它的场景�
 ### 方式三：CLI 安装
 
 ```bash
-# 安装（Linux/macOS，amd64/arm64）
+# 安装（Linux amd64/arm64，macOS arm64）
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 
 # 启动服务
@@ -90,7 +90,8 @@ export LLM_MODEL="gpt-4o-mini"                      # 模型名称
 kaas serve                                           # 默认 http://localhost:8080
 ```
 
-支持平台：Linux/macOS，amd64/arm64。二进制会被 symlink 到 `~/.kaas`，安装脚本会提示你
+支持平台：Linux amd64/arm64 和 macOS arm64（Apple Silicon）；没有 darwin/amd64 构建，
+Intel Mac 请用方式一或方式二。二进制会被 symlink 到 `~/.kaas`，安装脚本会提示你
 把它加进 PATH。卸载：`rm -rf ~/.local/share/kaas ~/.kaas/kaas`。
 
 ### 启动之后（方式二、方式三）
