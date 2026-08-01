@@ -134,7 +134,7 @@ kaas version
 ## 卸载
 
 ```bash
-rm -rf ~/.local/share/kaas ~/.local/bin/kaas
+rm -rf ~/.local/share/kaas ~/.kaas/kaas
 ```
 
 ## 文档

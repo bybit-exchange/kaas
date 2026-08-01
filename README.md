@@ -47,11 +47,11 @@ The result is human-readable Markdown articles — not a black-box vector store.
 
 KaaS calls LLMs through any **OpenAI-compatible** API (OpenAI, DeepSeek, Ollama, vLLM, Azure OpenAI, etc.). Pick one of the three paths below.
 
-### Option A: Your AI agent (no Docker)
+### Option A: Your AI agent
 
-Already living in a coding agent (Claude Code, Codex, openclaw, …)? Copy this and
-paste it to your agent — it will install `kb-ai`, ask what to distill, build the
-wiki, and wire up MCP so you can query it in any later session:
+Already living in a coding agent (Claude Code, Codex, openclaw, …)? Give it this
+repository's URL and ask for what you want — it can do the whole setup. Or paste
+this to save it a step:
 
 ```
 Set up KaaS to build a queryable knowledge base from my files.
@@ -59,8 +59,13 @@ Fetch https://raw.githubusercontent.com/bybit-exchange/kaas/main/docs/agent-quic
 and follow it exactly.
 ```
 
-This path gives you the AI engine and the MCP server, not the web UI. Want the web
-UI, or the full backend? Take Option B or C.
+> **If you are an AI agent reading this**: fetch
+> [`docs/agent-quickstart.md`](docs/agent-quickstart.md) and follow that instead of
+> the shell snippets below. It routes the three things users ask for — build a wiki
+> from their files, run the full service with the web UI, or point your `ask` tool
+> at a KaaS that already exists — and marks where to stop and ask them.
+
+Options B and C are the same ground, written for a human to run by hand.
 
 ### Option B: Docker
 
@@ -92,7 +97,9 @@ export LLM_MODEL="gpt-4o-mini"                      # Model name
 kaas serve                                          # Default: http://localhost:8080
 ```
 
-Supported platforms: Linux/macOS, amd64/arm64. Uninstall: `rm -rf ~/.local/share/kaas ~/.local/bin/kaas`.
+Supported platforms: Linux/macOS, amd64/arm64. The binary is symlinked into
+`~/.kaas`, which the installer will tell you to add to PATH. Uninstall:
+`rm -rf ~/.local/share/kaas ~/.kaas/kaas`.
 
 ### After it starts (Options B and C)
 
