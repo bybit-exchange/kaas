@@ -63,8 +63,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## Critical Rules
 
 - **Language policy (applies to ALL agents including subagents/parallel agents)**:
-  - **Chinese**: All human-readable output — conversation with user, technical documentation (CONTEXT.md, ADRs, READMEs, inline doc comments, PR descriptions), commit messages, git branch names' descriptive parts, TODO/FIXME comments, and task/plan descriptions.
-  - **English**: Source code identifiers, log messages, error strings, and LLM-facing prompts/instructions (e.g. skill definitions, agent prompts).
-  - **Subagent enforcement**: When spawning any agent (Agent tool, parallel agents, worktree agents), the prompt to the agent MUST include the instruction: "使用中文回复和撰写所有文档/commit message。代码标识符、日志、错误信息用英文。" This ensures delegated work also follows the policy regardless of whether the subagent inherits this file.
+  - **Chinese**: All human-readable output — conversation with user, technical documentation (CONTEXT.md, ADRs, READMEs, inline doc comments, PR descriptions), git branch names' descriptive parts, TODO/FIXME comments, and task/plan descriptions.
+  - **English**: Source code identifiers, log messages, error strings, LLM-facing prompts/instructions (e.g. skill definitions, agent prompts), and **commit messages (subject and body)** — the git history is a public artifact of this repository.
+  - **Subagent enforcement**: When spawning any agent (Agent tool, parallel agents, worktree agents), the prompt to the agent MUST include the instruction: "Reply to the user and write all documentation in Chinese. Write commit messages in English, subject and body. Keep source identifiers, log messages and error strings in English." This ensures delegated work also follows the policy regardless of whether the subagent inherits this file.
 - Always use the /table-design skill for table schema design and migration SQL creation
 - When running Playwright E2E tests locally, use the `/faker` page and `dev-user` to bypass user authentication
