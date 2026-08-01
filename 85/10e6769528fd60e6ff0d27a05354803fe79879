@@ -1,0 +1,33 @@
+docs/agent-quickstart.md
+  a9d5c2e69145cc4a 3-5,7-20,36,50,71,81,92,98-112,116-193
+  ff022125aa8d3c86 113-115
+README.zh-CN.md
+  a9d5c2e69145cc4a 45,47-48,56-61,95
+  ff022125aa8d3c86 83,93-94
+scripts/build-tarball.sh
+  a9d5c2e69145cc4a 140
+  ff022125aa8d3c86 113,116-119,122,125,129,131-135,137,143
+README.md
+  a9d5c2e69145cc4a 50,52-54,62-67,101-102
+  ff022125aa8d3c86 89,99-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "8510e6769528fd60e6ff0d27a05354803fe79879",
+  "prompts": {
+    "ff022125aa8d3c86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7cae3b1-2922-414f-98d3-984d6f9a749e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 30,
+      "total_deletions": 22,
+      "accepted_lines": 24,
+      "overriden_lines": 0
+    }
+  }
+}
