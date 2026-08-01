@@ -60,7 +60,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPC
 			CitedSources     []map[string]string `json:"cited_sources"`
 			RetrievedSources []map[string]string `json:"retrieved_sources"`
 			CostUSD          float64             `json:"cost_usd"`
-			Error            string              `json:"error"`
+			Code             string              `json:"code"`
+			Message          string              `json:"message"`
 		}
 		if err := json.Unmarshal(event, &ev); err != nil {
 			return nil // skip unparseable events
@@ -75,7 +76,17 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPC
 			}
 			costUSD = ev.CostUSD
 		case "error":
-			chatErr = ev.Error
+			// kb_ai error events carry {code, message}; the daemon's CANCELLED
+			// event carries only code. Never leave chatErr empty on an error
+			// event, or the caller silently returns an empty answer as success.
+			switch {
+			case ev.Message != "":
+				chatErr = ev.Message
+			case ev.Code != "":
+				chatErr = ev.Code
+			default:
+				chatErr = "chat failed"
+			}
 		}
 		return nil
 	})

@@ -18,6 +18,20 @@ from kb_ai.storage.store import ArticleMeta, KBStore
 
 _DEFAULT_WORKERS = 16
 
+
+def _under_wiki(store: KBStore, art_path: str) -> bool:
+    """Whether art_path resolves inside the wiki subtree.
+
+    Article paths come from LLM output, so the "wiki/" prefix alone is not
+    enough: "wiki/../raw/a.md" keeps the prefix and still escapes the subtree,
+    where it could clobber a raw source, the compile log or a generated index.
+    """
+    if not art_path.startswith("wiki/"):
+        return False
+    wiki_root = store.wiki_dir.resolve()
+    return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
+
+
 def compile_kb(
     data_dir: str,
     *,
@@ -190,7 +204,7 @@ def compile_kb(
 
             for merge in classification.get("merge_into", []):
                 total_ops += 1
-                if not merge["path"].startswith("wiki/"):
+                if not _under_wiki(store, merge["path"]):
                     log(f"  [skip] bad path (not under wiki/): {merge['path']} ← {rf.rel_path}")
                     continue
                 if merge["path"] in previously_done:
@@ -201,7 +215,7 @@ def compile_kb(
 
             for create in classification.get("create_new", []):
                 total_ops += 1
-                if not create["path"].startswith("wiki/"):
+                if not _under_wiki(store, create["path"]):
                     log(f"  [skip] bad path (not under wiki/): {create['path']} ← {rf.rel_path}")
                     continue
                 if create["path"] in previously_done:
