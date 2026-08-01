@@ -1,0 +1,27 @@
+README.md
+  a9d5c2e69145cc4a 50,52-54,62-67,105-106
+  ff022125aa8d3c86 92,103-104
+README.zh-CN.md
+  a9d5c2e69145cc4a 45,47-48,56-61,98
+  ff022125aa8d3c86 85,96-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "8990e245ab77a5c93a355fe0739f904d379d8f30",
+  "prompts": {
+    "ff022125aa8d3c86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7cae3b1-2922-414f-98d3-984d6f9a749e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 9,
+      "total_deletions": 2,
+      "accepted_lines": 9,
+      "overriden_lines": 0
+    }
+  }
+}
