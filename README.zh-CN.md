@@ -4,7 +4,18 @@
 
 [English](README.md) · **中文**
 
+[![License](https://img.shields.io/github/license/bybit-exchange/kaas?color=blue)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
+[![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
+[![MCP](https://img.shields.io/badge/MCP-ask%20tool-black)](#mcp-接入)
+
 把散乱的笔记、文档和会议转写，变成一个可搜索、可问答的个人 Wiki —— 由 LLM 驱动的知识编译。
+
+**[文档站](https://bybit-exchange.github.io/kaas-doc/)** · [快速开始](#快速开始) · [MCP 接入](#mcp-接入)
+
+> **项目状态：release candidate。** 最新 tag 是 `v0.1.0-rc.1`。我们自己在内部用，
+> 编译流水线、web 界面和 MCP 都能完整跑通。但它还没到 1.0：配置项和 REST 接口在不同
+> tag 之间还可能变。要自建部署，请 pin 一个 release，不要直接跟 `main`。
 
 ![KaaS：把笔记蒸馏成结构化、可读的 wiki，再检索问答](docs/assets/distill-flow.zh.svg)
 
@@ -30,9 +41,13 @@ KaaS 最早是我们内部的工具。知识散落在文档、会议、邮件里
 
 ![KaaS 对比传统 RAG：先编译再检索，而非切块加向量](docs/assets/kaas-vs-rag.zh.svg)
 
-## 在你的 AI agent 里快速上手
+## 快速开始
 
-已经在用 coding agent（Claude Code、Codex、openclaw……）？那就不用装 Docker。复制下面这段话贴给你的 agent —— 它会自动安装 `kb-ai`、问你要蒸馏什么、编译出 wiki，并接好 MCP，之后任意 session 都能直接查询：
+KaaS 通过任意 **OpenAI 兼容** API 调用大模型（OpenAI、DeepSeek、Ollama、vLLM、Azure OpenAI 等均可）。以下三条路径任选一条。
+
+### 方式一：交给你的 AI agent（不用 Docker）
+
+已经在用 coding agent（Claude Code、Codex、openclaw……）？复制下面这段话贴给你的 agent —— 它会自动安装 `kb-ai`、问你要蒸馏什么、编译出 wiki，并接好 MCP，之后任意 session 都能直接查询：
 
 ```
 Set up KaaS to build a queryable knowledge base from my files.
@@ -40,13 +55,9 @@ Fetch https://raw.githubusercontent.com/bybit-exchange/kaas/main/docs/agent-quic
 and follow it exactly.
 ```
 
-想要 web 界面，或者想跑完整后端？用下面的 Docker 方式。
+这条路径给你的是 AI 引擎和 MCP server，没有 web 界面。想要 web 界面，或者想跑完整后端，走方式二或方式三。
 
-## 快速开始
-
-KaaS 通过任意 **OpenAI 兼容** API 调用大模型（OpenAI、DeepSeek、Ollama、vLLM、Azure OpenAI 等均可）。任选以下一种方式：
-
-### 方式一：Docker
+### 方式二：Docker
 
 ```bash
 # 构建镜像
@@ -62,7 +73,7 @@ docker run -d --name kaas \
   kaas
 ```
 
-### 方式二：CLI 安装
+### 方式三：CLI 安装
 
 ```bash
 # 安装（Linux/macOS，amd64/arm64）
@@ -77,16 +88,15 @@ kaas serve                                           # 默认 http://localhost:8
 
 支持平台：Linux/macOS，amd64/arm64。卸载：`rm -rf ~/.local/share/kaas ~/.local/bin/kaas`。
 
----
+### 启动之后（方式二、方式三）
 
-> `LLM_BASE_URL` 默认为 `https://api.openai.com/v1`，`LLM_MODEL` 默认为 `gpt-4o-mini`。
-> 替换为任意 OpenAI 兼容端点即可。
+`LLM_BASE_URL` 默认为 `https://api.openai.com/v1`，`LLM_MODEL` 默认为 `gpt-4o-mini`。替换为任意 OpenAI 兼容端点即可，然后打开 http://localhost:8080。
 
-打开 http://localhost:8080 即可使用。
+想从源码 checkout 跑而不是用 release？见[开发](#开发)。
 
 ### 启用远程 MCP（可选）
 
-如需让 Claude Code 等 MCP 客户端连接知识库：
+如需让 Claude Code 等 MCP 客户端连接知识库，设置 `KAAS_MCP_ENABLED=true`。环境变量每次启动都会覆盖 `kaas.toml`，所以 Docker 和 `kaas serve` 两种方式都适用：
 
 ```bash
 docker run -d --name kaas \
@@ -99,12 +109,6 @@ docker run -d --name kaas \
 ```
 
 MCP 客户端配置 URL: `http://<host>:8080/mcp`，Authorization: `Bearer your-secret-token`。
-
-也可以本地运行：
-
-```bash
-make dev
-```
 
 ## 架构
 
@@ -176,7 +180,7 @@ token = ""               # MCP 认证 token（空 = 不验证）
 timeout_sec = 120        # tools/call 超时秒数
 ```
 
-Docker 部署时，通过 `-e` 传入环境变量即可覆盖 TOML 配置：
+Docker 或 CLI 部署时，通过环境变量传入即可覆盖 TOML 配置：
 
 | 环境变量 | 覆盖项 | 默认值 |
 |---------|--------|--------|
@@ -188,6 +192,8 @@ Docker 部署时，通过 `-e` 传入环境变量即可覆盖 TOML 配置：
 | `KAAS_MCP_TOKEN` | `[ai.mcp] token` | _（空 = 不验证）_ |
 | `KAAS_WEB_DIR` | `[server] web_dir` | `/app/web/dist`（Docker 内） |
 | `KAAS_AI_MCP_URL` | `[ai] mcp_url` | _（已废弃 —— 请用 `KAAS_MCP_ENABLED`）_ |
+
+这里没列到的配置项，文档站的[配置参考](https://bybit-exchange.github.io/kaas-doc/getting-started/configuration.html)有完整说明。
 
 ## 开发
 
