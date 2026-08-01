@@ -4,6 +4,7 @@
 
 [English](README.md) · **中文**
 
+[![Tests](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml/badge.svg)](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/bybit-exchange/kaas?color=blue)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
 [![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
@@ -12,10 +13,6 @@
 把散乱的笔记、文档和会议转写，变成一个可搜索、可问答的个人 Wiki —— 由 LLM 驱动的知识编译。
 
 **[文档站](https://bybit-exchange.github.io/kaas-doc/)** · [快速开始](#快速开始) · [MCP 接入](#mcp-接入)
-
-> **项目状态：release candidate。** 最新 tag 是 `v0.1.0-rc.1`。我们自己在内部用，
-> 编译流水线、web 界面和 MCP 都能完整跑通。但它还没到 1.0：配置项和 REST 接口在不同
-> tag 之间还可能变。要自建部署，请 pin 一个 release，不要直接跟 `main`。
 
 ![KaaS：把笔记蒸馏成结构化、可读的 wiki，再检索问答](docs/assets/distill-flow.zh.svg)
 

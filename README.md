@@ -4,6 +4,7 @@
 
 **English** · [中文](README.zh-CN.md)
 
+[![Tests](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml/badge.svg)](https://github.com/bybit-exchange/kaas/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/bybit-exchange/kaas?color=blue)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
 [![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
@@ -12,11 +13,6 @@
 Turn scattered notes, documents, and transcripts into a searchable, queryable personal Wiki — powered by LLM-driven knowledge compilation.
 
 **[Documentation](https://bybit-exchange.github.io/kaas-doc/)** · [Quick Start](#quick-start) · [MCP access](#mcp-access)
-
-> **Project status: release candidate.** The newest tag is `v0.1.0-rc.1`. We run
-> KaaS internally, and the compile pipeline, web UI and MCP surface all work end
-> to end. It is still pre-1.0 though: config keys and REST endpoints can change
-> between tags. If you self-host, pin a release instead of tracking `main`.
 
 ![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
 
