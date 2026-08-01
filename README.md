@@ -13,11 +13,6 @@ Turn scattered notes, documents, and transcripts into a searchable, queryable pe
 
 **[Documentation](https://bybit-exchange.github.io/kaas-doc/)** · [Quick Start](#quick-start) · [MCP access](#mcp-access)
 
-> **Project status: release candidate.** The newest tag is `v0.1.0-rc.1`. We run
-> KaaS internally, and the compile pipeline, web UI and MCP surface all work end
-> to end. It is still pre-1.0 though: config keys and REST endpoints can change
-> between tags. If you self-host, pin a release instead of tracking `main`.
-
 ![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
 
 ## Why We Built This

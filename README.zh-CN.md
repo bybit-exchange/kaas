@@ -13,10 +13,6 @@
 
 **[文档站](https://bybit-exchange.github.io/kaas-doc/)** · [快速开始](#快速开始) · [MCP 接入](#mcp-接入)
 
-> **项目状态：release candidate。** 最新 tag 是 `v0.1.0-rc.1`。我们自己在内部用，
-> 编译流水线、web 界面和 MCP 都能完整跑通。但它还没到 1.0：配置项和 REST 接口在不同
-> tag 之间还可能变。要自建部署，请 pin 一个 release，不要直接跟 `main`。
-
 ![KaaS：把笔记蒸馏成结构化、可读的 wiki，再检索问答](docs/assets/distill-flow.zh.svg)
 
 ## 为什么做这个
