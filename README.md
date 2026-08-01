@@ -65,7 +65,10 @@ and follow it exactly.
 > from their files, run the full service with the web UI, or point your `ask` tool
 > at a KaaS that already exists — and marks where to stop and ask them.
 
-Options B and C are the same ground, written for a human to run by hand.
+That snippet asks for one specific outcome: the AI engine and a queryable wiki, no
+web UI. Ask your agent for the web UI instead and the runbook sets up the full
+service — which is the same ground Options B and C cover, written for a human to
+run by hand.
 
 ### Option B: Docker
 
@@ -91,6 +94,7 @@ version for anything you actually depend on. To build from source instead:
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 
 # Start the service
+export PATH="$HOME/.kaas:$PATH"                     # where the installer put the binary
 export LLM_API_KEY="sk-xxx"                         # OpenAI-compatible API key
 export LLM_BASE_URL="https://api.openai.com/v1"     # API endpoint
 export LLM_MODEL="gpt-4o-mini"                      # Model name

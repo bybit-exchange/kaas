@@ -59,7 +59,9 @@ and follow it exactly.
 > 跑起带 web 界面的完整服务、或者把你的 `ask` 工具指向一个已经存在的 KaaS —— 并标出了
 > 哪些地方该停下来问用户。
 
-方式二和方式三是同样的事情，只是写给人手动执行。
+上面这段只要一种结果：AI 引擎加一份可查询的 wiki，没有 web 界面。直接跟 agent 说你要
+web 界面，那份 runbook 会去装完整服务 —— 也就是方式二、方式三覆盖的同一件事，只是那两条
+写给人手动执行。
 
 ### 方式二：Docker
 
@@ -84,6 +86,7 @@ release 起还会有版本号 tag 和 `latest` —— 真正依赖它的场景�
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 
 # 启动服务
+export PATH="$HOME/.kaas:$PATH"                     # 安装脚本把二进制放在这里
 export LLM_API_KEY="sk-xxx"                         # OpenAI 兼容 API Key
 export LLM_BASE_URL="https://api.openai.com/v1"     # API 端点
 export LLM_MODEL="gpt-4o-mini"                      # 模型名称
