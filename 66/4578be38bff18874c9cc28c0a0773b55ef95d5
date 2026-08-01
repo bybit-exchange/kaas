@@ -1,0 +1,40 @@
+docs/assets/logo.svg
+  e69467a2b2bff4e0 1-27
+README.zh-CN.md
+  e69467a2b2bff4e0 1-2
+README.md
+  e69467a2b2bff4e0 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "664578be38bff18874c9cc28c0a0773b55ef95d5",
+  "prompts": {
+    "baac2e2430ec8a88": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "62e25325-23a3-42da-8b98-2b165e3b8613",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2747,
+      "total_deletions": 1745,
+      "accepted_lines": 1002,
+      "overriden_lines": 0
+    },
+    "e69467a2b2bff4e0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fc0f9591-9622-4539-ac00-c7c74d511b48",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 127,
+      "total_deletions": 45,
+      "accepted_lines": 82,
+      "overriden_lines": 0
+    }
+  }
+}
