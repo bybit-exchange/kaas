@@ -1,3 +1,5 @@
+![KaaS — Knowledge-as-a-Service](docs/assets/logo.svg)
+
 # KaaS — Knowledge as a Service
 
 **English** · [中文](README.zh-CN.md)
