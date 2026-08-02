@@ -1,0 +1,25 @@
+internal/api/wiki_file_test.go
+  6a0809cc34480b56 4,14-22,112-168
+internal/api/wiki.go
+  6a0809cc34480b56 197-206,292-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "cd0baa5885fcb67293b8c01ebe398e4884bc6c7b",
+  "prompts": {
+    "6a0809cc34480b56": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8248ad0-82eb-44f5-9f3b-9ddfd29e6863",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 83,
+      "total_deletions": 4,
+      "accepted_lines": 109,
+      "overriden_lines": 0
+    }
+  }
+}
