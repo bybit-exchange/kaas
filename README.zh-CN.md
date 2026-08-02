@@ -42,9 +42,10 @@ KaaS 最早是我们内部的工具。知识散落在文档、会议、邮件里
 
 KaaS 通过任意 **OpenAI 兼容** API 调用大模型（OpenAI、DeepSeek、Ollama、vLLM、Azure OpenAI 等均可）。以下三条路径任选一条。
 
-### 方式一：交给你的 AI agent（不用 Docker）
+### 方式一：交给你的 AI agent
 
-已经在用 coding agent（Claude Code、Codex、openclaw……）？复制下面这段话贴给你的 agent —— 它会自动安装 `kb-ai`、问你要蒸馏什么、编译出 wiki，并接好 MCP，之后任意 session 都能直接查询：
+已经在用 coding agent（Claude Code、Codex、openclaw……）？把这个仓库的 URL 丢给它，
+直接说你想要什么就行 —— 整套安装它自己能搞定。想省它一步，也可以复制下面这段贴过去：
 
 ```
 Set up KaaS to build a queryable knowledge base from my files.
@@ -52,7 +53,15 @@ Fetch https://raw.githubusercontent.com/bybit-exchange/kaas/main/docs/agent-quic
 and follow it exactly.
 ```
 
-这条路径给你的是 AI 引擎和 MCP server，没有 web 界面。想要 web 界面，或者想跑完整后端，走方式二或方式三。
+> **如果你是正在读这份文档的 AI agent**：请抓取
+> [`docs/agent-quickstart.md`](docs/agent-quickstart.md) 并按它执行，而不是照抄下面
+> 给人看的命令。那份 runbook 分流了用户最常提的三种需求 —— 用他们的文件建一份 wiki、
+> 跑起带 web 界面的完整服务、或者把你的 `ask` 工具指向一个已经存在的 KaaS —— 并标出了
+> 哪些地方该停下来问用户。
+
+上面这段只要一种结果：AI 引擎加一份可查询的 wiki，没有 web 界面。直接跟 agent 说你要
+web 界面，那份 runbook 会去装完整服务 —— 也就是方式二、方式三覆盖的同一件事，只是那两条
+写给人手动执行。
 
 ### 方式二：Docker
 
@@ -73,17 +82,20 @@ release 起还会有版本号 tag 和 `latest` —— 真正依赖它的场景�
 ### 方式三：CLI 安装
 
 ```bash
-# 安装（Linux/macOS，amd64/arm64）
+# 安装（Linux amd64/arm64，macOS arm64）
 curl -fsSL https://raw.githubusercontent.com/bybit-exchange/kaas/main/install.sh | sh
 
 # 启动服务
+export PATH="$HOME/.kaas:$PATH"                     # 安装脚本把二进制放在这里
 export LLM_API_KEY="sk-xxx"                         # OpenAI 兼容 API Key
 export LLM_BASE_URL="https://api.openai.com/v1"     # API 端点
 export LLM_MODEL="gpt-4o-mini"                      # 模型名称
 kaas serve                                           # 默认 http://localhost:8080
 ```
 
-支持平台：Linux/macOS，amd64/arm64。卸载：`rm -rf ~/.local/share/kaas ~/.local/bin/kaas`。
+支持平台：Linux amd64/arm64 和 macOS arm64（Apple Silicon）；没有 darwin/amd64 构建，
+Intel Mac 请用方式一或方式二。二进制会被 symlink 到 `~/.kaas`，安装脚本会提示你
+把它加进 PATH。卸载：`rm -rf ~/.local/share/kaas ~/.kaas/kaas`。
 
 ### 启动之后（方式二、方式三）
 
