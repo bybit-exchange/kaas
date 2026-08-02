@@ -173,6 +173,29 @@ class CostTracker:
                 self.details.append(detail)
         return cost
 
+    def absorb(self, other: "CostTracker") -> None:
+        """Fold another tracker's totals into this one.
+
+        Lets a caller measure one sub-scope with its own tracker — the only way
+        to get a per-call figure that concurrent work cannot contaminate —
+        without dropping those calls from the enclosing scope's accounting.
+        """
+        with other._lock:
+            cost = other.total_cost
+            prompt = other.total_prompt_tokens
+            completion = other.total_completion_tokens
+            cached = other.total_cached_tokens
+            calls = other.calls
+            details = list(other.details)
+        with self._lock:
+            self.total_cost += cost
+            self.total_prompt_tokens += prompt
+            self.total_completion_tokens += completion
+            self.total_cached_tokens += cached
+            self.calls += calls
+            if self.store_details:
+                self.details.extend(details)
+
     def snapshot(self) -> dict:
         """Capture current state for computing deltas (includes wall-clock timestamp)."""
         with self._lock:

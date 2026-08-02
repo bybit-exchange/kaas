@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -12,11 +13,37 @@ from kb_ai.core.classify import classify_article, classify_cache_key, dedup_crea
 from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
 from kb_ai.storage.index import update_markdown_index, update_timeline
 from kb_ai.core.people import update_people_stubs
-from kb_ai.llm import tracker, get_request_tracker, set_request_tracker
+from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import create_new_article, merge_into_article
 from kb_ai.storage.store import ArticleMeta, KBStore
 
 _DEFAULT_WORKERS = 16
+
+
+@contextmanager
+def _measure_op_cost():
+    """Yield a tracker holding only the LLM spend of the enclosed write op.
+
+    The write phase runs one worker per article group, so a delta of the
+    process-wide tracker taken here also captures whatever the other workers
+    spent in the same window. On a 16-worker run that made every per-article cost
+    line read like the whole fleet's spend: 73 lines summing to 49.57 USD against
+    a phase that really cost 3.66 USD.
+
+    A nested tracker sees this op's calls alone, and folds them into the
+    enclosing request tracker on the way out so per-request accounting still
+    totals correctly. The process-wide tracker is unaffected either way — it
+    records every call directly, which is what the phase summaries read.
+    """
+    op_tracker = CostTracker()
+    parent = get_request_tracker()
+    set_request_tracker(op_tracker)
+    try:
+        yield op_tracker
+    finally:
+        set_request_tracker(parent)
+        if parent is not None:
+            parent.absorb(op_tracker)
 
 
 def _under_wiki(store: KBStore, art_path: str) -> bool:
@@ -246,20 +273,19 @@ def compile_kb(
             merges = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "merge"]
 
             for rel, _cs, extraction, details in creates:
-                snap = tracker.snapshot()
                 try:
-                    full = store.base_dir / details["path"]
-                    full.parent.mkdir(parents=True, exist_ok=True)
-                    if full.exists():
-                        old_content = full.read_text()
-                        new_content = merge_into_article(
-                            details["path"], old_content, extraction, rel, model=write_model)
-                    else:
-                        new_content = create_new_article(
-                            details["type"], details["title"], extraction, rel, model=write_model)
-                    store.write_article(details["path"], new_content)
-                    d = tracker.delta(snap)
-                    log(f"  [create] {art_path} ← {rel} — ${d['cost']:.4f}")
+                    with _measure_op_cost() as op_cost:
+                        full = store.base_dir / details["path"]
+                        full.parent.mkdir(parents=True, exist_ok=True)
+                        if full.exists():
+                            old_content = full.read_text()
+                            new_content = merge_into_article(
+                                details["path"], old_content, extraction, rel, model=write_model)
+                        else:
+                            new_content = create_new_article(
+                                details["type"], details["title"], extraction, rel, model=write_model)
+                        store.write_article(details["path"], new_content)
+                    log(f"  [create] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -279,13 +305,13 @@ def compile_kb(
                 title = Path(art_path).stem.replace("-", " ").title()
                 combined, merge_rels = _combine_extractions(
                     [(rel, ext) for rel, _cs, ext, _det in merges])
-                snap = tracker.snapshot()
                 try:
-                    new_content = create_new_article(
-                        article_type, title, combined, ", ".join(merge_rels), model=write_model)
-                    store.write_article(art_path, new_content)
-                    d = tracker.delta(snap)
-                    log(f"  [merge→create] {art_path} ← {len(merges)} sources — ${d['cost']:.4f}")
+                    with _measure_op_cost() as op_cost:
+                        new_content = create_new_article(
+                            article_type, title, combined, ", ".join(merge_rels), model=write_model)
+                        store.write_article(art_path, new_content)
+                    log(f"  [merge→create] {art_path} ← {len(merges)} sources "
+                        f"— ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         for rel in merge_rels:
                             _file_done_ops[rel] += 1
@@ -299,14 +325,13 @@ def compile_kb(
 
             if len(merges) == 1:
                 rel, _cs, extraction, details = merges[0]
-                snap = tracker.snapshot()
                 try:
-                    old_content = store.read_article(art_path)
-                    new_content = merge_into_article(
-                        art_path, old_content, extraction, rel, model=write_model)
-                    store.write_article(art_path, new_content)
-                    d = tracker.delta(snap)
-                    log(f"  [merge] {art_path} ← {rel} — ${d['cost']:.4f}")
+                    with _measure_op_cost() as op_cost:
+                        old_content = store.read_article(art_path)
+                        new_content = merge_into_article(
+                            art_path, old_content, extraction, rel, model=write_model)
+                        store.write_article(art_path, new_content)
+                    log(f"  [merge] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -317,14 +342,14 @@ def compile_kb(
             else:
                 combined, merge_rels = _combine_extractions(
                     [(rel, ext) for rel, _cs, ext, _det in merges])
-                snap = tracker.snapshot()
                 try:
-                    old_content = store.read_article(art_path)
-                    new_content = merge_into_article(
-                        art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
-                    store.write_article(art_path, new_content)
-                    d = tracker.delta(snap)
-                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources — ${d['cost']:.4f}")
+                    with _measure_op_cost() as op_cost:
+                        old_content = store.read_article(art_path)
+                        new_content = merge_into_article(
+                            art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
+                        store.write_article(art_path, new_content)
+                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
+                        f"— ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         for rel in merge_rels:
                             _file_done_ops[rel] += 1

@@ -179,6 +179,44 @@ class TestEstimateCost:
 
 # ── CostTracker ────────────────────────────────────────────────────────
 
+class TestAbsorb:
+    def test_folds_totals_and_details_into_the_parent(self):
+        parent, child = CostTracker(), CostTracker()
+        parent.record("claude-sonnet-4-6", 100, 50)
+        child.record("claude-sonnet-4-6", 200, 100, cached_tokens=20)
+        child.record("claude-haiku-4-5", 10, 5)
+
+        parent.absorb(child)
+
+        assert parent.calls == 3
+        assert parent.total_prompt_tokens == 310
+        assert parent.total_completion_tokens == 155
+        assert parent.total_cached_tokens == 20
+        assert parent.total_cost == pytest.approx(
+            estimate_cost("claude-sonnet-4-6", 100, 50)
+            + estimate_cost("claude-sonnet-4-6", 200, 100, 20)
+            + estimate_cost("claude-haiku-4-5", 10, 5))
+        assert len(parent.details) == 3
+
+    def test_leaves_the_child_untouched(self):
+        parent, child = CostTracker(), CostTracker()
+        child.record("claude-sonnet-4-6", 100, 50)
+
+        parent.absorb(child)
+
+        assert child.calls == 1
+        assert child.total_prompt_tokens == 100
+
+    def test_honours_store_details_false_on_the_parent(self):
+        parent, child = CostTracker(store_details=False), CostTracker()
+        child.record("claude-sonnet-4-6", 100, 50)
+
+        parent.absorb(child)
+
+        assert parent.calls == 1
+        assert parent.details == []
+
+
 class TestCostTracker:
     def test_record_accumulates(self, cost_tracker: CostTracker):
         cost_tracker.record("claude-sonnet-4-6", 100, 50)

@@ -9,12 +9,15 @@ completed_ops, and the wiki/ path guard.
 from __future__ import annotations
 
 import json
+import re
+import threading
 from pathlib import Path
 
 import pytest
 
 from kb_ai.commands import compile as cm
 from kb_ai.core.extract import ExtractionResult
+from kb_ai.llm import get_request_tracker
 from kb_ai.storage.store import KBStore
 
 
@@ -150,6 +153,49 @@ def test_compile_reports_timing_and_cost(kb, fakes):
     assert set(out["timing"]["phases"]) == {"extract", "classify", "write", "index"}
     assert "total_seconds" in out["timing"]
     assert "total_cost_usd" in out["cost"]
+
+
+def test_write_phase_attributes_cost_to_the_article_that_spent_it(kb, fakes, monkeypatch):
+    """Per-article cost lines must exclude what sibling workers spent.
+
+    The write phase runs one worker per article group. Deltas of the process-wide
+    tracker taken inside a worker also capture the other workers' spend in the
+    same window, so the printed per-article costs summed to far more than the
+    phase actually cost — inflated by roughly the worker count.
+    """
+    workers = 4
+    for name in ("c", "d"):
+        kb.write_raw(f"raw/{name}.md", f"content of {name}")
+    holding = threading.Barrier(workers, timeout=30)
+    recorded = threading.Barrier(workers, timeout=30)
+
+    def classify_per_source(extraction, existing, model="m", categories=None):
+        stem = Path(extraction.source_path).stem
+        return {"merge_into": [],
+                "create_new": [{"path": f"wiki/concept/{stem}.md",
+                                "title": stem, "type": "concept"}]}
+
+    def create_costing_three_dollars(article_type, title, extraction, source_path, model="m"):
+        # Hold every worker inside its own measurement window, so a global delta
+        # cannot help but see all four charges.
+        holding.wait()
+        for sink in (cm.tracker, get_request_tracker()):
+            if sink is not None:
+                sink.record("claude-sonnet-4-6", 1_000_000, 0)  # 3.00 USD
+        recorded.wait()
+        return f"---\ntitle: {title}\n---\nbody\n"
+
+    monkeypatch.setattr(cm, "classify_article", classify_per_source)
+    monkeypatch.setattr(cm, "create_new_article", create_costing_three_dollars)
+
+    cm.compile_kb(str(kb.base_dir), workers=workers)
+
+    log = (kb.base_dir / ".compile.log").read_text()
+    per_article = [float(c) for c in re.findall(r"\[create\].*— \$([0-9.]+)", log)]
+    phase_total = float(re.search(r"Phase 2b done: \$([0-9.]+)", log).group(1))
+
+    assert per_article == [pytest.approx(3.0)] * workers
+    assert sum(per_article) == pytest.approx(phase_total)
 
 
 def test_compile_runs_the_index_phase(kb, fakes):
