@@ -65,18 +65,19 @@ UI, or the full backend? Take Option B or C.
 ### Option B: Docker
 
 ```bash
-# Build the image
-docker build -t kaas .
-
-# Run
 docker run -d --name kaas \
   -p 8080:8080 \
   -v ./data:/app/data \
   -e LLM_API_KEY=sk-xxx \
   -e LLM_BASE_URL=https://api.openai.com/v1 \
   -e LLM_MODEL=gpt-4o-mini \
-  kaas
+  ghcr.io/bybit-exchange/kaas:edge
 ```
+
+Prebuilt for `linux/amd64` and `linux/arm64`. `edge` tracks `main`. From the
+first stable release there will also be version tags and `latest` — pin a
+version for anything you actually depend on. To build from source instead:
+`docker build -t kaas .`
 
 ### Option C: CLI install
 
@@ -114,7 +115,7 @@ docker run -d --name kaas \
   -e LLM_API_KEY=sk-xxx \
   -e KAAS_MCP_ENABLED=true \
   -e KAAS_MCP_TOKEN=your-secret-token \
-  kaas
+  ghcr.io/bybit-exchange/kaas:edge
 ```
 
 MCP client URL: `http://<host>:8080/mcp`, Authorization: `Bearer your-secret-token`.

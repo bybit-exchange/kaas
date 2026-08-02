@@ -57,18 +57,18 @@ and follow it exactly.
 ### 方式二：Docker
 
 ```bash
-# 构建镜像
-docker build -t kaas .
-
-# 运行
 docker run -d --name kaas \
   -p 8080:8080 \
   -v ./data:/app/data \
   -e LLM_API_KEY=sk-xxx \
   -e LLM_BASE_URL=https://api.openai.com/v1 \
   -e LLM_MODEL=gpt-4o-mini \
-  kaas
+  ghcr.io/bybit-exchange/kaas:edge
 ```
+
+已预构建 `linux/amd64` 和 `linux/arm64` 两个架构。`edge` 跟随 `main`；从第一个正式
+release 起还会有版本号 tag 和 `latest` —— 真正依赖它的场景请 pin 一个版本号。想从源码
+构建：`docker build -t kaas .`
 
 ### 方式三：CLI 安装
 
@@ -102,7 +102,7 @@ docker run -d --name kaas \
   -e LLM_API_KEY=sk-xxx \
   -e KAAS_MCP_ENABLED=true \
   -e KAAS_MCP_TOKEN=your-secret-token \
-  kaas
+  ghcr.io/bybit-exchange/kaas:edge
 ```
 
 MCP 客户端配置 URL: `http://<host>:8080/mcp`，Authorization: `Bearer your-secret-token`。
