@@ -1,0 +1,29 @@
+py/src/kb_ai/_cost.py
+  2d8aa5d76cf484eb 176-198
+py/tests/test_cost.py
+  2d8aa5d76cf484eb 182-219
+py/tests/test_commands_compile.py
+  2d8aa5d76cf484eb 12-13,20,158-200
+py/src/kb_ai/commands/compile.py
+  2d8aa5d76cf484eb 8,16,23-48,277-288,309-314,329-334,346-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "cee2db8da514ea4ef6366d56c03c7b56b439a819",
+  "prompts": {
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 764,
+      "total_deletions": 1690,
+      "accepted_lines": 1028,
+      "overriden_lines": 0
+    }
+  }
+}
