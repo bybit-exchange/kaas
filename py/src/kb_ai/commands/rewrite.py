@@ -8,24 +8,8 @@ import json
 import sys
 
 from kb_ai._protocol import RequestResponseCommand, respond_ok, respond_error
-from kb_ai.llm import PRICING, completion, CostTracker, get_request_tracker, set_request_tracker
+from kb_ai.llm import completion, CostTracker, get_request_tracker, set_request_tracker
 from kb_ai.prompts import default_registry
-
-
-def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int,
-                   cached_tokens: int = 0) -> float:
-    """Estimate USD cost from token counts using PRICING table."""
-    pricing = PRICING.get(model)
-    if not pricing:
-        for key, val in PRICING.items():
-            if model.startswith(key.rsplit("-", 1)[0]):
-                pricing = val
-                break
-    if not pricing:
-        return 0.0
-    non_cached = prompt_tokens - cached_tokens
-    return (non_cached * pricing["input"] + cached_tokens * pricing["input"] * 0.1
-            + completion_tokens * pricing["output"]) / 1_000_000
 
 
 def _format_history(history: list[dict]) -> str:
@@ -81,16 +65,15 @@ def rewrite_query(query: str, history: list[dict] | None = None,
     finally:
         set_request_tracker(prev_tracker)
 
+    # The tracker already priced each call (cache discount included), so read its
+    # total rather than re-deriving one from the token counts.
     summary = req_tracker.summary()
-    prompt_tokens = summary["total_prompt_tokens"]
-    completion_tokens = summary["total_completion_tokens"]
-    cost = _estimate_cost(model, prompt_tokens, completion_tokens)
 
     return {
         "rewritten_query": rewritten,
-        "tokens_prompt": prompt_tokens,
-        "tokens_completion": completion_tokens,
-        "cost_usd": round(cost, 8),
+        "tokens_prompt": summary["total_prompt_tokens"],
+        "tokens_completion": summary["total_completion_tokens"],
+        "cost_usd": round(summary["total_cost_usd"], 8),
     }
 
 

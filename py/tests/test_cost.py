@@ -5,6 +5,7 @@ import threading
 
 import pytest
 
+from kb_ai import _cost as cost_mod
 from kb_ai._cost import (
     PRICING,
     CostTracker,
@@ -44,6 +45,42 @@ class TestResolvePricing:
     def test_case_insensitive_substring(self):
         p = resolve_pricing("AI.KAAS.SONNET.ROUTER")
         assert p == PRICING["claude-sonnet-4-6"]
+
+    def test_region_prefixed_bedrock_name(self):
+        """The name a Bedrock-backed proxy actually reports."""
+        assert resolve_pricing("us.claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
+        assert resolve_pricing("us.anthropic.claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
+
+
+class TestUnpricedModelWarning:
+    """An unpriced model reports 0, which reads as free rather than unknown."""
+
+    @pytest.fixture(autouse=True)
+    def _forget_warned_models(self):
+        cost_mod._warned_models.clear()
+        yield
+        cost_mod._warned_models.clear()
+
+    def test_warns_once_per_model(self, capsys):
+        estimate_cost("mystery-llm", 1000, 1000)
+        estimate_cost("mystery-llm", 1000, 1000)
+
+        err = capsys.readouterr().err
+        assert err.count("mystery-llm") == 1
+        assert "no pricing" in err
+
+    def test_warns_per_distinct_model(self, capsys):
+        estimate_cost("mystery-one", 1000, 0)
+        estimate_cost("mystery-two", 1000, 0)
+
+        err = capsys.readouterr().err
+        assert "mystery-one" in err
+        assert "mystery-two" in err
+
+    def test_stays_quiet_for_a_priced_model(self, capsys):
+        estimate_cost("claude-sonnet-4-6", 1000, 0)
+
+        assert capsys.readouterr().err == ""
 
 
 # ── estimate_cost ──────────────────────────────────────────────────────

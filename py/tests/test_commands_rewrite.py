@@ -116,33 +116,35 @@ def test_format_history_empty():
     assert rewrite._format_history([]) == ""
 
 
-# ── _estimate_cost ──────────────────────────────────────────────────
+# ── cost reporting ──────────────────────────────────────────────────
 
-def test_estimate_cost_exact_model():
+def test_rewrite_prices_an_exact_model_name(monkeypatch):
     # 1M input at 3 USD/M + 1M output at 15 USD/M.
-    cost = rewrite._estimate_cost("claude-sonnet-4-6", 1_000_000, 1_000_000)
-    assert cost == pytest.approx(18.0)
+    monkeypatch.setattr(rewrite, "completion", _fake_completion(
+        "q", prompt_tokens=1_000_000, completion_tokens=1_000_000))
+
+    out = rewrite.rewrite_query("q", [{"role": "user", "content": "h"}],
+                                model="claude-sonnet-4-6")
+
+    assert out["cost_usd"] == pytest.approx(18.0)
 
 
-def test_estimate_cost_discounts_cached_tokens():
-    """Cached prompt tokens bill at 10% of the input rate."""
-    full = rewrite._estimate_cost("claude-haiku-4-5", 1_000_000, 0)
-    cached = rewrite._estimate_cost("claude-haiku-4-5", 1_000_000, 0,
-                                    cached_tokens=1_000_000)
-    assert full == pytest.approx(1.0)
-    assert cached == pytest.approx(0.1)
+def test_rewrite_prices_a_routed_model_name(monkeypatch):
+    """A proxy-routed name must not silently report 0."""
+    monkeypatch.setattr(rewrite, "completion", _fake_completion(
+        "q", prompt_tokens=1_000_000, completion_tokens=0))
+
+    out = rewrite.rewrite_query("q", [{"role": "user", "content": "h"}],
+                                model="us.claude-sonnet-4-6")
+
+    assert out["cost_usd"] == pytest.approx(3.0)
 
 
-def test_estimate_cost_falls_back_to_prefix_match():
-    """An unlisted point release must still price via its family prefix rather
-    than silently costing nothing."""
-    cost = rewrite._estimate_cost("claude-sonnet-4-9", 1_000_000, 0)
-    assert cost > 0
+def test_rewrite_reports_zero_for_a_model_with_no_known_pricing(monkeypatch):
+    monkeypatch.setattr(rewrite, "completion", _fake_completion(
+        "q", prompt_tokens=1_000_000, completion_tokens=1_000_000))
 
+    out = rewrite.rewrite_query("q", [{"role": "user", "content": "h"}],
+                                model="some-other-vendor-model")
 
-def test_estimate_cost_unknown_model_is_zero():
-    assert rewrite._estimate_cost("some-other-vendor-model", 1_000_000, 1_000_000) == 0.0
-
-
-def test_estimate_cost_zero_tokens():
-    assert rewrite._estimate_cost("claude-sonnet-4-6", 0, 0) == 0.0
+    assert out["cost_usd"] == 0.0

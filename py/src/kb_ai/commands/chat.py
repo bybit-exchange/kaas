@@ -21,7 +21,7 @@ from typing import Callable
 from openai import APIError, APIStatusError, APITimeoutError
 
 from kb_ai._protocol import StreamingCommand
-from kb_ai.llm import PRICING, _emit_alert, get_client
+from kb_ai.llm import _emit_alert, estimate_cost, get_client
 from kb_ai.llm._cache import AdaptiveCacheState
 from kb_ai.prompts import default_registry
 from kb_ai.retrieval.query import _assemble_article_context
@@ -94,24 +94,6 @@ def _build_user_message(query: str, context: str) -> str:
     if context:
         return f"<reference_material>\n{context}\n</reference_material>\n\n{query}"
     return query
-
-
-def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int,
-                   cached_tokens: int = 0) -> float:
-    """Estimate USD cost from model name and token counts."""
-    pricing = PRICING.get(model)
-    if not pricing:
-        # Try prefix match (e.g. "claude-sonnet-4-6-20250514" -> "claude-sonnet-4-6")
-        for key, val in PRICING.items():
-            if model.startswith(key.rsplit("-", 1)[0]):
-                pricing = val
-                break
-    if not pricing:
-        return 0.0
-    non_cached = prompt_tokens - cached_tokens
-    return (non_cached * pricing["input"]
-            + cached_tokens * pricing["input"] * 0.1
-            + completion_tokens * pricing["output"]) / 1_000_000
 
 
 def _normalize_citation_path(path: str) -> str:
@@ -291,7 +273,7 @@ def _run_chat_core(input_data: dict, emit_fn) -> None:
     if use_cache:
         _update_cache_state(cached_tokens, cache_created_tokens)
 
-    cost = _estimate_cost(model, tokens_prompt, tokens_completion, cached_tokens)
+    cost = estimate_cost(model, tokens_prompt, tokens_completion, cached_tokens)
 
     print(f"[server-chat] done: prompt={tokens_prompt}, completion={tokens_completion}, "
           f"cached={cached_tokens}, cost=${cost:.6f}, "

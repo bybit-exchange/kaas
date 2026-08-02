@@ -43,6 +43,20 @@ def resolve_pricing(model: str) -> dict | None:
     return None
 
 
+_warned_models: set[str] = set()
+_warn_lock = threading.Lock()
+
+
+def _warn_unpriced_once(model: str) -> None:
+    """Say so the first time a model prices at 0, so it reads as unknown, not free."""
+    with _warn_lock:
+        if model in _warned_models:
+            return
+        _warned_models.add(model)
+    print(f"[cost] no pricing entry for model {model!r} — reporting 0.00 USD for "
+          f"its calls; add it to PRICING to track spend", file=sys.stderr)
+
+
 def estimate_cost(
     model: str,
     prompt_tokens: int,
@@ -66,6 +80,7 @@ def estimate_cost(
     """
     p = resolve_pricing(model)
     if not p:
+        _warn_unpriced_once(model)
         return 0.0
     non_cached = prompt_tokens - cached_tokens
     return (non_cached * p["input"] + cached_tokens * p["input"] * 0.1
