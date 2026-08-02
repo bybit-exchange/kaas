@@ -1,0 +1,51 @@
+internal/api/wiki.go
+  6a0809cc34480b56 193-197,246-247,254-256,260-277,283-286,289
+internal/api/wiki_file_test.go
+  6a0809cc34480b56 1-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b4523189f3df25f0de45e948e06c6e58ce25460c",
+  "prompts": {
+    "220b8f46501e5615": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02faaaaf-e683-47e9-b676-beb3bc1cc184",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 516,
+      "total_deletions": 87,
+      "accepted_lines": 424,
+      "overriden_lines": 2
+    },
+    "6a0809cc34480b56": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8248ad0-82eb-44f5-9f3b-9ddfd29e6863",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 233,
+      "total_deletions": 151,
+      "accepted_lines": 160,
+      "overriden_lines": 0
+    },
+    "ff022125aa8d3c86": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d7cae3b1-2922-414f-98d3-984d6f9a749e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 528,
+      "total_deletions": 0,
+      "accepted_lines": 479,
+      "overriden_lines": 0
+    }
+  }
+}
