@@ -190,7 +190,20 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() || !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+		// Regular files only: a symlink here could point outside the wiki dir,
+		// and listing it would leak the target's title through the tree while
+		// handleWikiFile refuses to serve it. (WalkDir never descends into
+		// symlinked directories, so only file entries need this check.)
+		if !d.Type().IsRegular() {
+			// Say so, or a curated wiki dir loses articles from the tree with no
+			// way to find out why. A symlinked directory costs its whole subtree,
+			// since WalkDir will not follow it either.
+			if d.Type()&fs.ModeSymlink != 0 {
+				s.logger.Warn("wiki: skipping symlink, articles under it are not listed", "path", path)
+			}
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
 			return nil
 		}
 		rel, rerr := filepath.Rel(wikiDir, path)
@@ -239,29 +252,53 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleWikiFile serves GET /api/wiki/file?path=<rel>: the raw markdown of one
-// article. The path is confined to the wiki dir (traversal is rejected).
+// article. The path is confined to the wiki dir: "..", absolute paths and
+// symlinks leading out of the tree are all rejected.
 func (s *Server) handleWikiFile(w http.ResponseWriter, r *http.Request) {
 	rel := r.URL.Query().Get("path")
 	if rel == "" {
 		writeErr(w, http.StatusBadRequest, "path is required")
 		return
 	}
-	wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
-	full, ok := safeJoin(wikiDir, rel)
-	if !ok {
+	// Reject absolute paths and ".." climbs up front, so a malformed path always
+	// answers 400 instead of depending on which directories happen to exist.
+	if !filepath.IsLocal(rel) {
 		writeErr(w, http.StatusBadRequest, "invalid path")
 		return
 	}
-	content, err := os.ReadFile(full)
+	rel = filepath.Clean(rel)
+
+	wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
+	// os.Root enforces containment per path element at the syscall level, which
+	// a lexical check cannot do: it also refuses a symlink inside the wiki dir
+	// that points outside it, and is not subject to check-then-open races.
+	root, err := os.OpenRoot(wikiDir)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			writeErr(w, http.StatusNotFound, "article not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "open wiki dir: "+err.Error())
+		return
+	}
+	defer root.Close()
+
+	content, err := root.ReadFile(rel)
 	if errors.Is(err, fs.ErrNotExist) {
 		writeErr(w, http.StatusNotFound, "article not found")
 		return
 	}
 	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "read article: "+err.Error())
+		// A path that escapes the wiki dir, a directory, an unreadable file. The
+		// response stays generic so it cannot be used to probe the filesystem,
+		// but the cause goes to the log: answering 400 hides a genuine
+		// server-side fault (broken mount, bad file mode) from 5xx alerting, so
+		// an operator needs some way to see it.
+		s.logger.Warn("wiki: cannot read article", "path", rel, "err", err)
+		writeErr(w, http.StatusBadRequest, "invalid path")
 		return
 	}
-	relClean := filepath.ToSlash(strings.TrimPrefix(full, wikiDir+string(os.PathSeparator)))
+	relClean := filepath.ToSlash(rel)
 	meta, body := parseFrontmatter(content)
 	title := meta.Title
 	if title == "" {
@@ -275,26 +312,6 @@ func (s *Server) handleWikiFile(w http.ResponseWriter, r *http.Request) {
 		Created: meta.Created,
 		Content: string(body),
 	})
-}
-
-// safeJoin resolves rel under base, rejecting any path that escapes base
-// (via "..", absolute paths, or symlink-free traversal). Returns the cleaned
-// absolute-ish path and whether it is safe.
-func safeJoin(base, rel string) (string, bool) {
-	if filepath.IsAbs(rel) {
-		return "", false
-	}
-	cleaned := filepath.Clean(rel)
-	// Reject any path that climbs out of base ("..", "../x", "a/../../x").
-	if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(os.PathSeparator)) {
-		return "", false
-	}
-	full := filepath.Join(base, cleaned)
-	// Defense in depth: the joined path must still live under base.
-	if full != base && !strings.HasPrefix(full, base+string(os.PathSeparator)) {
-		return "", false
-	}
-	return full, true
 }
 
 // frontmatter holds the YAML front matter fields we expose via the API.
@@ -326,7 +343,6 @@ func parseFrontmatter(content []byte) (frontmatter, []byte) {
 	_ = yaml.Unmarshal(raw, &meta)
 	return meta, body
 }
-
 
 // titleFromBytes extracts the first H1 from already-read content.
 func titleFromBytes(b []byte, rel string) string {
