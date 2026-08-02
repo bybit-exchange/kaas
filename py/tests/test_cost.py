@@ -52,6 +52,63 @@ class TestResolvePricing:
         assert resolve_pricing("us.anthropic.claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
 
 
+class TestPricingOverrides:
+    """KB_AI_PRICING lets a deployment price models the built-in table lacks."""
+
+    def _set(self, monkeypatch, payload):
+        monkeypatch.setenv("KB_AI_PRICING", payload)
+
+    def test_adds_a_model_the_builtin_table_lacks(self, monkeypatch):
+        self._set(monkeypatch, '{"gpt-4o": {"input": 2.5, "output": 10.0}}')
+
+        assert resolve_pricing("gpt-4o") == {"input": 2.5, "output": 10.0}
+
+    def test_prices_a_routed_name_by_substring(self, monkeypatch):
+        self._set(monkeypatch, '{"gpt-4o": {"input": 2.5, "output": 10.0}}')
+
+        assert resolve_pricing("azure.gpt-4o-2024-08-06") == {"input": 2.5, "output": 10.0}
+
+    def test_overrides_a_builtin_price(self, monkeypatch):
+        self._set(monkeypatch, '{"claude-sonnet-4-6": {"input": 1.0, "output": 2.0}}')
+
+        assert resolve_pricing("claude-sonnet-4-6") == {"input": 1.0, "output": 2.0}
+
+    def test_builtin_pricing_survives_an_unrelated_override(self, monkeypatch):
+        self._set(monkeypatch, '{"gpt-4o": {"input": 2.5, "output": 10.0}}')
+
+        assert resolve_pricing("claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
+
+    def test_flows_through_to_estimate_cost(self, monkeypatch):
+        self._set(monkeypatch, '{"gpt-4o": {"input": 2.5, "output": 10.0}}')
+
+        assert estimate_cost("gpt-4o", 1_000_000, 1_000_000) == pytest.approx(12.5)
+
+    def test_malformed_json_is_ignored_with_a_warning(self, monkeypatch, capsys):
+        self._set(monkeypatch, "{not json")
+
+        assert resolve_pricing("claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
+        assert "KB_AI_PRICING" in capsys.readouterr().err
+
+    def test_entries_missing_a_rate_are_skipped(self, monkeypatch, capsys):
+        self._set(monkeypatch, '{"half": {"input": 1.0}, "gpt-4o": {"input": 2.5, "output": 10.0}}')
+
+        assert resolve_pricing("half") is None
+        assert resolve_pricing("gpt-4o") == {"input": 2.5, "output": 10.0}
+        assert "half" in capsys.readouterr().err
+
+    def test_a_non_object_payload_is_ignored(self, monkeypatch, capsys):
+        self._set(monkeypatch, '["gpt-4o"]')
+
+        assert resolve_pricing("gpt-4o") is None
+        assert "KB_AI_PRICING" in capsys.readouterr().err
+
+    def test_empty_value_is_a_no_op(self, monkeypatch, capsys):
+        self._set(monkeypatch, "   ")
+
+        assert resolve_pricing("claude-sonnet-4-6") == PRICING["claude-sonnet-4-6"]
+        assert capsys.readouterr().err == ""
+
+
 class TestUnpricedModelWarning:
     """An unpriced model reports 0, which reads as free rather than unknown."""
 

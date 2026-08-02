@@ -106,6 +106,7 @@ uv run kb-ai distill <paths...> [--kb .kaas]  # 将文件/目录摄入 KB 并编
 | `LLM_SUMMARIZE_MODEL` | — | 摘要阶段使用的模型 |
 | `KAAS_PROMPTS_DIR` | 内置 `prompts/defaults/` | 自定义 prompt 模板目录 |
 | `KB_AI_MAX_PROMPT_CHARS` | `80000` | prompt 最大字符数（超出则截断） |
+| `KB_AI_PRICING` | — | JSON object of `{model: {"input": per-1M-USD, "output": per-1M-USD}}`. Prices models the built-in table lacks; unpriced models report 0.00 USD and warn once. Example: `{"gpt-4o": {"input": 2.5, "output": 10.0}}` |
 | `KB_WORKERS` | `16` | 编译管线 worker 并发数 |
 | `KAAS_DAEMON_MAX_WORKERS` | `8` | daemon 线程池大小 |
 | `KAAS_KB_DIR` | `./data` | MCP server 知识库根目录 |
