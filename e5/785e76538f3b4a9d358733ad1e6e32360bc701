@@ -1,0 +1,25 @@
+.github/workflows/docker-publish.yml
+  6a0809cc34480b56 1-77
+.github/workflows/docker.yml
+  6a0809cc34480b56 3-8,11,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e5785e76538f3b4a9d358733ad1e6e32360bc701",
+  "prompts": {
+    "6a0809cc34480b56": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b8248ad0-82eb-44f5-9f3b-9ddfd29e6863",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 114,
+      "total_deletions": 87,
+      "accepted_lines": 117,
+      "overriden_lines": 0
+    }
+  }
+}
