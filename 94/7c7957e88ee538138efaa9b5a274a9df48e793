@@ -1,0 +1,25 @@
+py/tests/test_retrieval_paths.py
+  2d8aa5d76cf484eb 252-291
+py/src/kb_ai/retrieval/retrieve.py
+  2d8aa5d76cf484eb 32-37,89-102,124-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "947c7957e88ee538138efaa9b5a274a9df48e793",
+  "prompts": {
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 391,
+      "total_deletions": 838,
+      "accepted_lines": 924,
+      "overriden_lines": 0
+    }
+  }
+}
