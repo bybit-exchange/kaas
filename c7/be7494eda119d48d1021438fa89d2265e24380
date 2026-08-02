@@ -1,0 +1,23 @@
+py/src/kb_ai/storage/store.py
+  2d8aa5d76cf484eb 178-179,182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c7be7494eda119d48d1021438fa89d2265e24380",
+  "prompts": {
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 2,
+      "accepted_lines": 865,
+      "overriden_lines": 0
+    }
+  }
+}
