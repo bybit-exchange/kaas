@@ -249,6 +249,46 @@ def test_read_articles_truncates_at_max_article_chars(tmp_path: Path):
     assert len(arts[0]["content"]) == retrieve.MAX_ARTICLE_CHARS
 
 
+def test_truncated_article_says_so_in_its_context(tmp_path: Path):
+    """A silent cut invites the model to report a detail as absent.
+
+    The largest article in a real compile lost over 40% of its body here with
+    nothing in the context to say so.
+    """
+    kb = _make_kb(tmp_path, {"wiki/big.md": "worker " * 5000})
+
+    content = retrieve.read_articles(["wiki/big.md"], kb)[0]["content"]
+
+    assert content.endswith(retrieve.TRUNCATION_NOTE)
+    assert "does not mean" in retrieve.TRUNCATION_NOTE
+
+
+def test_untruncated_article_carries_no_note(tmp_path: Path):
+    kb = _make_kb(tmp_path, {"wiki/small.md": "short body"})
+
+    content = retrieve.read_articles(["wiki/small.md"], kb)[0]["content"]
+
+    assert content == "short body"
+
+
+def test_truncation_is_reported_on_stderr(tmp_path: Path, capsys):
+    kb = _make_kb(tmp_path, {"wiki/big.md": "w" * 20_000})
+
+    retrieve.read_articles(["wiki/big.md"], kb)
+
+    err = capsys.readouterr().err
+    assert "wiki/big.md" in err
+    assert "20,000" in err  # the full size, so the loss is quantifiable
+
+
+def test_untruncated_article_stays_quiet(tmp_path: Path, capsys):
+    kb = _make_kb(tmp_path, {"wiki/small.md": "short body"})
+
+    retrieve.read_articles(["wiki/small.md"], kb)
+
+    assert capsys.readouterr().err == ""
+
+
 def test_read_articles_with_empty_paths_makes_no_reads(tmp_path: Path, monkeypatch):
     kb = _make_kb(tmp_path, {"wiki/a.md": "a"})
     monkeypatch.setattr(KBStore, "read_article",

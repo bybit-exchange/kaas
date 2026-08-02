@@ -29,6 +29,12 @@ from kb_ai.storage.store import ArticleMeta, KBStore
 # 6 * 12K = 72K leaves headroom for the system prompt + history.
 MAX_ARTICLE_CHARS = 12_000
 
+# Replaces the dropped tail so the model reads the excerpt as partial. Without
+# it, a cut article is indistinguishable from a complete one and the answer
+# reports a detail as missing when it was only cut off.
+TRUNCATION_NOTE = ("\n\n[This article exceeds the retrieval budget and is cut off here. "
+                   "A detail missing from this excerpt does not mean the article lacks it.]")
+
 
 def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
                      *, max_select: int) -> list[str]:
@@ -80,6 +86,20 @@ def _strip_frontmatter(content: str) -> str:
     return parts[2].lstrip("\n")
 
 
+def _fit_to_budget(path: str, body: str) -> str:
+    """Cap one article at the per-article budget, saying so when it has to cut.
+
+    The note costs part of the budget rather than being added on top of it, so the
+    coordination with MAX_PROMPT_CHARS documented above still holds.
+    """
+    if len(body) <= MAX_ARTICLE_CHARS:
+        return body
+    kept = MAX_ARTICLE_CHARS - len(TRUNCATION_NOTE)
+    print(f"[retrieve] {path} truncated: kept {kept:,} of {len(body):,} chars "
+          f"({len(body) - kept:,} dropped)", file=sys.stderr, flush=True)
+    return body[:kept] + TRUNCATION_NOTE
+
+
 def _read_selected(store: KBStore, meta_by_path: dict, paths: list[str]) -> list[dict]:
     """Read the given article paths in full (frontmatter stripped, truncated).
 
@@ -101,8 +121,8 @@ def _read_selected(store: KBStore, meta_by_path: dict, paths: list[str]) -> list
             continue
         meta = meta_by_path.get(path)
         title = meta.title if meta else path.rsplit("/", 1)[-1].removesuffix(".md")
-        content = _strip_frontmatter(raw)[:MAX_ARTICLE_CHARS]
-        articles.append({"title": title, "path": path, "content": content})
+        articles.append({"title": title, "path": path,
+                         "content": _fit_to_budget(path, _strip_frontmatter(raw))})
     return articles
 
 
