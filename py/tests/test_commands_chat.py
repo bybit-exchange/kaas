@@ -177,6 +177,42 @@ def test_extract_citations_keeps_only_retrieved_paths_and_dedupes():
     assert cited == [{"title": "A", "path": "wiki/a.md"}]
 
 
+def test_extract_citations_matches_the_leading_slash_form():
+    """The chat prompt asks for `/wiki/...`; retrieved paths have no leading slash."""
+    cited = ch._extract_citations("see [A](/wiki/a.md)", {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_matches_relative_and_extensionless_forms():
+    answer = "see [A](./wiki/a.md) and [B](wiki/b)"
+
+    cited = ch._extract_citations(answer, {"wiki/a.md", "wiki/b.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"},
+                     {"title": "B", "path": "wiki/b.md"}]
+
+
+def test_extract_citations_ignores_an_anchor_fragment():
+    cited = ch._extract_citations("see [A](/wiki/a.md#overview)", {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_dedupes_across_path_spellings():
+    answer = "see [A](/wiki/a.md) then [A again](wiki/a.md) then [A third](./wiki/a)"
+
+    cited = ch._extract_citations(answer, {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_ignores_external_links():
+    answer = "see [Upstream](https://example.com/wiki/a.md)"
+
+    assert ch._extract_citations(answer, {"wiki/a.md"}) == []
+
+
 # ── context assembly ────────────────────────────────────────────────
 
 def test_chat_without_context_sends_only_the_bare_query(llm):
@@ -288,7 +324,7 @@ def test_chat_sends_plain_messages_once_the_cache_auto_disables(llm):
 def test_chat_uses_the_with_sources_prompt_by_default(llm):
     ch._run_chat_core({"query": "q"}, lambda e: None)
 
-    assert "Cite sources using" in _system_text(llm.calls[0])
+    assert "Cite sources as" in _system_text(llm.calls[0])
 
 
 def test_chat_uses_the_no_sources_prompt_when_sources_are_disabled(llm):

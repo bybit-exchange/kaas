@@ -114,21 +114,37 @@ def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int,
             + completion_tokens * pricing["output"]) / 1_000_000
 
 
+def _normalize_citation_path(path: str) -> str:
+    """Reduce a cited link target to the wiki-relative form used by the catalog.
+
+    Models spell the same article several ways -- `/wiki/a.md`, `./wiki/a.md`,
+    `wiki/a`, with a `#section` anchor -- while retrieved paths are always bare
+    `wiki/...md`. Without this, every citation missed the membership test below
+    and cited_sources came back empty on every answer.
+    """
+    p = path.strip().split("#", 1)[0].removeprefix("./").lstrip("/")
+    if not p.endswith(".md"):
+        p += ".md"
+    return p
+
+
 def _extract_citations(answer_text: str, search_paths: set[str]) -> list[dict]:
     """Extract [Title](path) markdown links from LLM answer and intersect with search results.
 
-    Only citations whose path appears in the search_paths set are included.
+    Only citations resolving to a path in the search_paths set are included, and
+    the retrieved path is reported rather than the model's spelling of it.
     Duplicate paths are deduplicated (first occurrence wins).
     """
     pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    by_normalized = {_normalize_citation_path(p): p for p in search_paths}
     cited: list[dict] = []
     seen_paths: set[str] = set()
     for match in pattern.finditer(answer_text):
         title = match.group(1)
-        path = match.group(2)
-        if path in search_paths and path not in seen_paths:
-            seen_paths.add(path)
-            cited.append({"title": title, "path": path})
+        resolved = by_normalized.get(_normalize_citation_path(match.group(2)))
+        if resolved and resolved not in seen_paths:
+            seen_paths.add(resolved)
+            cited.append({"title": title, "path": resolved})
     return cited
 
 
