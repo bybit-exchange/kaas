@@ -1,0 +1,25 @@
+py/src/kb_ai/storage/index.py
+  2d8aa5d76cf484eb 16-26
+py/tests/test_storage_index.py
+  2d8aa5d76cf484eb 167-179
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "ebd2297632fdae9bcc247c7e9e46039b7553de79",
+  "prompts": {
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 85,
+      "total_deletions": 1397,
+      "accepted_lines": 84,
+      "overriden_lines": 0
+    }
+  }
+}
