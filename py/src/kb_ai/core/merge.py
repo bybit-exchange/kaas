@@ -436,6 +436,7 @@ Required frontmatter format:
 ---
 title: "{{title}}"
 type: {{type}}{status_line}
+summary: "{{one sentence}}"
 tags: [topic tags]
 sources:
   - {{source_path}}
@@ -446,6 +447,11 @@ updated: {{date}}
 {_section_guidance(article_type)}
 
 Write a well-structured article following the section guidance above.
+
+The `summary` line is the article's entry in the knowledge-base catalog, which is
+the only surface a reader searches before opening anything. Write one sentence
+under 150 characters naming the specific things covered here — subsystems, key
+parameters, decisions — not a restatement of the title.
 
 Use [[wikilinks]] for references to related concepts.
 Return the complete article including frontmatter."""
