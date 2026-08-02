@@ -1,0 +1,46 @@
+py/src/kb_ai/storage/index.py
+  2d8aa5d76cf484eb 3,10-44,75
+py/src/kb_ai/storage/store.py
+  2d8aa5d76cf484eb 179-182
+py/tests/test_storage_index.py
+  2d8aa5d76cf484eb 119-185
+py/tests/test_storage_paths.py
+  2d8aa5d76cf484eb 234-253
+py/src/kb_ai/core/merge.py
+  2d8aa5d76cf484eb 439,451-454
+py/src/kb_ai/prompts/defaults/merge-rewrite.md
+  2d8aa5d76cf484eb 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f42712ecdfabb5a494aed97885177b0f121a7b6e",
+  "prompts": {
+    "043a2507d9929a02": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1aa88fd7-523a-4414-a1ae-18296d8b4efd",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 529,
+      "total_deletions": 0,
+      "accepted_lines": 529,
+      "overriden_lines": 0
+    },
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 135,
+      "total_deletions": 1631,
+      "accepted_lines": 135,
+      "overriden_lines": 0
+    }
+  }
+}
