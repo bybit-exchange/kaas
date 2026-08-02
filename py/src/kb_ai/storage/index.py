@@ -13,8 +13,17 @@ _HEADING_RE = re.compile(r"^#{1,6}\s")
 
 
 def _flatten(text: str) -> str:
-    """Collapse whitespace to a single line and cap it for the catalog entry."""
-    return " ".join(text.split())[:SUMMARY_MAX_CHARS]
+    """Collapse whitespace to a single line and cap it for the catalog entry.
+
+    Trims at a word boundary where there is one: the catalog is a git-tracked
+    file people read, and a first-paragraph fallback usually needs clipping.
+    """
+    flat = " ".join(text.split())
+    if len(flat) <= SUMMARY_MAX_CHARS:
+        return flat
+    clipped = flat[:SUMMARY_MAX_CHARS]
+    head, sep, _ = clipped.rpartition(" ")
+    return f"{head}…" if sep else clipped
 
 
 def _derive_summary(fm: dict, body: str) -> str:

@@ -164,6 +164,19 @@ def test_master_index_frontmatter_summary_is_flattened_and_capped(tmp_path: Path
     assert line == f"- [A](wiki/a.md) — {'w' * 150}"
 
 
+def test_master_index_summary_clips_at_a_word_boundary(tmp_path: Path):
+    store = _store(tmp_path)
+    body = " ".join(["configuration"] * 20)  # 279 chars, boundary before 150
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{body}")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+    summary = line.split("—", 1)[1].strip()
+
+    assert summary == " ".join(["configuration"] * 10) + "…"
+    assert len(summary) <= 150
+
+
 def test_master_index_ignores_blank_frontmatter_summary(tmp_path: Path):
     store = _store(tmp_path)
     _write(store, "wiki/a.md", '---\ntitle: A\nsummary: "   "\n---\n\nBody prose.')
