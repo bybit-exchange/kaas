@@ -1,0 +1,29 @@
+py/src/kb_ai/commands/chat.py
+  2d8aa5d76cf484eb 117-130,134-135,139,144-147
+py/src/kb_ai/prompts/defaults/chat-no-sources.md
+  2d8aa5d76cf484eb 7
+py/src/kb_ai/prompts/defaults/chat-with-sources.md
+  2d8aa5d76cf484eb 6
+py/tests/test_commands_chat.py
+  2d8aa5d76cf484eb 180-215,327
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "381f22a6f7dc1b279739ea4930c5253944a8f84c",
+  "prompts": {
+    "2d8aa5d76cf484eb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "050c61a1-4f1b-4d3f-a0a2-c3df050556e9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 170,
+      "total_deletions": 1408,
+      "accepted_lines": 60,
+      "overriden_lines": 0
+    }
+  }
+}
