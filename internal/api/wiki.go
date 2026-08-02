@@ -194,7 +194,16 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 		// and listing it would leak the target's title through the tree while
 		// handleWikiFile refuses to serve it. (WalkDir never descends into
 		// symlinked directories, so only file entries need this check.)
-		if !d.Type().IsRegular() || !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+		if !d.Type().IsRegular() {
+			// Say so, or a curated wiki dir loses articles from the tree with no
+			// way to find out why. A symlinked directory costs its whole subtree,
+			// since WalkDir will not follow it either.
+			if d.Type()&fs.ModeSymlink != 0 {
+				s.logger.Warn("wiki: skipping symlink, articles under it are not listed", "path", path)
+			}
+			return nil
+		}
+		if !strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
 			return nil
 		}
 		rel, rerr := filepath.Rel(wikiDir, path)
@@ -280,9 +289,12 @@ func (s *Server) handleWikiFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		// A path that escapes the wiki dir, a directory, an unreadable file: all
-		// caller-supplied. The message stays generic so it cannot be used to
-		// probe the filesystem.
+		// A path that escapes the wiki dir, a directory, an unreadable file. The
+		// response stays generic so it cannot be used to probe the filesystem,
+		// but the cause goes to the log: answering 400 hides a genuine
+		// server-side fault (broken mount, bad file mode) from 5xx alerting, so
+		// an operator needs some way to see it.
+		s.logger.Warn("wiki: cannot read article", "path", rel, "err", err)
 		writeErr(w, http.StatusBadRequest, "invalid path")
 		return
 	}

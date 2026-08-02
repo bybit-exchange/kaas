@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,15 @@ import (
 
 // Containment of the wiki dir against symlinks. Lexical traversal ("..",
 // absolute paths) is covered by TestWikiFileTraversalRejected in api_test.go.
+
+// newTestServerWithLog mirrors newTestServer but captures the server log, so a
+// test can assert on what an operator would see.
+func newTestServerWithLog(t *testing.T, buf *bytes.Buffer) (*Server, string) {
+	t.Helper()
+	kb := t.TempDir()
+	cfg := Config{KBDir: kb, Model: "test-model", Upload: testUploadConf()}
+	return NewServer(&fakeQueue{}, &fakeStore{}, nil, &fakeBridge{}, cfg, testLogger(buf)), kb
+}
 
 // --- handleWikiFile: symlinks may not escape the wiki dir ---
 
@@ -97,5 +107,62 @@ func TestHandleListWiki_SkipsSymlinks(t *testing.T) {
 	mustJSON(t, rec, &out)
 	if len(out.Tree) != 1 {
 		t.Fatalf("got %d root nodes, want 1 (only real.md); body=%s", len(out.Tree), rec.Body.String())
+	}
+}
+
+// --- handleListWiki: a skipped symlink is diagnosable from the log ---
+
+func TestHandleListWiki_LogsSkippedSymlink(t *testing.T) {
+	var buf bytes.Buffer
+	s, kb := newTestServerWithLog(t, &buf)
+	writeWiki(t, kb, "real.md", "# Real")
+
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(kb, "wiki", "linked-notes")); err != nil {
+		t.Skipf("symlinks unsupported on this platform: %v", err)
+	}
+
+	if rec := do(t, s, "GET", "/api/wiki", ""); rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	logged := buf.String()
+	if !strings.Contains(logged, "linked-notes") {
+		t.Errorf("log does not name the skipped symlink, so a vanished article is undiagnosable; log=%s", logged)
+	}
+}
+
+// --- handleWikiFile: the real cause of a 400 reaches the log, not the client ---
+
+func TestHandleWikiFile_LogsCauseKeepsResponseGeneric(t *testing.T) {
+	var buf bytes.Buffer
+	s, kb := newTestServerWithLog(t, &buf)
+	writeWiki(t, kb, "real.md", "# Real")
+
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.md")
+	if err := os.WriteFile(secret, []byte("TOP SECRET"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(secret, filepath.Join(kb, "wiki", "leak.md")); err != nil {
+		t.Skipf("symlinks unsupported on this platform: %v", err)
+	}
+
+	rec := do(t, s, "GET", "/api/wiki/file?path=leak.md", "")
+	if rec.Code != 400 {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+
+	// The client learns nothing about the filesystem.
+	if body := rec.Body.String(); strings.Contains(body, outside) || strings.Contains(body, "escapes") {
+		t.Errorf("response leaks filesystem detail: %s", body)
+	}
+	// The operator does.
+	logged := buf.String()
+	if !strings.Contains(logged, "leak.md") {
+		t.Errorf("log does not name the rejected path; log=%s", logged)
+	}
+	if !strings.Contains(logged, "err=") && !strings.Contains(logged, `"err"`) {
+		t.Errorf("log does not carry the underlying error; log=%s", logged)
 	}
 }
