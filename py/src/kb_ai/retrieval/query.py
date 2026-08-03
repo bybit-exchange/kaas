@@ -5,10 +5,18 @@ from kb_ai.llm import completion
 
 
 def _assemble_article_context(articles: list[dict]) -> str:
-    """Dump full article contents as the RAG context block."""
+    """Dump full article contents as the RAG context block.
+
+    The heading advertises the article path root-absolute (`/wiki/...`) because
+    the chat prompt tells the model to copy it verbatim into its citations, and
+    a cited link has to work outside the web UI too -- a bare `wiki/...` target
+    resolves relative to whatever document is rendering it. Selection prompts
+    keep the bare form: those paths are store keys, not links.
+    """
     parts = []
     for a in articles:
-        parts.append(f"### {a['title']} ({a['path']})\n{a.get('content', '')}")
+        path = a["path"] if a["path"].startswith("/") else f"/{a['path']}"
+        parts.append(f"### {a['title']} ({path})\n{a.get('content', '')}")
     return "\n\n".join(parts)
 
 

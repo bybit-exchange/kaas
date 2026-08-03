@@ -243,7 +243,7 @@ def test_chat_grounds_the_prompt_in_supplied_articles(llm):
 
     user = llm.calls[0]["messages"][-1]["content"]
     assert "<reference_material>" in user
-    assert "### W (wiki/w.md)\nworker pool details" in user
+    assert "### W (/wiki/w.md)\nworker pool details" in user
     done = events[-1]
     assert done["retrieved_sources"] == [{"title": "W", "path": "wiki/w.md"}]
     # Only citations that intersect the retrieved paths survive.
