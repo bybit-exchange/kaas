@@ -4,10 +4,13 @@ Extracted from llm.py to provide a standalone module for pricing resolution,
 cost tracking, and cost estimation.
 """
 
+import json
+import os
 import sys
 import threading
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 # Per-1M-token pricing (cache reads billed at 10% of input price per Anthropic)
 PRICING = {
@@ -16,16 +19,64 @@ PRICING = {
     "claude-haiku-4-5":  {"input": 1.0,  "output": 5.0},
 }
 
+# JSON object of {model: {"input": per-1M, "output": per-1M}}, consulted before
+# PRICING so a deployment can price models this table does not carry.
+PRICING_ENV_VAR = "KB_AI_PRICING"
+
+
+@lru_cache(maxsize=1)
+def _parse_overrides(raw: str) -> dict[str, dict]:
+    """Parse and validate the KB_AI_PRICING payload.
+
+    Keyed on the raw string so a changed environment re-parses, and so a bad
+    payload is reported once rather than on every priced call.
+    """
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        print(f"[cost] ignoring {PRICING_ENV_VAR}: invalid JSON ({e})", file=sys.stderr)
+        return {}
+    if not isinstance(parsed, dict):
+        print(f"[cost] ignoring {PRICING_ENV_VAR}: expected a JSON object of "
+              f"{{model: {{input, output}}}}", file=sys.stderr)
+        return {}
+
+    out: dict[str, dict] = {}
+    for model, entry in parsed.items():
+        try:
+            out[str(model)] = {"input": float(entry["input"]),
+                               "output": float(entry["output"])}
+        except (TypeError, KeyError, ValueError):
+            print(f"[cost] ignoring {PRICING_ENV_VAR} entry {model!r}: needs numeric "
+                  f"'input' and 'output' rates per 1M tokens", file=sys.stderr)
+    return out
+
+
+def _pricing_overrides() -> dict[str, dict]:
+    raw = os.environ.get(PRICING_ENV_VAR, "").strip()
+    return _parse_overrides(raw) if raw else {}
+
 
 def resolve_pricing(model: str) -> dict | None:
     """Resolve pricing dict for a given model name.
 
-    Supports exact match, prefix match, and substring fallback for routed model
-    names (e.g. "ai.kaas.chat.bedrock.claude-sonnet").
+    Consults KB_AI_PRICING first (exact, then substring), then the built-in
+    PRICING table by exact match, prefix match, and substring fallback for routed
+    model names (e.g. "ai.kaas.chat.bedrock.claude-sonnet").
 
     Returns:
         Pricing dict with "input" and "output" keys (per-1M-token), or None.
     """
+    overrides = _pricing_overrides()
+    if model in overrides:
+        return overrides[model]
+    # Substring, not the prefix rule used below: an override key like "gpt-4o"
+    # must not claim every model starting with "gpt".
+    lowered = model.lower()
+    for key, val in overrides.items():
+        if key.lower() in lowered:
+            return val
+
     p = PRICING.get(model)
     if p:
         return p
@@ -41,6 +92,20 @@ def resolve_pricing(model: str) -> dict | None:
     if "haiku" in model_lower:
         return PRICING["claude-haiku-4-5"]
     return None
+
+
+_warned_models: set[str] = set()
+_warn_lock = threading.Lock()
+
+
+def _warn_unpriced_once(model: str) -> None:
+    """Say so the first time a model prices at 0, so it reads as unknown, not free."""
+    with _warn_lock:
+        if model in _warned_models:
+            return
+        _warned_models.add(model)
+    print(f"[cost] no pricing entry for model {model!r} — reporting 0.00 USD for its "
+          f"calls; set {PRICING_ENV_VAR} to track its spend", file=sys.stderr)
 
 
 def estimate_cost(
@@ -66,6 +131,7 @@ def estimate_cost(
     """
     p = resolve_pricing(model)
     if not p:
+        _warn_unpriced_once(model)
         return 0.0
     non_cached = prompt_tokens - cached_tokens
     return (non_cached * p["input"] + cached_tokens * p["input"] * 0.1
@@ -106,6 +172,29 @@ class CostTracker:
                     detail["attempts"] = attempts
                 self.details.append(detail)
         return cost
+
+    def absorb(self, other: "CostTracker") -> None:
+        """Fold another tracker's totals into this one.
+
+        Lets a caller measure one sub-scope with its own tracker — the only way
+        to get a per-call figure that concurrent work cannot contaminate —
+        without dropping those calls from the enclosing scope's accounting.
+        """
+        with other._lock:
+            cost = other.total_cost
+            prompt = other.total_prompt_tokens
+            completion = other.total_completion_tokens
+            cached = other.total_cached_tokens
+            calls = other.calls
+            details = list(other.details)
+        with self._lock:
+            self.total_cost += cost
+            self.total_prompt_tokens += prompt
+            self.total_completion_tokens += completion
+            self.total_cached_tokens += cached
+            self.calls += calls
+            if self.store_details:
+                self.details.extend(details)
 
     def snapshot(self) -> dict:
         """Capture current state for computing deltas (includes wall-clock timestamp)."""

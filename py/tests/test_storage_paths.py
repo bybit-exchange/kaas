@@ -231,6 +231,26 @@ def test_existing_articles_keeps_titles_containing_parentheses(tmp_path: Path):
     assert art.summary == "the platform"
 
 
+def test_existing_articles_keeps_a_summary_containing_an_em_dash(tmp_path: Path):
+    """Prose summaries contain em dashes; splitting on every one truncates them."""
+    store = KBStore(str(tmp_path))
+    _write_index(store, "- [Config](wiki/config.md) — Loads TOML — and applies overrides.\n")
+
+    art = store.existing_articles()[0]
+
+    assert art.summary == "Loads TOML — and applies overrides."
+
+
+def test_existing_articles_keeps_titles_containing_an_em_dash(tmp_path: Path):
+    store = KBStore(str(tmp_path))
+    _write_index(store, "- [Config — TOML Loading](wiki/config.md) — the summary\n")
+
+    art = store.existing_articles()[0]
+
+    assert art.title == "Config — TOML Loading"
+    assert art.summary == "the summary"
+
+
 def test_existing_articles_without_summary_dash(tmp_path: Path):
     store = KBStore(str(tmp_path))
     _write_index(store, "- [Bare](wiki/bare.md)\n")

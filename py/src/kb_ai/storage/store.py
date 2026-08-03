@@ -175,8 +175,12 @@ class KBStore:
                 link_sep = line.index("](")
                 title = line[3:link_sep]
                 rest = line[link_sep + 2:]
-                path = rest[:rest.index(")")]
-                summary = line.split("—")[1].strip() if "—" in line else ""
+                path_end = rest.index(")")
+                path = rest[:path_end]
+                # Split only what follows the link, and only on the first dash:
+                # em dashes occur inside both titles and prose summaries.
+                tail = rest[path_end + 1:]
+                summary = tail.split("—", 1)[1].strip() if "—" in tail else ""
                 articles.append(ArticleMeta(title=title, path=path, summary=summary))
             except (IndexError, ValueError):
                 continue

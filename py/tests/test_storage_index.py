@@ -116,6 +116,86 @@ def test_master_index_summary_is_first_paragraph_capped_at_150_chars(tmp_path: P
     assert "second paragraph" not in line
 
 
+def test_master_index_summary_skips_leading_headings(tmp_path: Path):
+    """Compiled articles open with a heading, which must not become the summary.
+
+    The catalog summary is the only content-bearing column LLM page selection
+    reads; echoing the heading collapses the navigation surface to titles alone.
+    """
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           "---\ntitle: A\n---\n\n# A\n\n## Overview\n\nLoads TOML config and applies env overrides.")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == "- [A](wiki/a.md) — Loads TOML config and applies env overrides."
+
+
+def test_master_index_summary_skips_heading_glued_to_its_paragraph(tmp_path: Path):
+    """A heading with no blank line after it shares a block with the prose."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", "---\ntitle: A\n---\n\n## Overview\nReal prose here.")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == "- [A](wiki/a.md) — Real prose here."
+
+
+def test_master_index_prefers_frontmatter_summary(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           '---\ntitle: A\nsummary: "Declared one-liner."\n---\n\n# A\n\nBody prose.')
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == "- [A](wiki/a.md) — Declared one-liner."
+
+
+def test_master_index_frontmatter_summary_is_flattened_and_capped(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", f'---\ntitle: A\nsummary: "{"w" * 200}"\n---\n\nbody')
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == f"- [A](wiki/a.md) — {'w' * 150}"
+
+
+def test_master_index_summary_clips_at_a_word_boundary(tmp_path: Path):
+    store = _store(tmp_path)
+    body = " ".join(["configuration"] * 20)  # 279 chars, boundary before 150
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{body}")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+    summary = line.split("—", 1)[1].strip()
+
+    assert summary == " ".join(["configuration"] * 10) + "…"
+    assert len(summary) <= 150
+
+
+def test_master_index_ignores_blank_frontmatter_summary(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", '---\ntitle: A\nsummary: "   "\n---\n\nBody prose.')
+
+    update_markdown_index(store)
+
+    assert "- [A](wiki/a.md) — Body prose." in _master(store)
+
+
+def test_master_index_summary_falls_back_to_heading_text_for_heading_only_body(tmp_path: Path):
+    """No prose at all -> keep the heading text rather than an empty column."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", "---\ntitle: A\n---\n\n## Overview\n\n### Details")
+
+    update_markdown_index(store)
+
+    assert "- [A](wiki/a.md) — Overview" in _master(store)
+
+
 def test_master_index_falls_back_to_stem_when_title_missing(tmp_path: Path):
     store = _store(tmp_path)
     _write(store, "wiki/my-note.md", "---\ntype: concept\n---\n\nbody")

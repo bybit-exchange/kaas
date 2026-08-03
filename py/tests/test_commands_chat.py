@@ -144,26 +144,31 @@ def test_user_message_is_the_bare_query_when_there_is_no_context():
     assert ch._build_user_message("who?", "") == "who?"
 
 
-# ── _estimate_cost ──────────────────────────────────────────────────
+# ── cost reporting ──────────────────────────────────────────────────
 
-def test_estimate_cost_uses_the_exact_pricing_entry():
-    # sonnet is 3 USD/M in, 15 USD/M out -> 1M of each is 18 USD.
-    assert ch._estimate_cost("claude-sonnet-4-6", 1_000_000, 1_000_000) == pytest.approx(18.0)
+def test_chat_prices_a_routed_model_name(llm):
+    """A proxy-routed name must not silently report 0 in the done event.
+
+    Chat used to carry its own exact/prefix-only pricing lookup, so every
+    deployment behind a router (`us.claude-sonnet-4-6`) reported no cost at all.
+    """
+    events: list[dict] = []
+    llm.chunks = [_delta("ok"), _usage_chunk(prompt_tokens=1_000_000, completion_tokens=0)]
+
+    ch._run_chat_core({"query": "q", "model": "us.claude-sonnet-4-6"}, events.append)
+
+    done = next(e for e in events if e["type"] == "done")
+    assert done["cost_usd"] == pytest.approx(3.0)
 
 
-def test_estimate_cost_bills_cached_tokens_at_a_tenth_of_the_input_price():
-    # 1M prompt tokens, half of them cached: 500k*3 + 500k*0.3 per 1M = 1.65 USD.
-    cost = ch._estimate_cost("claude-sonnet-4-6", 1_000_000, 0, 500_000)
-    assert cost == pytest.approx(1.65)
+def test_chat_reports_zero_for_a_model_with_no_known_pricing(llm):
+    events: list[dict] = []
+    llm.chunks = [_delta("ok"), _usage_chunk(prompt_tokens=1_000_000, completion_tokens=0)]
 
+    ch._run_chat_core({"query": "q", "model": "some-other-llm"}, events.append)
 
-def test_estimate_cost_prefix_matches_a_dated_model_name():
-    """A dated snapshot name must not silently cost 0."""
-    assert ch._estimate_cost("claude-sonnet-4-6-20250514", 1_000_000, 0) == pytest.approx(3.0)
-
-
-def test_estimate_cost_is_zero_for_an_unrecognised_model():
-    assert ch._estimate_cost("some-other-llm", 1_000_000, 1_000_000) == 0.0
+    done = next(e for e in events if e["type"] == "done")
+    assert done["cost_usd"] == 0.0
 
 
 # ── _extract_citations ──────────────────────────────────────────────
@@ -175,6 +180,42 @@ def test_extract_citations_keeps_only_retrieved_paths_and_dedupes():
     cited = ch._extract_citations(answer, {"wiki/a.md", "wiki/b.md"})
 
     assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_matches_the_leading_slash_form():
+    """The chat prompt asks for `/wiki/...`; retrieved paths have no leading slash."""
+    cited = ch._extract_citations("see [A](/wiki/a.md)", {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_matches_relative_and_extensionless_forms():
+    answer = "see [A](./wiki/a.md) and [B](wiki/b)"
+
+    cited = ch._extract_citations(answer, {"wiki/a.md", "wiki/b.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"},
+                     {"title": "B", "path": "wiki/b.md"}]
+
+
+def test_extract_citations_ignores_an_anchor_fragment():
+    cited = ch._extract_citations("see [A](/wiki/a.md#overview)", {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_dedupes_across_path_spellings():
+    answer = "see [A](/wiki/a.md) then [A again](wiki/a.md) then [A third](./wiki/a)"
+
+    cited = ch._extract_citations(answer, {"wiki/a.md"})
+
+    assert cited == [{"title": "A", "path": "wiki/a.md"}]
+
+
+def test_extract_citations_ignores_external_links():
+    answer = "see [Upstream](https://example.com/wiki/a.md)"
+
+    assert ch._extract_citations(answer, {"wiki/a.md"}) == []
 
 
 # ── context assembly ────────────────────────────────────────────────
@@ -202,7 +243,7 @@ def test_chat_grounds_the_prompt_in_supplied_articles(llm):
 
     user = llm.calls[0]["messages"][-1]["content"]
     assert "<reference_material>" in user
-    assert "### W (wiki/w.md)\nworker pool details" in user
+    assert "### W (/wiki/w.md)\nworker pool details" in user
     done = events[-1]
     assert done["retrieved_sources"] == [{"title": "W", "path": "wiki/w.md"}]
     # Only citations that intersect the retrieved paths survive.
@@ -288,7 +329,7 @@ def test_chat_sends_plain_messages_once_the_cache_auto_disables(llm):
 def test_chat_uses_the_with_sources_prompt_by_default(llm):
     ch._run_chat_core({"query": "q"}, lambda e: None)
 
-    assert "Cite sources using" in _system_text(llm.calls[0])
+    assert "Cite sources as" in _system_text(llm.calls[0])
 
 
 def test_chat_uses_the_no_sources_prompt_when_sources_are_disabled(llm):

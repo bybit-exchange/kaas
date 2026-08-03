@@ -21,7 +21,7 @@ from typing import Callable
 from openai import APIError, APIStatusError, APITimeoutError
 
 from kb_ai._protocol import StreamingCommand
-from kb_ai.llm import PRICING, _emit_alert, get_client
+from kb_ai.llm import _emit_alert, estimate_cost, get_client
 from kb_ai.llm._cache import AdaptiveCacheState
 from kb_ai.prompts import default_registry
 from kb_ai.retrieval.query import _assemble_article_context
@@ -96,39 +96,37 @@ def _build_user_message(query: str, context: str) -> str:
     return query
 
 
-def _estimate_cost(model: str, prompt_tokens: int, completion_tokens: int,
-                   cached_tokens: int = 0) -> float:
-    """Estimate USD cost from model name and token counts."""
-    pricing = PRICING.get(model)
-    if not pricing:
-        # Try prefix match (e.g. "claude-sonnet-4-6-20250514" -> "claude-sonnet-4-6")
-        for key, val in PRICING.items():
-            if model.startswith(key.rsplit("-", 1)[0]):
-                pricing = val
-                break
-    if not pricing:
-        return 0.0
-    non_cached = prompt_tokens - cached_tokens
-    return (non_cached * pricing["input"]
-            + cached_tokens * pricing["input"] * 0.1
-            + completion_tokens * pricing["output"]) / 1_000_000
+def _normalize_citation_path(path: str) -> str:
+    """Reduce a cited link target to the wiki-relative form used by the catalog.
+
+    Models spell the same article several ways -- `/wiki/a.md`, `./wiki/a.md`,
+    `wiki/a`, with a `#section` anchor -- while retrieved paths are always bare
+    `wiki/...md`. Without this, every citation missed the membership test below
+    and cited_sources came back empty on every answer.
+    """
+    p = path.strip().split("#", 1)[0].removeprefix("./").lstrip("/")
+    if not p.endswith(".md"):
+        p += ".md"
+    return p
 
 
 def _extract_citations(answer_text: str, search_paths: set[str]) -> list[dict]:
     """Extract [Title](path) markdown links from LLM answer and intersect with search results.
 
-    Only citations whose path appears in the search_paths set are included.
+    Only citations resolving to a path in the search_paths set are included, and
+    the retrieved path is reported rather than the model's spelling of it.
     Duplicate paths are deduplicated (first occurrence wins).
     """
     pattern = re.compile(r'\[([^\]]+)\]\(([^)]+)\)')
+    by_normalized = {_normalize_citation_path(p): p for p in search_paths}
     cited: list[dict] = []
     seen_paths: set[str] = set()
     for match in pattern.finditer(answer_text):
         title = match.group(1)
-        path = match.group(2)
-        if path in search_paths and path not in seen_paths:
-            seen_paths.add(path)
-            cited.append({"title": title, "path": path})
+        resolved = by_normalized.get(_normalize_citation_path(match.group(2)))
+        if resolved and resolved not in seen_paths:
+            seen_paths.add(resolved)
+            cited.append({"title": title, "path": resolved})
     return cited
 
 
@@ -275,7 +273,7 @@ def _run_chat_core(input_data: dict, emit_fn) -> None:
     if use_cache:
         _update_cache_state(cached_tokens, cache_created_tokens)
 
-    cost = _estimate_cost(model, tokens_prompt, tokens_completion, cached_tokens)
+    cost = estimate_cost(model, tokens_prompt, tokens_completion, cached_tokens)
 
     print(f"[server-chat] done: prompt={tokens_prompt}, completion={tokens_completion}, "
           f"cached={cached_tokens}, cost=${cost:.6f}, "

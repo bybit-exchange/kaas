@@ -28,7 +28,7 @@ def test_assemble_context_includes_title_path_and_body():
     out = query._assemble_article_context([
         {"title": "One", "path": "wiki/one.md", "content": "first body"},
     ])
-    assert out == "### One (wiki/one.md)\nfirst body"
+    assert out == "### One (/wiki/one.md)\nfirst body"
 
 
 def test_assemble_context_joins_articles_with_blank_line():
@@ -36,12 +36,18 @@ def test_assemble_context_joins_articles_with_blank_line():
         {"title": "One", "path": "wiki/one.md", "content": "a"},
         {"title": "Two", "path": "wiki/two.md", "content": "b"},
     ])
-    assert out == "### One (wiki/one.md)\na\n\n### Two (wiki/two.md)\nb"
+    assert out == "### One (/wiki/one.md)\na\n\n### Two (/wiki/two.md)\nb"
 
 
 def test_assemble_context_tolerates_missing_content():
     out = query._assemble_article_context([{"title": "One", "path": "wiki/one.md"}])
-    assert out == "### One (wiki/one.md)\n"
+    assert out == "### One (/wiki/one.md)\n"
+
+
+def test_assemble_context_slashes_the_path_only_once():
+    """A stored path already carrying a leading slash must not become `//wiki/...`."""
+    out = query._assemble_article_context([{"title": "One", "path": "/wiki/one.md"}])
+    assert out == "### One (/wiki/one.md)\n"
 
 
 def test_assemble_context_empty():

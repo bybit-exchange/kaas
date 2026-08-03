@@ -24,7 +24,7 @@ from kb_ai._errors import (  # noqa: F401
 )
 
 # --- Cost tracking (from kb_ai._cost) ---
-from kb_ai._cost import PRICING, CostTracker  # noqa: F401
+from kb_ai._cost import PRICING, CostTracker, estimate_cost  # noqa: F401
 
 # --- Infrastructure (client + shared constants + usage parsing) ---
 from ._infra import (  # noqa: F401

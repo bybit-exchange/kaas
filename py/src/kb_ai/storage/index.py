@@ -1,10 +1,55 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 import yaml
 
 from kb_ai.storage.store import KBStore
+
+SUMMARY_MAX_CHARS = 150
+
+_HEADING_RE = re.compile(r"^#{1,6}\s")
+
+
+def _flatten(text: str) -> str:
+    """Collapse whitespace to a single line and cap it for the catalog entry.
+
+    Trims at a word boundary where there is one: the catalog is a git-tracked
+    file people read, and a first-paragraph fallback usually needs clipping.
+    """
+    flat = " ".join(text.split())
+    if len(flat) <= SUMMARY_MAX_CHARS:
+        return flat
+    clipped = flat[:SUMMARY_MAX_CHARS]
+    head, sep, _ = clipped.rpartition(" ")
+    return f"{head}…" if sep else clipped
+
+
+def _derive_summary(fm: dict, body: str) -> str:
+    """Pick the catalog summary for an article.
+
+    Prefers a purpose-written ``summary`` from the frontmatter, else the first
+    prose paragraph of the body. Skipping headings matters: compiled articles
+    always open with one (``# Title`` / ``## Overview``), so taking the first
+    paragraph verbatim fills the whole catalog with heading echoes and leaves
+    LLM page selection navigating by title alone.
+    """
+    declared = fm.get("summary")
+    if isinstance(declared, str) and declared.strip():
+        return _flatten(declared)
+
+    for block in body.split("\n\n"):
+        prose = [ln for ln in block.splitlines()
+                 if ln.strip() and not _HEADING_RE.match(ln.strip())]
+        if prose:
+            return _flatten(" ".join(prose))
+
+    # Heading-only body: the heading text beats an empty summary column.
+    for line in body.splitlines():
+        if line.strip():
+            return _flatten(line.lstrip("#"))
+    return ""
 
 
 def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
@@ -36,7 +81,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
         tags = fm.get("tags", [])
         status = fm.get("status", "")
         body = parts[2].strip()
-        summary = body.split("\n\n")[0][:150].replace("\n", " ")
+        summary = _derive_summary(fm, body)
 
         articles.append({
             "title": title, "path": rel_path, "type": article_type,
