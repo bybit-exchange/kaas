@@ -9,6 +9,20 @@ beforeEach(() => {
 })
 
 describe('SourcePanel', () => {
+  it('drops the kb-root wiki/ segment the chat backend sends', () => {
+    // cited_sources paths are kb-root relative ("wiki/concept/x.md") while the
+    // /wiki route and /api/wiki/file are rooted at the wiki dir. Concatenating
+    // both produced /wiki/wiki/... and a 404.
+    render(
+      <LangProvider>
+        <SourcePanel sources={[{ title: 'Doc', path: 'wiki/concept/x.md' }]} />
+      </LangProvider>,
+    )
+
+    const link = screen.getByRole('link', { name: /Doc/ })
+    expect(link).toHaveAttribute('href', '/wiki/concept/x.md')
+  })
+
   it('renders a link to /wiki/{path} with target="_blank" showing index 1 and title', () => {
     render(
       <LangProvider>

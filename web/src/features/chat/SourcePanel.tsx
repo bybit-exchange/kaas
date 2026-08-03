@@ -6,6 +6,18 @@ interface SourcePanelProps {
   sources: ChatSource[]
 }
 
+/**
+ * Build the /wiki route href for a source path.
+ *
+ * Chat sources are kb-root relative (`wiki/concept/x.md`) while the wiki route
+ * and /api/wiki/file are both rooted at the wiki dir, so the leading segment
+ * has to go or the request resolves to <kb>/wiki/wiki/... and 404s. Paths from
+ * the wiki tree endpoint already arrive without it.
+ */
+function wikiHref(path: string): string {
+  return `/wiki/${path.replace(/^wiki\//, '')}`
+}
+
 export function SourcePanel({ sources }: SourcePanelProps) {
   const t = useT()
   if (sources.length === 0) return null
@@ -27,7 +39,7 @@ export function SourcePanel({ sources }: SourcePanelProps) {
               {idx + 1}
             </Badge>
             <a
-              href={`/wiki/${source.path}`}
+              href={wikiHref(source.path)}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={source.title}
