@@ -1,0 +1,25 @@
+py/src/kb_ai/derive/__init__.py
+  eb98b08c272483ec 3-16,19-199
+py/tests/test_derive_kb.py
+  eb98b08c272483ec 1-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "ea93991da87a4ac3156d657ddf85008bd9ab2a16",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 440,
+      "total_deletions": 2,
+      "accepted_lines": 440,
+      "overriden_lines": 0
+    }
+  }
+}
