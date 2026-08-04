@@ -1,0 +1,35 @@
+internal/mcp/handler_test.go
+  eb98b08c272483ec 8,11-13,470-514
+docs/features/derive-topic-kb-from-catalog/notes.md
+  eb98b08c272483ec 137-158
+internal/kbpath/kbpath_test.go
+  eb98b08c272483ec 1-121
+internal/mcp/schema.go
+  eb98b08c272483ec 21-24
+internal/mcp/ask.go
+  eb98b08c272483ec 12,20,34-40,49,65
+internal/mcp/schema_test.go
+  eb98b08c272483ec 62-89
+internal/kbpath/kbpath.go
+  eb98b08c272483ec 1-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b2cdbd682db1e2db37bc654d37ec7a003eb21aaf",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 320,
+      "total_deletions": 2,
+      "accepted_lines": 25871,
+      "overriden_lines": 0
+    }
+  }
+}
