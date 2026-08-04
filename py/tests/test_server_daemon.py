@@ -810,3 +810,146 @@ def test_main_honours_worker_env(capsys, monkeypatch):
     run_main([], capsys)
 
     assert captured["max_workers"] == 2
+
+
+# ── derive ──────────────────────────────────────────────────────────
+
+def test_derive_command_dispatches_to_derive_kb(monkeypatch):
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list[dict] = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost = {"total_cost_usd": 0.25}
+        warnings: list = []
+
+    def fake_derive_kb(source_kb, topic, **kw):
+        seen.update({"source_kb": source_kb, "topic": topic, **kw})
+        return _Report()
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb", fake_derive_kb)
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing", "slug": "pricing", "force": True, "model": "m",
+    }})
+
+    assert seen["source_kb"] == "/kb"
+    assert seen["topic"] == "pricing"
+    assert seen["slug"] == "pricing"
+    assert seen["force"] is True
+    assert seen["model"] == "m"
+    assert seen["approve"] is None  # H5: no volume gate on the async path
+    assert responses[0]["slug"] == "pricing"
+    assert responses[0]["compiled"] is True
+    assert responses[0]["cost"] == {"total_cost_usd": 0.25}
+
+
+def test_derive_command_reports_a_domain_error_code(monkeypatch):
+    from kb_ai import server_daemon
+    from kb_ai._errors import SlugExistsError
+
+    errors_seen: list = []
+
+    def boom(*a, **kw):
+        raise SlugExistsError("already exists")
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb", boom)
+    monkeypatch.setattr(server_daemon, "_respond_error",
+                        lambda rid, code, msg: errors_seen.append((code, msg)))
+
+    server_daemon._handle_derive("req-1", {"payload": {"kb_dir": "/kb", "topic": "t"}})
+    assert errors_seen[0][0] == "SLUG_EXISTS"
+
+
+def test_derive_requires_a_topic(monkeypatch):
+    from kb_ai import server_daemon
+
+    errors_seen: list = []
+    monkeypatch.setattr(server_daemon, "_respond_error",
+                        lambda rid, code, msg: errors_seen.append((code, msg)))
+
+    server_daemon._handle_derive("req-1", {"payload": {"kb_dir": "/kb"}})
+    assert errors_seen[0][0] == "EMPTY_TOPIC"
+
+
+def test_derive_isolates_cost_to_request_tracker(monkeypatch):
+    """Per-request tracker must isolate cost from global tracker accumulation.
+
+    Matches the class of defect fixed in commit a9bd607: a long-lived daemon
+    accumulates LLM spend in the global tracker across all requests.  Each
+    handler must create a fresh per-request CostTracker and set it before
+    calling into the engine so the engine's own cost snapshot reads from the
+    per-request tracker, not the global one.
+    """
+    from kb_ai import server_daemon
+    from kb_ai._cost import CostTracker
+    from kb_ai.llm import get_request_tracker
+    import kb_ai.llm as llm_mod
+    import kb_ai.derive as derive_mod
+
+    responses: list[dict] = []
+
+    # Pre-seed the global tracker with prior spend that must not leak into
+    # this request's reported cost.
+    prior = CostTracker()
+    prior.record("claude-sonnet-4-6", 1_000_000, 500, cost=5.0)
+    monkeypatch.setattr(llm_mod, "tracker", prior)
+    monkeypatch.setattr(derive_mod, "tracker", prior)
+
+    def fake_derive_kb(source_kb, topic, **kw):
+        # If the handler set the per-request tracker, use it; otherwise fall
+        # back to the global tracker (replicating derive_kb's own logic).
+        req = get_request_tracker()
+        effective = req if req is not None else prior
+        effective.record("claude-sonnet-4-6", 500, 50, cost=0.01)
+        effective.record("claude-sonnet-4-6", 300, 30, cost=0.01)
+        cost = effective.summary()
+
+        class _Report:
+            derived_kb = "/kb/derived/t"
+            slug = "t"
+            selected_articles: list = []
+            skipped_articles: list = []
+            skipped_documents: list = []
+            documents: list = []
+            dropped_invented_paths = 0
+            filter_batches = 2
+            offtopic_articles: list = []
+            compiled = False
+            compile: dict = {}
+            warnings: list = []
+
+        r = _Report()
+        r.topic = topic
+        r.cost = cost
+        return r
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb", fake_derive_kb)
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {"kb_dir": "/kb", "topic": "t"}})
+
+    assert responses, "handler produced no response"
+    reported = responses[0]["cost"]["total_cost_usd"]
+    # Only the two 0.01 calls from this request (0.02 total), not the 5.0
+    # seeded in the global tracker from prior requests.
+    assert reported == pytest.approx(0.02), (
+        f"cost isolation failed: reported {reported} USD; "
+        "expected 0.02 (5.0 from prior global spend must not appear)"
+    )

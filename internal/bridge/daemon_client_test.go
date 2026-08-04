@@ -780,3 +780,88 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// --- fakeDaemon helper -------------------------------------------------------
+//
+// fakeDaemon is a thin wrapper around newScriptedClient for tests that want to
+// preset a single reply and inspect the last request's command and payload,
+// rather than writing a full scripted handler.
+
+type fakeDaemon struct {
+	mu          sync.Mutex
+	reply       daemonResponse
+	lastCmd     string
+	lastPayload json.RawMessage
+}
+
+func newFakeDaemonClient(t *testing.T) (*DaemonClient, *fakeDaemon) {
+	t.Helper()
+	fake := &fakeDaemon{}
+	c, _ := newScriptedClient(t, func(req daemonRequest) []string {
+		fake.mu.Lock()
+		fake.lastCmd = req.Cmd
+		fake.lastPayload = append(json.RawMessage{}, req.Payload...)
+		reply := fake.reply
+		fake.mu.Unlock()
+
+		out := daemonResponse{
+			ID:    req.ID,
+			OK:    reply.OK,
+			Data:  reply.Data,
+			Error: reply.Error,
+		}
+		data, _ := json.Marshal(out)
+		return []string{string(data)}
+	})
+	return c, fake
+}
+
+// --- Derive ------------------------------------------------------------------
+
+func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{
+		"derived_kb": "/kb/derived/pricing",
+		"slug": "pricing",
+		"topic": "pricing",
+		"selected": 4,
+		"documents": 3,
+		"bytes": 2048,
+		"offtopic": 1,
+		"filter_batches": 2,
+		"compiled": true,
+		"cost": {"total_cost_usd": 1.5}
+	}`)}
+
+	got, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "pricing", Slug: "pricing", Force: true, Model: "m",
+	})
+	if err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if fake.lastCmd != "derive" {
+		t.Errorf("cmd = %q, want derive", fake.lastCmd)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.KBDir != "/kb" || sent.Topic != "pricing" || !sent.Force || sent.Model != "m" {
+		t.Errorf("sent = %+v", sent)
+	}
+	if got.Slug != "pricing" || got.Documents != 3 || !got.Compiled {
+		t.Errorf("got = %+v", got)
+	}
+}
+
+func TestDeriveSurfacesAnEngineError(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: false,
+		Error: &APIError{Code: "SLUG_EXISTS", Message: "already exists"}}
+
+	_, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"})
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Code != "SLUG_EXISTS" {
+		t.Fatalf("err = %v, want an APIError with SLUG_EXISTS", err)
+	}
+}

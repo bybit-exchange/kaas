@@ -227,6 +227,55 @@ def _handle_index(request_id: str, payload: dict) -> None:
     _respond_ok(request_id, result)
 
 
+def _handle_derive(request_id: str, payload: dict) -> None:
+    """Handle the derive command -- build a topic-scoped knowledge base.
+
+    No volume gate: this path is asynchronous, so there is nobody to prompt (spec
+    H5). The HTTP layer's job row is the operator-facing control.
+    """
+    from kb_ai._errors import KBError
+    from kb_ai.derive import derive_kb
+    from kb_ai.llm import CostTracker, set_request_tracker
+
+    inner = payload.get("payload", {})
+    kb_dir = inner.get("kb_dir", "")
+    topic = inner.get("topic", "")
+    if not topic.strip():
+        _respond_error(request_id, "EMPTY_TOPIC", "topic must not be empty")
+        return
+
+    req_tracker = CostTracker()
+    set_request_tracker(req_tracker)
+    try:
+        report = derive_kb(
+            kb_dir, topic,
+            slug=inner.get("slug") or None,
+            force=bool(inner.get("force")),
+            model=inner.get("model") or "claude-sonnet-4-6",
+            approve=None,
+        )
+    except KBError as e:
+        _respond_error(request_id, e.code, str(e))
+        return
+    finally:
+        set_request_tracker(None)
+
+    _respond_ok(request_id, {
+        "derived_kb": report.derived_kb,
+        "slug": report.slug,
+        "topic": report.topic,
+        "selected": len(report.selected_articles),
+        "documents": len(report.documents),
+        "bytes": sum(d.size_bytes for d in report.documents),
+        "offtopic": len(report.offtopic_articles),
+        "filter_batches": report.filter_batches,
+        "compiled": report.compiled,
+        "compile": report.compile,
+        "cost": report.cost,
+        "warnings": report.warnings,
+    })
+
+
 def _handle_fetch_url(request_id: str, payload: dict) -> None:
     """Handle the fetch-url command — fetch and extract content from a URL."""
     from kb_ai.commands.fetch import fetch_url
@@ -357,6 +406,8 @@ def _dispatch(
             _handle_suggest(request_id, payload)
         elif cmd == "index":
             _handle_index(request_id, payload)
+        elif cmd == "derive":
+            _handle_derive(request_id, payload)
         elif cmd == "fetch-url":
             _handle_fetch_url(request_id, payload)
         else:

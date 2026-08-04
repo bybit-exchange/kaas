@@ -125,3 +125,32 @@ type SuggestRequest struct {
 	Answer string `json:"answer"`
 	Model  string `json:"model,omitempty"`
 }
+
+// --- Derive (topic-scoped knowledge base) ---
+
+// DeriveRequest mirrors the derive command. Non-streaming: progress granularity
+// per derive stage is carried by the job row's stage column, not by a stream.
+type DeriveRequest struct {
+	KBDir string `json:"kb_dir"`
+	Topic string `json:"topic"`
+	Slug  string `json:"slug,omitempty"`
+	Force bool   `json:"force,omitempty"`
+	Model string `json:"model,omitempty"`
+}
+
+// DeriveResponse mirrors the derive command's success payload. Stored verbatim
+// as a derive job's result, so the UI can report counts and cost.
+type DeriveResponse struct {
+	DerivedKB     string          `json:"derived_kb"`
+	Slug          string          `json:"slug"`
+	Topic         string          `json:"topic"`
+	Selected      int             `json:"selected"`
+	Documents     int             `json:"documents"`
+	Bytes         int64           `json:"bytes"`
+	Offtopic      int             `json:"offtopic"`
+	FilterBatches int             `json:"filter_batches"`
+	Compiled      bool            `json:"compiled"`
+	Compile       json.RawMessage `json:"compile,omitempty"`
+	Cost          json.RawMessage `json:"cost,omitempty"`
+	Warnings      []string        `json:"warnings,omitempty"`
+}
