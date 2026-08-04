@@ -81,6 +81,7 @@ type Server struct {
 	st     TaskStore
 	ss     SessionStore
 	br     ChatBridge
+	js     store.DerivedJobStore // derive jobs; nil when the backing store has none
 	cfg    Config
 	logger *slog.Logger
 	mcpH   http.Handler // native MCP handler, nil if disabled
@@ -93,6 +94,11 @@ func NewServer(q Queue, st TaskStore, ss SessionStore, br ChatBridge, cfg Config
 		logger = slog.Default()
 	}
 	s := &Server{q: q, st: st, ss: ss, br: br, cfg: cfg, logger: logger}
+	// The sqlite store implements DerivedJobStore too; a backend that does not
+	// simply leaves the derive routes answering 501.
+	if js, ok := st.(store.DerivedJobStore); ok {
+		s.js = js
+	}
 
 	if cfg.MCPEnabled {
 		if cfg.MCPURL != "" {
@@ -120,6 +126,9 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
 	mux.HandleFunc("GET /api/wiki", s.handleListWiki)
 	mux.HandleFunc("GET /api/wiki/file", s.handleWikiFile)
+	mux.HandleFunc("POST /api/derive", s.handleDerive)
+	mux.HandleFunc("GET /api/derive/{id}", s.handleGetDeriveJob)
+	mux.HandleFunc("GET /api/derived", s.handleListDerived)
 	mux.HandleFunc("POST /api/chat", s.handleChat)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", s.handleCreateSession)
