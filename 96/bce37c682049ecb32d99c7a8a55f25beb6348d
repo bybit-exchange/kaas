@@ -1,0 +1,29 @@
+internal/store/store.go
+  eb98b08c272483ec 22-24,137-200
+internal/store/sqlite/sqlite.go
+  eb98b08c272483ec 101-103
+internal/store/sqlite/derived_test.go
+  eb98b08c272483ec 1-295
+internal/store/sqlite/derived.go
+  eb98b08c272483ec 1-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "96bce37c682049ecb32d99c7a8a55f25beb6348d",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 545,
+      "total_deletions": 2,
+      "accepted_lines": 26094,
+      "overriden_lines": 0
+    }
+  }
+}
