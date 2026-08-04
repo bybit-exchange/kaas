@@ -32,6 +32,7 @@ from kb_ai._errors import (  # noqa: F401 -- re-exported for callers
 )
 from kb_ai.derive._filter import select_by_topic
 from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
+    assert_not_nested,
     check_slug_available,
     copy_documents,
     create,
@@ -43,7 +44,7 @@ from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
     write_manifest,
 )
 from kb_ai.derive._offtopic import prune
-from kb_ai.derive._sources import resolve_documents
+from kb_ai.derive._sources import parse_sources, resolve_documents
 from kb_ai.derive._types import (  # noqa: F401 -- re-exported for callers
     MODE_PRECISION,
     MODE_RECALL,
@@ -53,7 +54,7 @@ from kb_ai.derive._types import (  # noqa: F401 -- re-exported for callers
     Selector,
     Skipped,
 )
-from kb_ai.llm import tracker
+from kb_ai.llm import get_request_tracker, tracker
 from kb_ai.storage.store import KBStore
 
 # Bumped when the manifest's shape changes incompatibly, so a future re-derive
@@ -117,7 +118,6 @@ def derive_kb(
         raise DeriveError("topic must not be empty")
 
     source = Path(source_kb).expanduser().resolve()
-    from kb_ai.derive._layout import assert_not_nested
     assert_not_nested(source)
 
     slug = slug or normalise_slug(topic)
@@ -166,7 +166,6 @@ def derive_kb(
     )
 
     # sources: per selected article, for the manifest's provenance record.
-    from kb_ai.derive._sources import parse_sources
     sources_by_article = {}
     for path in selection.paths:
         entries, _reason = parse_sources(source_store, path)
@@ -187,13 +186,21 @@ def derive_kb(
     report.compile = compile_fn(str(derived_dir), extract_model=model,
                                 compile_model=model, write_model=model)
     report.compiled = True
+    flush()  # F3: record compiled=true before the PRECISION pass; if prune raises,
+             # the on-disk manifest still shows a fully compiled KB rather than the
+             # pre-compile state, so recovery does not need to re-pay for compile.
 
     moved, warnings = prune(derived_dir, topic, select)
     report.offtopic_articles = moved
     report.warnings.extend(warnings)
 
-    # The process-wide tracker is the only place holding the WHOLE run: the
-    # compile result's own cost snapshot predates the PRECISION pass.
-    report.cost = tracker.summary()
+    # Prefer the per-request tracker when the daemon has set one (server_daemon.py
+    # creates a fresh CostTracker per request to avoid cross-request accumulation);
+    # fall back to the process-wide tracker for the one-shot CLI path where no
+    # per-request tracker is set.  Either way, this read is after the PRECISION
+    # pass so that pass's spend is included — compile's own cost snapshot cannot
+    # contain it.
+    req = get_request_tracker()
+    report.cost = (req if req is not None else tracker).summary()
     flush()
     return report

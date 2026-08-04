@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from kb_ai._cost import CostTracker
 from kb_ai._errors import (
     NestedDeriveError, NoCatalogError, NoDocumentsError, SlugExistsError,
 )
 from kb_ai.derive import derive_kb
 from kb_ai.derive._types import MODE_PRECISION, MODE_RECALL, SelectionResult
+from kb_ai.llm import set_request_tracker
 
 
 def _fixture_kb(tmp_path: Path) -> Path:
@@ -243,3 +245,78 @@ def test_extract_cache_entries_travel_with_their_documents(tmp_path: Path):
 
     copied = kb / "derived" / "pricing" / ".extract-cache" / f"{checksum}.json"
     assert copied.read_text() == '{"summary": "cached"}'
+
+
+def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
+    """report.cost must include PRECISION spend that compile's cost snapshot cannot hold (F6)."""
+    kb = _fixture_kb(tmp_path)
+    req_tracker = CostTracker(store_details=False)
+
+    # Stub selector records one LLM call per pass (RECALL + PRECISION = 2 calls).
+    def select_with_cost(catalog, topic, mode):
+        req_tracker.record("claude-haiku-4-5", prompt_tokens=100, completion_tokens=10)
+        wanted = ["wiki/pricing.md"]
+        present = {a.path for a in catalog}
+        return SelectionResult(paths=[p for p in wanted if p in present],
+                               batches=1, dropped_invented=0, skipped=[])
+
+    # Stub compile records one LLM call and returns a cost snapshot of that call only.
+    # This snapshot predates the PRECISION pass, so it does not include its cost.
+    def compile_with_cost(derived_dir: str, **kwargs) -> dict:
+        compile_cost = req_tracker.record("claude-haiku-4-5",
+                                          prompt_tokens=200, completion_tokens=20)
+        base = Path(derived_dir)
+        (base / "wiki").mkdir(parents=True, exist_ok=True)
+        (base / "index").mkdir(parents=True, exist_ok=True)
+        (base / "wiki" / "pricing.md").write_text(
+            "---\ntitle: Pricing\n---\n\n# Pricing\n\nProse.\n")
+        (base / "index" / "master-index.md").write_text(
+            "# Knowledge Base Index\n\n"
+            "- [Pricing](wiki/pricing.md) — Fees.\n"
+        )
+        return {"compiled": 1, "errors": [],
+                "cost": {"total_cost_usd": round(compile_cost, 6)}}
+
+    set_request_tracker(req_tracker)
+    try:
+        report = derive_kb(str(kb), "pricing", model="m",
+                           select=select_with_cost, compile_fn=compile_with_cost)
+    finally:
+        set_request_tracker(None)
+
+    # 3 recorded calls: RECALL + compile + PRECISION (the last one is AFTER compile's snapshot).
+    assert report.cost["calls"] == 3
+    # The whole-run total must exceed compile's own cost snapshot (which lacks PRECISION).
+    assert report.cost["total_cost_usd"] > report.compile["cost"]["total_cost_usd"]
+    # Shape differs too: tracker.summary() carries token counts that compile's dict does not.
+    assert report.cost != report.compile["cost"]
+
+
+def test_per_request_tracker_takes_precedence_over_global(tmp_path: Path, monkeypatch):
+    """derive_kb reports the per-request tracker when one is set, not the global one."""
+    import kb_ai.derive as _derive_mod
+
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+
+    # Replace the module-level 'tracker' reference in derive/__init__ with a fresh
+    # local instance so the test does not mutate the process-wide global tracker.
+    fake_global = CostTracker(store_details=False)
+    monkeypatch.setattr(_derive_mod, "tracker", fake_global)
+    # Give the fake global some spend so the two trackers are distinguishable.
+    fake_global.record("claude-haiku-4-5", prompt_tokens=500, completion_tokens=50)
+
+    # Per-request tracker has a different, specific amount of spend.
+    req_tracker = CostTracker(store_details=False)
+    req_tracker.record("claude-haiku-4-5", prompt_tokens=77, completion_tokens=7)
+
+    set_request_tracker(req_tracker)
+    try:
+        report = derive_kb(str(kb), "pricing", model="m",
+                           select=select, compile_fn=_fake_compile)
+    finally:
+        set_request_tracker(None)
+
+    # report.cost must equal the per-request tracker's summary, not the global's.
+    assert report.cost == req_tracker.summary()
+    assert report.cost != fake_global.summary()
