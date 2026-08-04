@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from kb_ai._errors import (
-    InvalidSlugError, NestedDeriveError, SlugExistsError, UnknownDerivedKBError,
+    DeriveError, InvalidSlugError, NestedDeriveError, SlugExistsError, UnknownDerivedKBError,
 )
 from kb_ai.derive import _layout
 from kb_ai.derive._types import DocumentRef
@@ -92,6 +92,61 @@ def test_force_refuses_a_manifest_naming_another_slug(tmp_path: Path):
         _layout.create(tmp_path, "pricing", force=True)
 
 
+@pytest.mark.parametrize("slug", ["../evil", "/etc/passwd", ""])
+def test_create_refuses_hostile_slug_before_touching_filesystem(
+    tmp_path: Path, slug: str
+):
+    """Hostile slugs are caught by validate_slug before any path is built."""
+    with pytest.raises(InvalidSlugError):
+        _layout.create(tmp_path, slug, force=False)
+    assert not (tmp_path / "derived").exists()
+
+
+def test_create_refuses_derived_dir_symlinked_outside(tmp_path: Path):
+    """Layout 1: <kb>/derived itself is a symlink pointing outside the KB.
+
+    Even with --force and a manifest that names the right slug, the containment
+    check must raise InvalidSlugError before rmtree runs and the outside directory
+    must survive intact.  Checking manifest.json survival rather than the
+    directory itself: without the fix, rmtree deletes the contents and mkdir
+    recreates an empty dir, so the directory alone is not a reliable sentinel.
+    """
+    outside = tmp_path / "outside"
+    (outside / "pricing").mkdir(parents=True)
+    (outside / "pricing" / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    (kb / "derived").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(InvalidSlugError):
+        _layout.create(kb, "pricing", force=True)
+
+    assert (outside / "pricing" / "manifest.json").exists(), (
+        "rmtree must not have run: manifest.json was deleted"
+    )
+
+
+def test_create_refuses_slug_entry_symlinked_outside(tmp_path: Path):
+    """Layout 2: <kb>/derived/<slug> is a symlink pointing outside the KB.
+
+    Even with --force and a manifest that names the right slug, the containment
+    check must raise InvalidSlugError before rmtree runs and the outside directory
+    must survive intact.
+    """
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    kb = tmp_path / "kb"
+    (kb / "derived").mkdir(parents=True)
+    (kb / "derived" / "pricing").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(InvalidSlugError):
+        _layout.create(kb, "pricing", force=True)
+
+    assert outside.exists(), "rmtree must not have run on outside"
+    assert (outside / "manifest.json").exists()
+
+
 def test_copy_documents_copies_content_and_extract_cache(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
@@ -129,12 +184,58 @@ def test_copy_documents_tolerates_a_missing_cache_entry(tmp_path: Path):
     assert not (derived / ".extract-cache").exists()
 
 
+def test_copy_documents_rejects_absolute_rel_path(tmp_path: Path):
+    src = tmp_path / "src"
+    src.mkdir()
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    store = KBStore(str(src), read_only=True)
+
+    with pytest.raises(DeriveError, match="absolute"):
+        _layout.copy_documents(store, derived, [
+            DocumentRef(rel_path="/etc/passwd", checksum="deadbeefdeadbeef", size_bytes=0),
+        ])
+
+
+def test_copy_documents_rejects_traversal_rel_path(tmp_path: Path):
+    src = tmp_path / "src"
+    src.mkdir()
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    store = KBStore(str(src), read_only=True)
+
+    with pytest.raises(DeriveError, match=r"\.\.|absolute"):
+        _layout.copy_documents(store, derived, [
+            DocumentRef(rel_path="../escape.md", checksum="deadbeefdeadbeef", size_bytes=0),
+        ])
+
+
+def test_copy_documents_rejects_invalid_checksum(tmp_path: Path):
+    src = tmp_path / "src"
+    (src / "raw").mkdir(parents=True)
+    (src / "raw" / "notes.md").write_text("body")
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    store = KBStore(str(src), read_only=True)
+
+    with pytest.raises(DeriveError, match="checksum"):
+        _layout.copy_documents(store, derived, [
+            DocumentRef(rel_path="raw/notes.md", checksum="NOTVALID", size_bytes=4),
+        ])
+
+
 def test_manifest_round_trip(tmp_path: Path):
     _layout.write_manifest(tmp_path, {"slug": "pricing", "topic": "pricing"})
     assert _layout.read_manifest(tmp_path)["slug"] == "pricing"
 
 
 def test_read_manifest_of_a_dir_without_one(tmp_path: Path):
+    assert _layout.read_manifest(tmp_path) == {}
+
+
+def test_read_manifest_returns_empty_for_invalid_utf8(tmp_path: Path):
+    """UnicodeDecodeError (invalid UTF-8) is silenced just like JSONDecodeError."""
+    (tmp_path / "manifest.json").write_bytes(b"\xff\xfe not valid utf-8 {")
     assert _layout.read_manifest(tmp_path) == {}
 
 
@@ -180,3 +281,25 @@ def test_list_derived_reads_manifests(tmp_path: Path):
 
     got = _layout.list_derived(str(tmp_path))
     assert [m["slug"] for m in got] == ["compliance", "pricing"]
+
+
+def test_list_derived_skips_symlinked_children(tmp_path: Path):
+    """A derived/<slug> that is a symlink pointing outside derived/ is not listed.
+
+    Mirrors the resolve_kb_dir containment check so the two agree on which slugs
+    are valid.
+    """
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "manifest.json").write_text(json.dumps({"slug": "escape"}))
+    derived_root = tmp_path / "kb" / "derived"
+    derived_root.mkdir(parents=True)
+    # Real, legitimate derived KB.
+    legit = derived_root / "pricing"
+    legit.mkdir()
+    (legit / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    # Symlinked entry pointing outside the KB -- must be skipped.
+    (derived_root / "escape").symlink_to(outside, target_is_directory=True)
+
+    got = _layout.list_derived(str(tmp_path / "kb"))
+    assert [m["slug"] for m in got] == ["pricing"]

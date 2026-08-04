@@ -1,4 +1,4 @@
-"""Filesystem layout of a derived knowledge base (spec C1-C7, E1-E4, G4).
+"""Filesystem layout of a derived knowledge base (spec C1-C5, C7, E1, E2, E4, G4).
 
 Owns every path decision: what a slug may be, where derived/<slug>/ lives, how
 documents and their extract-cache entries are copied in, and how the provenance
@@ -8,11 +8,13 @@ MCP ask and the HTTP read handlers.
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 from pathlib import Path
 
 from kb_ai._errors import (
+    DeriveError,
     InvalidSlugError,
     NestedDeriveError,
     SlugExistsError,
@@ -34,6 +36,8 @@ DERIVED_DIRNAME = "derived"
 OFFTOPIC_DIRNAME = "_offtopic"
 
 _SLUG_MAX = 40
+# Spec E4: checksum is the first 16 hex digits of the content hash.
+_CHECKSUM_RE = re.compile(r"^[0-9a-f]{16}$")
 
 
 def normalise_slug(topic: str) -> str:
@@ -60,10 +64,12 @@ def assert_not_nested(source_kb: Path) -> None:
 
     A derived KB is exactly '<parent>/derived/<slug>/' holding a manifest.json.
     Requiring the manifest keeps a real KB that merely happens to sit in a
-    directory called 'derived' usable.
+    directory called 'derived' usable. The parent-name check is case-insensitive
+    so a source KB at <root>/Derived/<slug> is also rejected on case-folding
+    filesystems.
     """
     src = Path(source_kb).expanduser().resolve()
-    if src.parent.name == DERIVED_DIRNAME and (src / MANIFEST_NAME).exists():
+    if src.parent.name.lower() == DERIVED_DIRNAME and (src / MANIFEST_NAME).exists():
         raise NestedDeriveError(
             f"{src} is a derived knowledge base; nesting stops at one level"
         )
@@ -96,20 +102,44 @@ def check_slug_available(source_kb: Path, slug: str, force: bool) -> None:
         )
 
 
+def _safe_create_target(source_kb: Path, slug: str) -> Path:
+    """Compute the derived target and verify it is contained within the KB.
+
+    Resolves symlinks in both the derived/ directory and the slug entry, then
+    checks that the result sits directly inside <kb>/derived/ -- matching
+    KBStore._resolve rather than the lexical Go-layer check (C4). Raises
+    InvalidSlugError when containment fails, so a symlink planted at either
+    <kb>/derived or <kb>/derived/<slug> is rejected before rmtree or mkdir runs.
+    """
+    kb_resolved = Path(source_kb).expanduser().resolve()
+    # base is <resolved_kb>/derived -- NOT further resolved, so a symlink at
+    # derived/ is detected by the is_relative_to check below.
+    base = kb_resolved / DERIVED_DIRNAME
+    target = (base / slug).resolve()
+    if not target.is_relative_to(base):
+        raise InvalidSlugError(
+            f"derived target {target!s} escapes the KB root {kb_resolved!s}; "
+            "symlink in derived/ or derived/<slug> detected"
+        )
+    return target
+
+
 def create(source_kb: Path, slug: str, force: bool) -> Path:
     """Create derived/<slug>/, replacing it when force is given (C1, C4)."""
     validate_slug(slug)
+    # Containment check before any disk access -- rejects symlinks planted at
+    # <kb>/derived or <kb>/derived/<slug> that would let rmtree escape the KB.
+    target = _safe_create_target(source_kb, slug)
     check_slug_available(source_kb, slug, force)
-    target = derived_dir(source_kb, slug)
     if target.exists():
         shutil.rmtree(target)
     target.mkdir(parents=True)
     return target
 
 
-def copy_documents(source_store: KBStore, dest_dir: Path,
+def copy_documents(source_store: KBStore, derived_dir: Path,
                    docs: list[DocumentRef]) -> int:
-    """Copy each document into dest_dir keeping its source-relative name (C1).
+    """Copy each document into derived_dir keeping its source-relative name (C1).
 
     The matching .extract-cache/<checksum>.json entry is copied too when it
     exists (C7): the copies are byte-identical, so the content checksum the cache
@@ -123,35 +153,54 @@ def copy_documents(source_store: KBStore, dest_dir: Path,
     """
     copied = 0
     for doc in docs:
+        # Reject absolute rel_path (pathlib would discard derived_dir entirely)
+        # and any path that escapes via '..' (spec E4).
+        if Path(doc.rel_path).is_absolute() or ".." in Path(doc.rel_path).parts:
+            raise DeriveError(
+                f"rel_path {doc.rel_path!r} is absolute or contains '..'; "
+                "refusing to copy"
+            )
+        if not _CHECKSUM_RE.match(doc.checksum):
+            raise DeriveError(
+                f"checksum {doc.checksum!r} does not match ^[0-9a-f]{{16}}$ "
+                "(spec E4)"
+            )
         content = source_store.read_raw(doc.rel_path)
-        dest = dest_dir / doc.rel_path
+        dest = derived_dir / doc.rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content)
         copied += 1
 
         cache_src = source_store.base_dir / ".extract-cache" / f"{doc.checksum}.json"
         if cache_src.exists():
-            cache_dst = dest_dir / ".extract-cache" / f"{doc.checksum}.json"
+            cache_dst = derived_dir / ".extract-cache" / f"{doc.checksum}.json"
             cache_dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(cache_src, cache_dst)
     return copied
 
 
-def write_manifest(dest_dir: Path, payload: dict) -> None:
-    """Write manifest.json (E1: before compiling, so a dead run still records intent)."""
-    (Path(dest_dir) / MANIFEST_NAME).write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2)
-    )
+def write_manifest(derived_dir: Path, payload: dict) -> None:
+    """Write manifest.json atomically (E1: before compiling, so a dead run still records intent).
+
+    Uses a sibling temp file + os.replace so a crash mid-write cannot leave a
+    truncated manifest -- matching the pattern in storage/store.py.
+    """
+    target = Path(derived_dir) / MANIFEST_NAME
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    os.replace(str(tmp), str(target))
 
 
-def read_manifest(dest_dir: Path) -> dict:
-    """Read manifest.json, or {} when absent or unparseable."""
-    path = Path(dest_dir) / MANIFEST_NAME
+def read_manifest(derived_dir: Path) -> dict:
+    """Read manifest.json, or {} when absent or unparseable (including bad UTF-8)."""
+    path = Path(derived_dir) / MANIFEST_NAME
     if not path.exists():
         return {}
     try:
         data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
+    except (OSError, ValueError):
+        # ValueError catches json.JSONDecodeError and UnicodeDecodeError (invalid
+        # UTF-8), both of which indicate an unreadable manifest.
         return {}
     return data if isinstance(data, dict) else {}
 
@@ -160,6 +209,9 @@ def list_derived(root_kb: str) -> list[dict]:
     """Every derived KB's manifest under root_kb, sorted by slug (H2).
 
     A directory without a readable manifest is not a derived KB and is skipped.
+    Entries whose name fails SLUG_RE or that resolve outside derived/ are also
+    skipped, so the set of slugs this returns agrees with what resolve_kb_dir
+    accepts.
     """
     root = Path(root_kb).expanduser().resolve() / DERIVED_DIRNAME
     if not root.is_dir():
@@ -167,6 +219,13 @@ def list_derived(root_kb: str) -> list[dict]:
     out = []
     for child in sorted(root.iterdir()):
         if not child.is_dir():
+            continue
+        if not SLUG_RE.match(child.name):
+            continue
+        # Reject symlinks pointing outside derived/ -- same containment logic as
+        # resolve_kb_dir: compare the resolved path against the unresolved base so
+        # a symlink at <kb>/derived or <kb>/derived/<slug> is both caught.
+        if not child.resolve().is_relative_to(root):
             continue
         manifest = read_manifest(child)
         if manifest:
