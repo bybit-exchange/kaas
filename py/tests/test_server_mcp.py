@@ -276,7 +276,7 @@ def test_ask_tool_registered_with_schema():
     assert "ask" in by_name
     ask_tool = by_name["ask"]
     props = ask_tool.inputSchema.get("properties", {})
-    assert set(props) == {"query", "paths", "model"}
+    assert set(props) == {"query", "paths", "model", "kb"}
     assert ask_tool.inputSchema.get("required") == ["query"]
 
 
@@ -306,3 +306,73 @@ def test_stdio_initialize_and_list_tools():
     result = asyncio.run(drive())
     names = {t.name for t in result.tools}
     assert "ask" in names
+
+
+# ── ask(kb=…) — derived knowledge base routing ───────────────────────
+
+def test_ask_without_kb_uses_the_root(tmp_path, monkeypatch):
+    from kb_ai import server_mcp
+
+    seen: dict = {}
+
+    def fake_chat(input_data, emit):
+        seen.update(input_data)
+        emit({"type": "delta", "content": "answer"})
+        emit({"type": "done", "cited_sources": [], "cost_usd": 0.0})
+
+    monkeypatch.setattr(server_mcp, "run_server_chat_http", fake_chat)
+    monkeypatch.setenv("KAAS_KB_DIR", str(tmp_path))
+
+    out = server_mcp.ask("q")
+    assert out["answer"] == "answer"
+    assert seen["kb_dir"] == str(tmp_path.resolve())
+
+
+def test_ask_with_a_known_kb_slug(tmp_path, monkeypatch):
+    from kb_ai import server_mcp
+
+    derived = tmp_path / "derived" / "pricing"
+    derived.mkdir(parents=True)
+    (derived / "manifest.json").write_text("{}")
+
+    seen: dict = {}
+
+    def fake_chat(input_data, emit):
+        seen.update(input_data)
+        emit({"type": "done", "cited_sources": [], "cost_usd": 0.0})
+
+    monkeypatch.setattr(server_mcp, "run_server_chat_http", fake_chat)
+    monkeypatch.setenv("KAAS_KB_DIR", str(tmp_path))
+
+    server_mcp.ask("q", kb="pricing")
+    assert seen["kb_dir"] == str(derived.resolve())
+
+
+def test_ask_with_an_unknown_kb_slug_raises(tmp_path, monkeypatch):
+    import pytest
+
+    from kb_ai import server_mcp
+    from kb_ai._errors import UnknownDerivedKBError
+
+    def fake_chat(input_data, emit):
+        raise AssertionError("chat must not run for an unknown kb")
+
+    monkeypatch.setattr(server_mcp, "run_server_chat_http", fake_chat)
+    monkeypatch.setenv("KAAS_KB_DIR", str(tmp_path))
+
+    with pytest.raises(UnknownDerivedKBError):
+        server_mcp.ask("q", kb="nope")
+
+
+def test_ask_with_a_traversal_kb_slug_raises(tmp_path, monkeypatch):
+    import pytest
+
+    from kb_ai import server_mcp
+    from kb_ai._errors import InvalidSlugError
+
+    monkeypatch.setattr(server_mcp, "run_server_chat_http",
+                        lambda *a, **kw: (_ for _ in ()).throw(AssertionError("no chat")))
+    monkeypatch.setenv("KAAS_KB_DIR", str(tmp_path))
+
+    with pytest.raises(InvalidSlugError):
+        server_mcp.ask("q", kb="../../etc")
