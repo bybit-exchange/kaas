@@ -39,6 +39,30 @@ def test_select_filters_to_existing_paths(monkeypatch):
     assert out == ["wiki/two.md"]   # ghost filtered out
 
 
+def test_select_prompt_carries_the_keys_column(monkeypatch):
+    """The keys of a reference article are what connects a narrow factual query
+    to it; the selector prompt has to show them."""
+    catalog = [
+        retrieve.ArticleMeta("Config", "wiki/config.md", "Loads TOML.",
+                             keys="max_zip_entries, max_file_size"),
+        retrieve.ArticleMeta("Upload", "wiki/upload.md", "Handles uploads."),
+    ]
+    seen: dict = {}
+
+    def capture(**kw):
+        seen.update(kw)
+        return {"paths": []}
+
+    monkeypatch.setattr(retrieve, "completion_json", capture)
+    retrieve._select_relevant(catalog, "zip entry limit?", "m", max_select=6)
+    prompt = seen["messages"][0]["content"]
+
+    assert ("- wiki/config.md — Config: Loads TOML. "
+            "| keys: max_zip_entries, max_file_size") in prompt
+    # An article without keys keeps the plain one-line form.
+    assert "- wiki/upload.md — Upload: Handles uploads.\n" in prompt
+
+
 def test_select_empty_catalog_skips_llm(monkeypatch):
     called = False
 

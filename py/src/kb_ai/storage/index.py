@@ -5,11 +5,24 @@ from datetime import datetime
 
 import yaml
 
-from kb_ai.storage.store import KBStore
+from kb_ai.storage.store import KEYS_MARKER, KBStore
 
 SUMMARY_MAX_CHARS = 150
 
+# Budget for the keys column of one article. 500 chars holds ~30 keys, which
+# covers every reference article in a 48-article compile of this repository
+# (largest: 437 chars) while keeping a pathological table from dominating the
+# retrieval prompt, where every article's line is paid for on every query.
+KEYS_MAX_CHARS = 500
+
+_KEYS_ELLIPSIS = ", …"
+
 _HEADING_RE = re.compile(r"^#{1,6}\s")
+
+# First cell of a table row when it is one backticked token -- how a reference
+# table names the thing each row documents. Prose cells and the header/separator
+# rows don't match, so a narrative article yields nothing.
+_KEY_CELL_RE = re.compile(r"^\|\s*`([^\s`|]+)`\s*\|")
 
 
 def _flatten(text: str) -> str:
@@ -52,6 +65,39 @@ def _derive_summary(fm: dict, body: str) -> str:
     return ""
 
 
+def _derive_keys(body: str) -> str:
+    """List the identifiers a reference article documents, for its catalog line.
+
+    A 150-char prose summary cannot advertise the dozens of discrete values a
+    config or API table defines, so a narrow factual question ("how many entries
+    may a zip hold?") has no signal pointing at the article holding the answer,
+    and page selection falls back to whichever title sounds topical. The first
+    cell of each table row is where such an article names its keys.
+
+    Returns them comma-joined and capped at KEYS_MAX_CHARS, keeping whole keys
+    only and marking a cut with a trailing "…" -- a half-written key would read
+    as a different identifier. Prose articles yield "".
+    """
+    keys: list[str] = []
+    seen: set[str] = set()
+    for line in body.splitlines():
+        m = _KEY_CELL_RE.match(line.strip())
+        if m and m.group(1) not in seen:
+            seen.add(m.group(1))
+            keys.append(m.group(1))
+
+    out = ""
+    for i, key in enumerate(keys):
+        # Reserve room for the cut marker while more keys are still pending, so
+        # appending it later cannot push the column past the budget.
+        limit = KEYS_MAX_CHARS - (len(_KEYS_ELLIPSIS) if i < len(keys) - 1 else 0)
+        candidate = f"{out}, {key}" if out else key
+        if len(candidate) > limit:
+            return f"{out}{_KEYS_ELLIPSIS}" if out else ""
+        out = candidate
+    return out
+
+
 def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
     store.index_dir.mkdir(exist_ok=True)
 
@@ -86,6 +132,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
         articles.append({
             "title": title, "path": rel_path, "type": article_type,
             "tags": tags, "status": status, "summary": summary,
+            "keys": _derive_keys(body),
         })
         for tag in tags:
             tags_map.setdefault(str(tag), []).append({"title": title, "path": rel_path})
@@ -93,7 +140,9 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
     master = "# Knowledge Base Index\n\n"
     for a in sorted(articles, key=lambda x: x["title"]):
         status_marker = f" [{a['status']}]" if a.get("status") else ""
-        master += f"- [{a['title']}]({a['path']}){status_marker} — {a['summary']}\n"
+        keys_column = f"{KEYS_MARKER}{a['keys']}" if a["keys"] else ""
+        master += (f"- [{a['title']}]({a['path']}){status_marker} — "
+                   f"{a['summary']}{keys_column}\n")
     (store.index_dir / "master-index.md").write_text(master)
 
     # Split topic index by frequency.

@@ -13,16 +13,19 @@ Single pass:
 Returns ``[{"title", "path", "content"}]`` consumable as the ``/chat``
 ``articles`` field, which the existing chat context assembler already handles.
 
-Scope note: the catalog summary is the only navigation surface, so an article
-that is relevant only via terms deep in its body (not its title/summary) won't
-be found. Body-depth recall is deferred to a future version (vector search).
+Scope note: the catalog line is the only navigation surface. It carries the
+prose summary plus, for articles built around a reference table, the key names
+that table defines (see storage.index._derive_keys) -- so a question naming one
+setting can reach the article defining it. An article relevant only via prose
+terms deep in its body is still out of reach; body-depth recall is deferred to a
+future version (vector search).
 """
 from __future__ import annotations
 
 import sys
 
 from kb_ai.llm import completion_json
-from kb_ai.storage.store import ArticleMeta, KBStore
+from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore
 
 # Cap per article so the combined context stays within the LLM prompt budget.
 # Coordinated with the default max_articles (6) and llm.MAX_PROMPT_CHARS (80K):
@@ -47,10 +50,15 @@ def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
     if not catalog:
         return []
     valid = {a.path for a in catalog}
-    listing = "\n".join(f"- {a.path} — {a.title}: {a.summary}" for a in catalog)
+    listing = "\n".join(
+        f"- {a.path} — {a.title}: {a.summary}" + (f"{KEYS_MARKER}{a.keys}" if a.keys else "")
+        for a in catalog)
     prompt = (
         "You are selecting which knowledge-base articles can help answer a "
-        "question. Below is the article catalog (path — title: summary).\n\n"
+        "question. Below is the article catalog (path — title: summary). An "
+        "article that documents a table of settings, fields or endpoints also "
+        "lists their names after `| keys:`, so a question about one specific "
+        "named value belongs to the article whose keys contain it.\n\n"
         f"{listing}\n\n"
         f"Question: {query}\n\n"
         f"Return JSON {{\"paths\": [...]}} listing up to {max_select} article "

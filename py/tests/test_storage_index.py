@@ -196,6 +196,114 @@ def test_master_index_summary_falls_back_to_heading_text_for_heading_only_body(t
     assert "- [A](wiki/a.md) — Overview" in _master(store)
 
 
+# ── keys column ─────────────────────────────────────────────────────
+
+_CONFIG_TABLE = (
+    "---\ntitle: Config\n---\n\n## Overview\n\nRuntime settings for the backend.\n\n"
+    "| Field            | Default | Description        |\n"
+    "|------------------|---------|--------------------|\n"
+    "| `max_zip_entries` | `200`  | entries per zip    |\n"
+    "| `max_file_size`   | `10MB` | per-file cap       |\n"
+)
+
+
+def test_master_index_lists_table_keys_of_a_reference_article(tmp_path: Path):
+    """The values a reference table documents are the retrieval signal, and a
+    150-char prose summary cannot carry them."""
+    store = _store(tmp_path)
+    _write(store, "wiki/config.md", _CONFIG_TABLE)
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == ("- [Config](wiki/config.md) — Runtime settings for the backend. "
+                    "| keys: max_zip_entries, max_file_size")
+
+
+def test_master_index_omits_the_keys_column_for_prose_articles(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", "---\ntitle: A\n---\n\nAll prose, no table.")
+
+    update_markdown_index(store)
+
+    assert "- [A](wiki/a.md) — All prose, no table." in _master(store)
+    assert "keys:" not in _master(store)
+
+
+def test_master_index_keys_skip_non_identifier_first_cells(tmp_path: Path):
+    """Header rows, separator rows and prose cells are not keys; a backticked
+    single token (env var, flag, endpoint) is."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           "---\ntitle: A\n---\n\nprose\n\n"
+           "| Setting | Meaning |\n"
+           "|---------|---------|\n"
+           "| `KAAS_HOME` | state dir |\n"
+           "| `--dry-run` | no writes |\n"
+           "| plain text | not a key |\n"
+           "| `two words here` | not a key either |\n")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line.endswith("| keys: KAAS_HOME, --dry-run")
+
+
+def test_master_index_keys_dedup_in_document_order(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           "---\ntitle: A\n---\n\nprose\n\n"
+           "| `zulu` | x |\n| `alpha` | y |\n| `zulu` | z |\n")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line.endswith("| keys: zulu, alpha")
+
+
+def test_master_index_keys_are_capped_without_splitting_a_key(tmp_path: Path):
+    """A pathological table must not blow up every retrieval prompt, and a
+    half-written key would be a false signal rather than a partial one."""
+    store = _store(tmp_path)
+    rows = "".join(f"| `key_{i:03d}` | v |\n" for i in range(200))
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\nprose\n\n{rows}")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+    keys = line.split("| keys: ", 1)[1]
+
+    assert len(keys) <= index_mod.KEYS_MAX_CHARS
+    assert keys.endswith(", …")
+    # Every listed key is whole: no "key_0" fragment left by the cut.
+    assert all(len(k.strip()) == len("key_000")
+               for k in keys.removesuffix(", …").split(","))
+
+
+def test_master_index_drops_a_single_key_that_exceeds_the_budget(tmp_path: Path):
+    """No key fits -> no column, rather than a lone cut marker."""
+    store = _store(tmp_path)
+    monster = "k" * (index_mod.KEYS_MAX_CHARS + 1)
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\nprose\n\n| `{monster}` | v |\n")
+
+    update_markdown_index(store)
+
+    assert "- [A](wiki/a.md) — prose" in _master(store)
+    assert "keys:" not in _master(store)
+
+
+def test_master_index_keys_survive_a_summary_containing_pipes(tmp_path: Path):
+    """An article whose first prose block is itself a table row puts pipes in the
+    summary; the keys column must still be separable from it."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           "---\ntitle: A\n---\n\n| `alpha` | first row is the only prose |\n")
+
+    update_markdown_index(store)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line.endswith("| keys: alpha")
+
+
 def test_master_index_falls_back_to_stem_when_title_missing(tmp_path: Path):
     store = _store(tmp_path)
     _write(store, "wiki/my-note.md", "---\ntype: concept\n---\n\nbody")
