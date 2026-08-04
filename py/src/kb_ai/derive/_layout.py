@@ -53,7 +53,7 @@ def normalise_slug(topic: str) -> str:
 
 def validate_slug(slug: str) -> None:
     """Raise InvalidSlugError unless slug is a single safe path segment (C3)."""
-    if not slug or not SLUG_RE.match(slug):
+    if not slug or not SLUG_RE.fullmatch(slug):
         raise InvalidSlugError(
             f"invalid slug {slug!r}: expected 1-40 chars matching {SLUG_RE.pattern}"
         )

@@ -2,10 +2,17 @@
 // client-supplied slug.
 //
 // The slug arrives from MCP tool calls and HTTP query strings, so it is
-// untrusted input to a path join. Validation is lexical here, matching the
-// convention in internal/api/wiki.go; the Python layer runs its own
-// symlink-resolving check (KBStore._resolve). Duplicating the check is
-// deliberate: neither layer should trust the other's input.
+// untrusted input to a path join. Resolve performs a symlink-resolving
+// containment check: it resolves the target path with filepath.EvalSymlinks
+// and requires the result to reside strictly under the (un-resolved) derived/
+// base directory. A symlink planted at <root>/derived/<slug> or at
+// <root>/derived/ itself therefore cannot escape the KB root.
+//
+// This mirrors resolve_kb_dir in py/src/kb_ai/derive/_layout.py, which uses
+// the same strategy (Path.resolve + is_relative_to). Both layers are
+// independent gates: Go validates and resolves the slug, returning a
+// canonical path; Python's KBStore receives that path and constrains reads
+// within it.
 package kbpath
 
 import (
@@ -15,6 +22,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Sentinel errors callers map to their own status codes.
@@ -42,22 +50,53 @@ func ValidSlug(slug string) bool {
 	return slugRe.MatchString(slug)
 }
 
-// Resolve returns root for an empty slug, else <root>/derived/<slug>.
+// Resolve returns the canonical path for the given KB root and optional slug.
 //
-// Returns ErrInvalidSlug for a slug failing lexical validation and ErrUnknownKB
-// when the directory does not exist or holds no manifest.json.
+// Empty slug: returns the resolved root path (canonical symlinks followed).
+// Non-empty slug: returns <resolved-root>/derived/<slug> after verifying:
+//   - the slug passes lexical validation (ErrInvalidSlug on failure),
+//   - the resolved target path stays strictly under the un-resolved derived/
+//     base so a symlink at derived/<slug> or at derived/ itself cannot reach
+//     outside the KB root (ErrUnknownKB on containment failure),
+//   - manifest.json is present in the resolved directory (ErrUnknownKB if not).
+//
+// Resolving root with a best-effort EvalSymlinks keeps the returned path
+// comparable by string equality with paths Python's resolve_kb_dir returns.
+// When root does not exist yet (e.g. during tests) EvalSymlinks fails silently
+// and the unresolved root is returned — this only matters for empty slug since
+// any non-empty slug would fail the subsequent EvalSymlinks of the target.
 func Resolve(root, slug string) (string, error) {
+	// Resolve root once so the base prefix used for containment is symlink-free.
+	// Silent fallback keeps a not-yet-created root from erroring on empty slug.
+	resolvedRoot := root
+	if r, err := filepath.EvalSymlinks(root); err == nil {
+		resolvedRoot = r
+	}
+
 	if slug == "" {
-		return root, nil
+		return resolvedRoot, nil
 	}
 	if !ValidSlug(slug) {
 		return "", fmt.Errorf("%w: %q", ErrInvalidSlug, slug)
 	}
-	dir := filepath.Join(root, DerivedDirName, slug)
-	if _, err := os.Stat(filepath.Join(dir, manifestName)); err != nil {
+
+	// base is a plain path join — deliberately not resolved — so a symlink
+	// planted at <root>/derived/ is caught: its resolved target cannot share
+	// the base prefix.
+	base := filepath.Join(resolvedRoot, DerivedDirName)
+	resolved, err := filepath.EvalSymlinks(filepath.Join(base, slug))
+	if err != nil {
+		// Path does not exist or a dangling symlink.
 		return "", fmt.Errorf("%w: %q", ErrUnknownKB, slug)
 	}
-	return dir, nil
+	// Containment: resolved path must be strictly under base (not equal to it).
+	if !strings.HasPrefix(resolved, base+string(filepath.Separator)) {
+		return "", fmt.Errorf("%w: %q", ErrUnknownKB, slug)
+	}
+	if _, err := os.Stat(filepath.Join(resolved, manifestName)); err != nil {
+		return "", fmt.Errorf("%w: %q", ErrUnknownKB, slug)
+	}
+	return resolved, nil
 }
 
 // ListSlugs returns the slugs of every derived knowledge base under root,

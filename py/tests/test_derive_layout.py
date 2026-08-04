@@ -26,7 +26,8 @@ def test_normalise_slug(topic, expected):
     assert _layout.normalise_slug(topic) == expected
 
 
-@pytest.mark.parametrize("slug", ["", "-", "..", ".", "a/b", "A", "-lead", "x" * 41, "定价"])
+@pytest.mark.parametrize("slug", ["", "-", "..", ".", "a/b", "A", "-lead", "x" * 41, "定价",
+                                   "pricing\n"])  # trailing newline: re.match allows it, fullmatch must not
 def test_validate_slug_rejects(slug):
     with pytest.raises(InvalidSlugError):
         _layout.validate_slug(slug)

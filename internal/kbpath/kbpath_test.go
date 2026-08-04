@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +26,9 @@ func TestValidSlug(t *testing.T) {
 		{"with space", false},
 		{"under_score", false},
 		{"定价", false},
+		// Length boundary: regexp is {0,39} so 1+39=40 chars is the maximum.
+		{strings.Repeat("a", 40), true},
+		{strings.Repeat("a", 41), false},
 	}
 	for _, tc := range tests {
 		if got := ValidSlug(tc.slug); got != tc.want {
@@ -47,14 +51,26 @@ func TestResolve(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Resolve expected paths: Resolve now calls EvalSymlinks internally, so on
+	// platforms where t.TempDir() returns a path that contains a symlink (e.g.
+	// macOS /tmp -> /private/tmp) the want values must use the canonical form.
+	wantRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantDerived, err := filepath.EvalSymlinks(derived)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tests := []struct {
 		name    string
 		slug    string
 		want    string
 		wantErr error
 	}{
-		{"empty slug is the root", "", root, nil},
-		{"known slug", "pricing", derived, nil},
+		{"empty slug is the root", "", wantRoot, nil},
+		{"known slug", "pricing", wantDerived, nil},
 		{"no manifest", "junk", "", ErrUnknownKB},
 		{"absent", "nope", "", ErrUnknownKB},
 		{"traversal", "../..", "", ErrInvalidSlug},
@@ -118,4 +134,95 @@ func TestListSlugsNoDerivedDir(t *testing.T) {
 	if len(got) != 0 {
 		t.Errorf("ListSlugs = %v, want empty", got)
 	}
+}
+
+// TestResolveSymlinkContainment verifies that Resolve rejects three symlink
+// layouts that the pre-fix (lexical + os.Stat-only) implementation would have
+// accepted or misreported.
+//
+// Pre-fix behaviour documented here so the RED→GREEN transition is auditable:
+//
+//	case slug_symlinked_outside: pre-fix os.Stat follows the symlink into the
+//	  outside directory, finds manifest.json, and returns the unresolved
+//	  derived/pricing path with err==nil. Post-fix EvalSymlinks resolves to the
+//	  outside path, HasPrefix fails, returns ErrUnknownKB.
+//
+//	case derived_dir_symlinked_outside: pre-fix filepath.Join(root,"derived","pricing")
+//	  traverses the derived/ symlink into the outside directory, Stat finds the
+//	  manifest, returns the path with err==nil. Post-fix EvalSymlinks resolves
+//	  through both symlinks, HasPrefix fails, returns ErrUnknownKB.
+//
+//	case slug_symlinked_to_sibling: pre-fix returns filepath.Join(base,"pricing")
+//	  verbatim (the unresolved symlink path). Post-fix EvalSymlinks follows the
+//	  symlink to derived/compliance and returns that resolved path instead,
+//	  so the want assertion (resolved sibling path) fails against pre-fix code.
+func TestResolveSymlinkContainment(t *testing.T) {
+	t.Run("slug_symlinked_outside", func(t *testing.T) {
+		root := t.TempDir()
+		outside := t.TempDir()
+		// Provide a manifest in the outside directory so pre-fix Stat succeeds.
+		if err := os.WriteFile(filepath.Join(outside, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(root, DerivedDirName), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// derived/pricing -> outside/
+		if err := os.Symlink(outside, filepath.Join(root, DerivedDirName, "pricing")); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Resolve(root, "pricing")
+		if !errors.Is(err, ErrUnknownKB) {
+			t.Fatalf("Resolve with outside symlink: err = %v, want ErrUnknownKB", err)
+		}
+	})
+
+	t.Run("derived_dir_symlinked_outside", func(t *testing.T) {
+		root := t.TempDir()
+		outside := t.TempDir()
+		// Provide pricing/manifest.json inside the outside directory.
+		if err := os.MkdirAll(filepath.Join(outside, "pricing"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(outside, "pricing", manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// <root>/derived -> outside/
+		if err := os.Symlink(outside, filepath.Join(root, DerivedDirName)); err != nil {
+			t.Fatal(err)
+		}
+		_, err := Resolve(root, "pricing")
+		if !errors.Is(err, ErrUnknownKB) {
+			t.Fatalf("Resolve with derived/ symlinked outside: err = %v, want ErrUnknownKB", err)
+		}
+	})
+
+	t.Run("slug_symlinked_to_sibling_inside", func(t *testing.T) {
+		root := t.TempDir()
+		compliance := filepath.Join(root, DerivedDirName, "compliance")
+		if err := os.MkdirAll(compliance, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(compliance, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// derived/pricing -> derived/compliance
+		if err := os.Symlink(compliance, filepath.Join(root, DerivedDirName, "pricing")); err != nil {
+			t.Fatal(err)
+		}
+
+		got, err := Resolve(root, "pricing")
+		if err != nil {
+			t.Fatalf("Resolve with sibling symlink: unexpected err: %v", err)
+		}
+		// Post-fix returns the resolved sibling path, not the unresolved symlink.
+		// Pre-fix returns filepath.Join(base, "pricing") which differs from this.
+		wantResolved, err := filepath.EvalSymlinks(compliance)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != wantResolved {
+			t.Errorf("Resolve with sibling symlink = %q, want resolved %q", got, wantResolved)
+		}
+	})
 }
