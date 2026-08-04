@@ -14,7 +14,7 @@ import sys
 
 from kb_ai._context import get_context, set_pipeline_deadline
 from kb_ai.commands.pipeline._orchestrator import PipelineContext, run_pipeline_orchestrated
-from kb_ai.storage.index import update_markdown_index
+from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index
 from kb_ai.llm import tracker
 from kb_ai.core.people import update_people_stubs
 from kb_ai.storage.store import KBStore
@@ -54,6 +54,7 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     workers = input_data.get("workers", _DEFAULT_WORKERS)
     items = input_data["items"]
     topic_index_min_articles = int(input_data.get("topic_index_min_articles") or 3)
+    summary_max_chars = int(input_data.get("summary_max_chars") or SUMMARY_MAX_CHARS)
     people_cfg = input_data.get("people") or []
 
     store = KBStore(kb_dir)
@@ -71,7 +72,8 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     item_results = run_pipeline_orchestrated(pipeline_ctx, items)
 
     # ── Phase 3: Update indices once ──
-    update_markdown_index(store, min_articles=topic_index_min_articles)
+    update_markdown_index(store, min_articles=topic_index_min_articles,
+                          summary_max_chars=summary_max_chars)
     update_people_stubs(store, people_cfg)
 
     return item_results
@@ -96,11 +98,13 @@ def run_server_index_with_input(input_data: dict) -> dict:
     """
     kb_dir = input_data["kb_dir"]
     topic_index_min_articles = int(input_data.get("topic_index_min_articles") or 3)
+    summary_max_chars = int(input_data.get("summary_max_chars") or SUMMARY_MAX_CHARS)
     people_cfg = input_data.get("people") or []
 
     store = KBStore(kb_dir)
 
-    update_markdown_index(store, min_articles=topic_index_min_articles)
+    update_markdown_index(store, min_articles=topic_index_min_articles,
+                          summary_max_chars=summary_max_chars)
     update_people_stubs(store, people_cfg)
 
     article_count = sum(1 for _ in store.wiki_dir.rglob("*.md")) if store.wiki_dir.exists() else 0

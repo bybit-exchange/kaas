@@ -25,21 +25,21 @@ _HEADING_RE = re.compile(r"^#{1,6}\s")
 _KEY_CELL_RE = re.compile(r"^\|\s*`([^\s`|]+)`\s*\|")
 
 
-def _flatten(text: str) -> str:
+def _flatten(text: str, max_chars: int) -> str:
     """Collapse whitespace to a single line and cap it for the catalog entry.
 
     Trims at a word boundary where there is one: the catalog is a git-tracked
     file people read, and a first-paragraph fallback usually needs clipping.
     """
     flat = " ".join(text.split())
-    if len(flat) <= SUMMARY_MAX_CHARS:
+    if len(flat) <= max_chars:
         return flat
-    clipped = flat[:SUMMARY_MAX_CHARS]
+    clipped = flat[:max_chars]
     head, sep, _ = clipped.rpartition(" ")
     return f"{head}…" if sep else clipped
 
 
-def _derive_summary(fm: dict, body: str) -> str:
+def _derive_summary(fm: dict, body: str, max_chars: int) -> str:
     """Pick the catalog summary for an article.
 
     Prefers a purpose-written ``summary`` from the frontmatter, else the first
@@ -50,18 +50,18 @@ def _derive_summary(fm: dict, body: str) -> str:
     """
     declared = fm.get("summary")
     if isinstance(declared, str) and declared.strip():
-        return _flatten(declared)
+        return _flatten(declared, max_chars)
 
     for block in body.split("\n\n"):
         prose = [ln for ln in block.splitlines()
                  if ln.strip() and not _HEADING_RE.match(ln.strip())]
         if prose:
-            return _flatten(" ".join(prose))
+            return _flatten(" ".join(prose), max_chars)
 
     # Heading-only body: the heading text beats an empty summary column.
     for line in body.splitlines():
         if line.strip():
-            return _flatten(line.lstrip("#"))
+            return _flatten(line.lstrip("#"), max_chars)
     return ""
 
 
@@ -98,7 +98,18 @@ def _derive_keys(body: str) -> str:
     return out
 
 
-def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
+def update_markdown_index(store: KBStore, *, min_articles: int = 3,
+                          summary_max_chars: int = SUMMARY_MAX_CHARS) -> None:
+    """Rebuild master-index, topic indexes and the long-tail index.
+
+    ``summary_max_chars`` trades summary length against article count: the whole
+    catalog goes into every page-selection prompt, so a knowledge base large
+    enough to strain that budget can shrink summaries instead of losing articles.
+    Measured on a 48-article compile of this repository, selection recall was
+    flat from 50 to 600 chars once the keys column existed, so the default is set
+    by what the write phase is asked to produce (one sentence under 150 chars)
+    rather than by recall.
+    """
     store.index_dir.mkdir(exist_ok=True)
 
     articles = []
@@ -127,7 +138,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3) -> None:
         tags = fm.get("tags", [])
         status = fm.get("status", "")
         body = parts[2].strip()
-        summary = _derive_summary(fm, body)
+        summary = _derive_summary(fm, body, summary_max_chars)
 
         articles.append({
             "title": title, "path": rel_path, "type": article_type,

@@ -196,6 +196,53 @@ def test_master_index_summary_falls_back_to_heading_text_for_heading_only_body(t
     assert "- [A](wiki/a.md) — Overview" in _master(store)
 
 
+# ── configurable summary budget ──────────────────────────────────────
+
+def test_summary_budget_is_configurable_per_call(tmp_path: Path):
+    """A knowledge base whose catalog outgrows the selection prompt needs to trade
+    summary length for article count without patching the module."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{'w' * 200}")
+
+    update_markdown_index(store, summary_max_chars=60)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == f"- [A](wiki/a.md) — {'w' * 60}"
+
+
+def test_summary_budget_defaults_to_the_module_constant(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{'w' * 400}")
+
+    update_markdown_index(store)
+    summary = _master(store).split("—", 1)[1].strip()
+
+    assert len(summary) == index_mod.SUMMARY_MAX_CHARS == 150
+
+
+def test_summary_budget_also_caps_a_declared_frontmatter_summary(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", f'---\ntitle: A\nsummary: "{"w" * 200}"\n---\n\nbody')
+
+    update_markdown_index(store, summary_max_chars=80)
+    summary = _master(store).split("—", 1)[1].strip()
+
+    assert summary == "w" * 80
+
+
+def test_summary_budget_does_not_affect_the_keys_column(tmp_path: Path):
+    """The keys column has its own budget: shrinking summaries to fit a large
+    catalog must not throw away the identifiers narrow queries match on."""
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md",
+           f"---\ntitle: A\n---\n\n{'w' * 200}\n\n| `max_zip_entries` | `200` |\n")
+
+    update_markdown_index(store, summary_max_chars=40)
+    line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
+
+    assert line == f"- [A](wiki/a.md) — {'w' * 40} | keys: max_zip_entries"
+
+
 # ── keys column ─────────────────────────────────────────────────────
 
 _CONFIG_TABLE = (

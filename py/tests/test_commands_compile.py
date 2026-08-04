@@ -80,7 +80,7 @@ def fakes(monkeypatch):
     monkeypatch.setattr(cm, "create_new_article", fake_create)
     monkeypatch.setattr(cm, "merge_into_article", fake_merge)
     monkeypatch.setattr(cm, "update_markdown_index",
-                        lambda store, min_articles: state["indexed"].append("index"))
+                        lambda store, min_articles, summary_max_chars: state["indexed"].append("index"))
     monkeypatch.setattr(cm, "update_timeline",
                         lambda store, rels: state["indexed"].append("timeline"))
     monkeypatch.setattr(cm, "update_people_stubs",
@@ -555,7 +555,8 @@ def test_run_compile_coerces_topic_index_min_articles(kb, fakes, capsys, monkeyp
 
     seen = {}
     monkeypatch.setattr(cm, "update_markdown_index",
-                        lambda store, min_articles: seen.update(min_articles=min_articles))
+                        lambda store, min_articles, summary_max_chars: seen.update(
+                            min_articles=min_articles, summary_max_chars=summary_max_chars))
     fakes["classification"] = creates("wiki/concept/a.md")
 
     payload = {"data_dir": str(kb.base_dir), "topic_index_min_articles": None}
@@ -563,3 +564,29 @@ def test_run_compile_coerces_topic_index_min_articles(kb, fakes, capsys, monkeyp
         cm.run_compile()
 
     assert seen["min_articles"] == 3
+
+
+def _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, raw):
+    """Run run_compile with the given summary_max_chars payload value."""
+    from io import StringIO
+    from unittest.mock import patch
+
+    seen = {}
+    monkeypatch.setattr(cm, "update_markdown_index",
+                        lambda store, min_articles, summary_max_chars: seen.update(
+                            summary_max_chars=summary_max_chars))
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    with patch("sys.stdin", StringIO(json.dumps(
+            {"data_dir": str(kb.base_dir), "summary_max_chars": raw}))):
+        cm.run_compile()
+    return seen["summary_max_chars"]
+
+
+def test_run_compile_forwards_the_summary_budget(kb, fakes, capsys, monkeypatch):
+    assert _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, "240") == 240
+
+
+@pytest.mark.parametrize("raw", [None, 0])
+def test_run_compile_defaults_the_summary_budget(kb, fakes, capsys, monkeypatch, raw):
+    assert _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, raw) == 150
