@@ -45,6 +45,8 @@ def prune(derived_dir: Path, topic: str,
         return [], ["second_pass_selected_nothing"]
 
     moved: list[str] = []
+    warnings: list[str] = []
+    derived_resolved = derived_dir.resolve()
     for article in catalog:
         if article.path in keep:
             continue
@@ -53,13 +55,26 @@ def prune(derived_dir: Path, topic: str,
         if not article.path.startswith(_WIKI_PREFIX):
             continue
         src = derived_dir / article.path
+        dest = derived_dir / OFFTOPIC_DIRNAME / article.path[len(_WIKI_PREFIX):]
+        # Guard against traversal in hand-tampered catalog entries (mirrors the
+        # containment check in store._resolve).  Rejected entries are skipped
+        # and recorded rather than aborting the run.
+        if not src.resolve().is_relative_to(derived_resolved):
+            warnings.append(f"path_escapes_derived_dir: {article.path}")
+            continue
+        if not dest.resolve().is_relative_to(derived_resolved):
+            warnings.append(f"dest_escapes_derived_dir: {article.path}")
+            continue
         if not src.is_file():
             continue
-        dest = derived_dir / OFFTOPIC_DIRNAME / article.path[len(_WIKI_PREFIX):]
+        # Don't silently overwrite an existing off-topic file.
+        if dest.exists():
+            warnings.append(f"dest_already_exists: {article.path}")
+            continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(src), str(dest))
         moved.append(article.path)
 
     if moved:
         update_markdown_index(store)
-    return moved, []
+    return moved, warnings
