@@ -1,0 +1,25 @@
+py/src/kb_ai/derive/_layout.py
+  eb98b08c272483ec 250-252
+internal/mcp/schema_test.go
+  eb98b08c272483ec 38-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "27b0c64078779d8ae825f39d9770b881f620a4b7",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 5,
+      "accepted_lines": 25557,
+      "overriden_lines": 0
+    }
+  }
+}
