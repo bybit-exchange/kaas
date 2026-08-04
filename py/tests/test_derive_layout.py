@@ -177,6 +177,52 @@ def test_create_refuses_slug_entry_symlinked_outside(tmp_path: Path):
     assert (outside / "manifest.json").exists()
 
 
+def test_create_refuses_sibling_symlink(tmp_path: Path):
+    """Layout 4: <kb>/derived/<slug> is a symlink to another entry in derived/.
+
+    derived/pricing -> derived/pricing-backup, with pricing-backup holding a
+    manifest naming slug 'pricing'.  With the old parent == base guard the
+    resolved parent is still derived/, so rmtree deletes pricing-backup/ and
+    the manifest is lost.  The exact-path guard must raise InvalidSlugError
+    before any deletion and leave pricing-backup/manifest.json intact.
+    """
+    kb = tmp_path / "kb"
+    derived_root = kb / "derived"
+    sibling = derived_root / "pricing-backup"
+    sibling.mkdir(parents=True)
+    (sibling / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (derived_root / "pricing").symlink_to(sibling, target_is_directory=True)
+
+    with pytest.raises(InvalidSlugError):
+        _layout.create(kb, "pricing", force=True)
+
+    assert (sibling / "manifest.json").exists(), (
+        "rmtree must not have run: pricing-backup/manifest.json was deleted"
+    )
+
+
+def test_create_refuses_dangling_symlink(tmp_path: Path):
+    """Layout 5: <kb>/derived/<slug> is a dangling symlink.
+
+    derived/pricing -> derived/ghost (nonexistent).  With the old parent == base
+    guard the resolved parent is still derived/, so mkdir silently creates
+    derived/ghost — diverging from derived_dir().  The exact-path guard must
+    raise InvalidSlugError before mkdir runs and leave no derived/ghost behind.
+    """
+    kb = tmp_path / "kb"
+    derived_root = kb / "derived"
+    derived_root.mkdir(parents=True)
+    ghost = derived_root / "ghost"
+    (derived_root / "pricing").symlink_to(ghost, target_is_directory=True)
+
+    with pytest.raises(InvalidSlugError):
+        _layout.create(kb, "pricing", force=False)
+
+    assert not ghost.exists(), (
+        "mkdir must not have run: derived/ghost directory was created"
+    )
+
+
 def test_copy_documents_copies_content_and_extract_cache(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)

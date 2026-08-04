@@ -103,26 +103,29 @@ def check_slug_available(source_kb: Path, slug: str, force: bool) -> None:
 
 
 def _safe_create_target(source_kb: Path, slug: str) -> Path:
-    """Compute the derived target and verify it sits directly inside <kb>/derived/.
+    """Compute the derived target and require it to equal <kb>/derived/<slug> exactly.
 
-    Resolves symlinks in the slug entry, then requires the resolved path's parent
-    to equal the unresolved derived root exactly.  A SLUG_RE-validated slug is
-    always exactly one level under that root, so a parent-equality check covers:
-    - the base-itself escape (<kb>/derived/<slug> → <kb>/derived)
-    - deeper-nesting (<kb>/derived/<slug> → <kb>/derived/a/b)
-    - symlink-outside (<kb>/derived or <kb>/derived/<slug> → outside path)
-    Raises InvalidSlugError so a symlink planted at either location is rejected
-    before rmtree or mkdir runs (C4).
+    Resolves the filesystem entry at base / slug and compares it to the expected
+    path.  Any symlink — whether planted at <kb>/derived/, at <kb>/derived/<slug>,
+    or pointing to a dangling target — produces a resolved path that differs from
+    the expected one, so all of these are rejected before rmtree or mkdir runs (C4):
+    - symlink-outside:  <kb>/derived/<slug> → path outside <kb>/derived/
+    - sibling-symlink:  <kb>/derived/<slug> → <kb>/derived/<other>
+    - dangling-symlink: <kb>/derived/<slug> → nonexistent path
+    - base-itself:      <kb>/derived/<slug> → <kb>/derived
+    - base-outside:     <kb>/derived/ itself → outside path
+    Raises InvalidSlugError on any mismatch.
     """
     kb_resolved = Path(source_kb).expanduser().resolve()
     # base is <resolved_kb>/derived -- kept unresolved so a symlink at derived/
-    # is detected: its resolved target's parent cannot equal base lexically.
+    # is detected: its resolved target cannot equal base / slug lexically.
     base = kb_resolved / DERIVED_DIRNAME
-    target = (base / slug).resolve()
-    if target.parent != base:
+    expected = base / slug
+    target = expected.resolve()
+    if target != expected:
         raise InvalidSlugError(
-            f"derived target for {slug!r} must be a real directory directly inside "
-            f"{base!s}; resolved to {target!s} instead"
+            f"derived target for {slug!r} must resolve to {expected!s} itself; "
+            f"resolved to {target!s} instead (possible symlink)"
         )
     return target
 
