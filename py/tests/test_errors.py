@@ -11,6 +11,13 @@ from kb_ai._errors import (
     PipelineCancelledError,
     DeadlineExceededError,
     OutputTruncatedError,
+    DeriveError,
+    NoCatalogError,
+    InvalidSlugError,
+    SlugExistsError,
+    NestedDeriveError,
+    NoDocumentsError,
+    UnknownDerivedKBError,
 )
 
 
@@ -93,6 +100,13 @@ def test_all_error_codes_are_unique():
         PipelineCancelledError.code,
         DeadlineExceededError.code,
         OutputTruncatedError.code,
+        DeriveError.code,
+        NoCatalogError.code,
+        InvalidSlugError.code,
+        SlugExistsError.code,
+        NestedDeriveError.code,
+        NoDocumentsError.code,
+        UnknownDerivedKBError.code,
     ]
     assert len(codes) == len(set(codes)), f"Duplicate codes found: {codes}"
 
