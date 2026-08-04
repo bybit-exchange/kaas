@@ -1,0 +1,25 @@
+py/tests/test_derive_layout.py
+  eb98b08c272483ec 10,95-149,187-226,236-241,284-305
+py/src/kb_ai/derive/_layout.py
+  eb98b08c272483ec 1,11,17,39-40,67-69,72,105-126,130-132,140,142,156-167,169,176,182-191,194-196,201-203,212-214,223-228
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "27b6c17731ccef584198bb1b5786ab12c150f3fb",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 203,
+      "total_deletions": 21,
+      "accepted_lines": 201,
+      "overriden_lines": 0
+    }
+  }
+}
