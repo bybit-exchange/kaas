@@ -247,8 +247,9 @@ def resolve_kb_dir(root_kb: str, slug: str | None) -> str:
     root KB: answering from the wrong corpus silently is worse than an error.
 
     Containment is checked after resolve(), so a symlink planted under derived/
-    that points outside the KB is rejected -- matching KBStore._resolve rather
-    than the Go layer's lexical check, on purpose.
+    that points outside the KB is rejected -- matching KBStore._resolve, and
+    matching kbpath.Resolve in internal/kbpath/kbpath.go, which guards the Go
+    bridge path the same way.
     """
     root = Path(root_kb).expanduser().resolve()
     if not slug:

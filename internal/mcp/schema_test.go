@@ -35,9 +35,9 @@ func TestAskToolDefinition_MarshalJSON(t *testing.T) {
 
 func TestAskInputSchema_Structure(t *testing.T) {
 	var schema struct {
-		Type       string                       `json:"type"`
-		Properties map[string]json.RawMessage   `json:"properties"`
-		Required   []string                     `json:"required"`
+		Type       string                     `json:"type"`
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
 	}
 	if err := json.Unmarshal(askInputSchema, &schema); err != nil {
 		t.Fatalf("unmarshal inputSchema: %v", err)
