@@ -1,0 +1,35 @@
+py/tests/test_compile_paths.py
+  5afede8357c40cb0 81
+py/tests/test_commands_compile.py
+  5afede8357c40cb0 83,558-559,567-592
+py/tests/test_storage_index.py
+  5afede8357c40cb0 199-245
+py/src/kb_ai/commands/compile.py
+  5afede8357c40cb0 14,70,399-400,440
+py/src/kb_ai/storage/index.py
+  5afede8357c40cb0 28,35,37,42,53,59,64,101-112,141
+py/tests/test_pipeline_entry.py
+  5afede8357c40cb0 53-55,221-222,330-340
+py/src/kb_ai/commands/pipeline/_entry.py
+  5afede8357c40cb0 17,57,75-76,101,106-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d107b4f442e4c4abbc5a43098e8de7b68188405b",
+  "prompts": {
+    "5afede8357c40cb0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23b53627-3f5e-4df5-a6a3-0ef752505707",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2089,
+      "total_deletions": 2515,
+      "accepted_lines": 127,
+      "overriden_lines": 0
+    }
+  }
+}
