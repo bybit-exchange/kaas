@@ -53,23 +53,41 @@ func ValidSlug(slug string) bool {
 // Resolve returns the canonical path for the given KB root and optional slug.
 //
 // Empty slug: returns the resolved root path (canonical symlinks followed).
-// Non-empty slug: returns <resolved-root>/derived/<slug> after verifying:
+// Non-empty slug: validates the slug and verifies:
 //   - the slug passes lexical validation (ErrInvalidSlug on failure),
-//   - the resolved target path stays strictly under the un-resolved derived/
+//   - EvalSymlinks of the target stays strictly under the un-resolved derived/
 //     base so a symlink at derived/<slug> or at derived/ itself cannot reach
 //     outside the KB root (ErrUnknownKB on containment failure),
 //   - manifest.json is present in the resolved directory (ErrUnknownKB if not).
 //
-// Resolving root with a best-effort EvalSymlinks keeps the returned path
-// comparable by string equality with paths Python's resolve_kb_dir returns.
+// The returned path for a non-empty slug is the EvalSymlinks-resolved target of
+// <root>/derived/<slug>. When the slug entry is a symlink to a sibling directory
+// inside derived/ (the accepted case in TestResolveSymlinkContainment/
+// slug_symlinked_to_sibling_inside), the sibling's canonical path is returned
+// rather than <resolved-root>/derived/<slug>.
+//
+// root is absolutised with filepath.Abs before symlink resolution so a relative
+// root (e.g. "./mykb") produces a consistent absolute path matching what
+// Python's Path.resolve() returns. Tilde (~) expansion is not performed;
+// callers that accept shell input must expand "~" before calling Resolve.
+//
 // When root does not exist yet (e.g. during tests) EvalSymlinks fails silently
-// and the unresolved root is returned — this only matters for empty slug since
+// and the absolutised root is returned — this only matters for empty slug since
 // any non-empty slug would fail the subsequent EvalSymlinks of the target.
 func Resolve(root, slug string) (string, error) {
+	// Absolutise before resolving symlinks so a relative root ("./kb") and
+	// Python's Path.resolve() name the same KB with the same string. Abs errors
+	// only when os.Getwd() fails (an unrecoverable OS condition); fall back to
+	// the original root in that unlikely case.
+	abs := root
+	if a, err := filepath.Abs(root); err == nil {
+		abs = a
+	}
+
 	// Resolve root once so the base prefix used for containment is symlink-free.
 	// Silent fallback keeps a not-yet-created root from erroring on empty slug.
-	resolvedRoot := root
-	if r, err := filepath.EvalSymlinks(root); err == nil {
+	resolvedRoot := abs
+	if r, err := filepath.EvalSymlinks(abs); err == nil {
 		resolvedRoot = r
 	}
 

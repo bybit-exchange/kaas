@@ -226,7 +226,7 @@ def list_derived(root_kb: str) -> list[dict]:
     for child in sorted(root.iterdir()):
         if not child.is_dir():
             continue
-        if not SLUG_RE.match(child.name):
+        if not SLUG_RE.fullmatch(child.name):
             continue
         # Reject symlinks pointing outside derived/ -- same containment logic as
         # resolve_kb_dir: compare the resolved path against the unresolved base so

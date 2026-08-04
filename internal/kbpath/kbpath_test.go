@@ -226,3 +226,58 @@ func TestResolveSymlinkContainment(t *testing.T) {
 		}
 	})
 }
+
+// TestResolveRelativeRoot verifies that a relative root is absolutised so the
+// returned path is always absolute and matches what Python's Path.resolve() returns.
+//
+// Pre-fix evidence: without filepath.Abs, filepath.EvalSymlinks receives the
+// relative string and returns it in relative form (e.g. "../../tmp/TestXxx" on
+// Linux, or the symlink-resolved but still relative path on macOS). The test
+// assertion got == wantRoot (absolute) therefore fails.
+func TestResolveRelativeRoot(t *testing.T) {
+	root := t.TempDir()
+	derived := filepath.Join(root, "derived", "pricing")
+	if err := os.MkdirAll(derived, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(derived, "manifest.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	wantRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantDerived, err := filepath.EvalSymlinks(derived)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	relRoot, err := filepath.Rel(cwd, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("empty slug", func(t *testing.T) {
+		got, err := Resolve(relRoot, "")
+		if err != nil {
+			t.Fatalf("Resolve(relRoot, \"\") unexpected err: %v", err)
+		}
+		if got != wantRoot {
+			t.Errorf("Resolve(relRoot, \"\") = %q, want %q", got, wantRoot)
+		}
+	})
+	t.Run("known slug", func(t *testing.T) {
+		got, err := Resolve(relRoot, "pricing")
+		if err != nil {
+			t.Fatalf("Resolve(relRoot, \"pricing\") unexpected err: %v", err)
+		}
+		if got != wantDerived {
+			t.Errorf("Resolve(relRoot, \"pricing\") = %q, want %q", got, wantDerived)
+		}
+	})
+}

@@ -375,6 +375,27 @@ def test_list_derived_reads_manifests(tmp_path: Path):
     assert [m["slug"] for m in got] == ["compliance", "pricing"]
 
 
+def test_list_derived_skips_dir_with_trailing_newline_name(tmp_path: Path):
+    """A derived/ child whose name has a trailing newline is not listed.
+
+    Pre-fix: list_derived used SLUG_RE.match, which accepts "pricing\\n" because
+    Python's $ matches just before a trailing newline (re.match does not require
+    consuming the full string). The child therefore passed the filter and its
+    manifest appeared in the result.
+    Post-fix: SLUG_RE.fullmatch requires the entire string to match the pattern;
+    the unconsumed trailing \\n causes it to return None and the child is skipped.
+    """
+    derived_root = tmp_path / "derived"
+    derived_root.mkdir()
+    bad_name = "pricing\n"  # POSIX allows newlines in directory names
+    bad_dir = derived_root / bad_name
+    bad_dir.mkdir()
+    (bad_dir / "manifest.json").write_text(json.dumps({"slug": "pricing\n"}))
+
+    got = _layout.list_derived(str(tmp_path))
+    assert got == [], f"expected [], got {got!r}"
+
+
 def test_list_derived_skips_symlinked_children(tmp_path: Path):
     """A derived/<slug> that is a symlink pointing outside derived/ is not listed.
 
