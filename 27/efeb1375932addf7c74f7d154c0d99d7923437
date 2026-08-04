@@ -1,0 +1,23 @@
+internal/store/sqlite/derived.go
+  eb98b08c272483ec 113,138,151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "27efeb1375932addf7c74f7d154c0d99d7923437",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 9,
+      "accepted_lines": 25554,
+      "overriden_lines": 0
+    }
+  }
+}
