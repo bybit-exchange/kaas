@@ -110,7 +110,7 @@ func (s *Store) ClaimNextDerivedJob(ctx context.Context, now int64) (*store.Deri
 		UPDATE derived_jobs SET status = ?, stage = ?, updated_at = ?
 		WHERE id = (
 			SELECT id FROM derived_jobs WHERE status = ?
-			ORDER BY created_at ASC LIMIT 1
+			ORDER BY created_at ASC, id ASC LIMIT 1
 		)
 		AND NOT EXISTS (SELECT 1 FROM derived_jobs WHERE status = ?)
 		RETURNING `+derivedJobColumns,
@@ -135,10 +135,7 @@ func (s *Store) SetDerivedJobStage(ctx context.Context, id, stage string, now in
 	if err != nil {
 		return fmt.Errorf("set derived job stage: %w", err)
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return store.ErrNotFound
-	}
-	return nil
+	return requireOneRow(res, "set derived job stage")
 }
 
 // FinishDerivedJob writes a terminal status. Stage always lands on done, so a
@@ -151,10 +148,7 @@ func (s *Store) FinishDerivedJob(ctx context.Context, id, status, errMsg, result
 	if err != nil {
 		return fmt.Errorf("finish derived job: %w", err)
 	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return store.ErrNotFound
-	}
-	return nil
+	return requireOneRow(res, "finish derived job")
 }
 
 // RecoverRunningDerivedJobs fails every job a previous process left running.
