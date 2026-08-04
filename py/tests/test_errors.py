@@ -95,3 +95,38 @@ def test_all_error_codes_are_unique():
         OutputTruncatedError.code,
     ]
     assert len(codes) == len(set(codes)), f"Duplicate codes found: {codes}"
+
+
+# ── Derive error family ────────────────────────────────────────────────
+
+def test_derive_error_codes():
+    from kb_ai._errors import (
+        DeriveError, InvalidSlugError, KBError, NestedDeriveError, NoCatalogError,
+        NoDocumentsError, SlugExistsError, UnknownDerivedKBError,
+    )
+
+    expected = {
+        DeriveError: "DERIVE_FAILED",
+        NoCatalogError: "NO_CATALOG",
+        InvalidSlugError: "INVALID_SLUG",
+        SlugExistsError: "SLUG_EXISTS",
+        NestedDeriveError: "NESTED_DERIVE",
+        NoDocumentsError: "NO_DOCUMENTS",
+        UnknownDerivedKBError: "UNKNOWN_DERIVED_KB",
+    }
+    for cls, code in expected.items():
+        assert cls.code == code
+        assert issubclass(cls, KBError)
+    for cls in expected:
+        if cls is not DeriveError:
+            assert issubclass(cls, DeriveError)
+
+
+def test_derive_report_defaults():
+    from kb_ai.derive._types import DeriveReport
+
+    r = DeriveReport(derived_kb="/kb/derived/x", slug="x", topic="pricing")
+    assert r.compiled is False
+    assert r.compile is None
+    assert r.selected_articles == []
+    assert r.warnings == []
