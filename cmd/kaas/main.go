@@ -26,6 +26,7 @@ import (
 	"github.com/bybit-exchange/kaas/internal/bridge"
 	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/config"
+	"github.com/bybit-exchange/kaas/internal/derive"
 	"github.com/bybit-exchange/kaas/internal/frontmatter"
 	"github.com/bybit-exchange/kaas/internal/queue"
 	"github.com/bybit-exchange/kaas/internal/store"
@@ -251,6 +252,21 @@ func run(configFile string) error {
 		MCPTimeoutSec: cfg.AI.MCP.TimeoutSec,
 	}, logger)
 
+	// Derive jobs are KB-level, so they run beside the per-document dispatcher
+	// rather than inside it (see internal/derive's package comment).
+	var deriveRunner *derive.Runner
+	if js, ok := st.(store.DerivedJobStore); ok {
+		if dc, ok := chatBr.(*bridge.DaemonClient); ok {
+			deriveRunner = derive.NewRunner(js, dc, derive.Config{
+				KBDir:        cfg.Storage.KBDir,
+				Model:        cfg.LLM.Model,
+				PollInterval: time.Duration(cfg.Worker.PollIntervalMS) * time.Millisecond,
+			}, logger)
+		} else {
+			logger.Warn("derive: HTTP bridge not a DaemonClient; derive runner disabled")
+		}
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -263,11 +279,15 @@ func run(configFile string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var wg sync.WaitGroup
-	errc := make(chan error, 2)
-	for name, fn := range map[string]func(context.Context) error{
+	runnables := map[string]func(context.Context) error{
 		"server":     srv.Run,
 		"dispatcher": d.Run,
-	} {
+	}
+	if deriveRunner != nil {
+		runnables["derive-runner"] = deriveRunner.Run
+	}
+	errc := make(chan error, len(runnables))
+	for name, fn := range runnables {
 		wg.Add(1)
 		go func(name string, fn func(context.Context) error) {
 			defer wg.Done()
