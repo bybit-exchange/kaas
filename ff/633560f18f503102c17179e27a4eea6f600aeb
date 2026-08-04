@@ -1,0 +1,27 @@
+py/tests/test_storage.py
+  eb98b08c272483ec 35-52
+py/src/kb_ai/storage/store.py
+  eb98b08c272483ec 27-37
+py/src/kb_ai/retrieval/retrieve.py
+  eb98b08c272483ec 28,53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "ff633560f18f503102c17179e27a4eea6f600aeb",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 31,
+      "total_deletions": 4,
+      "accepted_lines": 31,
+      "overriden_lines": 0
+    }
+  }
+}
