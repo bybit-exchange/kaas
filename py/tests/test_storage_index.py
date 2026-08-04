@@ -103,16 +103,16 @@ def test_master_index_sorts_by_title_and_renders_status_marker(tmp_path: Path):
     ]
 
 
-def test_master_index_summary_is_first_paragraph_capped_at_150_chars(tmp_path: Path):
+def test_master_index_summary_is_first_paragraph_capped(tmp_path: Path):
     store = _store(tmp_path)
-    body = "w" * 200
+    body = "w" * 400
     _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{body}\n\nsecond paragraph")
 
     update_markdown_index(store)
     line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
     summary = line.split("—", 1)[1].strip()
 
-    assert summary == "w" * 150
+    assert summary == "w" * index_mod.SUMMARY_MAX_CHARS
     assert "second paragraph" not in line
 
 
@@ -156,25 +156,25 @@ def test_master_index_prefers_frontmatter_summary(tmp_path: Path):
 
 def test_master_index_frontmatter_summary_is_flattened_and_capped(tmp_path: Path):
     store = _store(tmp_path)
-    _write(store, "wiki/a.md", f'---\ntitle: A\nsummary: "{"w" * 200}"\n---\n\nbody')
+    _write(store, "wiki/a.md", f'---\ntitle: A\nsummary: "{"w" * 400}"\n---\n\nbody')
 
     update_markdown_index(store)
     line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
 
-    assert line == f"- [A](wiki/a.md) — {'w' * 150}"
+    assert line == f"- [A](wiki/a.md) — {'w' * index_mod.SUMMARY_MAX_CHARS}"
 
 
 def test_master_index_summary_clips_at_a_word_boundary(tmp_path: Path):
     store = _store(tmp_path)
-    body = " ".join(["configuration"] * 20)  # 279 chars, boundary before 150
+    body = " ".join(["configuration"] * 20)  # 279 chars, boundary before the cap
     _write(store, "wiki/a.md", f"---\ntitle: A\n---\n\n{body}")
 
     update_markdown_index(store)
     line = next(ln for ln in _master(store).splitlines() if ln.startswith("- ["))
     summary = line.split("—", 1)[1].strip()
 
-    assert summary == " ".join(["configuration"] * 10) + "…"
-    assert len(summary) <= 150
+    assert summary == " ".join(["configuration"] * 14) + "…"
+    assert len(summary) <= index_mod.SUMMARY_MAX_CHARS
 
 
 def test_master_index_ignores_blank_frontmatter_summary(tmp_path: Path):
@@ -217,7 +217,7 @@ def test_summary_budget_defaults_to_the_module_constant(tmp_path: Path):
     update_markdown_index(store)
     summary = _master(store).split("—", 1)[1].strip()
 
-    assert len(summary) == index_mod.SUMMARY_MAX_CHARS == 150
+    assert len(summary) == index_mod.SUMMARY_MAX_CHARS == 200
 
 
 def test_summary_budget_also_caps_a_declared_frontmatter_summary(tmp_path: Path):

@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from kb_ai.commands import compile as cm
+from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import get_request_tracker
 from kb_ai.storage.store import KBStore
@@ -589,4 +590,4 @@ def test_run_compile_forwards_the_summary_budget(kb, fakes, capsys, monkeypatch)
 
 @pytest.mark.parametrize("raw", [None, 0])
 def test_run_compile_defaults_the_summary_budget(kb, fakes, capsys, monkeypatch, raw):
-    assert _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, raw) == 150
+    assert _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, raw) == SUMMARY_MAX_CHARS

@@ -7,7 +7,15 @@ import yaml
 
 from kb_ai.storage.store import KEYS_MARKER, KBStore
 
-SUMMARY_MAX_CHARS = 150
+# Backstop bounding one catalog line, NOT the length the write phase aims for:
+# core.merge asks it for "one sentence under 150 characters" and it empirically
+# produces 143-200 (median 159, n=20 articles across two compiles of this
+# repository). Capping at the instructed 150 clipped 13 of 15, and what it cut
+# was the last enumerated specific ("...orchestrated classify->dedup->write
+# pipeline") -- the routing terms the summary exists to carry. 200 is where that
+# clipping stops; 250 changes nothing. It costs 5.6% more catalog, and selection
+# recall is flat from 50 to 600 chars, so nothing else pays for it.
+SUMMARY_MAX_CHARS = 200
 
 # Budget for the keys column of one article. 500 chars holds ~30 keys, which
 # covers every reference article in a 48-article compile of this repository
@@ -99,7 +107,7 @@ def _derive_keys(body: str) -> str:
 
 
 def update_markdown_index(store: KBStore, *, min_articles: int = 3,
-                          summary_max_chars: int = SUMMARY_MAX_CHARS) -> None:
+                          summary_max_chars: int | None = None) -> None:
     """Rebuild master-index, topic indexes and the long-tail index.
 
     ``summary_max_chars`` trades summary length against article count: the whole
@@ -107,9 +115,12 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
     enough to strain that budget can shrink summaries instead of losing articles.
     Measured on a 48-article compile of this repository, selection recall was
     flat from 50 to 600 chars once the keys column existed, so the default is set
-    by what the write phase is asked to produce (one sentence under 150 chars)
-    rather than by recall.
+    by what the write phase actually emits rather than by recall -- see
+    SUMMARY_MAX_CHARS. Defaults late (None) so the constant stays the single
+    source of truth for the default.
     """
+    if summary_max_chars is None:
+        summary_max_chars = SUMMARY_MAX_CHARS
     store.index_dir.mkdir(exist_ok=True)
 
     articles = []
