@@ -1,0 +1,27 @@
+internal/derive/runner.go
+  eb98b08c272483ec 1-144
+cmd/kaas/main.go
+  eb98b08c272483ec 29,255-269,282,285-290
+internal/derive/runner_test.go
+  eb98b08c272483ec 1-222
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "659cde69f083104d69948dca2c13e7dd0edd48a9",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 389,
+      "total_deletions": 3,
+      "accepted_lines": 25940,
+      "overriden_lines": 0
+    }
+  }
+}
