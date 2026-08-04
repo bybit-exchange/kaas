@@ -9,6 +9,11 @@ import (
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
+// Compile-time proof that *Store satisfies the full DerivedJobStore interface.
+// A future signature drift in store.DerivedJobStore becomes a build error here
+// rather than silently disabling the derive runner at runtime.
+var _ store.DerivedJobStore = (*Store)(nil)
+
 // derivedJobColumns is the canonical column order for SELECT + scanDerivedJob.
 const derivedJobColumns = `id, slug, topic, model, status, stage, error, result,
 	created_at, updated_at`

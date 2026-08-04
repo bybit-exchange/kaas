@@ -10,6 +10,7 @@ package derive
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -54,15 +55,19 @@ func NewRunner(js store.DerivedJobStore, br Bridge, cfg Config, logger *slog.Log
 	return &Runner{js: js, br: br, cfg: cfg, logger: logger}
 }
 
-// Run polls for pending jobs until ctx is cancelled. Returns nil on cancellation.
+// Run polls for pending jobs until ctx is cancelled. Returns nil on
+// context cancellation. Returns a non-nil error only when startup recovery
+// fails; the runnable loop in cmd/kaas/main.go treats that as fatal.
 //
 // It first fails any job a previous process left running: a derive is not
 // resumable, so leaving one "running" forever would block its slug behind the
 // unique index with no way to clear it from the UI.
 func (r *Runner) Run(ctx context.Context) error {
-	if n, err := r.js.RecoverRunningDerivedJobs(ctx, now()); err != nil {
-		r.logger.Error("derive: recover interrupted jobs", "err", err)
-	} else if n > 0 {
+	n, err := r.js.RecoverRunningDerivedJobs(ctx, now())
+	if err != nil {
+		return fmt.Errorf("derive: recover interrupted jobs: %w", err)
+	}
+	if n > 0 {
 		r.logger.Warn("derive: failed jobs interrupted by a restart", "count", n)
 	}
 
@@ -102,6 +107,12 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		model = r.cfg.Model
 	}
 
+	// The bridge call context is derived from the run context rather than
+	// context.Background(), so a SIGTERM aborts an in-progress derive. This
+	// differs from the dispatcher's Process (which uses context.Background() so
+	// shutdown never aborts paid per-document LLM work), but a derive runs
+	// inline in the poll loop, so a background context would block shutdown
+	// indefinitely. Operators who lose a derive on SIGTERM can force a re-run.
 	callCtx, cancel := context.WithTimeout(ctx, r.cfg.Timeout)
 	defer cancel()
 

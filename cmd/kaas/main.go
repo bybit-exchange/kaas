@@ -265,6 +265,11 @@ func run(configFile string) error {
 		} else {
 			logger.Warn("derive: HTTP bridge not a DaemonClient; derive runner disabled")
 		}
+	} else {
+		// store.Store intentionally does not embed DerivedJobStore; the SQLite
+		// backend satisfies both. Any new backend that forgets DerivedJobStore
+		// will silently disable derive — log loudly so the gap is visible.
+		logger.Warn("derive: store does not implement DerivedJobStore; derive runner disabled")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

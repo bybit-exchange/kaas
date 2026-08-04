@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,13 +18,18 @@ import (
 // fakeJobStore is a minimal in-memory store.DerivedJobStore.
 type fakeJobStore struct {
 	mu      sync.Mutex
+	once    sync.Once
+	done    chan struct{} // closed once when FinishDerivedJob is first called
 	pending []*store.DerivedJob
 	jobs    map[string]*store.DerivedJob
 	stages  []string
 }
 
 func newFakeJobStore(jobs ...*store.DerivedJob) *fakeJobStore {
-	f := &fakeJobStore{jobs: map[string]*store.DerivedJob{}}
+	f := &fakeJobStore{
+		jobs: map[string]*store.DerivedJob{},
+		done: make(chan struct{}),
+	}
 	for _, j := range jobs {
 		f.pending = append(f.pending, j)
 		f.jobs[j.ID] = j
@@ -69,9 +75,11 @@ func (f *fakeJobStore) SetDerivedJobStage(_ context.Context, id, stage string, _
 
 func (f *fakeJobStore) FinishDerivedJob(_ context.Context, id, status, errMsg, result string, _ int64) error {
 	f.mu.Lock()
-	defer f.mu.Unlock()
 	j := f.jobs[id]
 	j.Status, j.Error, j.Result, j.Stage = status, errMsg, result, store.DerivedStageDone
+	f.mu.Unlock()
+	// Signal any runOnce waiter that the job has reached a terminal state.
+	f.once.Do(func() { close(f.done) })
 	return nil
 }
 
@@ -100,14 +108,30 @@ func testLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }
 
-func runOnce(t *testing.T, js *fakeJobStore, br *fakeBridge) *Runner {
+// runOnce starts Run in a goroutine and returns as soon as FinishDerivedJob
+// signals completion, cancelling Run immediately after. A 5-second backstop
+// fails the test if the job never finishes; it is not the synchronisation
+// mechanism — the done channel is.
+func runOnce(t *testing.T, js *fakeJobStore, br *fakeBridge) {
 	t.Helper()
 	r := NewRunner(js, br, Config{KBDir: "/kb", Model: "default-model",
 		PollInterval: time.Millisecond, Timeout: time.Minute}, testLogger())
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_ = r.Run(ctx)
-	return r
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel() // job is terminal; stop the poll loop
+	case <-ctx.Done():
+		t.Error("runOnce: safety deadline exceeded before job finished")
+	}
+	<-runDone // wait for Run to return before assertions read store state
 }
 
 func TestRunnerRunsAPendingJobToSuccess(t *testing.T) {
@@ -168,6 +192,11 @@ func TestRunnerRecordsAFailure(t *testing.T) {
 	if got.Error == "" || got.Result != "" {
 		t.Errorf("error = %q, result = %q", got.Error, got.Result)
 	}
+	// String-embedding is the only channel for the Python error code; verify it
+	// survives the err.Error() path through finish so future changes can't drop it.
+	if !strings.Contains(got.Error, "NO_DOCUMENTS") {
+		t.Errorf("error = %q, want it to contain the API error code NO_DOCUMENTS", got.Error)
+	}
 }
 
 func TestRunnerMarksStagesAsItGoes(t *testing.T) {
@@ -218,5 +247,27 @@ func TestRunnerStopsOnContextCancel(t *testing.T) {
 	cancel()
 	if err := r.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		t.Errorf("Run = %v, want nil or context.Canceled", err)
+	}
+}
+
+// failRecoverStore returns an error from RecoverRunningDerivedJobs.
+type failRecoverStore struct {
+	*fakeJobStore
+}
+
+func (f *failRecoverStore) RecoverRunningDerivedJobs(context.Context, int64) (int, error) {
+	return 0, errors.New("db locked")
+}
+
+func TestRunnerRecoveryErrorStopsRun(t *testing.T) {
+	js := &failRecoverStore{fakeJobStore: newFakeJobStore()}
+	r := NewRunner(js, &fakeBridge{}, Config{KBDir: "/kb",
+		PollInterval: time.Millisecond, Timeout: time.Minute}, testLogger())
+	err := r.Run(context.Background())
+	if err == nil {
+		t.Fatal("Run returned nil, want an error when recovery fails")
+	}
+	if !strings.Contains(err.Error(), "db locked") {
+		t.Errorf("err = %v, want it to wrap the recovery error", err)
 	}
 }
