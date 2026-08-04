@@ -1,0 +1,31 @@
+internal/bridge/daemon_client.go
+  eb98b08c272483ec 219-239
+internal/bridge/api.go
+  eb98b08c272483ec 128-156
+internal/bridge/daemon_client_test.go
+  eb98b08c272483ec 783-867
+py/tests/test_server_daemon.py
+  eb98b08c272483ec 813-955
+py/src/kb_ai/server_daemon.py
+  eb98b08c272483ec 230-278,409-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "17f3a309b2925a527d5195d61f1bf612c69500cc",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 329,
+      "total_deletions": 0,
+      "accepted_lines": 25880,
+      "overriden_lines": 0
+    }
+  }
+}
