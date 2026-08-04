@@ -126,6 +126,36 @@ def test_create_refuses_derived_dir_symlinked_outside(tmp_path: Path):
     )
 
 
+def test_create_refuses_slug_symlinked_to_derived_itself(tmp_path: Path):
+    """Layout 3: <kb>/derived/<slug> is a symlink to <kb>/derived itself.
+
+    Without the parent-equality guard, is_relative_to passes (a path is relative
+    to itself), so force=True rmtrees <kb>/derived entirely — destroying every
+    sibling derived KB — then recreates it empty.  The fix must raise
+    InvalidSlugError before any rmtree runs and leave the sibling's manifest.json
+    intact.
+    """
+    kb = tmp_path / "kb"
+    derived_root = kb / "derived"
+    derived_root.mkdir(parents=True)
+    # Sibling derived KB that must survive.
+    sibling = derived_root / "compliance"
+    sibling.mkdir()
+    (sibling / "manifest.json").write_text(json.dumps({"slug": "compliance"}))
+    # Trap: pricing → derived/ itself, so resolve() collapses to derived/.
+    (derived_root / "pricing").symlink_to(derived_root, target_is_directory=True)
+    # Manifest at derived/ so check_slug_available passes force=True through;
+    # without the fix, rmtree then deletes the entire derived/ tree.
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+
+    with pytest.raises(InvalidSlugError):
+        _layout.create(kb, "pricing", force=True)
+
+    assert (sibling / "manifest.json").exists(), (
+        "compliance manifest.json was deleted — rmtree must not have run on derived/"
+    )
+
+
 def test_create_refuses_slug_entry_symlinked_outside(tmp_path: Path):
     """Layout 2: <kb>/derived/<slug> is a symlink pointing outside the KB.
 
@@ -221,6 +251,21 @@ def test_copy_documents_rejects_invalid_checksum(tmp_path: Path):
     with pytest.raises(DeriveError, match="checksum"):
         _layout.copy_documents(store, derived, [
             DocumentRef(rel_path="raw/notes.md", checksum="NOTVALID", size_bytes=4),
+        ])
+
+
+def test_copy_documents_rejects_checksum_with_trailing_newline(tmp_path: Path):
+    """'deadbeefdeadbeef\\n' must not pass via re.match's trailing-newline loophole."""
+    src = tmp_path / "src"
+    (src / "raw").mkdir(parents=True)
+    (src / "raw" / "notes.md").write_text("body")
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    store = KBStore(str(src), read_only=True)
+
+    with pytest.raises(DeriveError, match="checksum"):
+        _layout.copy_documents(store, derived, [
+            DocumentRef(rel_path="raw/notes.md", checksum="deadbeefdeadbeef\n", size_bytes=4),
         ])
 
 

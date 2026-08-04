@@ -103,23 +103,26 @@ def check_slug_available(source_kb: Path, slug: str, force: bool) -> None:
 
 
 def _safe_create_target(source_kb: Path, slug: str) -> Path:
-    """Compute the derived target and verify it is contained within the KB.
+    """Compute the derived target and verify it sits directly inside <kb>/derived/.
 
-    Resolves symlinks in both the derived/ directory and the slug entry, then
-    checks that the result sits directly inside <kb>/derived/ -- matching
-    KBStore._resolve rather than the lexical Go-layer check (C4). Raises
-    InvalidSlugError when containment fails, so a symlink planted at either
-    <kb>/derived or <kb>/derived/<slug> is rejected before rmtree or mkdir runs.
+    Resolves symlinks in the slug entry, then requires the resolved path's parent
+    to equal the unresolved derived root exactly.  A SLUG_RE-validated slug is
+    always exactly one level under that root, so a parent-equality check covers:
+    - the base-itself escape (<kb>/derived/<slug> → <kb>/derived)
+    - deeper-nesting (<kb>/derived/<slug> → <kb>/derived/a/b)
+    - symlink-outside (<kb>/derived or <kb>/derived/<slug> → outside path)
+    Raises InvalidSlugError so a symlink planted at either location is rejected
+    before rmtree or mkdir runs (C4).
     """
     kb_resolved = Path(source_kb).expanduser().resolve()
-    # base is <resolved_kb>/derived -- NOT further resolved, so a symlink at
-    # derived/ is detected by the is_relative_to check below.
+    # base is <resolved_kb>/derived -- kept unresolved so a symlink at derived/
+    # is detected: its resolved target's parent cannot equal base lexically.
     base = kb_resolved / DERIVED_DIRNAME
     target = (base / slug).resolve()
-    if not target.is_relative_to(base):
+    if target.parent != base:
         raise InvalidSlugError(
-            f"derived target {target!s} escapes the KB root {kb_resolved!s}; "
-            "symlink in derived/ or derived/<slug> detected"
+            f"derived target for {slug!r} must be a real directory directly inside "
+            f"{base!s}; resolved to {target!s} instead"
         )
     return target
 
@@ -160,7 +163,7 @@ def copy_documents(source_store: KBStore, derived_dir: Path,
                 f"rel_path {doc.rel_path!r} is absolute or contains '..'; "
                 "refusing to copy"
             )
-        if not _CHECKSUM_RE.match(doc.checksum):
+        if not _CHECKSUM_RE.fullmatch(doc.checksum):
             raise DeriveError(
                 f"checksum {doc.checksum!r} does not match ^[0-9a-f]{{16}}$ "
                 "(spec E4)"
