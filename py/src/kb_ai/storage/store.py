@@ -24,6 +24,17 @@ class ArticleMeta:
     keys: str = ""
 
 
+def render_catalog_line(a: ArticleMeta) -> str:
+    """Render one catalog line the way the master index writes it.
+
+    Shared by retrieval's page selection and derive's topic filter: two copies of
+    this f-string would drift, and a change to the keys column would silently
+    stop reaching one of them.
+    """
+    return (f"- {a.path} — {a.title}: {a.summary}"
+            + (f"{KEYS_MARKER}{a.keys}" if a.keys else ""))
+
+
 @dataclass
 class RawFile:
     rel_path: str

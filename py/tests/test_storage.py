@@ -32,3 +32,21 @@ def test_store_roundtrip_via_new_path(tmp_path: Path):
     store = KBStore(str(tmp_path))
     store.write_article("wiki/concept/test.md", "# Test\nbody")
     assert store.read_article("wiki/concept/test.md") == "# Test\nbody"
+
+
+def test_render_catalog_line_without_keys():
+    from kb_ai.storage.store import ArticleMeta, render_catalog_line
+
+    a = ArticleMeta(title="Pricing Model", path="wiki/pricing.md",
+                    summary="How fees are computed.")
+    assert render_catalog_line(a) == "- wiki/pricing.md — Pricing Model: How fees are computed."
+
+
+def test_render_catalog_line_appends_keys_column():
+    from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, render_catalog_line
+
+    a = ArticleMeta(title="Limits", path="wiki/limits.md",
+                    summary="Configured ceilings.", keys="max_zip_entries, max_body")
+    line = render_catalog_line(a)
+    assert line.endswith(f"{KEYS_MARKER}max_zip_entries, max_body")
+    assert line.startswith("- wiki/limits.md — Limits: Configured ceilings.")

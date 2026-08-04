@@ -25,7 +25,7 @@ from __future__ import annotations
 import sys
 
 from kb_ai.llm import completion_json
-from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore
+from kb_ai.storage.store import ArticleMeta, KBStore, render_catalog_line
 
 # Cap per article so the combined context stays within the LLM prompt budget.
 # Coordinated with the default max_articles (6) and llm.MAX_PROMPT_CHARS (80K):
@@ -50,9 +50,7 @@ def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
     if not catalog:
         return []
     valid = {a.path for a in catalog}
-    listing = "\n".join(
-        f"- {a.path} — {a.title}: {a.summary}" + (f"{KEYS_MARKER}{a.keys}" if a.keys else "")
-        for a in catalog)
+    listing = "\n".join(render_catalog_line(a) for a in catalog)
     prompt = (
         "You are selecting which knowledge-base articles can help answer a "
         "question. Below is the article catalog (path — title: summary). An "
