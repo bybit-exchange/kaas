@@ -1,0 +1,31 @@
+internal/mcp/handler_test.go
+  eb98b08c272483ec 480-486,502-503,518-558
+py/tests/test_derive_layout.py
+  eb98b08c272483ec 29-30
+internal/kbpath/kbpath_test.go
+  eb98b08c272483ec 7,29-31,54-65,72-73,138-228
+internal/kbpath/kbpath.go
+  eb98b08c272483ec 5-15,25,53-61,63-67,69-75,77,82-96,99
+py/src/kb_ai/derive/_layout.py
+  eb98b08c272483ec 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "878b959474eed04c5e3ae2d0c5da736d24452ee9",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 224,
+      "total_deletions": 31,
+      "accepted_lines": 25763,
+      "overriden_lines": 0
+    }
+  }
+}
