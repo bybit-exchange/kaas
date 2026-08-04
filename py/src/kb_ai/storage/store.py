@@ -8,6 +8,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+# Separates the catalog line's prose summary from the identifiers a reference
+# article documents. Written by storage.index, read back by existing_articles().
+KEYS_MARKER = " | keys: "
+
+
 @dataclass
 class ArticleMeta:
     title: str
@@ -16,6 +21,7 @@ class ArticleMeta:
     type: str = ""
     tags: list[str] = field(default_factory=list)
     status: str = ""
+    keys: str = ""
 
 
 @dataclass
@@ -181,7 +187,14 @@ class KBStore:
                 # em dashes occur inside both titles and prose summaries.
                 tail = rest[path_end + 1:]
                 summary = tail.split("—", 1)[1].strip() if "—" in tail else ""
-                articles.append(ArticleMeta(title=title, path=path, summary=summary))
+                # Split from the right: a summary taken from a table row carries
+                # its own pipes, and the keys column is always last.
+                head, marked, marked_keys = summary.rpartition(KEYS_MARKER)
+                keys = ""
+                if marked:
+                    summary, keys = head.strip(), marked_keys.strip()
+                articles.append(ArticleMeta(title=title, path=path,
+                                            summary=summary, keys=keys))
             except (IndexError, ValueError):
                 continue
         return articles

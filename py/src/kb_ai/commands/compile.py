@@ -11,7 +11,7 @@ from pathlib import Path
 
 from kb_ai.core.classify import classify_article, classify_cache_key, dedup_create_new, hash_existing_articles
 from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
-from kb_ai.storage.index import update_markdown_index, update_timeline
+from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index, update_timeline
 from kb_ai.core.people import update_people_stubs
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import create_new_article, merge_into_article
@@ -67,6 +67,7 @@ def compile_kb(
     write_model: str = "claude-sonnet-4-6",
     categories: list | None = None,
     topic_index_min_articles: int = 3,
+    summary_max_chars: int = SUMMARY_MAX_CHARS,
     people_cfg: list | None = None,
     workers: int = 0,
 ) -> dict:
@@ -395,7 +396,8 @@ def compile_kb(
 
     # Phase 3: Index
     index_t0 = time.monotonic()
-    update_markdown_index(store, min_articles=topic_index_min_articles)
+    update_markdown_index(store, min_articles=topic_index_min_articles,
+                          summary_max_chars=summary_max_chars)
     update_timeline(store, [rf.rel_path for rf in to_compile])
     update_people_stubs(store, people_cfg)
     index_elapsed = round(time.monotonic() - index_t0, 2)
@@ -435,6 +437,7 @@ def run_compile():
         write_model=input_data.get("write_model", "claude-sonnet-4-6"),
         categories=input_data.get("categories"),
         topic_index_min_articles=int(input_data.get("topic_index_min_articles") or 3),
+        summary_max_chars=int(input_data.get("summary_max_chars") or SUMMARY_MAX_CHARS),
         people_cfg=input_data.get("people") or [],
         workers=input_data.get("workers", 0) or 0,
     )

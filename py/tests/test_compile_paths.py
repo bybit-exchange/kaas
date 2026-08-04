@@ -78,7 +78,7 @@ def fakes(monkeypatch):
     monkeypatch.setattr(cm, "dedup_create_new", lambda result, existing: result)
     monkeypatch.setattr(cm, "create_new_article", fake_create)
     monkeypatch.setattr(cm, "merge_into_article", fake_merge)
-    monkeypatch.setattr(cm, "update_markdown_index", lambda store, min_articles: None)
+    monkeypatch.setattr(cm, "update_markdown_index", lambda store, min_articles, summary_max_chars: None)
     monkeypatch.setattr(cm, "update_timeline", lambda store, rels: None)
     monkeypatch.setattr(cm, "update_people_stubs", lambda store, cfg: None)
     return state

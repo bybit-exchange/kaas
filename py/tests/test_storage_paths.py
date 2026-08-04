@@ -258,6 +258,37 @@ def test_existing_articles_without_summary_dash(tmp_path: Path):
     assert store.existing_articles()[0].summary == ""
 
 
+def test_existing_articles_parses_the_keys_column_apart_from_the_summary(tmp_path: Path):
+    store = KBStore(str(tmp_path))
+    _write_index(store, "- [Config](wiki/config.md) — Loads TOML. | keys: max_zip_entries, path\n")
+
+    art = store.existing_articles()[0]
+
+    assert art.summary == "Loads TOML."
+    assert art.keys == "max_zip_entries, path"
+
+
+def test_existing_articles_keys_default_to_empty_on_a_line_without_them(tmp_path: Path):
+    """Indexes written before the keys column stay parseable."""
+    store = KBStore(str(tmp_path))
+    _write_index(store, "- [Config](wiki/config.md) — Loads TOML.\n")
+
+    art = store.existing_articles()[0]
+
+    assert art.summary == "Loads TOML."
+    assert art.keys == ""
+
+
+def test_existing_articles_keeps_pipes_that_belong_to_the_summary(tmp_path: Path):
+    store = KBStore(str(tmp_path))
+    _write_index(store, "- [T](wiki/t.md) — | `alpha` | a table row | keys: alpha\n")
+
+    art = store.existing_articles()[0]
+
+    assert art.summary == "| `alpha` | a table row"
+    assert art.keys == "alpha"
+
+
 def test_existing_articles_missing_index_returns_empty(tmp_path: Path):
     assert KBStore(str(tmp_path)).existing_articles() == []
 

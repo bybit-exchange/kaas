@@ -15,6 +15,7 @@ import pytest
 
 from kb_ai._context import get_context
 from kb_ai.commands.pipeline import _entry
+from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.storage.store import KBStore
 
 
@@ -50,8 +51,9 @@ def indexers(monkeypatch):
     """Stub the two index writers, recording their arguments."""
     state: dict = {"index": [], "people": []}
 
-    def fake_index(store, *, min_articles=3):
-        state["index"].append({"base_dir": str(store.base_dir), "min_articles": min_articles})
+    def fake_index(store, *, min_articles=3, summary_max_chars=SUMMARY_MAX_CHARS):
+        state["index"].append({"base_dir": str(store.base_dir), "min_articles": min_articles,
+                               "summary_max_chars": summary_max_chars})
 
     def fake_people(store, people_cfg):
         state["people"].append({"base_dir": str(store.base_dir), "cfg": people_cfg})
@@ -217,7 +219,9 @@ def test_pipeline_input_refreshes_both_indices_once(
     _entry.run_server_pipeline_with_input(
         payload(kb_dir, topic_index_min_articles=7, people=people_cfg))
 
-    assert indexers["index"] == [{"base_dir": str(KBStore(kb_dir).base_dir), "min_articles": 7}]
+    assert indexers["index"] == [{"base_dir": str(KBStore(kb_dir).base_dir),
+                                  "min_articles": 7,
+                                  "summary_max_chars": SUMMARY_MAX_CHARS}]
     assert indexers["people"][0]["cfg"] == people_cfg
 
 
@@ -323,6 +327,19 @@ def test_index_input_defaults_the_threshold_to_three(kb_dir, fresh_context, inde
     _entry.run_server_index_with_input({"kb_dir": kb_dir, "topic_index_min_articles": raw})
 
     assert indexers["index"][0]["min_articles"] == 3
+
+
+def test_index_input_forwards_the_summary_budget(kb_dir, fresh_context, indexers):
+    _entry.run_server_index_with_input({"kb_dir": kb_dir, "summary_max_chars": 220})
+
+    assert indexers["index"][0]["summary_max_chars"] == 220
+
+
+@pytest.mark.parametrize("raw", [None, 0])
+def test_index_input_defaults_the_summary_budget(kb_dir, fresh_context, indexers, raw):
+    _entry.run_server_index_with_input({"kb_dir": kb_dir, "summary_max_chars": raw})
+
+    assert indexers["index"][0]["summary_max_chars"] == SUMMARY_MAX_CHARS
 
 
 def test_index_input_requires_kb_dir(fresh_context):
