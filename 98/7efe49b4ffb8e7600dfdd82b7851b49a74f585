@@ -1,0 +1,25 @@
+py/tests/test_derive_offtopic.py
+  eb98b08c272483ec 1-102
+py/src/kb_ai/derive/_offtopic.py
+  eb98b08c272483ec 1-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "987efe49b4ffb8e7600dfdd82b7851b49a74f585",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 167,
+      "total_deletions": 0,
+      "accepted_lines": 167,
+      "overriden_lines": 0
+    }
+  }
+}
