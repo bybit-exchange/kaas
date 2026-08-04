@@ -1,0 +1,55 @@
+docs/features/derive-topic-kb-from-catalog/spec.md
+  3542f0f693c9fbcf 1-305
+docs/features/derive-topic-kb-from-catalog/tech-design.md
+  3542f0f693c9fbcf 1-409
+docs/features/derive-topic-kb-from-catalog/plan.md
+  70276dd43d1c9ab7 1-6194
+docs/features/derive-topic-kb-from-catalog/brainstorm.md
+  3542f0f693c9fbcf 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "af810e152f8f7fa4b7f7a8ef4991e57885176924",
+  "prompts": {
+    "3542f0f693c9fbcf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "64806c2a-dc76-4ec1-9a99-fab01cc75f67",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 853,
+      "total_deletions": 49,
+      "accepted_lines": 804,
+      "overriden_lines": 0
+    },
+    "56a25adc21db1941": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b7d8334-edf9-40d4-9f16-108c3dddbc7b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 234,
+      "total_deletions": 0,
+      "accepted_lines": 234,
+      "overriden_lines": 0
+    },
+    "70276dd43d1c9ab7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "72b50bfa-810b-485a-aefd-19b6a68f6c63",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 6195,
+      "total_deletions": 1,
+      "accepted_lines": 6194,
+      "overriden_lines": 0
+    }
+  }
+}
