@@ -1,0 +1,27 @@
+internal/api/derive_test.go
+  eb98b08c272483ec 1-417
+internal/api/derive.go
+  eb98b08c272483ec 1-208
+internal/api/server.go
+  eb98b08c272483ec 84,97-101,129-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "984d026b1a380e10081f6939c0d7eb5d3823d1e6",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 634,
+      "total_deletions": 0,
+      "accepted_lines": 26185,
+      "overriden_lines": 0
+    }
+  }
+}
