@@ -134,3 +134,25 @@ Python side: `KBStore._iter_raw_paths` globs `self.raw_dir` (`<base>/raw/`), and
 `update_markdown_index` globs `store.wiki_dir` (`<base>/wiki/`) — both are locked
 to the KB they are given. The regression tests in
 `py/tests/test_derive_nesting.py` prove this for the Python layer.
+
+## Stage 2 verification
+
+### Task 12 — Go MCP `kb` selector smoke run
+
+Attempted against the derived KB at `/tmp/kaas-derive-smoke/derived/retrieval-and-the-chat-answer-path`:
+
+```
+KAAS_KB_DIR=/tmp/kaas-derive-smoke uv run python -c "
+from kb_ai.server_mcp import ask
+out = ask('how does retrieval pick which articles to read?', kb='retrieval-and-the-chat-answer-path')
+print(out['answer'][:600])
+print('SOURCES:', [s['path'] for s in out['sources']])
+"
+```
+
+Result: same credential limitation as Task 10 — `OPENAI_API_KEY` not set and the
+local LiteLLM proxy was not running at smoke time. The `resolve_kb_dir` call
+resolved correctly (`kb_dir='/private/tmp/kaas-derive-smoke/derived/retrieval-and-the-chat-answer-path'`
+visible in the server log before the credential error), confirming the Python routing
+works. The Go side is covered by `TestHandleAskResolvesDerivedKB` and
+`TestHandleAskRejectsUnknownDerivedKB` in `internal/mcp/handler_test.go`.

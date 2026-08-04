@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/bybit-exchange/kaas/internal/bridge"
+	"github.com/bybit-exchange/kaas/internal/kbpath"
 )
 
 // askArguments mirrors the ask tool's input parameters.
@@ -16,6 +17,7 @@ type askArguments struct {
 	Query string   `json:"query"`
 	Paths []string `json:"paths"`
 	Model string   `json:"model"`
+	KB    string   `json:"kb"`
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPCRequest, arguments json.RawMessage) {
@@ -29,6 +31,13 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPC
 		return
 	}
 
+	// kb reaches us from an MCP client, so it is untrusted input to a path join.
+	kbDir, err := kbpath.Resolve(h.kbDir, args.KB)
+	if err != nil {
+		writeJSONRPCError(w, req.ID, -32602, "Invalid arguments: "+err.Error())
+		return
+	}
+
 	// Create context with timeout for the chat call
 	ctx, cancel := context.WithTimeout(r.Context(), h.timeout)
 	defer cancel()
@@ -37,7 +46,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPC
 	includeSourcesTrue := true
 	chatReq := bridge.ChatRequest{
 		Query:          args.Query,
-		KBDir:          h.kbDir,
+		KBDir:          kbDir,
 		Paths:          args.Paths,
 		Model:          args.Model,
 		IncludeSources: &includeSourcesTrue,
@@ -53,7 +62,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request, req *JSONRPC
 	var costUSD float64
 	var chatErr string
 
-	err := h.chat(ctx, chatReq, func(event json.RawMessage) error {
+	err = h.chat(ctx, chatReq, func(event json.RawMessage) error {
 		var ev struct {
 			Type             string              `json:"type"`
 			Content          string              `json:"content"`

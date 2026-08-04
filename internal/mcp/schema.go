@@ -18,6 +18,10 @@ var askInputSchema = json.RawMessage(`{
 		"model": {
 			"type": "string",
 			"description": "Optional chat model override."
+		},
+		"kb": {
+			"type": "string",
+			"description": "Optional derived knowledge-base slug (a directory under the KB's derived/). Omit to query the root knowledge base."
 		}
 	},
 	"required": ["query"]
