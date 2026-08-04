@@ -19,6 +19,9 @@ var (
 	ErrNotFound = errors.New("store: task not found")
 	// ErrDuplicate is returned when CreateTask hits the content_hash unique index.
 	ErrDuplicate = errors.New("store: duplicate content_hash")
+	// ErrDerivedJobExists is returned when a derive job for the same slug is
+	// already pending or running. Terminal jobs do not block a re-derive.
+	ErrDerivedJobExists = errors.New("store: derive job already active for slug")
 )
 
 // Task status values.
@@ -130,4 +133,68 @@ type Store interface {
 
 	// Close releases the underlying handle.
 	Close() error
+}
+
+// Derive job status values.
+const (
+	DerivedStatusPending   = "pending"
+	DerivedStatusRunning   = "running"
+	DerivedStatusSucceeded = "succeeded"
+	DerivedStatusFailed    = "failed"
+)
+
+// Derive job stage values, reported on the job status endpoint. These describe
+// one KB-level derive, which is why derive does not reuse Task's per-document
+// Stage* values.
+const (
+	DerivedStageQueued  = "queued"
+	DerivedStageFilter  = "filter"
+	DerivedStageCopy    = "copy"
+	DerivedStageCompile = "compile"
+	DerivedStagePrune   = "prune"
+	DerivedStageDone    = "done"
+)
+
+// DerivedJob is one request to build a topic-scoped knowledge base.
+//
+// Deliberately not a Task: Task is document-shaped (RawPath, uniquely indexed
+// ContentHash) and Worker.Process runs one document through extract → pipeline,
+// so re-deriving a topic would collide with ErrDuplicate and every document
+// ingestion would pay for a branch it never takes.
+type DerivedJob struct {
+	ID        string // UUID
+	Slug      string // derived/<slug>; unique among pending and running jobs
+	Topic     string // the topic string handed to the filter
+	Model     string // optional model override ("" = server default)
+	Status    string // see DerivedStatus* constants
+	Stage     string // see DerivedStage* constants
+	Error     string // failure message, empty while healthy
+	Result    string // JSON blob: counts and cost, written on success
+	CreatedAt int64  // unix ms
+	UpdatedAt int64  // unix ms
+}
+
+// DerivedJobStore persists derive jobs. Kept separate from Store so the compile
+// queue's interface is unchanged; sqlite.Store implements both.
+type DerivedJobStore interface {
+	// CreateDerivedJob inserts a pending job. Returns ErrDerivedJobExists when a
+	// pending or running job already holds that slug.
+	CreateDerivedJob(ctx context.Context, j *DerivedJob) error
+	// GetDerivedJob returns the job by id, or ErrNotFound.
+	GetDerivedJob(ctx context.Context, id string) (*DerivedJob, error)
+	// ListDerivedJobs returns the newest jobs first, capped at limit (0 = all).
+	ListDerivedJobs(ctx context.Context, limit int) ([]*DerivedJob, error)
+	// ClaimNextDerivedJob marks the oldest pending job running and returns it.
+	// Returns (nil, nil) when nothing is pending OR when a job is already
+	// running: a derive spends real money and rewrites a directory, so the
+	// runner is single-flight by construction.
+	ClaimNextDerivedJob(ctx context.Context, now int64) (*DerivedJob, error)
+	// SetDerivedJobStage records progress on a running job.
+	SetDerivedJobStage(ctx context.Context, id, stage string, now int64) error
+	// FinishDerivedJob writes a terminal status with its error or result JSON.
+	FinishDerivedJob(ctx context.Context, id, status, errMsg, result string, now int64) error
+	// RecoverRunningDerivedJobs fails every job left running by a previous
+	// process and returns the count. A derive is not resumable: it may have died
+	// mid-compile, and the runner has no lease to pick back up.
+	RecoverRunningDerivedJobs(ctx context.Context, now int64) (int, error)
 }
