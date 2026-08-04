@@ -42,6 +42,10 @@ def _lazy_commands() -> dict:
         from kb_ai.distill import run_distill
         return lambda: run_distill(sys.argv[2:])
 
+    def derive():
+        from kb_ai.commands.derive import run_derive
+        return lambda: run_derive(sys.argv[2:])
+
     def daemon():
         from kb_ai.server_daemon import main as daemon_main
         return daemon_main
@@ -52,6 +56,7 @@ def _lazy_commands() -> dict:
         "chat": chat,
         "rewrite": rewrite,
         "distill": distill,
+        "derive": derive,
         "daemon": daemon,
     }
 
