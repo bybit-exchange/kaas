@@ -16,7 +16,7 @@ from kb_ai._context import get_context, set_pipeline_deadline
 from kb_ai.commands.pipeline._orchestrator import PipelineContext, run_pipeline_orchestrated
 from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index
 from kb_ai.llm import tracker
-from kb_ai.core.classify import DEFAULT_CATEGORIES
+from kb_ai.core.classify import resolve_categories
 from kb_ai.core.people import update_people_stubs
 from kb_ai.storage.store import KBStore
 
@@ -51,7 +51,7 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     kb_dir = input_data["kb_dir"]
     model = input_data.get("model", "claude-sonnet-4-6")
     classify_model = input_data.get("classify_model", "") or model
-    categories = input_data.get("categories", list(DEFAULT_CATEGORIES))
+    categories = input_data.get("categories")
     workers = input_data.get("workers", _DEFAULT_WORKERS)
     items = input_data["items"]
     topic_index_min_articles = int(input_data.get("topic_index_min_articles") or 3)
@@ -59,6 +59,7 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     people_cfg = input_data.get("people") or []
 
     store = KBStore(kb_dir)
+    categories = resolve_categories(store, categories)
 
     pipeline_ctx = PipelineContext(
         store=store,

@@ -78,6 +78,17 @@ This wraps readable text files into the KB's `raw/`, compiles them into a
 wiki, and prints a JSON summary (`ingested`, `skipped`, `compile`). Report
 the skipped files to the user (binaries/PDFs are not converted in this flow).
 
+The first run also freezes the article taxonomy into `<kb>/kaas.json`, so later
+runs keep filing articles under the same categories even if the built-in
+defaults change. To choose a different set, pass it on that first run:
+
+```bash
+kb-ai distill <path> --kb ./.kaas --categories concept,guide,reference
+```
+
+Passing a set that disagrees with an already-frozen one is honoured but warns,
+because the result is a KB with two taxonomies in it.
+
 ### 5. Wire up MCP so later sessions can query
 
 **Claude Code:**

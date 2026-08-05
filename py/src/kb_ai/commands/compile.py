@@ -13,6 +13,7 @@ from kb_ai.core.classify import (
     classify_inputs_hash,
     dedup_create_new,
     hash_existing_articles,
+    resolve_categories,
 )
 from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
 from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index, update_timeline
@@ -80,6 +81,7 @@ def compile_kb(
     people_cfg = people_cfg or []
 
     store = KBStore(data_dir)
+    categories = resolve_categories(store, categories)
     state = store.load_compile_state()
     # TODO(2026-06-03): list_raw_files() preloads all raw content into memory.
     # The estimate path was migrated to iter_raw_file_meta() in

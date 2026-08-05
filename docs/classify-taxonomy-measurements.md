@@ -108,10 +108,14 @@ ones under the new — plus a one-time re-classification, because the set feeds
 the cache key's prompt hash and so invalidates the classify cache. A KB compiled
 from scratch after the change does get the full re-partition.
 
-Choosing the set at KB creation and freezing it is still the right default. The
-set is already a parameter (`categories`, threaded through `compile_kb` and
-accepted per daemon request); it is simply not exposed on `kb-ai distill`, so the
-default always applies there.
+Choosing the set at KB creation and freezing it is still the right default, and
+that is now what happens: the first run writes the effective set to
+`<kb>/kaas.json` and later runs inherit it (`core/classify.py:resolve_categories`),
+so a changed `DEFAULT_CATEGORIES` cannot silently re-partition an existing KB.
+`kb-ai distill --categories` chooses the set on that first run. An explicit set
+that disagrees with the frozen one is still honoured — the daemon accepts one per
+request — but it warns, because a mixed taxonomy is exactly what freezing exists
+to prevent.
 
 ## Result 4: category definitions help, modestly
 
@@ -176,17 +180,18 @@ regardless: `core/people.py:update_people_stubs` generates people articles from
 config, a feature a docs-only corpus never exercises. Keep `decision` for
 corpora that carry ADRs or meeting notes.
 
-What remains, in priority order:
+What remains:
 
-1. **Cross-group duplicate creation in the classify phase.** Now the most
-   valuable item, and the likeliest cause of the article-count variance: parallel
-   groups can each create the same article because `dedup_create_new()` only sees
-   one group's copy of `existing`. Needs shared state or a post-join dedup pass.
-   (The sibling problem, collection order, is fixed — the phase now emits in
-   input order regardless of which group finishes first.)
-2. **Category set as per-KB configuration**, frozen at KB creation and exposed on
-   `kb-ai distill`. Today the parameter exists but `distill` never passes it.
-   Needs a place to store per-KB config, which the KB layout does not yet have.
+**Cross-group duplicate creation in the classify phase**, now the only open item
+and the likeliest cause of the article-count variance: parallel groups can each
+create the same article because `dedup_create_new()` only sees one group's copy
+of `existing`. Needs shared state or a post-join dedup pass.
+
+The other two items on this list are done. Collection order — the sibling of the
+duplicate-creation problem — is fixed: the phase emits in input order regardless
+of which group finishes first. The category set is frozen per KB in
+`<kb>/kaas.json` and selectable with `kb-ai distill --categories`. And the
+classify cache key now covers the prompt text (see Caveats).
 
 ## Caveats
 

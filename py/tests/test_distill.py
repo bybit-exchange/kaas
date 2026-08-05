@@ -184,3 +184,64 @@ def test_distill_end_to_end_produces_article(tmp_path):
 
     wiki_files = list((kb / "wiki").rglob("*.md"))
     assert wiki_files, "expected at least one compiled wiki article"
+
+
+# ── --categories ────────────────────────────────────────────────────
+
+def _capture_compile(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        distill_mod, "compile_kb",
+        lambda data_dir, **kw: captured.update(kw) or {"compiled": 1},
+    )
+    return captured
+
+
+def test_run_distill_passes_no_categories_by_default(tmp_path, monkeypatch):
+    """Omitting the flag must mean "whatever the KB already froze", not the
+    defaults -- otherwise distill would override every custom KB's taxonomy."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
+
+    assert captured["categories"] is None
+
+
+def test_run_distill_forwards_a_category_list(tmp_path, monkeypatch):
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([
+        str(src), "--kb", str(tmp_path / "kb"), "--categories", "concept,guide,reference",
+    ])
+
+    assert captured["categories"] == ["concept", "guide", "reference"]
+
+
+def test_run_distill_tolerates_spaces_and_trailing_commas(tmp_path, monkeypatch):
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([
+        str(src), "--kb", str(tmp_path / "kb"), "--categories", " concept , guide ,",
+    ])
+
+    assert captured["categories"] == ["concept", "guide"]
+
+
+def test_run_distill_rejects_an_empty_category_list(tmp_path, monkeypatch, capsys):
+    """`--categories ,,` must not silently fall back to the defaults: the caller
+    clearly meant to set something."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb"), "--categories", " , "])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "EMPTY_CATEGORIES"

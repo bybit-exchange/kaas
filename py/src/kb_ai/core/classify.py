@@ -4,12 +4,13 @@ import hashlib
 import json
 import re
 import sys
+from datetime import datetime, timezone
 
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
 from kb_ai.prompts import default_registry
-from kb_ai.storage.store import ArticleMeta
+from kb_ai.storage.store import ArticleMeta, KBStore
 
 _SAFETY_MARGIN = 500
 
@@ -44,6 +45,44 @@ def effective_categories(categories: list[str] | None) -> list[str]:
     caller's own argument would describe a run that never happened.
     """
     return list(categories) if categories else list(DEFAULT_CATEGORIES)
+
+
+def resolve_categories(store: KBStore, categories: list[str] | None) -> list[str]:
+    """The category set for this run, frozen into per-KB config on first use.
+
+    Freezing matters because DEFAULT_CATEGORIES is a measured default that can
+    change between releases. Without a frozen set, a KB compiled under one
+    taxonomy would quietly start filing new articles under another, leaving a
+    mixed taxonomy that re-running does not repair (see
+    docs/classify-taxonomy-measurements.md). An explicit set still wins, because
+    the daemon accepts one per request, but a set that disagrees with the frozen
+    one is logged loudly -- that is precisely the case that mixes the taxonomy.
+    """
+    config = store.load_config()
+    frozen = config.get("categories")
+
+    if not isinstance(frozen, list) or not frozen:
+        effective = effective_categories(categories)
+        # Nothing to freeze into on a read-only store (the MCP server opens one),
+        # and nothing worth creating for a KB directory that does not exist --
+        # writing one there would leave a mistyped --kb path looking like a real KB.
+        if not store.read_only and store.base_dir.exists():
+            config["categories"] = effective
+            config["categories_frozen_at"] = datetime.now(timezone.utc).isoformat()
+            store.save_config(config)
+        return effective
+
+    if not categories or list(categories) == frozen:
+        return frozen
+
+    print(
+        f"[config] WARNING: requested categories {list(categories)} differ from "
+        f"the set frozen at KB creation {frozen}; using the requested set. New "
+        f"articles will not share a taxonomy with the existing ones.",
+        file=sys.stderr,
+        flush=True,
+    )
+    return list(categories)
 
 
 def classify_inputs_hash(categories: list[str] | None) -> str:
