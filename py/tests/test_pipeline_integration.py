@@ -127,6 +127,77 @@ def test_pipeline_end_to_end_creates_article(kb_dir):
     assert "phase" in event_types
 
 
+def test_pipeline_writes_a_cross_group_collision_once(kb_dir, monkeypatch):
+    """Two classify groups inventing the same article must write one file.
+
+    The groups run in parallel and never see each other's creations, so the
+    dedup phase is the only thing standing between a collision and two
+    near-identical articles on disk.
+    """
+    def _colliding_classification(**kwargs) -> dict:
+        user = kwargs["messages"][-1]["content"]
+        path, title = (
+            ("wiki/concept/vector-search.md", "Vector Search")
+            if "alpha" in user
+            else ("wiki/concept/vector-search-basics.md", "Vector Search Basics")
+        )
+        return {
+            "merge_into": [],
+            "create_new": [
+                {"path": path, "type": "concept", "title": title, "reason": "same concept"}
+            ],
+        }
+
+    monkeypatch.setattr(classify_mod, "completion_json", _colliding_classification)
+
+    input_data = {
+        "kb_dir": kb_dir,
+        "model": "claude-sonnet-4-6",
+        "items": [
+            {
+                "content_hash": "alpha1",
+                "source_ref": "raw/alpha.md",
+                "extraction": {
+                    "summary": "alpha source on retrieval",
+                    "concepts": [],
+                    "entities": [],
+                    "decisions": [],
+                    "action_items": [],
+                    "claims": [],
+                    "topics": ["retrieval"],
+                    "connections": [],
+                },
+            },
+            {
+                "content_hash": "beta1",
+                "source_ref": "raw/beta.md",
+                "extraction": {
+                    "summary": "beta source on embeddings",
+                    "concepts": [],
+                    "entities": [],
+                    "decisions": [],
+                    "action_items": [],
+                    "claims": [],
+                    "topics": ["embeddings"],
+                    "connections": [],
+                },
+            },
+        ],
+        "topic_index_min_articles": 3,
+        "people": [],
+    }
+
+    results = run_server_pipeline_with_input(input_data)
+
+    store = KBStore(kb_dir)
+    assert (store.base_dir / "wiki/concept/vector-search.md").exists()
+    assert not (store.base_dir / "wiki/concept/vector-search-basics.md").exists()
+
+    # Both sources land on the winning path, so both report it as created.
+    created = {p for r in results for p in r.get("created", [])}
+    assert created == {"wiki/concept/vector-search.md"}
+
+
 def test_pipeline_empty_items_returns_empty(kb_dir):
     """Pipeline with empty items list returns empty results."""
     input_data = {

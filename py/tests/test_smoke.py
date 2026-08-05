@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from kb_ai.core.classify import category_definitions_block
 from kb_ai.prompts import default_registry
 from kb_ai.storage.store import KBStore, ArticleMeta
 
@@ -38,6 +39,7 @@ def test_classify_render_then_replace_pipeline():
     cats = ["concept", "project", "decision", "person"]
     rendered = default_registry().get("classify").render(
         categories_str=", ".join(cats), categories=cats,
+        category_definitions=category_definitions_block(cats),
     )
     assert "{ARTICLES_PLACEHOLDER}" in rendered
     assert "wiki/concept/" in rendered  # categories[0] substituted

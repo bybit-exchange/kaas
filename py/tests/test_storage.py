@@ -50,3 +50,40 @@ def test_render_catalog_line_appends_keys_column():
     line = render_catalog_line(a)
     assert line.endswith(f"{KEYS_MARKER}max_zip_entries, max_body")
     assert line.startswith("- wiki/limits.md — Limits: Configured ceilings.")
+
+
+# ── per-KB config ───────────────────────────────────────────────────
+
+def test_load_config_on_a_kb_without_one_returns_empty(tmp_path: Path):
+    assert KBStore(str(tmp_path)).load_config() == {}
+
+
+def test_save_config_then_load_it_back(tmp_path: Path):
+    store = KBStore(str(tmp_path))
+    store.save_config({"categories": ["concept", "guide"]})
+
+    assert store.load_config()["categories"] == ["concept", "guide"]
+
+
+def test_save_config_creates_the_kb_directory(tmp_path: Path):
+    """A brand-new KB is configured before anything else is written to it."""
+    store = KBStore(str(tmp_path / "fresh"))
+    store.save_config({"categories": ["concept"]})
+
+    assert store.load_config()["categories"] == ["concept"]
+
+
+def test_save_config_is_refused_on_a_read_only_store(tmp_path: Path):
+    store = KBStore(str(tmp_path), read_only=True)
+
+    with pytest.raises(PermissionError):
+        store.save_config({"categories": ["concept"]})
+
+
+def test_load_config_tolerates_a_corrupt_file(tmp_path: Path):
+    """A hand-edited or truncated config must not take the whole run down."""
+    store = KBStore(str(tmp_path))
+    store.base_dir.mkdir(parents=True, exist_ok=True)
+    store.config_path.write_text("{not json", encoding="utf-8")
+
+    assert store.load_config() == {}

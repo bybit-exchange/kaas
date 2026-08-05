@@ -75,7 +75,37 @@ def run_distill(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(prog="kb-ai distill")
     parser.add_argument("paths", nargs="+", help="files or directories to distill")
     parser.add_argument("--kb", default="./.kaas", help="knowledge-base directory (default: ./.kaas)")
+    parser.add_argument(
+        "--categories",
+        help="comma-separated article categories, frozen into the KB on first use "
+             "(default: the KB's frozen set, or the built-in defaults for a new KB)",
+    )
     args = parser.parse_args(argv)
+
+    # Omitting the flag must stay None rather than becoming the defaults, so an
+    # existing KB keeps the set it was created with.
+    categories = None
+    if args.categories is not None:
+        categories = [c.strip() for c in args.categories.split(",") if c.strip()]
+        if not categories:
+            respond(False, error={
+                "code": "EMPTY_CATEGORIES",
+                "message": "--categories was given but lists no category names",
+            })
+            return
+
+    # A path that does not exist yields no files rather than an error, so without
+    # this check a run whose paths were mostly mistyped -- or relative to the
+    # wrong directory, which `uv --directory py` makes easy -- reports ok=true
+    # for whatever did resolve and quietly distills the wrong corpus.
+    missing = [p for p in args.paths if not Path(p).expanduser().exists()]
+    if missing:
+        respond(False, error={
+            "code": "PATH_NOT_FOUND",
+            "message": f"{len(missing)} of {len(args.paths)} paths do not exist",
+            "paths": missing,
+        })
+        return
 
     report = ingest_paths(args.paths, args.kb)
     if not report.ingested:
@@ -87,7 +117,8 @@ def run_distill(argv: list[str]) -> None:
         return
 
     model = os.environ.get("LLM_MODEL") or "gpt-4o-mini"
-    result = compile_kb(args.kb, extract_model=model, compile_model=model, write_model=model)
+    result = compile_kb(args.kb, extract_model=model, compile_model=model,
+                        write_model=model, categories=categories)
     respond(True, data={
         "kb": args.kb,
         "ingested": len(report.ingested),

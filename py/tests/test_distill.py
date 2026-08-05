@@ -1,12 +1,43 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from kb_ai.commands.compile import compile_kb
 from kb_ai.storage.store import KBStore
-from kb_ai.distill import ingest_paths, IngestReport
+from kb_ai.distill import ingest_paths, IngestReport, run_distill
+
+
+def _run_distill(monkeypatch, argv):
+    out: list[str] = []
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: out.append(str(a[0])) if a else None)
+    run_distill(argv)
+    return json.loads(out[-1])
+
+
+def test_distill_reports_a_path_that_does_not_exist(monkeypatch, tmp_path):
+    """A mistyped or wrongly-relative path must fail loudly, not be dropped.
+
+    ingest_paths() walks each path and yields nothing for one that is absent, so
+    a run naming ten paths of which nine are absent used to report ok=true for
+    the one that resolved -- and silently distilled the wrong corpus.
+    """
+    real = tmp_path / "kept.md"
+    real.write_text("real content")
+
+    payload = _run_distill(monkeypatch, [
+        str(real), str(tmp_path / "gone.md"), str(tmp_path / "also-gone"),
+        "--kb", str(tmp_path / "kb"),
+    ])
+
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "PATH_NOT_FOUND"
+    assert "gone.md" in str(payload["error"]["paths"])
+    assert "also-gone" in str(payload["error"]["paths"])
+    # Nothing was ingested: the run stopped before touching the KB.
+    assert not (tmp_path / "kb" / "raw").exists()
 
 
 def test_compile_kb_empty_kb_returns_nothing_to_compile(tmp_path: Path):
@@ -153,3 +184,64 @@ def test_distill_end_to_end_produces_article(tmp_path):
 
     wiki_files = list((kb / "wiki").rglob("*.md"))
     assert wiki_files, "expected at least one compiled wiki article"
+
+
+# ── --categories ────────────────────────────────────────────────────
+
+def _capture_compile(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        distill_mod, "compile_kb",
+        lambda data_dir, **kw: captured.update(kw) or {"compiled": 1},
+    )
+    return captured
+
+
+def test_run_distill_passes_no_categories_by_default(tmp_path, monkeypatch):
+    """Omitting the flag must mean "whatever the KB already froze", not the
+    defaults -- otherwise distill would override every custom KB's taxonomy."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
+
+    assert captured["categories"] is None
+
+
+def test_run_distill_forwards_a_category_list(tmp_path, monkeypatch):
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([
+        str(src), "--kb", str(tmp_path / "kb"), "--categories", "concept,guide,reference",
+    ])
+
+    assert captured["categories"] == ["concept", "guide", "reference"]
+
+
+def test_run_distill_tolerates_spaces_and_trailing_commas(tmp_path, monkeypatch):
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([
+        str(src), "--kb", str(tmp_path / "kb"), "--categories", " concept , guide ,",
+    ])
+
+    assert captured["categories"] == ["concept", "guide"]
+
+
+def test_run_distill_rejects_an_empty_category_list(tmp_path, monkeypatch, capsys):
+    """`--categories ,,` must not silently fall back to the defaults: the caller
+    clearly meant to set something."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    _capture_compile(monkeypatch)
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb"), "--categories", " , "])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "EMPTY_CATEGORIES"

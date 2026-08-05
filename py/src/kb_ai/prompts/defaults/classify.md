@@ -18,5 +18,5 @@ Rules:
 - Only create new if no existing article covers this topic
 - type must be one of: {categories_str}
 - path must start with wiki/ and use the type as subdirectory (e.g. wiki/{categories[0]}/)
-
+{category_definitions}
 Return ONLY valid JSON.

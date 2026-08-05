@@ -67,7 +67,7 @@ def test_dedup_runs_when_the_cancel_event_is_unset():
 
     _result, count = run_dedup_phase(items, [], cancel_event=cancel)
 
-    assert count == 2
+    assert count == 1
 
 
 # ── cheap bail-outs ─────────────────────────────────────────────────
@@ -107,6 +107,11 @@ def test_dedup_skips_when_no_item_created_anything():
 # ── cross-group merging ─────────────────────────────────────────────
 
 def test_dedup_merges_a_title_two_groups_invented_independently():
+    """First writer wins: one item keeps the create, the other points at it.
+
+    Merging both copies into each other would leave neither created, and the
+    write phase would then create both paths from their filenames.
+    """
     items = [
         item("h1", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
         item("h2", creates=[("wiki/concept/vector-search-basics.md", "Vector Search")]),
@@ -114,13 +119,43 @@ def test_dedup_merges_a_title_two_groups_invented_independently():
 
     result, count = run_dedup_phase(items, [])
 
-    assert count == 2
-    # Each item drops its own create and points at the other item's path.
-    assert created_titles(result[0]) == []
-    assert merged_paths(result[0]) == ["wiki/concept/vector-search-basics.md"]
+    assert count == 1
+    assert created_titles(result[0]) == ["Vector Search"]
+    assert merged_paths(result[0]) == []
     assert created_titles(result[1]) == []
     assert merged_paths(result[1]) == ["wiki/concept/vector-search.md"]
-    assert "dedup: title overlap" in result[0][3].merge_into[0].reason
+    assert "dedup: title overlap" in result[1][3].merge_into[0].reason
+
+
+def test_dedup_merges_two_groups_that_invented_the_same_path():
+    """An identical path is the collision the own-paths filter used to hide."""
+    items = [
+        item("h1", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
+        item("h2", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
+    ]
+
+    result, count = run_dedup_phase(items, [])
+
+    assert count == 1
+    assert created_titles(result[0]) == ["Vector Search"]
+    assert created_titles(result[1]) == []
+    assert merged_paths(result[1]) == ["wiki/concept/vector-search.md"]
+
+
+def test_dedup_folds_a_three_way_collision_onto_one_path():
+    """Every later collider points at the winner, not at its predecessor."""
+    items = [
+        item("h1", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
+        item("h2", creates=[("wiki/concept/vector-search-basics.md", "Vector Search Basics")]),
+        item("h3", creates=[("wiki/concept/vector-search-guide.md", "Vector Search Guide")]),
+    ]
+
+    result, count = run_dedup_phase(items, [])
+
+    assert count == 2
+    assert created_titles(result[0]) == ["Vector Search"]
+    assert merged_paths(result[1]) == ["wiki/concept/vector-search.md"]
+    assert merged_paths(result[2]) == ["wiki/concept/vector-search.md"]
 
 
 def test_dedup_keeps_unrelated_titles():
@@ -137,7 +172,11 @@ def test_dedup_keeps_unrelated_titles():
 
 
 def test_dedup_does_not_collide_an_item_with_its_own_creates():
-    """own_paths must be excluded, or every item would merge into itself."""
+    """An item's own creates enter the pool only after the item is done.
+
+    Otherwise its second create would merge into its first, and one classify
+    call that deliberately split a document into two articles would lose one.
+    """
     items = [
         item("h1", creates=[
             ("wiki/concept/foo.md", "Foo Bar"),
@@ -171,11 +210,23 @@ def test_dedup_reports_the_merge_count_on_stderr(capsys):
     items = [
         item("h1", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
         item("h2", creates=[("wiki/concept/vector-search-2.md", "Vector Search")]),
+        item("h3", creates=[("wiki/concept/vector-search-3.md", "Vector Search")]),
     ]
 
     run_dedup_phase(items, [])
 
     assert "cross-group dedup: 2 articles merged" in capsys.readouterr().err
+
+
+def test_dedup_says_article_in_the_singular(capsys):
+    items = [
+        item("h1", creates=[("wiki/concept/vector-search.md", "Vector Search")]),
+        item("h2", creates=[("wiki/concept/vector-search-2.md", "Vector Search")]),
+    ]
+
+    run_dedup_phase(items, [])
+
+    assert "cross-group dedup: 1 article merged" in capsys.readouterr().err
 
 
 def test_dedup_stays_quiet_when_nothing_merged(capsys):
