@@ -1,0 +1,40 @@
+py/src/kb_ai/commands/pipeline/_phase_dedup.py
+  8ba1c433bb074510 5-6,44-55,57,60-68,72,74
+py/tests/test_pipeline_dedup.py
+  8ba1c433bb074510 70,110-114,122-124,127-158,175-179,213,221-229
+py/tests/test_pipeline_integration.py
+  8ba1c433bb074510 130-200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "0d9437f5cb3bf39afb7d4bd71ed58adcfa0800c9",
+  "prompts": {
+    "8ba1c433bb074510": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e84d6f3-5185-465d-85d9-e6cbf11a57cb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 778,
+      "total_deletions": 952,
+      "accepted_lines": 215,
+      "overriden_lines": 0
+    },
+    "c82474b49312ea65": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "be4e41b3-e2ce-4670-9d73-f8d312afb5ea",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 269,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
