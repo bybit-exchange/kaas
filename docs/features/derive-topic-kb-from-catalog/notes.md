@@ -156,3 +156,65 @@ resolved correctly (`kb_dir='/private/tmp/kaas-derive-smoke/derived/retrieval-an
 visible in the server log before the credential error), confirming the Python routing
 works. The Go side is covered by `TestHandleAskResolvesDerivedKB` and
 `TestHandleAskRejectsUnknownDerivedKB` in `internal/mcp/handler_test.go`.
+
+## Stage 3 verification
+
+### Task 20 — HTTP API against a running backend
+
+**Date:** 2026-08-05 · **Binary:** `make build` → `./bin/kaas` · **Config:**
+`/tmp/kaas-e2e.toml` with `storage.kb_dir = "/tmp/kaas-derive-smoke"` (the KB
+compiled in the Task 10 smoke run, which already holds
+`derived/retrieval-and-the-chat-answer-path`) on port 8099.
+
+The real config key is `storage.kb_dir` in the TOML file. The plan's
+`KAAS_STORAGE_KB_DIR` guess does not exist: `config.Load` only reads
+`KAAS_HOME`, `KAAS_WEB_DIR`, `KAAS_MCP_*` and `KAAS_AI_MCP_URL` from the
+environment.
+
+The daemon refuses to start without credentials
+(`daemon init failed: OpenAIError: Missing credentials`), so the server was
+launched with `LLM_BASE_URL=http://localhost:4777/v1 LLM_API_KEY=test
+OPENAI_API_KEY=test`.
+
+Read paths:
+
+| Request | Result |
+|---|---|
+| `GET /api/derived` | `{"kbs":[{"slug":"retrieval-and-the-chat-answer-path","topic":"retrieval and the chat answer path","created_at":"2026-08-05T00:13:51","article_count":2}]}` (H2) |
+| `GET /api/wiki` | root tree: `project/kaas-derived-kb.md` |
+| `GET /api/wiki?kb=retrieval-and-the-chat-answer-path` | derived tree: `concept/kaas-ai-agent.md`, `decision/kaas-setup-and-configuration.md`; a different corpus, so the scoping is real (H3) |
+| `GET /api/wiki?kb=nope` | 400 `kbpath: unknown derived knowledge base: "nope"` (H3) |
+| `GET /api/wiki?kb=../..` | 400 `kbpath: invalid derived-kb slug: "../.."` (G4) |
+| `GET /api/wiki/file?path=concept/kaas-ai-agent.md&kb=retrieval-and-the-chat-answer-path` | the article |
+| `GET /api/wiki/file?path=concept/kaas-ai-agent.md` (no `kb`) | 404 `article not found`; that path exists only in the derived KB |
+| `POST /api/chat?kb=nope` | 400, rejected before any LLM call (H3) |
+| `POST /api/chat?kb=../etc` | 400 (G4) |
+
+Job endpoints:
+
+```
+POST /api/derive {"topic":"cost accounting and pricing"}
+→ {"job_id":"3b159d63-...","slug":"cost-accounting-and-pricing"}      (H1)
+
+GET /api/derive/3b159d63-...
+→ {"status":"failed","stage":"done",
+   "error":"bridge: AI engine error DERIVE_FAILED: topic filter failed: Connection error.",
+   "created_at":1785898898885,"updated_at":1785898900037}              (H1b)
+```
+
+**Same credential limitation as Tasks 10 and 12:** no paid API key is available
+and the local LiteLLM proxy on port 4777 was not running, so the derive itself
+could not complete and this run produced no derive cost figure. The failure
+still exercises the HTTP path either side of the LLM call: the job is created,
+claimed and run; the typed engine error (`DERIVE_FAILED`) reaches
+`GET /api/derive/{id}` verbatim, which is the string `DeriveDialog` renders; the
+status stays terminal across repeated polls, matching the dialog's stop-polling
+behavior; and the failed run left no `derived/` directory behind (only the
+pre-existing `retrieval-and-the-chat-answer-path`), so spec B5 holds over HTTP
+too. Re-posting the same topic after the failure returned a fresh `job_id` rather
+than a duplicate error, so a failed attempt does not burn its slug.
+
+**Not verified end to end:** a successful HTTP derive, and therefore the cost
+figure `GET /api/derive/{id}` reports on success. That needs a working LLM
+gateway; the success payload is covered by tests (`internal/api/derive_test.go`,
+`internal/derive/runner_test.go`, `DeriveDialog.test.tsx`) but not by a live run.

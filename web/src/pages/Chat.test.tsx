@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
 import { useChatStore } from '@/store/chat'
+import { useKB } from '@/store/kb'
 
 // Mock sonner toast
 vi.mock('sonner', () => ({
@@ -53,6 +54,7 @@ vi.mock('@/features/chat/StreamHandler', async (importOriginal) => {
 })
 
 // Import AFTER mocking
+import { streamChat } from '@/api/chat'
 import { Chat } from './Chat'
 
 function Wrapper({ children, initialEntries = ['/chat'] }: { children: React.ReactNode; initialEntries?: string[] }) {
@@ -77,6 +79,7 @@ beforeEach(() => {
     _accessOrder: [],
   })
   usePrefs.setState({ theme: 'light', lang: 'en' })
+  useKB.setState({ kb: null })
   vi.clearAllMocks()
 })
 
@@ -220,5 +223,42 @@ describe('Chat page', () => {
     const afterEnd = useChatStore.getState()
     expect(afterEnd.sessionStates['s1'].streamState.streaming).toBe(false)
     expect(afterEnd.sessionStates['s2'].streamState.streaming).toBe(true)
+  })
+
+  it('scopes the chat stream to the selected knowledge base', async () => {
+    const user = userEvent.setup()
+    useKB.setState({ kb: 'pricing' })
+    useChatStore.setState({
+      sessions: [{ id: 'session-1', title: 'Test', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
+      activeSessionId: 'session-1',
+      sessionStates: {
+        'session-1': {
+          messages: [],
+          streamState: { streaming: false, content: '', reasoning: '', statusEntries: [], phase: 'idle', retrievedSources: [] },
+          inputDraft: '',
+          abortController: null,
+          messagesLoaded: true,
+          error: null,
+        },
+      },
+      _accessOrder: ['session-1'],
+    })
+
+    render(
+      <Wrapper initialEntries={['/chat/session-1']}>
+        <Chat />
+      </Wrapper>,
+    )
+
+    await user.type(screen.getByRole('textbox'), 'what is kaas')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(streamChat).toHaveBeenCalledWith(
+        expect.objectContaining({ query: 'what is kaas' }),
+        expect.anything(),
+        'pricing',
+      )
+    })
   })
 })

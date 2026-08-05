@@ -13,6 +13,7 @@ import { MarkdownArticle } from '@/features/wiki/MarkdownArticle'
 import { TableOfContents } from '@/features/wiki/TableOfContents'
 import { FileTree } from '@/features/wiki/FileTree'
 import { KBSelector } from '@/features/wiki/KBSelector'
+import { DeriveDialog } from '@/features/wiki/DeriveDialog'
 import { useKB } from '@/store/kb'
 
 export function Wiki() {
@@ -29,6 +30,8 @@ export function Wiki() {
   const [articleError, setArticleError] = useState<string | null>(null)
   const [showAllTags, setShowAllTags] = useState(false)
   const [showSources, setShowSources] = useState(false)
+  // Bumped when a derive finishes, so the selector picks up the new KB.
+  const [kbListVersion, setKBListVersion] = useState(0)
 
   // Load index list
   useEffect(() => {
@@ -75,7 +78,7 @@ export function Wiki() {
         <div className="flex h-14 items-center gap-2 px-4">
           <h2 className="shrink-0 text-sm font-semibold">{t('wiki.indexTitle')}</h2>
           <div className="min-w-0 flex-1">
-            <KBSelector />
+            <KBSelector reloadKey={kbListVersion} />
           </div>
         </div>
         <Separator />
@@ -99,7 +102,11 @@ export function Wiki() {
             )}
           </div>
         </div>
-        <ScrollArea className="h-[calc(100%-3.5rem-3rem)]">
+        <div className="px-3 pb-2">
+          <DeriveDialog onDerived={() => setKBListVersion((v) => v + 1)} />
+        </div>
+        {/* Header (3.5rem) + search row (3rem) + derive row (2.5rem). */}
+        <ScrollArea className="h-[calc(100%-3.5rem-3rem-2.5rem)]">
           <nav className="p-3">
             {indexLoading ? (
               <div className="space-y-2 p-2">

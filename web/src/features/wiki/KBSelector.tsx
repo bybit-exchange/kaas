@@ -14,6 +14,11 @@ import {
 // sentinel of its own rather than ''.
 const ROOT_VALUE = '__root__'
 
+interface KBSelectorProps {
+  /** Bump to reload the list — a finished derive adds a knowledge base. */
+  reloadKey?: number
+}
+
 /**
  * Picks which knowledge base the wiki tree and chat read from: the root KB or
  * one of its derived, topic-scoped KBs.
@@ -22,15 +27,16 @@ const ROOT_VALUE = '__root__'
  * leaves the current selection alone rather than dropping it: a transient blip
  * must not silently move the reader to a different corpus.
  */
-export function KBSelector() {
+export function KBSelector({ reloadKey = 0 }: KBSelectorProps) {
   const t = useT()
   const kb = useKB((s) => s.kb)
   const setKB = useKB((s) => s.setKB)
   const [kbs, setKBs] = useState<DerivedKB[]>([])
 
-  // Mount-only: the list changes when someone derives a new KB, not when the
-  // reader switches between existing ones. Depending on `kb` would refetch on
-  // every switch, so the stale-selection check reads the store directly instead.
+  // Runs on mount and whenever reloadKey changes: the list changes when someone
+  // derives a new KB, not when the reader switches between existing ones.
+  // Depending on `kb` would refetch on every switch, so the stale-selection
+  // check reads the store directly instead.
   useEffect(() => {
     let cancelled = false
     listDerived()
@@ -49,7 +55,7 @@ export function KBSelector() {
     return () => {
       cancelled = true
     }
-  }, [setKB])
+  }, [setKB, reloadKey])
 
   return (
     <Select
