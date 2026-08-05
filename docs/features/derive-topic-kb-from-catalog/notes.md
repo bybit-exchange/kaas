@@ -243,31 +243,77 @@ gateway; the success payload is covered by tests (`internal/api/derive_test.go`,
 
 ## Known gaps at merge
 
-Each of these was raised in the end-of-branch code review and accepted rather
-than fixed.
+Raised in the end-of-branch code review and accepted rather than fixed. Item 1
+started as a gap and is now a measurement; the result it produced is itself the
+open question.
 
-### 1. The feature's own success criterion is unmeasured
+### 1. The move ratio is now measured, and it says the design needs work
 
-`tech-design.md` calls the off-topic move ratio "the number that says whether
-this design works", and the Stage 1 checkpoint said to report it before starting
-Stage 2. **That number does not exist** — it is 0/0 (see "Reading of the move
-ratio" above). No paid gateway was available; the local models corrupted the
-compile output, so the derived catalog was empty and the PRECISION pass was a
-no-op. Stages 2 and 3 were built on top of that unmeasured core.
+The Stage 1 checkpoint was finally met on 2026-08-05, after a working gateway
+turned up (`litellm-de.yijin.io`, model `us.claude-sonnet-4-6`). Superseded
+reading: the earlier smoke run reported 0/0 and this section previously said the
+number did not exist.
 
-Nothing is known to be wrong with the code, and the plumbing either side of the
-LLM call is live-proven. What is missing is evidence that the topic filter
-actually separates on-topic from off-topic content at a useful rate. No cost
-figure has been checked against a real bill either: every USD number in this
-document is what the observed token counts would have cost at
-`claude-sonnet-4-6` pricing. Actual spend to date: USD 0.00.
+Corpus: this repository's own docs distilled into a fresh KB
+(`kb-ai distill docs + the root markdown`), 16 source documents, 8 articles.
+Topic: `the compile pipeline and retrieval`, run with `--yes` over the CLI.
 
-Outstanding verification work, all blocked on gateway access:
+| Figure | Value | Where it came from |
+|---|---|---|
+| Source articles in catalog | 8 | `index/master-index.md` |
+| Articles selected by RECALL | 5 | `data.selected` |
+| Invented paths dropped | 0 | `data.dropped_invented_paths` |
+| Documents resolved | 14 of 16 | `data.documents` |
+| Bytes recompiled | 384,825 of ~408,000 | `data.bytes` |
+| Articles in derived catalog | 6 | derived `wiki/` before the PRECISION pass |
+| Articles moved off-topic | 5 | `data.offtopic` |
+| **Move ratio** | **5/6 = 0.83** | derived from the two rows above |
+| Total cost | 0.770637 USD | `data.cost.total_cost_usd` |
+| Filter cost (RECALL + PRECISION) | ~0.007 USD | total minus the compile phases |
+| Recompile cost | 0.764 USD | `data.compile.timing.phases` |
+| Extract cache hits | 14 of 14, 0.00 USD | compile log, phase 1 |
+| Wall clock | 1046s | `data.compile.timing.total_seconds` |
 
-- Spec I3 — one real derive producing a move ratio and a real cost figure.
+Reading, against the tech design's own rule that near 0 means too permissive and
+near 1 means too strict: 0.83 says **too strict**, and inspecting the moved
+articles confirms at least one outright false negative.
+`concept/kaas-non-determinism.md` — "classify-phase cascading LLM variance
+causes identical 88-file input to produce 48 vs 98 articles, root cause in
+`_phase_classify.py`" — is entirely about the compile pipeline and was moved
+aside. `decision/kaas-derive-topic-kb.md` is borderline for the same reason. The
+three genuinely off-topic moves (backlog, contributing guide, bootstrap guide)
+were correct.
+
+The more important finding is structural, and it is about RECALL rather than
+PRECISION. Filtering at the article level and then resolving to source documents
+amplifies scope badly, because articles merge several sources and sources are
+shared between articles: 5 of 8 articles resolved to 14 of 16 documents, which is
+94% of the corpus by bytes. So the run paid to recompile almost the entire corpus
+in order to keep one article out of six. The filter itself was nearly free
+(~0.007 USD of 0.77); essentially all the money went to the recompile the
+amplification caused. That is the trade-off brainstorm decision 1 chose, and
+`tech-design.md` says to revisit that decision if the ratio came out bad. It did.
+
+Sample size, stated plainly: one topic, one corpus, six derived articles. This is
+directional evidence that PRECISION is too strict and that article-level RECALL
+over-resolves. It is not a distribution, and a 6-article catalog can misrepresent
+even the sign of an effect. Before changing the design, run several topics across
+a corpus large enough that the derived catalog is tens of articles, not six.
+
+Two operational observations from the same run:
+
+- One write-phase call stalled for 901s, hit the client timeout, and was retried
+  successfully (`[LLM-WARN] api_timeout_error ... elapsed=901.3s`). It alone was
+  most of the 1046s wall clock. A 14-document recompile taking 17 minutes is
+  worth knowing before anyone points derive at a large KB.
+- C7's extract-cache copy works as designed: all 14 documents hit the cache, so
+  extract cost 0.00 USD. Without it this run would have cost several times more.
+
+Still outstanding:
+
 - Task 10 Step 3 — the declined-volume-gate path (F5) live.
 - Task 12 Step 7 — a grounded MCP answer from a derived KB.
-- Task 20 Step 7 — a successful derive over HTTP.
+- Task 20 Step 7 — a successful derive over HTTP (the CLI path is now proven).
 
 ### 2. A long derive cannot be cancelled
 
