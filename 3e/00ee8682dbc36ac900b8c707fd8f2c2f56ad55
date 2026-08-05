@@ -1,0 +1,39 @@
+web/src/features/wiki/KBSelector.tsx
+  18a7fbd61a480463 26-28,42,44-47,51
+web/src/pages/Wiki.tsx
+  18a7fbd61a480463 108-111
+web/src/features/wiki/DeriveDialog.test.tsx
+  18a7fbd61a480463 67-74,78,113-129,153,180,184,188-202
+web/src/layouts/AppLayout.test.tsx
+  18a7fbd61a480463 1-2,7-8,12-13,28-30,51-69
+web/src/layouts/AppLayout.tsx
+  18a7fbd61a480463 5,21-23
+web/src/features/wiki/DeriveDialog.tsx
+  18a7fbd61a480463 1,12,32,59-68,104-117,119-177,179-181,183-187
+web/src/features/wiki/KBSelector.test.tsx
+  18a7fbd61a480463 74,80-93,96-97,100
+web/src/hooks/useSyncKB.ts
+  18a7fbd61a480463 1-30
+web/src/hooks/useSyncKB.test.ts
+  18a7fbd61a480463 1-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3e00ee8682dbc36ac900b8c707fd8f2c2f56ad55",
+  "prompts": {
+    "18a7fbd61a480463": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ecb62c9-bbf9-4da6-8782-a5a85f397b7d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 446,
+      "total_deletions": 112,
+      "accepted_lines": 1037,
+      "overriden_lines": 0
+    }
+  }
+}
