@@ -62,10 +62,11 @@ distinct ones, and ruled two candidates out:
 - **Real, fixed — result collection order.** `as_completed()` collected groups in
   completion order, so `classified_items` came back shuffled and the dedup and
   write phases saw a different order every run.
-- **Real, open — cross-group duplicate creation.** `dedup_create_new()` only
+- **Real, fixed — cross-group duplicate creation.** `dedup_create_new()` only
   dedups against the calling group's copy, so N groups can each create the same
   article. This inflates the article count as a function of grouping, and is the
-  best candidate for a 48→98 doubling.
+  best candidate for a 48→98 doubling. The post-join pass meant to catch it
+  cancelled itself out; see below.
 - **Real, open — the input `items` order.** It arrives from
   `input_data["items"]` (`_entry.py:56`); group membership, and therefore each
   group's serial context, follows from it.
@@ -180,18 +181,63 @@ regardless: `core/people.py:update_people_stubs` generates people articles from
 config, a feature a docs-only corpus never exercises. Keep `decision` for
 corpora that carry ADRs or meeting notes.
 
-What remains:
+Two of the three unstable inputs from Result 2 are now fixed. Collection order:
+the phase emits in input order regardless of which group finishes first.
+Cross-group duplicate creation: fixed too, but described below, because the shape
+of the bug was not what that list assumed. The third — the input `items` order —
+is still open, and the dedup fix now depends on it.
 
-**Cross-group duplicate creation in the classify phase**, now the only open item
-and the likeliest cause of the article-count variance: parallel groups can each
-create the same article because `dedup_create_new()` only sees one group's copy
-of `existing`. Needs shared state or a post-join dedup pass.
+Outside that list, the category set is frozen per KB in `<kb>/kaas.json` and
+selectable with `kb-ai distill --categories`, and the classify cache key covers
+the prompt text (see Caveats).
 
-The other two items on this list are done. Collection order — the sibling of the
-duplicate-creation problem — is fixed: the phase emits in input order regardless
-of which group finishes first. The category set is frozen per KB in
-`<kb>/kaas.json` and selectable with `kb-ai distill --categories`. And the
-classify cache key now covers the prompt text (see Caveats).
+## Cross-group duplicate creation: the dedup pass cancelled itself out
+
+The list above called for "shared state or a post-join dedup pass". A post-join
+pass already existed — `_phase_dedup.py`, running between classify and write —
+and it was the bug. For each item it built the cross-group article list by taking
+every *other* item's creations, excluding its own paths. On a collision that is
+symmetric: item A merged into B's path, B merged into A's path, both dropped
+their own create, and neither path was left with a create to serve it. The write
+phase creates any merge target that does not exist yet
+(`_phase_write.py:58`, `action = "merge" if full_path.exists() else "create"`),
+so both articles got written anyway — with titles derived from the filename stem
+rather than the classification, because no `CreateTarget` survived to supply one.
+Identical paths fared worse still: the own-paths filter hid A's copy from B and
+B's copy from A, so nothing deduped at all.
+
+The pass is now a first-writer-wins election. It walks items in input order and
+dedups each against the creations accepted so far, so exactly one item keeps the
+create and every later collider points at it. An item's own creations join the
+pool only after that item is done, so a classification that deliberately split
+one document into two articles still gets both.
+
+Shared state in the classify workers was the wrong lever anyway: it would put
+race-dependent context back into the parallel groups, which is what the
+collection-order fix removed. The election lives entirely after the join, and its
+outcome depends only on the input order — which is the remaining unstable input,
+and one more reason to stabilise it upstream. Unstable input order no longer
+changes *how many* articles a collision produces, only which spelling of the
+title wins.
+
+`kb-ai distill` never hit this. It classifies serially
+through `compile_kb` with an accumulating `existing_articles`, which already has
+the first-writer-wins property. The bug needs a pipeline request carrying enough
+items to form two groups, and the in-tree Go worker sends one item per request
+(`internal/worker/worker.go:122`), so it was reachable through the daemon API
+rather than through the shipped CLI.
+
+Which leaves the 48→98 doubling without a fix to attribute it to. The next
+candidate, found while confirming that scope and not yet investigated: the
+classify cache key names a context the model was not given. Both call sites
+compute `art_hash` from the article set as it stood before the run
+(`_phase_classify.py:184`, `compile.py:183`) and then append each new creation to
+the list they pass to `classify_article`. So the second item in a group is
+classified against a context the key does not mention, and every item in the run
+keys as though it saw only the pre-run set. A cache hit can therefore return an
+answer produced under a context that did not occur in this run. It is the same
+kind of mismatch as the prompt-hash gap in Caveats, in the key's second component
+instead of its third.
 
 ## Caveats
 
