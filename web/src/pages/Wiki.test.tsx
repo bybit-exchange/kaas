@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
+import { useKB } from '@/store/kb'
 
 // Mock the wiki API
 vi.mock('@/api/wiki', () => ({
@@ -19,6 +20,13 @@ vi.mock('@/api/wiki', () => ({
   }),
 }))
 
+// The sidebar's KB selector loads the derived-KB list on mount.
+vi.mock('@/api/derived', () => ({
+  listDerived: vi.fn().mockResolvedValue({
+    kbs: [{ slug: 'pricing', topic: 'pricing', created_at: '2026-08-04', article_count: 1 }],
+  }),
+}))
+
 // Mock mermaid to avoid jsdom canvas issues
 vi.mock('mermaid', () => ({
   default: {
@@ -28,10 +36,26 @@ vi.mock('mermaid', () => ({
 }))
 
 // Import after mocking
+import { listWiki, fetchWikiArticle } from '@/api/wiki'
 import { Wiki } from './Wiki'
+
+function renderWiki(entry: string) {
+  return render(
+    <MemoryRouter initialEntries={[entry]}>
+      <LangProvider>
+        <Routes>
+          <Route path="wiki/*" element={<Wiki />} />
+        </Routes>
+      </LangProvider>
+    </MemoryRouter>,
+  )
+}
 
 beforeEach(() => {
   usePrefs.setState({ theme: 'light', lang: 'en' })
+  useKB.setState({ kb: null })
+  vi.mocked(listWiki).mockClear()
+  vi.mocked(fetchWikiArticle).mockClear()
 })
 
 describe('Wiki page', () => {
@@ -77,5 +101,23 @@ describe('Wiki page', () => {
     })
     // No article rendered - heading from article content should not be present
     expect(screen.queryByRole('heading', { name: 'T' })).not.toBeInTheDocument()
+  })
+
+  it('refetches the tree when the knowledge base changes', async () => {
+    renderWiki('/wiki')
+    await waitFor(() => expect(listWiki).toHaveBeenCalledWith(null))
+
+    await act(async () => {
+      useKB.getState().setKB('pricing')
+    })
+
+    await waitFor(() => expect(listWiki).toHaveBeenCalledWith('pricing'))
+  })
+
+  it('scopes the article fetch to the selected knowledge base', async () => {
+    useKB.setState({ kb: 'pricing' })
+    renderWiki('/wiki/a.md')
+
+    await waitFor(() => expect(fetchWikiArticle).toHaveBeenCalledWith('a.md', 'pricing'))
   })
 })

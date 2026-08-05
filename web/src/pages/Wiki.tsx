@@ -12,11 +12,14 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MarkdownArticle } from '@/features/wiki/MarkdownArticle'
 import { TableOfContents } from '@/features/wiki/TableOfContents'
 import { FileTree } from '@/features/wiki/FileTree'
+import { KBSelector } from '@/features/wiki/KBSelector'
+import { useKB } from '@/store/kb'
 
 export function Wiki() {
   const t = useT()
   const params = useParams()
   const path = params['*'] || null
+  const kb = useKB((s) => s.kb)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [tree, setTree] = useState<WikiTreeNode[]>([])
@@ -30,11 +33,11 @@ export function Wiki() {
   // Load index list
   useEffect(() => {
     setIndexLoading(true)
-    listWiki()
+    listWiki(kb)
       .then(({ tree }) => setTree(tree))
       .catch(() => setTree([]))
       .finally(() => setIndexLoading(false))
-  }, [])
+  }, [kb])
 
   // Load article when path changes
   useEffect(() => {
@@ -50,7 +53,7 @@ export function Wiki() {
     setShowAllTags(false)
     setShowSources(false)
 
-    fetchWikiArticle(path)
+    fetchWikiArticle(path, kb)
       .then(setArticle)
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -60,7 +63,7 @@ export function Wiki() {
         }
       })
       .finally(() => setArticleLoading(false))
-  }, [path, t])
+  }, [path, t, kb])
 
 
   const pathParts = path?.split('/') ?? []
@@ -69,8 +72,11 @@ export function Wiki() {
     <div className="flex h-full overflow-hidden">
       {/* Left index list */}
       <aside className="w-80 shrink-0 border-r bg-muted/30">
-        <div className="flex h-14 items-center px-4">
-          <h2 className="text-sm font-semibold">{t('wiki.indexTitle')}</h2>
+        <div className="flex h-14 items-center gap-2 px-4">
+          <h2 className="shrink-0 text-sm font-semibold">{t('wiki.indexTitle')}</h2>
+          <div className="min-w-0 flex-1">
+            <KBSelector />
+          </div>
         </div>
         <Separator />
         <div className="p-3">
