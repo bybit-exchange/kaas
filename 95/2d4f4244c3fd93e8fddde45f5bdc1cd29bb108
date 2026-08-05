@@ -1,0 +1,23 @@
+SECURITY.md
+  18a7fbd61a480463 5-7,9,13-15,17-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "952d4f4244c3fd93e8fddde45f5bdc1cd29bb108",
+  "prompts": {
+    "18a7fbd61a480463": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ecb62c9-bbf9-4da6-8782-a5a85f397b7d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 502,
+      "total_deletions": 28,
+      "accepted_lines": 611,
+      "overriden_lines": 0
+    }
+  }
+}
