@@ -159,11 +159,45 @@ func testUploadConf() config.UploadConf {
 }
 
 // newTestServer builds a Server over the given fakes with KBDir at a temp dir.
+// It stores the EvalSymlinks-resolved KB path in the config so that
+// kbpath.Resolve returns paths that compare equal to the returned kb string.
 func newTestServer(t *testing.T, q Queue, st TaskStore, br ChatBridge) (*Server, string) {
 	t.Helper()
-	kb := t.TempDir()
+	raw := t.TempDir()
+	// Resolve any OS-level symlinks (e.g. /tmp → /private/tmp on macOS) so that
+	// kbpath.Resolve's EvalSymlinks result matches what we store as the canonical path.
+	kb := raw
+	if r, err := filepath.EvalSymlinks(raw); err == nil {
+		kb = r
+	}
 	s := NewServer(q, st, nil, br, Config{KBDir: kb, Model: "test-model", Upload: testUploadConf()}, nil)
 	return s, kb
+}
+
+// setupDerivedKB creates a derived KB directory at <kb>/derived/<slug> with a
+// manifest.json, making it discoverable by kbpath.Resolve.
+func setupDerivedKB(t *testing.T, kb, slug string) string {
+	t.Helper()
+	dir := filepath.Join(kb, "derived", slug)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// writeDerivedWiki writes a wiki article under <kb>/derived/<slug>/wiki/<rel>.
+func writeDerivedWiki(t *testing.T, kb, slug, rel, content string) {
+	t.Helper()
+	full := filepath.Join(kb, "derived", slug, "wiki", rel)
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func do(t *testing.T, s *Server, method, target string, body string) *httptest.ResponseRecorder {
@@ -658,6 +692,41 @@ func TestChatClientCancelPropagatesAndNoErrorEvent(t *testing.T) {
 	}
 	if strings.Contains(rec.Body.String(), `"type":"error"`) {
 		t.Errorf("should not emit error event on client cancel: %q", rec.Body.String())
+	}
+}
+
+// TestChatForwardsTheKBDir verifies that a valid ?kb= slug resolves to the
+// derived KB directory and is forwarded in the bridge request.
+func TestChatForwardsTheKBDir(t *testing.T) {
+	var gotReq bridge.ChatRequest
+	br := &fakeBridge{
+		events: []json.RawMessage{json.RawMessage(`{"type":"done"}`)},
+		onChat: func(req bridge.ChatRequest) { gotReq = req },
+	}
+	s, kb := newTestServer(t, &fakeQueue{}, &fakeStore{}, br)
+	setupDerivedKB(t, kb, "pricing")
+
+	rec := do(t, s, "POST", "/api/chat?kb=pricing", `{"query":"hello"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	wantKBDir := filepath.Join(kb, "derived", "pricing")
+	if gotReq.KBDir != wantKBDir {
+		t.Errorf("KBDir = %q, want %q", gotReq.KBDir, wantKBDir)
+	}
+}
+
+// TestChatRejectsAnUnknownKB verifies that an unknown ?kb= slug returns 400
+// before any SSE headers are written.
+func TestChatRejectsAnUnknownKB(t *testing.T) {
+	s, _ := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	rec := do(t, s, "POST", "/api/chat?kb=nope", `{"query":"hello"}`)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400 (before SSE headers); body=%s", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Content-Type") == "text/event-stream" {
+		t.Error("Content-Type is text/event-stream — SSE headers written before kb validation")
 	}
 }
 

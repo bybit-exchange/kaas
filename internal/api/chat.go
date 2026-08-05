@@ -45,6 +45,14 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve the KB directory from ?kb=<slug> before any side effects so that
+	// an invalid slug can still return HTTP 400 (once SSE headers are written,
+	// errors can only be sent as SSE events).
+	kbDir, ok := s.resolveKB(w, r)
+	if !ok {
+		return
+	}
+
 	now := time.Now().UnixMilli()
 
 	// If session_id is provided, validate the session exists and persist the
@@ -68,8 +76,8 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	flusher, streamable := w.(http.Flusher)
+	if !streamable {
 		writeErr(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
@@ -84,7 +92,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	bridgeReq := bridge.ChatRequest{
 		Query:          req.Query,
-		KBDir:          s.cfg.KBDir,
+		KBDir:          kbDir,
 		Messages:       req.Messages,
 		Model:          s.cfg.Model,
 		Temperature:    req.Temperature,
