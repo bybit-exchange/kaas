@@ -75,12 +75,24 @@ CONTRIBUTING.md        project   -> process   -> guide
 SECURITY.md            project   -> project   -> reference
 ```
 
-Consequence for operators: changing a KB's category set is a migration, not a
-configuration change, because roughly a third of articles change directory and
-`wiki/<type>/<name>.md` is an article's identity. Choose the set when the KB is
-created and freeze it. The set is already a parameter (`categories`, threaded
-through `compile_kb` and accepted per daemon request); it is simply not exposed
-on `kb-ai distill`, so the default always applies there.
+Consequence for operators, stated carefully because it is easy to overstate.
+The 62% figure comes from classifying against an *empty* context, i.e. a KB built
+from scratch. On a KB that already holds articles, classification prefers merging
+into them: in the context arm below, all 16 documents merged into existing
+articles rather than creating new ones at every menu size. Existing articles
+therefore keep their paths, and a category-set change affects only articles
+created after it.
+
+So changing the set on a populated KB is not a mass migration. What it does cost
+is a mixed taxonomy over time — older articles filed under the old set, newer
+ones under the new — plus a one-time re-classification, because the set feeds
+`categories_hash` and so invalidates the classify cache. A KB compiled from
+scratch after the change does get the full re-partition.
+
+Choosing the set at KB creation and freezing it is still the right default. The
+set is already a parameter (`categories`, threaded through `compile_kb` and
+accepted per daemon request); it is simply not exposed on `kb-ai distill`, so the
+default always applies there.
 
 ## Result 4: category definitions help, modestly
 
@@ -104,9 +116,30 @@ backlog, spec, notes, README. Deciding whether 50% is wrong needs a
 human-labelled gold set, which does not exist yet. That is the missing
 instrument, and the honest prerequisite for further prompt tuning.
 
-## Recommendation
+## Recommendation, and what was implemented
 
 Six categories: `concept`, `decision`, `project`, `reference`, `guide`, `person`.
+
+**Implemented.** `DEFAULT_CATEGORIES` and `CATEGORY_DEFINITIONS` now live in
+`core/classify.py`, and the three other copies of the default list
+(`_phase_classify.py`, `_orchestrator.py`, `_entry.py`) reference the shared
+constant instead of repeating it. Definitions render into the prompt through a
+`{category_definitions}` placeholder, built from whichever active categories have
+a known definition — so a caller passing a custom `categories` list gets no
+definitions rather than definitions for the wrong words.
+
+Verified against the shipped `classify_article` (not the hand-built prompt used
+for the measurements above), 16 documents, default menu, no override:
+
+```
+assigned: project 8, concept 4, guide 2, reference 2
+off-menu: none
+top bucket: 50%   (was 81% on the original four, 62% on six bare names)
+```
+
+Timing note for anyone reading this later: this landed while the project was at
+`v0.1.0`, which is the cheapest moment for it. The same change after 1.0 would
+carry the mixed-taxonomy cost described above across many more knowledge bases.
 
 The count matters less than the membership. The default menu's real problem is
 which four it holds:
@@ -124,14 +157,16 @@ regardless: `core/people.py:update_people_stubs` generates people articles from
 config, a feature a docs-only corpus never exercises. Keep `decision` for
 corpora that carry ADRs or meeting notes.
 
-Priority order for acting on this:
+What remains, in priority order:
 
-1. Deterministic ordering in the classify phase. This is the demonstrated defect
-   and the only one that changes output correctness run to run.
-2. Definitions in `classify.md`, and a narrower definition of `project` so it
-   stops working as the default bucket.
-3. Category set as per-KB configuration, frozen at KB creation, and exposed on
-   `kb-ai distill`.
+1. **Deterministic ordering in the classify phase.** Still open, and still the
+   most valuable item: it is the demonstrated defect, and the only one that
+   changes output correctness run to run.
+2. **Category set as per-KB configuration**, frozen at KB creation and exposed on
+   `kb-ai distill`. Today the parameter exists but `distill` never passes it.
+3. **The classify cache key should include the prompt text.** Changing the
+   default category set invalidated the cache this time, via `categories_hash`,
+   so the new definitions do take effect. A future prompt-only edit would not.
 
 ## Caveats
 

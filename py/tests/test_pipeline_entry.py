@@ -143,7 +143,7 @@ def test_pipeline_input_defaults_the_configuration(
     ctx = orchestrator["calls"][0]["pipeline_ctx"]
     assert ctx.model == "claude-sonnet-4-6"
     assert ctx.classify_model == "claude-sonnet-4-6"
-    assert ctx.categories == ["concept", "project", "decision", "person"]
+    assert ctx.categories == ["concept", "decision", "project", "reference", "guide", "person"]
     assert ctx.workers == 16
     assert str(ctx.store.base_dir) == str(KBStore(kb_dir).base_dir)
 

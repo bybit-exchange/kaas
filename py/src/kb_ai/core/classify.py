@@ -13,6 +13,38 @@ from kb_ai.storage.store import ArticleMeta
 
 _SAFETY_MARGIN = 500
 
+# The default article taxonomy. Measured over this repository's own docs
+# (docs/classify-taxonomy-measurements.md): `person` was chosen 0 times in 240
+# classifications and `decision` 0-2 times, while `reference` and `guide` -- both
+# absent from the original four -- took the right documents (policy files to
+# reference, how-to files to guide). Usage saturates at five categories, so six
+# leaves one slot of headroom. `person` stays because core/people.py generates
+# people articles from config, a path a docs-only corpus never exercises.
+DEFAULT_CATEGORIES = ["concept", "decision", "project", "reference", "guide", "person"]
+
+# One line per category, injected into the classify prompt. Without these the
+# model infers what each bare word means, and `project` becomes the default
+# bucket -- it took 81% of a docs corpus on the old four-item menu. Keyed by name
+# so a caller passing a custom `categories` list gets no definitions rather than
+# wrong ones.
+CATEGORY_DEFINITIONS = {
+    "concept": "a durable idea, mechanism, or how-something-works explanation that stays true over time",
+    "decision": "a choice that was made, with its rationale, the alternatives considered, and its consequences",
+    "project": "a specific named initiative with a lifecycle -- status, milestones, or a backlog of work items",
+    "reference": "canonical rules, policies, specifications or lookup material, consulted rather than read through",
+    "guide": "step-by-step instructions for accomplishing a task",
+    "person": "a named individual, their role, and their responsibilities",
+}
+
+
+def category_definitions_block(categories: list[str]) -> str:
+    """Render definitions for whichever active categories have one."""
+    known = [(c, CATEGORY_DEFINITIONS[c]) for c in categories if c in CATEGORY_DEFINITIONS]
+    if not known:
+        return ""
+    lines = "\n".join(f"- {name}: {desc}" for name, desc in known)
+    return f"\nCategory definitions (choose the single best fit):\n{lines}\n"
+
 
 def _relevance_score(article: ArticleMeta, topics: list) -> float:
     """Score article by title word overlap with extraction topics."""
@@ -61,7 +93,7 @@ def classify_article(
     categories: list[str] | None = None,
 ) -> ClassificationResult:
     if not categories:
-        categories = ["concept", "project", "decision", "person"]
+        categories = list(DEFAULT_CATEGORIES)
     categories_str = ", ".join(categories)
 
     # Sort articles by relevance (descending) before building prompt
@@ -103,6 +135,7 @@ def classify_article(
     system_template = default_registry().get("classify").render(
         categories_str=categories_str,
         categories=categories,
+        category_definitions=category_definitions_block(categories),
     )
 
     skeleton_len = len(system_template.replace("{ARTICLES_PLACEHOLDER}", ""))

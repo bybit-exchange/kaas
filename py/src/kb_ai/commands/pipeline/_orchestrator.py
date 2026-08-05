@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Callable
 
 from kb_ai._context import get_context
 from kb_ai.commands.pipeline._phase_classify import run_classify_phase
+from kb_ai.core.classify import DEFAULT_CATEGORIES
 from kb_ai.commands.pipeline._phase_dedup import run_dedup_phase
 from kb_ai.commands.pipeline._phase_write import run_write_phase
 from kb_ai.llm import tracker
@@ -50,7 +51,7 @@ class PipelineContext:
     store: "KBStore"
     model: str = "claude-sonnet-4-6"
     classify_model: str = ""
-    categories: list[str] = field(default_factory=lambda: ["concept", "project", "decision", "person"])
+    categories: list[str] = field(default_factory=lambda: list(DEFAULT_CATEGORIES))
     workers: int = 16
     cancel_event: threading.Event | None = None
     emit: Callable[[dict], None] | None = None

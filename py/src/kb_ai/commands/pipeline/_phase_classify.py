@@ -19,7 +19,13 @@ from openai import APIError as LLMAPIError
 
 from kb_ai._context import cancellable, contextual_submit, get_context
 from kb_ai._types import ClassificationResult
-from kb_ai.core.classify import classify_article, classify_cache_key, dedup_create_new, hash_existing_articles
+from kb_ai.core.classify import (
+    DEFAULT_CATEGORIES,
+    classify_article,
+    classify_cache_key,
+    dedup_create_new,
+    hash_existing_articles,
+)
 from kb_ai.core.extract import ExtractionResult, parse_extraction_result
 from kb_ai.storage.store import ArticleMeta
 
@@ -172,7 +178,7 @@ def run_classify_phase(
     - errors: list of error dicts with content_hash, status, error, phase
     """
     if categories is None:
-        categories = ["concept", "project", "decision", "person"]
+        categories = list(DEFAULT_CATEGORIES)
 
     base_existing = store.existing_articles()
     cat_hash = hashlib.sha256(

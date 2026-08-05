@@ -26,7 +26,7 @@ from kb_ai.core.classify import classify_cache_key, hash_existing_articles
 from kb_ai.storage.store import KBStore
 
 CATS = ["concept"]
-DEFAULT_CATS = ["concept", "project", "decision", "person"]
+DEFAULT_CATS = ["concept", "decision", "project", "reference", "guide", "person"]
 
 
 # ── fixtures ────────────────────────────────────────────────────────

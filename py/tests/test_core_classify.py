@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.classify import (
+    CATEGORY_DEFINITIONS,
+    DEFAULT_CATEGORIES,
+    category_definitions_block,
     classify_article,
     classify_cache_key,
     dedup_create_new,
@@ -10,6 +13,7 @@ from kb_ai.core.classify import (
     _title_words,
 )
 from kb_ai.core.extract import ExtractionResult
+from kb_ai.prompts import default_registry
 from kb_ai.storage.store import ArticleMeta
 
 
@@ -23,6 +27,51 @@ def test_title_words():
     words = _title_words("Hello World-Test")
     assert "hello" in words
     assert "worldtest" in words
+
+
+def test_default_categories_hold_the_measured_six():
+    """The default menu is the six measured in docs/classify-taxonomy-measurements.md.
+
+    `reference` and `guide` were absent from the original four despite taking the
+    right documents; `person` is retained for core/people.py even though a
+    docs-only corpus never selects it.
+    """
+    assert DEFAULT_CATEGORIES == [
+        "concept", "decision", "project", "reference", "guide", "person",
+    ]
+    # categories[0] is substituted into the prompt's example path, so the first
+    # entry has to be a real category name.
+    assert DEFAULT_CATEGORIES[0] in CATEGORY_DEFINITIONS
+
+
+def test_every_default_category_has_a_definition():
+    """A default category without a definition would leave the model guessing."""
+    missing = [c for c in DEFAULT_CATEGORIES if c not in CATEGORY_DEFINITIONS]
+    assert missing == []
+
+
+def test_definitions_block_covers_only_known_categories():
+    """A custom menu gets no definitions rather than wrong ones."""
+    block = category_definitions_block(["concept", "sprint", "okr"])
+    assert "concept:" in block
+    assert "sprint" not in block and "okr" not in block
+
+
+def test_definitions_block_is_empty_for_a_wholly_custom_menu():
+    """Nothing is injected when no active category has a known definition."""
+    assert category_definitions_block(["sprint", "okr"]) == ""
+
+
+def test_classify_prompt_renders_the_definitions():
+    """The rendered prompt carries the definitions and keeps its placeholder."""
+    rendered = default_registry().get("classify").render(
+        categories_str=", ".join(DEFAULT_CATEGORIES),
+        categories=DEFAULT_CATEGORIES,
+        category_definitions=category_definitions_block(DEFAULT_CATEGORIES),
+    )
+    assert "Category definitions" in rendered
+    assert CATEGORY_DEFINITIONS["project"] in rendered
+    assert "{ARTICLES_PLACEHOLDER}" in rendered
 
 
 def test_dedup_create_new_no_overlap():
