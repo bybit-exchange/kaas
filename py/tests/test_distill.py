@@ -1,12 +1,43 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 
 from kb_ai.commands.compile import compile_kb
 from kb_ai.storage.store import KBStore
-from kb_ai.distill import ingest_paths, IngestReport
+from kb_ai.distill import ingest_paths, IngestReport, run_distill
+
+
+def _run_distill(monkeypatch, argv):
+    out: list[str] = []
+    monkeypatch.setattr("builtins.print", lambda *a, **kw: out.append(str(a[0])) if a else None)
+    run_distill(argv)
+    return json.loads(out[-1])
+
+
+def test_distill_reports_a_path_that_does_not_exist(monkeypatch, tmp_path):
+    """A mistyped or wrongly-relative path must fail loudly, not be dropped.
+
+    ingest_paths() walks each path and yields nothing for one that is absent, so
+    a run naming ten paths of which nine are absent used to report ok=true for
+    the one that resolved -- and silently distilled the wrong corpus.
+    """
+    real = tmp_path / "kept.md"
+    real.write_text("real content")
+
+    payload = _run_distill(monkeypatch, [
+        str(real), str(tmp_path / "gone.md"), str(tmp_path / "also-gone"),
+        "--kb", str(tmp_path / "kb"),
+    ])
+
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "PATH_NOT_FOUND"
+    assert "gone.md" in str(payload["error"]["paths"])
+    assert "also-gone" in str(payload["error"]["paths"])
+    # Nothing was ingested: the run stopped before touching the KB.
+    assert not (tmp_path / "kb" / "raw").exists()
 
 
 def test_compile_kb_empty_kb_returns_nothing_to_compile(tmp_path: Path):

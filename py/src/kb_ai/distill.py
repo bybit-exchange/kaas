@@ -77,6 +77,19 @@ def run_distill(argv: list[str]) -> None:
     parser.add_argument("--kb", default="./.kaas", help="knowledge-base directory (default: ./.kaas)")
     args = parser.parse_args(argv)
 
+    # A path that does not exist yields no files rather than an error, so without
+    # this check a run whose paths were mostly mistyped -- or relative to the
+    # wrong directory, which `uv --directory py` makes easy -- reports ok=true
+    # for whatever did resolve and quietly distills the wrong corpus.
+    missing = [p for p in args.paths if not Path(p).expanduser().exists()]
+    if missing:
+        respond(False, error={
+            "code": "PATH_NOT_FOUND",
+            "message": f"{len(missing)} of {len(args.paths)} paths do not exist",
+            "paths": missing,
+        })
+        return
+
     report = ingest_paths(args.paths, args.kb)
     if not report.ingested:
         respond(False, error={
