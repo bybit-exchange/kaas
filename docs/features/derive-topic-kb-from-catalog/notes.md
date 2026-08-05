@@ -10,6 +10,9 @@ grep -rn 'filepath.Join(.*"raw"' internal/
 grep -rn '"wiki"' internal/api/wiki.go
 ```
 
+The output of both greps, and what it proves, is under "Raw writes" and
+"Wiki walker" below.
+
 ---
 
 ## Smoke run (spec I3)
@@ -121,19 +124,28 @@ internal/api/tasks.go:158:          rawDir  := filepath.Join(s.cfg.KBDir, "raw")
 
 None of these reach `<kb>/derived/`.
 
-### Wiki walker — rooted at `filepath.Join(s.cfg.KBDir, "wiki")`
+### Wiki walker — rooted at `filepath.Join(kbDir, "wiki")`
+
+As of Task 17 both walk roots take the KB directory from `resolveKB`, not from
+the config:
 
 ```
-internal/api/wiki.go:168:  wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
-internal/api/wiki.go:271:  wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
+internal/api/wiki.go:222:  wikiDir := filepath.Join(kbDir, "wiki")
+internal/api/wiki.go:319:  wikiDir := filepath.Join(kbDir, "wiki")
 ```
 
-Both walk roots are `<kb>/wiki`, not `<kb>`, so a derived KB at
-`<kb>/derived/<slug>/wiki/` is unreachable. The same isolation holds for the
-Python side: `KBStore._iter_raw_paths` globs `self.raw_dir` (`<base>/raw/`), and
-`update_markdown_index` globs `store.wiki_dir` (`<base>/wiki/`) — both are locked
-to the KB they are given. The regression tests in
-`py/tests/test_derive_nesting.py` prove this for the Python layer.
+This section originally read that a derived KB at `<kb>/derived/<slug>/wiki/` is
+"unreachable". That is no longer true, and putting it that way confused what C6
+actually claims. After Task 17 a derived KB is deliberately reachable, but only
+through an explicit `?kb=<slug>`. What C6 needs is narrower and still holds: a
+request that does not carry `?kb=` walks `<kb>/wiki`, never `<kb>`, so a nested
+derived KB stays invisible to the source KB's own tree.
+
+The same isolation holds for the Python side: `KBStore._iter_raw_paths` globs
+`self.raw_dir` (`<base>/raw/`), and `update_markdown_index` globs
+`store.wiki_dir` (`<base>/wiki/`) — both are locked to the KB they are given.
+The regression tests in `py/tests/test_derive_nesting.py` prove this for the
+Python layer.
 
 ## Stage 2 verification
 
@@ -212,9 +224,113 @@ status stays terminal across repeated polls, matching the dialog's stop-polling
 behavior; and the failed run left no `derived/` directory behind (only the
 pre-existing `retrieval-and-the-chat-answer-path`), so spec B5 holds over HTTP
 too. Re-posting the same topic after the failure returned a fresh `job_id` rather
-than a duplicate error, so a failed attempt does not burn its slug.
+than a duplicate error.
+
+**Qualification added after code review:** that last observation held only
+because this particular run failed at the *topic filter*, before `create()`. A
+failure after directory creation leaves a `manifest.json` behind, and the
+original code then refused the slug forever — `kbpath.Resolve` succeeded, so
+every retry got 409 and the only escape was `rm -rf` or the CLI's `--force`. The
+post-`create()` window was untested on every surface. It is now closed: an
+uncompiled derived KB is replaceable (the runner sets `Force` when the target
+exists with `compiled: false`) and is excluded from `GET /api/derived`, so it can
+no longer be selected into an empty corpus either.
 
 **Not verified end to end:** a successful HTTP derive, and therefore the cost
 figure `GET /api/derive/{id}` reports on success. That needs a working LLM
 gateway; the success payload is covered by tests (`internal/api/derive_test.go`,
 `internal/derive/runner_test.go`, `DeriveDialog.test.tsx`) but not by a live run.
+
+## Known gaps at merge
+
+Each of these was raised in the end-of-branch code review and accepted rather
+than fixed.
+
+### 1. The feature's own success criterion is unmeasured
+
+`tech-design.md` calls the off-topic move ratio "the number that says whether
+this design works", and the Stage 1 checkpoint said to report it before starting
+Stage 2. **That number does not exist** — it is 0/0 (see "Reading of the move
+ratio" above). No paid gateway was available; the local models corrupted the
+compile output, so the derived catalog was empty and the PRECISION pass was a
+no-op. Stages 2 and 3 were built on top of that unmeasured core.
+
+Nothing is known to be wrong with the code, and the plumbing either side of the
+LLM call is live-proven. What is missing is evidence that the topic filter
+actually separates on-topic from off-topic content at a useful rate. No cost
+figure has been checked against a real bill either: every USD number in this
+document is what the observed token counts would have cost at
+`claude-sonnet-4-6` pricing. Actual spend to date: USD 0.00.
+
+Outstanding verification work, all blocked on gateway access:
+
+- Spec I3 — one real derive producing a move ratio and a real cost figure.
+- Task 10 Step 3 — the declined-volume-gate path (F5) live.
+- Task 12 Step 7 — a grounded MCP answer from a derived KB.
+- Task 20 Step 7 — a successful derive over HTTP.
+
+### 2. A long derive cannot be cancelled
+
+`internal/bridge/daemon_protocol.go`'s `call` returns on `ctx.Done()` without
+sending a `cancel` request — unlike `stream`, which does — and the Python daemon
+only registers cancel events for `STREAMING_COMMANDS` (`chat`,
+`pipeline-stream`). `derive` is neither, so there is nothing to cancel even if
+Go asked.
+
+Consequence: on the runner's 2-hour ceiling, or on a SIGTERM (the bridge call
+context deliberately derives from the run context, so shutdown aborts a paid
+derive rather than blocking), Go marks the job `failed` while Python keeps
+deriving — continuing to spend LLM budget invisibly and holding one of the
+daemon's 8 worker slots until it finishes on its own.
+
+The wedged-slug half of this trap is fixed (see the qualification under Task 20).
+What remains is the wasted spend on an abandoned run. Closing it properly means
+registering a cancel event for non-streaming commands and checking it between
+derive phases, on both sides of the protocol — deliberately out of scope for this
+branch.
+
+### 3. Single-instance assumption
+
+`RecoverRunningDerivedJobs` fails every row with `status='running'` at startup,
+with no owner id and no lease, unlike the `tasks` table in the same package. Two
+`kaas` processes sharing one SQLite file would therefore fight: the second's
+startup recovery marks the first's in-flight derive failed, and the claim hands
+the slug out again. Single-instance is an assumption, now stated in the doc
+comments on `RecoverRunningDerivedJobs` and `Runner`, not an enforced invariant.
+
+## Errata — where the design docs no longer match the code
+
+`spec.md` and `tech-design.md` are historical records and have been left as
+written. Where the shipped behaviour differs, the code is right and the doc is
+stale:
+
+- **`spec.md` H5** says the UI surfaces progress "through the existing task
+  status mechanism". It uses a dedicated `derived_jobs` table and
+  `GET /api/derive/{id}` polling instead — which is exactly what
+  `tech-design.md` later decided (Option A). The spec is the stale document.
+- **`spec.md` F5** says `--force` "re-runs cheaply". There is no resume path:
+  `--force` deletes `derived/<slug>/` and starts over, so the topic filter runs
+  again at real cost and documents are re-resolved and re-copied. Only the source
+  KB's extract cache is reused. The CLI string that repeated this claim has been
+  corrected.
+- **`tech-design.md`** describes the Go slug check as lexical, with symlink
+  resolution only on the Python side. `kbpath.Resolve` does both: `filepath.Abs`,
+  `filepath.EvalSymlinks`, then a boundary-aware containment check. The two
+  layers now agree, which is what made the Python read path's weaker
+  `is_relative_to` check (fixed in review) visible as a divergence.
+- **`tech-design.md`** promises a fixed reason vocabulary for machine
+  readability. `_offtopic.prune` adds `path_escapes_derived_dir`,
+  `dest_escapes_derived_dir` and `dest_already_exists`, so the `warnings`
+  vocabulary is open rather than closed.
+- **`tech-design.md`'s skip-reason table** lacks `not_a_raw_document`, added in
+  review. A `sources:` entry that resolves inside the KB but outside `raw/` is
+  now skipped rather than copied: `sources: wiki/pricing.md` would otherwise
+  inject an article the derived compile never wrote, and
+  `sources: .compile-state.json` would hand the derived KB the source KB's
+  compile state and leave it silently empty. `sources:` is LLM-written
+  frontmatter, so it is the one input in this pipeline that must be treated as
+  hostile.
+- **`spec.md` E2** lists fewer manifest fields than are written. The manifest
+  also carries `skipped_documents`, `compiled`, `cost` and `warnings` — a
+  superset, and `compiled` is now load-bearing for the Go listing and retry
+  paths.

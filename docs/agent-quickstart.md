@@ -188,6 +188,12 @@ If the user set `KAAS_MCP_TOKEN`, the client has to send
 For Codex / openclaw, register the same command or URL through their own MCP
 configuration.
 
-Either way you get one tool: `ask(query, paths?, model?)`, which returns a cited
-Markdown answer grounded in the wiki. Pass the citations back to the user rather
-than paraphrasing them away — they point at real article paths the user can open.
+Either way you get one tool: `ask(query, paths?, model?, kb?)`, which returns a
+cited Markdown answer grounded in the wiki. Pass the citations back to the user
+rather than paraphrasing them away — they point at real article paths the user
+can open.
+
+`kb` selects a derived, topic-scoped knowledge base by slug (see
+`kb-ai derive`). Omit it to search the whole wiki. An unknown slug is an error,
+not a silent fall back to the full wiki, so you never get an answer drawn from a
+corpus you did not ask for.
