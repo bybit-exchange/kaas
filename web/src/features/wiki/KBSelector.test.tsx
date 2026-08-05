@@ -71,24 +71,33 @@ describe('KBSelector', () => {
     expect(options.map((o) => o.textContent)).toEqual(['All articles'])
   })
 
-  it('falls back to the root when the list cannot be loaded', async () => {
+  it('still renders when the list cannot be loaded', async () => {
     vi.mocked(derivedApi.listDerived).mockRejectedValue(new Error('offline'))
     render(<KBSelector />)
     await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument())
-    expect(useKB.getState().kb).toBeNull()
   })
 
-  it('resets a selection whose knowledge base no longer exists', async () => {
+  it('keeps the options it already has when a reload fails', async () => {
+    const { rerender } = render(<KBSelector reloadKey={0} />)
+    await waitFor(() => expect(derivedApi.listDerived).toHaveBeenCalled())
+
+    vi.mocked(derivedApi.listDerived).mockRejectedValue(new Error('offline'))
+    rerender(<KBSelector reloadKey={1} />)
+    await waitFor(() => expect(derivedApi.listDerived).toHaveBeenCalledTimes(2))
+
+    await userEvent.click(screen.getByRole('combobox'))
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual([
+      'All articles',
+      'pricing and fees 7 articles',
+      'compliance 3 articles',
+    ])
+  })
+
+  it('leaves a selection missing from the list to useSyncKB', async () => {
     useKB.setState({ kb: 'gone' })
     render(<KBSelector />)
-    await waitFor(() => expect(useKB.getState().kb).toBeNull())
-  })
-
-  it('keeps a selection that is still in the list', async () => {
-    useKB.setState({ kb: 'pricing' })
-    render(<KBSelector />)
     await waitFor(() => expect(derivedApi.listDerived).toHaveBeenCalled())
-    expect(useKB.getState().kb).toBe('pricing')
+    expect(useKB.getState().kb).toBe('gone')
   })
 
   it('loads the list once, not again on every switch', async () => {

@@ -64,10 +64,18 @@ describe('DeriveDialog', () => {
     expect(derivedApi.startDerive).not.toHaveBeenCalled()
   })
 
-  it('shows the stage while the job runs', async () => {
+  it('wires the trigger to the dialog for assistive tech', () => {
+    render(<DeriveDialog />)
+    const trigger = screen.getByRole('button', { name: /derive/i })
+    expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('shows the stage while the job runs, in a live region', async () => {
     vi.mocked(derivedApi.getDeriveJob).mockResolvedValue(job({ stage: 'compile' }))
     await start()
     expect(await screen.findByText('Stage: compile')).toBeInTheDocument()
+    expect(await screen.findByRole('status')).toHaveTextContent('Stage: compile')
   })
 
   it('says queued while the job has no stage yet', async () => {
@@ -102,6 +110,23 @@ describe('DeriveDialog', () => {
       screen.getByText('6 documents compiled, 2 articles moved off-topic'),
     ).toBeInTheDocument()
     expect(screen.getByText('Cost: 1.2345 USD')).toBeInTheDocument()
+    // A live region, so an operator who tabbed away still hears it finish.
+    expect(screen.getByRole('status')).toHaveTextContent('Derived knowledge base ready')
+  })
+
+  it('forgets a finished run when the dialog is reopened', async () => {
+    vi.mocked(derivedApi.getDeriveJob).mockResolvedValue(
+      job({ status: 'succeeded', stage: 'done', result: RESULT }),
+    )
+    await start()
+    expect(await screen.findByText('Derived knowledge base ready')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await userEvent.click(screen.getByRole('button', { name: /derive/i }))
+
+    expect(await screen.findByLabelText('Topic')).toBeInTheDocument()
+    expect(screen.queryByText('Derived knowledge base ready')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cost: 1.2345 USD')).not.toBeInTheDocument()
   })
 
   it('announces the finished knowledge base to its parent', async () => {
@@ -125,6 +150,7 @@ describe('DeriveDialog', () => {
     )
     await start()
     expect(await screen.findByText('no documents resolved')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('no documents resolved')
 
     const polls = vi.mocked(derivedApi.getDeriveJob).mock.calls.length
     await act(async () => {
@@ -151,13 +177,29 @@ describe('DeriveDialog', () => {
     vi.mocked(derivedApi.startDerive).mockRejectedValue(new Error('already exists'))
     await start()
     expect(await screen.findByText('already exists')).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('already exists')
     expect(derivedApi.getDeriveJob).not.toHaveBeenCalled()
   })
 
-  it('surfaces a poll that fails', async () => {
+  it('surfaces a poll that fails and stays usable afterwards', async () => {
     vi.mocked(derivedApi.getDeriveJob).mockRejectedValue(new Error('gateway down'))
     await start()
     expect(await screen.findByText('gateway down')).toBeInTheDocument()
+
+    // A broken poll must not strand the form: the run it was following is gone
+    // as far as this dialog is concerned, so both controls come back.
+    const startButton = screen.getByRole('button', { name: /^start$/i })
+    await waitFor(() => expect(startButton).not.toBeDisabled())
+    expect(await screen.findByLabelText('Topic')).not.toBeDisabled()
+
+    vi.mocked(derivedApi.startDerive).mockResolvedValue({ job_id: 'j2', slug: 'pricing' })
+    vi.mocked(derivedApi.getDeriveJob).mockResolvedValue(
+      job({ id: 'j2', status: 'succeeded', stage: 'done', result: RESULT }),
+    )
+    await userEvent.click(startButton)
+
+    expect(await screen.findByText('Derived knowledge base ready')).toBeInTheDocument()
+    expect(screen.queryByText('gateway down')).not.toBeInTheDocument()
   })
 
   it('lets a second derive run after the first finished', async () => {

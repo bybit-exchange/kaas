@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { useT } from '@/i18n'
 import { getDeriveJob, startDerive, type DeriveJob } from '@/api/derived'
@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 
@@ -28,6 +29,7 @@ interface DeriveDialogProps {
  */
 export function DeriveDialog({ onDerived }: DeriveDialogProps) {
   const t = useT()
+  const topicId = useId()
   const [open, setOpen] = useState(false)
   const [topic, setTopic] = useState('')
   const [jobId, setJobId] = useState<string | null>(null)
@@ -54,8 +56,16 @@ export function DeriveDialog({ onDerived }: DeriveDialogProps) {
         }
       } catch (err) {
         // Stop following the job rather than retrying: a broken poll leaves the
-        // run going server-side, and the operator can reopen the dialog.
-        if (!cancelled) setError((err as Error).message)
+        // run going server-side. Dropping the id is what makes the form usable
+        // again — keeping it would hold `running` true forever, since this
+        // effect only re-runs when the id or terminality changes. The last
+        // status goes too: once we have stopped following the job, showing its
+        // stage next to the error would claim progress we can no longer see.
+        if (!cancelled) {
+          setError((err as Error).message)
+          setJobId(null)
+          setJob(null)
+        }
       }
     }
     void poll()
@@ -91,73 +101,89 @@ export function DeriveDialog({ onDerived }: DeriveDialogProps) {
     }
   }
 
+  function onOpenChange(next: boolean) {
+    setOpen(next)
+    // Reopening should offer a fresh form rather than the previous run's
+    // numbers. Only once nothing is in flight: closing mid-run keeps following
+    // the job, so its progress must survive. The id goes with the job — leaving
+    // it behind would make the effect see a non-terminal job and resume polling
+    // a run that is already over.
+    if (!next && !running) {
+      setJobId(null)
+      setJob(null)
+      setError(null)
+    }
+  }
+
   return (
-    <>
-      <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={() => setOpen(true)}>
-        <Sparkles className="h-3.5 w-3.5" />
-        {t('derive.action')}
-      </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" />
+          {t('derive.action')}
+        </Button>
+      </DialogTrigger>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{t('derive.dialogTitle')}</DialogTitle>
-            <DialogDescription>{t('derive.dialogDesc')}</DialogDescription>
-          </DialogHeader>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t('derive.dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('derive.dialogDesc')}</DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-3">
-            <label className="block text-sm font-medium" htmlFor="derive-topic">
-              {t('derive.topicLabel')}
-            </label>
-            <Input
-              id="derive-topic"
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              placeholder={t('derive.topicPlaceholder')}
-              disabled={running}
-            />
-            <Button
-              onClick={() => void onStart()}
-              disabled={starting || running || !topic.trim()}
-            >
-              {(starting || running) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t('derive.start')}
-            </Button>
+        <div className="space-y-3">
+          <label className="block text-sm font-medium" htmlFor={topicId}>
+            {t('derive.topicLabel')}
+          </label>
+          <Input
+            id={topicId}
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            placeholder={t('derive.topicPlaceholder')}
+            disabled={running}
+          />
+          <Button
+            onClick={() => void onStart()}
+            disabled={starting || running || !topic.trim()}
+          >
+            {(starting || running) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t('derive.start')}
+          </Button>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+          {/* These arrive long after the click, so they are live regions: an
+              operator who tabbed away is otherwise never told. */}
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
-            {job && !terminal && (
+          {job && !terminal && (
+            <p role="status" className="text-sm text-muted-foreground">
+              {job.stage ? t('derive.stage', { stage: job.stage }) : t('derive.queued')}
+            </p>
+          )}
+
+          {job?.status === 'failed' && (
+            <div role="alert" className="space-y-1">
+              <p className="text-sm font-medium">{t('derive.failed')}</p>
+              <p className="text-sm text-destructive">{job.error}</p>
+            </div>
+          )}
+
+          {job?.status === 'succeeded' && job.result && (
+            <div role="status" className="space-y-1">
+              <p className="text-sm font-medium">{t('derive.doneTitle')}</p>
               <p className="text-sm text-muted-foreground">
-                {job.stage ? t('derive.stage', { stage: job.stage }) : t('derive.queued')}
+                {t('derive.summary', {
+                  documents: job.result.documents,
+                  offtopic: job.result.offtopic,
+                })}
               </p>
-            )}
-
-            {job?.status === 'failed' && (
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{t('derive.failed')}</p>
-                <p className="text-sm text-destructive">{job.error}</p>
-              </div>
-            )}
-
-            {job?.status === 'succeeded' && job.result && (
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{t('derive.doneTitle')}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('derive.summary', {
-                    documents: job.result.documents,
-                    offtopic: job.result.offtopic,
-                  })}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {t('derive.cost', {
-                    cost: (job.result.cost?.total_cost_usd ?? 0).toFixed(4),
-                  })}
-                </p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+              <p className="text-sm text-muted-foreground">
+                {t('derive.cost', {
+                  cost: (job.result.cost?.total_cost_usd ?? 0).toFixed(4),
+                })}
+              </p>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

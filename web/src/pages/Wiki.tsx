@@ -105,8 +105,10 @@ export function Wiki() {
         <div className="px-3 pb-2">
           <DeriveDialog onDerived={() => setKBListVersion((v) => v + 1)} />
         </div>
-        {/* Header (3.5rem) + search row (3rem) + derive row (2.5rem). */}
-        <ScrollArea className="h-[calc(100%-3.5rem-3rem-2.5rem)]">
+        {/* Everything above: header (h-14 = 3.5rem) + separator (1px) + search
+            row (p-3 + h-9 input = 3.75rem) + derive row (h-8 button + pb-2 =
+            2.5rem). */}
+        <ScrollArea className="h-[calc(100%-3.5rem-1px-3.75rem-2.5rem)]">
           <nav className="p-3">
             {indexLoading ? (
               <div className="space-y-2 p-2">

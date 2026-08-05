@@ -23,9 +23,9 @@ interface KBSelectorProps {
  * Picks which knowledge base the wiki tree and chat read from: the root KB or
  * one of its derived, topic-scoped KBs.
  *
- * Loads its own list so the page does not have to thread it down. A failed load
- * leaves the current selection alone rather than dropping it: a transient blip
- * must not silently move the reader to a different corpus.
+ * Loads its own list so the page does not have to thread it down, and only
+ * renders it — dropping a selection whose knowledge base is gone belongs to
+ * useSyncKB, which runs on every route rather than only on this page.
  */
 export function KBSelector({ reloadKey = 0 }: KBSelectorProps) {
   const t = useT()
@@ -35,27 +35,20 @@ export function KBSelector({ reloadKey = 0 }: KBSelectorProps) {
 
   // Runs on mount and whenever reloadKey changes: the list changes when someone
   // derives a new KB, not when the reader switches between existing ones.
-  // Depending on `kb` would refetch on every switch, so the stale-selection
-  // check reads the store directly instead.
   useEffect(() => {
     let cancelled = false
     listDerived()
       .then(({ kbs }) => {
-        if (cancelled) return
-        setKBs(kbs)
-        // A persisted selection can outlive its knowledge base (deleted on
-        // disk). Silently reading the root corpus under a stale label would be
-        // worse than dropping the selection.
-        const selected = useKB.getState().kb
-        if (selected && !kbs.some((k) => k.slug === selected)) setKB(null)
+        if (!cancelled) setKBs(kbs)
       })
-      .catch(() => {
-        if (!cancelled) setKBs([])
-      })
+      // Keep the list we have. Blanking it would leave `value` matching no item,
+      // and Radix renders nothing at all for that — the trigger would go empty
+      // while the tree is still scoped to the derived KB.
+      .catch(() => {})
     return () => {
       cancelled = true
     }
-  }, [setKB, reloadKey])
+  }, [reloadKey])
 
   return (
     <Select

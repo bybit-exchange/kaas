@@ -1,11 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
+import { useKB } from '@/store/kb'
+import * as derivedApi from '@/api/derived'
 import { AppLayout } from './AppLayout'
 import { STRINGS } from '@/i18n/strings'
+
+vi.mock('@/api/derived')
 
 function renderLayout(initialEntries = ['/chat']) {
   return render(
@@ -21,6 +25,9 @@ beforeEach(() => {
   // Reset prefs store to defaults before each test
   usePrefs.setState({ theme: 'light', lang: 'en' })
   localStorage.clear()
+  useKB.setState({ kb: null })
+  vi.clearAllMocks()
+  vi.mocked(derivedApi.listDerived).mockResolvedValue({ kbs: [] })
 })
 
 describe('AppLayout nav links', () => {
@@ -38,6 +45,28 @@ describe('AppLayout nav links', () => {
     expect(screen.getByRole('link', { name: STRINGS.en['layout.submit'] })).toHaveAttribute('href', '/submit')
     expect(screen.getByRole('link', { name: STRINGS.en['layout.wiki'] })).toHaveAttribute('href', '/wiki')
     expect(screen.getByRole('link', { name: STRINGS.en['layout.tasks'] })).toHaveAttribute('href', '/tasks')
+  })
+})
+
+describe('AppLayout knowledge-base sync', () => {
+  it('drops a stale persisted selection on a route that never renders the selector', async () => {
+    useKB.setState({ kb: 'gone' })
+
+    renderLayout(['/chat'])
+
+    await waitFor(() => expect(useKB.getState().kb).toBeNull())
+  })
+
+  it('keeps a selection the backend still knows', async () => {
+    vi.mocked(derivedApi.listDerived).mockResolvedValue({
+      kbs: [{ slug: 'pricing', topic: 'pricing', created_at: '2026-08-04', article_count: 7 }],
+    })
+    useKB.setState({ kb: 'pricing' })
+
+    renderLayout(['/chat'])
+
+    await waitFor(() => expect(derivedApi.listDerived).toHaveBeenCalled())
+    expect(useKB.getState().kb).toBe('pricing')
   })
 })
 
