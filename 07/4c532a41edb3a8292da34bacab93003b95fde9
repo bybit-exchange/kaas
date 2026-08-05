@@ -1,0 +1,41 @@
+py/src/kb_ai/commands/pipeline/_orchestrator.py
+  18a7fbd61a480463 18,54
+py/tests/test_pipeline_classify_paths.py
+  18a7fbd61a480463 29
+py/src/kb_ai/core/classify.py
+  18a7fbd61a480463 16-47,96,138
+py/tests/test_smoke.py
+  18a7fbd61a480463 13,42
+py/src/kb_ai/prompts/defaults/classify.md
+  18a7fbd61a480463 21
+py/tests/test_pipeline_entry.py
+  18a7fbd61a480463 146
+py/tests/test_core_classify.py
+  18a7fbd61a480463 6-8,16,32-76
+py/src/kb_ai/commands/pipeline/_phase_classify.py
+  18a7fbd61a480463 22-28,181
+docs/classify-taxonomy-measurements.md
+  18a7fbd61a480463 78-95,119,123-143,160,162-169
+py/src/kb_ai/commands/pipeline/_entry.py
+  18a7fbd61a480463 19,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "074c532a41edb3a8292da34bacab93003b95fde9",
+  "prompts": {
+    "18a7fbd61a480463": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ecb62c9-bbf9-4da6-8782-a5a85f397b7d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1631,
+      "total_deletions": 22,
+      "accepted_lines": 177,
+      "overriden_lines": 0
+    }
+  }
+}
