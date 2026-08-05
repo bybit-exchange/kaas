@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 
@@ -196,24 +197,16 @@ func TestRecoverRunningDerivedJobs(t *testing.T) {
 	if got.Error == "" {
 		t.Error("recovered job carries no error message")
 	}
-}
-
-func TestListDerivedJobs(t *testing.T) {
-	s := newDerivedStore(t)
-	ctx := context.Background()
-	for i, id := range []string{"j1", "j2"} {
-		j := &store.DerivedJob{ID: id, Slug: id, Topic: "t", Status: store.DerivedStatusPending,
-			Stage: store.DerivedStageQueued, CreatedAt: int64(i + 1), UpdatedAt: int64(i + 1)}
-		if err := s.CreateDerivedJob(ctx, j); err != nil {
-			t.Fatal(err)
-		}
+	// The message is the only guidance the operator gets, and it must name an
+	// action they can actually take: the HTTP API has no force switch, so a
+	// message pointing at one sends them looking for a button that is not there.
+	// Retrying works because the interrupted derive left an uncompiled KB, which
+	// the API treats as replaceable.
+	if strings.Contains(got.Error, "force") {
+		t.Errorf("error = %q, want it not to point at a force option no HTTP or UI caller has", got.Error)
 	}
-	got, err := s.ListDerivedJobs(ctx, 10)
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(got) != 2 || got[0].ID != "j2" {
-		t.Errorf("list = %+v, want newest first", got)
+	if !strings.Contains(got.Error, "retry") {
+		t.Errorf("error = %q, want it to tell the operator to retry the derive", got.Error)
 	}
 }
 
@@ -267,13 +260,14 @@ func TestClaimDerivedJobConcurrentIsSingleFlight(t *testing.T) {
 				}
 				mu.Lock()
 				totalClaimed++
-				// Count how many jobs are currently running.
-				jobs, _ := s.ListDerivedJobs(ctx, 0)
-				running := 0
-				for _, jj := range jobs {
-					if jj.Status == store.DerivedStatusRunning {
-						running++
-					}
+				// Count how many jobs are currently running. Queried directly
+				// rather than through a store method: there is no list-jobs API,
+				// and the assertion is about rows, not about a public surface.
+				var running int
+				if err := s.db.QueryRowContext(ctx,
+					`SELECT COUNT(*) FROM derived_jobs WHERE status = ?`,
+					store.DerivedStatusRunning).Scan(&running); err != nil {
+					t.Errorf("count running jobs: %v", err)
 				}
 				if running > maxRunning {
 					maxRunning = running

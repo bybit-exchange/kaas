@@ -3,12 +3,14 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -53,6 +55,11 @@ var slugFillerRe = regexp.MustCompile(`[^a-z0-9]+`)
 
 const slugMaxLen = 40
 
+// topicMaxLen caps the topic in runes. The topic goes into the filter prompt for
+// every batch, so an unbounded one eats the prompt budget and fails the run after
+// a paid round trip; the 10 MiB body cap is no protection at this scale.
+const topicMaxLen = 500
+
 // slugFromTopic derives a slug from a topic string (spec C2).
 func slugFromTopic(topic string) string {
 	flat := slugFillerRe.ReplaceAllString(strings.ToLower(topic), "-")
@@ -67,7 +74,9 @@ func slugFromTopic(topic string) string {
 // immediately. The compile happens in the derive runner, so this never blocks —
 // and consequently has no volume gate, since there is nobody to prompt (H5).
 func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
-	if s.js == nil {
+	// Both conditions matter: the store records the job, the runner consumes it.
+	// Accepting a job with no runner behind it leaves the UI on "Queued" forever.
+	if s.js == nil || !s.cfg.DeriveEnabled {
 		writeErr(w, http.StatusNotImplemented, "derive is not available on this backend")
 		return
 	}
@@ -79,6 +88,12 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 	}
 	if strings.TrimSpace(req.Topic) == "" {
 		writeErr(w, http.StatusBadRequest, "topic is required")
+		return
+	}
+	if utf8.RuneCountInString(req.Topic) > topicMaxLen {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf(
+			"topic is too long: %d characters, maximum is %d",
+			utf8.RuneCountInString(req.Topic), topicMaxLen))
 		return
 	}
 
@@ -93,16 +108,31 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Refuse a slug whose directory already exists. The HTTP path has no --force:
-	// replacing a compiled KB from a web form, with no prompt, is not something
-	// to make easy.
-	if _, err := kbpath.Resolve(s.cfg.KBDir, slug); err == nil {
-		writeErr(w, http.StatusConflict,
-			"a derived knowledge base named "+slug+" already exists")
-		return
-	} else if !errors.Is(err, kbpath.ErrUnknownKB) {
-		writeErr(w, http.StatusBadRequest, err.Error())
-		return
+	// Refuse a slug whose directory already holds a finished KB. The HTTP path has
+	// no --force: replacing a compiled KB from a web form, with no prompt, is not
+	// something to make easy.
+	//
+	// An incomplete derive is a different matter. The manifest is written before
+	// compiling (spec E1), so a derive that died after creating the directory
+	// leaves one that Resolve accepts and compiled:false marks as unfinished.
+	// Refusing that would burn the slug permanently: there is no HTTP force and no
+	// delete route. Let the retry through — the runner passes force for exactly
+	// this case. A manifest we cannot parse is not evidence of an incomplete
+	// derive, so it stays a conflict rather than risking compiled articles.
+	//
+	// Resolve's error is not inspected: ValidSlug already passed, so ErrUnknownKB
+	// (no such KB) is the only outcome left, and it is the case that proceeds.
+	if dir, err := kbpath.Resolve(s.cfg.KBDir, slug); err == nil {
+		m, mErr := kbpath.ReadManifest(dir)
+		if mErr != nil {
+			s.logger.Warn("derive: cannot read the existing KB's manifest, treating it as complete",
+				"slug", slug, "err", mErr)
+		}
+		if m.Compiled || mErr != nil {
+			writeErr(w, http.StatusConflict,
+				"a derived knowledge base named "+slug+" already exists")
+			return
+		}
 	}
 
 	now := time.Now().UnixMilli()
@@ -154,15 +184,28 @@ func (s *Server) handleGetDeriveJob(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: job.UpdatedAt,
 	}
 	// The stored blob is the engine's own JSON; forward it as an object. A blob
-	// that is not valid JSON is dropped rather than breaking the response.
-	if job.Result != "" && json.Valid([]byte(job.Result)) {
-		resp.Result = json.RawMessage(job.Result)
+	// that is not valid JSON is dropped rather than breaking the response — but
+	// say so, or a truncated result is indistinguishable from a job that produced
+	// none.
+	if job.Result != "" {
+		if json.Valid([]byte(job.Result)) {
+			resp.Result = json.RawMessage(job.Result)
+		} else {
+			s.logger.Warn("derive: dropping a result blob that is not valid JSON",
+				"id", job.ID, "bytes", len(job.Result))
+		}
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
 
 // handleListDerived serves GET /api/derived, reading each derived KB's manifest.
 // Filesystem-only, so it works even without a job store.
+//
+// Only KBs whose manifest says compiled:true are listed. An uncompiled one has no
+// wiki/ behind it, so offering it in the KB selector only leads into an empty
+// corpus — and a CLI run whose volume gate was declined rests in exactly that
+// state by design (spec F5). kbpath.Resolve stays permissive on purpose, so a
+// direct ?kb= request for one still reads; see its doc comment.
 func (s *Server) handleListDerived(w http.ResponseWriter, r *http.Request) {
 	slugs, err := kbpath.ListSlugs(s.cfg.KBDir)
 	if err != nil {
@@ -172,14 +215,16 @@ func (s *Server) handleListDerived(w http.ResponseWriter, r *http.Request) {
 	out := make([]derivedKBSummary, 0, len(slugs))
 	for _, slug := range slugs {
 		dir := filepath.Join(s.cfg.KBDir, kbpath.DerivedDirName, slug)
-		var manifest struct {
-			Slug      string `json:"slug"`
-			Topic     string `json:"topic"`
-			CreatedAt string `json:"created_at"`
+		manifest, mErr := kbpath.ReadManifest(dir)
+		if mErr != nil {
+			// Distinguishable from a manifest that simply lacks fields: the KB is
+			// dropped from the listing, so the reason has to be visible somewhere.
+			s.logger.Warn("derived: skipping a KB whose manifest cannot be read",
+				"slug", slug, "err", mErr)
+			continue
 		}
-		raw, readErr := os.ReadFile(filepath.Join(dir, "manifest.json"))
-		if readErr == nil {
-			_ = json.Unmarshal(raw, &manifest)
+		if !manifest.Compiled {
+			continue
 		}
 		out = append(out, derivedKBSummary{
 			Slug:         slug,

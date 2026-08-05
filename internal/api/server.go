@@ -69,6 +69,12 @@ type Config struct {
 	// Deprecated: use MCPEnabled + native handler instead.
 	MCPURL string
 	Upload config.UploadConf
+	// DeriveEnabled reports that a derive runner is actually consuming the job
+	// queue. A store that records derive jobs is not enough: cmd/kaas disables the
+	// runner when the bridge cannot serve derives, and a job nobody claims sits at
+	// "pending" forever with the UI showing "Queued". POST /api/derive answers 501
+	// unless this is set.
+	DeriveEnabled bool
 	// Native MCP handler fields (preferred over MCPURL reverse proxy).
 	MCPEnabled    bool
 	MCPToken      string

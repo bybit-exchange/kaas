@@ -48,7 +48,7 @@ func (s *Server) handleChat(w http.ResponseWriter, r *http.Request) {
 	// Resolve the KB directory from ?kb=<slug> before any side effects so that
 	// an invalid slug can still return HTTP 400 (once SSE headers are written,
 	// errors can only be sent as SSE events).
-	kbDir, ok := s.resolveKB(w, r)
+	kbDir, _, ok := s.resolveKB(w, r)
 	if !ok {
 		return
 	}

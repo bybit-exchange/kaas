@@ -194,16 +194,17 @@ func sortTree(nodes []wikiTreeNode) {
 // path join: kbpath validates it lexically and requires the target to hold a
 // manifest. An unknown slug answers 400 rather than falling back to the root KB
 // (spec H3) — silently answering from the wrong corpus is the failure worth
-// avoiding. Returns (dir, true) on success, or writes the error and returns
-// ("", false).
-func (s *Server) resolveKB(w http.ResponseWriter, r *http.Request) (string, bool) {
+// avoiding. Returns (dir, slug, true) on success, or writes the error and returns
+// ("", "", false). The slug comes back with the directory so a caller that keys
+// per-KB state on it does not parse the query string a second time.
+func (s *Server) resolveKB(w http.ResponseWriter, r *http.Request) (string, string, bool) {
 	slug := r.URL.Query().Get("kb")
 	dir, err := kbpath.Resolve(s.cfg.KBDir, slug)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
-		return "", false
+		return "", "", false
 	}
-	return dir, true
+	return dir, slug, true
 }
 
 // handleListWiki serves GET /api/wiki: returns a tree structure of all *.md
@@ -214,11 +215,10 @@ func (s *Server) resolveKB(w http.ResponseWriter, r *http.Request) (string, bool
 //   - the wiki directory's modtime changes (immediate rebuild), or
 //   - 60 seconds have elapsed since the last build (TTL expiry).
 func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
-	kbDir, ok := s.resolveKB(w, r)
+	kbDir, slug, ok := s.resolveKB(w, r)
 	if !ok {
 		return
 	}
-	slug := r.URL.Query().Get("kb")
 	wikiDir := filepath.Join(kbDir, "wiki")
 
 	// Stat the directory to detect modtime changes.
@@ -312,7 +312,7 @@ func (s *Server) handleWikiFile(w http.ResponseWriter, r *http.Request) {
 	}
 	rel = filepath.Clean(rel)
 
-	kbDir, ok := s.resolveKB(w, r)
+	kbDir, _, ok := s.resolveKB(w, r)
 	if !ok {
 		return
 	}

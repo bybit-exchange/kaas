@@ -47,10 +47,6 @@ func (f *fakeDerivedJobStore) GetDerivedJob(_ context.Context, id string) (*stor
 	return nil, store.ErrNotFound
 }
 
-func (f *fakeDerivedJobStore) ListDerivedJobs(_ context.Context, _ int) ([]*store.DerivedJob, error) {
-	return f.jobs, nil
-}
-
 func (f *fakeDerivedJobStore) ClaimNextDerivedJob(_ context.Context, _ int64) (*store.DerivedJob, error) {
 	return nil, nil
 }
@@ -69,19 +65,47 @@ func (f *fakeDerivedJobStore) RecoverRunningDerivedJobs(_ context.Context, _ int
 
 // --- test helpers ---
 
-// writeDerivedManifest creates <kb>/derived/<slug>/manifest.json so that
-// kbpath.ListSlugs and kbpath.Resolve recognise the directory as a derived KB.
+// newDeriveTestServer builds a server whose derive runner is wired, which is what
+// POST /api/derive needs to answer anything but 501.
+func newDeriveTestServer(t *testing.T, st TaskStore) (*Server, string) {
+	t.Helper()
+	s, kb := newTestServer(t, &fakeQueue{}, st, &fakeBridge{})
+	s.cfg.DeriveEnabled = true
+	return s, kb
+}
+
+// writeDerivedManifest creates <kb>/derived/<slug>/manifest.json for a KB that
+// finished compiling, so that kbpath.ListSlugs and kbpath.Resolve recognise the
+// directory as a derived KB and the derive endpoints treat it as complete.
 func writeDerivedManifest(t *testing.T, kb, slug, topic, createdAt string) {
+	t.Helper()
+	writeManifest(t, kb, slug, map[string]any{
+		"slug":       slug,
+		"topic":      topic,
+		"created_at": createdAt,
+		"compiled":   true,
+	})
+}
+
+// writeUncompiledManifest creates the manifest a derive writes before compiling
+// (spec E1). A derive that dies after this point leaves exactly this state: a
+// directory kbpath.Resolve accepts, with no wiki/ behind it.
+func writeUncompiledManifest(t *testing.T, kb, slug, topic string) {
+	t.Helper()
+	writeManifest(t, kb, slug, map[string]any{
+		"slug":     slug,
+		"topic":    topic,
+		"compiled": false,
+	})
+}
+
+func writeManifest(t *testing.T, kb, slug string, payload map[string]any) {
 	t.Helper()
 	dir := filepath.Join(kb, "derived", slug)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := json.Marshal(map[string]string{
-		"slug":       slug,
-		"topic":      topic,
-		"created_at": createdAt,
-	})
+	raw, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +131,7 @@ func writeDerivedArticle(t *testing.T, kb, slug, rel string) {
 
 func TestPostDeriveEnqueuesAJob(t *testing.T) {
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
 
@@ -141,7 +165,7 @@ func TestPostDeriveEnqueuesAJob(t *testing.T) {
 
 func TestPostDeriveUsesAnExplicitSlug(t *testing.T) {
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing and fees","slug":"pf"}`)
 
@@ -168,7 +192,7 @@ func TestPostDeriveDerivesTheSlugFromTheTopic(t *testing.T) {
 	// runs of non-alphanumeric characters collapsed to a single dash, leading
 	// and trailing dashes trimmed, capped at 40 characters.
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"Pricing & Fees!"}`)
 
@@ -186,7 +210,7 @@ func TestPostDeriveDerivesTheSlugFromTheTopic(t *testing.T) {
 
 func TestPostDeriveRejectsAnEmptyTopic(t *testing.T) {
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"  "}`)
 
@@ -199,7 +223,7 @@ func TestPostDeriveRejectsAnInvalidSlug(t *testing.T) {
 	// An explicit slug that does not pass kbpath.ValidSlug must be rejected before
 	// the job is created: the guard is kbpath's slugRe, not new logic in this file.
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"t","slug":"../etc"}`)
 
@@ -215,7 +239,7 @@ func TestPostDeriveRejectsATopicThatNormalisesToNothing(t *testing.T) {
 	// Chinese characters collapse entirely to hyphens, which get trimmed away,
 	// leaving an empty slug that fails kbpath.ValidSlug.
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"定价"}`)
 
@@ -227,13 +251,11 @@ func TestPostDeriveRejectsATopicThatNormalisesToNothing(t *testing.T) {
 	}
 }
 
-func TestPostDeriveRejectsAnExistingDerivedKB(t *testing.T) {
-	// When derived/<slug>/manifest.json already exists on disk the HTTP path
-	// answers 409 without --force, so accidental overwrites from a web form are
-	// prevented. Note that kbpath.Resolve only returns nil when manifest.json is
-	// present, so a half-written directory without a manifest is not blocked.
+func TestPostDeriveRejectsAnExistingCompiledKB(t *testing.T) {
+	// When derived/<slug>/ holds a manifest saying compiled:true the HTTP path
+	// answers 409, so a web form cannot overwrite a finished KB with no prompt.
 	fds := newFakeDerivedStore()
-	s, kb := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, kb := newDeriveTestServer(t, fds)
 
 	writeDerivedManifest(t, kb, "pricing", "Pricing", "2024-01-01")
 
@@ -243,7 +265,102 @@ func TestPostDeriveRejectsAnExistingDerivedKB(t *testing.T) {
 		t.Fatalf("status = %d, want 409; body=%s", rec.Code, rec.Body.String())
 	}
 	if fds.createStored != nil {
-		t.Error("CreateDerivedJob must not be called when the KB already exists on disk")
+		t.Error("CreateDerivedJob must not be called when a compiled KB already exists")
+	}
+}
+
+func TestPostDeriveReplacesAnIncompleteDerive(t *testing.T) {
+	// The manifest is written before compiling (spec E1), so a derive that dies
+	// leaves a directory kbpath.Resolve accepts with compiled:false. Returning 409
+	// for it would burn the slug forever: the HTTP API has no force switch and no
+	// delete route. An incomplete derive is replaceable; the runner passes force.
+	fds := newFakeDerivedStore()
+	s, kb := newDeriveTestServer(t, fds)
+
+	writeUncompiledManifest(t, kb, "pricing", "Pricing")
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored == nil {
+		t.Error("CreateDerivedJob must be called for an incomplete derive")
+	}
+}
+
+func TestPostDeriveRejectsAnUnreadableManifest(t *testing.T) {
+	// A manifest we cannot parse is not evidence of an incomplete derive. Replacing
+	// the KB would destroy compiled articles that were paid for, so this stays a
+	// 409 and the operator uses the CLI's --force. The handler logs the parse error.
+	fds := newFakeDerivedStore()
+	s, kb := newDeriveTestServer(t, fds)
+
+	writeDerivedManifest(t, kb, "pricing", "Pricing", "2024-01-01")
+	corrupt := filepath.Join(kb, "derived", "pricing", "manifest.json")
+	if err := os.WriteFile(corrupt, []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestPostDeriveRejectsAnOverlongTopic(t *testing.T) {
+	// The body cap is 10 MiB, so without this check a megabyte-long topic is
+	// persisted and shipped to the filter, where the prompt budget goes
+	// non-positive and the run fails only after a paid round trip. Counted in runes
+	// so a multi-byte topic is not rejected for its byte length.
+	tests := []struct {
+		name  string
+		topic string
+		want  int
+	}{
+		{"at the limit", strings.Repeat("a", topicMaxLen), http.StatusAccepted},
+		{"one over the limit", strings.Repeat("a", topicMaxLen+1), http.StatusBadRequest},
+		{"multi-byte at the limit", strings.Repeat("定", topicMaxLen), http.StatusAccepted},
+		{"multi-byte over the limit", strings.Repeat("定", topicMaxLen+1), http.StatusBadRequest},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fds := newFakeDerivedStore()
+			s, _ := newDeriveTestServer(t, fds)
+			// An explicit slug keeps slug derivation out of the assertion: a topic of
+			// repeated multi-byte runes normalises to nothing.
+			body, err := json.Marshal(deriveRequest{Topic: tc.topic, Slug: "pricing"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			rec := do(t, s, "POST", "/api/derive", string(body))
+
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d, want %d; body=%s", rec.Code, tc.want, rec.Body.String())
+			}
+			if tc.want == http.StatusBadRequest && fds.createStored != nil {
+				t.Error("CreateDerivedJob must not be called for an overlong topic")
+			}
+		})
+	}
+}
+
+func TestPostDeriveWithoutARunner(t *testing.T) {
+	// cmd/kaas disables the derive runner when the bridge is not a DaemonClient.
+	// Accepting a job nothing will ever claim leaves the UI on "Queued" forever, so
+	// the endpoint must say the feature is unavailable instead.
+	fds := newFakeDerivedStore()
+	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{}) // DeriveEnabled stays false
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
+
+	if rec.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, want 501; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored != nil {
+		t.Error("CreateDerivedJob must not be called when no runner consumes the queue")
 	}
 }
 
@@ -252,7 +369,7 @@ func TestPostDeriveRejectsADuplicateActiveSlug(t *testing.T) {
 	// holds this slug; a second enqueue must answer 409.
 	fds := newFakeDerivedStore()
 	fds.createErr = store.ErrDerivedJobExists
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
 
@@ -277,7 +394,7 @@ func TestGetDeriveJob(t *testing.T) {
 		UpdatedAt: 2000,
 	}
 	fds.jobs = []*store.DerivedJob{job}
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "GET", "/api/derive/job1", "")
 
@@ -320,7 +437,7 @@ func TestGetDeriveJob(t *testing.T) {
 
 func TestGetDeriveJobNotFound(t *testing.T) {
 	fds := newFakeDerivedStore()
-	s, _ := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "GET", "/api/derive/nonexistent", "")
 
@@ -333,7 +450,7 @@ func TestGetDeriveJobNotFound(t *testing.T) {
 
 func TestListDerivedReadsManifests(t *testing.T) {
 	fds := newFakeDerivedStore()
-	s, kb := newTestServer(t, &fakeQueue{}, fds, &fakeBridge{})
+	s, kb := newDeriveTestServer(t, fds)
 
 	// alpha: 1 wiki article; beta: 2 wiki articles. kbpath.ListSlugs returns
 	// slugs sorted alphabetically, so alpha always comes first.
@@ -373,6 +490,35 @@ func TestListDerivedReadsManifests(t *testing.T) {
 	}
 }
 
+func TestListDerivedSkipsUncompiledKBs(t *testing.T) {
+	// An uncompiled KB has no wiki/ to browse, so listing it can only walk a user
+	// into an empty corpus: the selector offers it, article_count reads 0, and chat
+	// answers from nothing. It is also the resting state of a declined volume gate
+	// (spec F5), which is uncompiled by design and must not show up as a KB.
+	fds := newFakeDerivedStore()
+	s, kb := newDeriveTestServer(t, fds)
+
+	writeDerivedManifest(t, kb, "done", "Done Topic", "2024-01-01")
+	writeDerivedArticle(t, kb, "done", "a.md")
+	writeUncompiledManifest(t, kb, "halfway", "Halfway Topic")
+
+	rec := do(t, s, "GET", "/api/derived", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		KBs []derivedKBSummary `json:"kbs"`
+	}
+	mustJSON(t, rec, &out)
+	if len(out.KBs) != 1 {
+		t.Fatalf("got %d KBs, want only the compiled one: %+v", len(out.KBs), out.KBs)
+	}
+	if out.KBs[0].Slug != "done" {
+		t.Errorf("slug = %q, want the compiled KB done", out.KBs[0].Slug)
+	}
+}
+
 func TestListDerivedWithNoDerivedDir(t *testing.T) {
 	// An absent derived/ directory must yield {"kbs":[]} not an error.
 	s, _ := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
@@ -394,11 +540,11 @@ func TestListDerivedWithNoDerivedDir(t *testing.T) {
 // --- 501 without a job store ---
 
 func TestDeriveRoutesWithoutAJobStore(t *testing.T) {
-	// newTestServer passes &fakeStore{} which does not implement
-	// store.DerivedJobStore, so NewServer leaves s.js nil. The job-dependent
-	// routes must answer 501; GET /api/derived reads only the filesystem and
-	// must still work.
-	s, _ := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	// &fakeStore{} does not implement store.DerivedJobStore, so NewServer leaves
+	// s.js nil. The runner is wired here so the 501 can only come from the missing
+	// store. The job-dependent routes must answer 501; GET /api/derived reads only
+	// the filesystem and must still work.
+	s, _ := newDeriveTestServer(t, &fakeStore{})
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"anything"}`)
 	if rec.Code != http.StatusNotImplemented {

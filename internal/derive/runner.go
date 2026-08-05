@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bybit-exchange/kaas/internal/bridge"
+	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -34,6 +35,15 @@ type Config struct {
 // Runner claims pending derive jobs one at a time and drives them through the
 // bridge. Single-flight: the store's claim refuses to hand out a job while one
 // is running, so a slow derive queues rather than overlapping.
+//
+// One runner per store is assumed, i.e. one kaas process per SQLite file. The
+// runner holds no lease on a claimed job: startup recovery fails every running row
+// on sight (see RecoverRunningDerivedJobs in internal/store/sqlite), so a second
+// process would kill this one's in-flight derive and then be handed the same slug,
+// leaving both writing the same derived/<slug>/. Leases are deliberately not
+// implemented — a derive is single-flight anyway, so they would guard a queue of
+// one — but that makes the assumption a real precondition rather than an
+// optimisation, and running two instances against one database breaks derive.
 type Runner struct {
 	js     store.DerivedJobStore
 	br     Bridge
@@ -120,8 +130,12 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		KBDir: r.cfg.KBDir,
 		Topic: job.Topic,
 		Slug:  job.Slug,
-		// The API layer already refused a slug whose directory exists, so a
-		// force here would only mask a race with a CLI run.
+		// Force only replaces a derive that never finished; the API refused the
+		// slug outright if a compiled KB holds it. Decided here, from the
+		// directory as it stands at claim time, rather than carried on the job
+		// row: the row would record what was true when the request arrived, and
+		// a queued job can wait behind a long derive.
+		Force: r.replaceable(job.Slug),
 		Model: model,
 	})
 	if err != nil {
@@ -140,6 +154,29 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 	r.logger.Info("derive: done", "id", job.ID, "slug", job.Slug,
 		"documents", resp.Documents, "offtopic", resp.Offtopic)
 	r.finish(job.ID, store.DerivedStatusSucceeded, "", string(result))
+}
+
+// replaceable reports whether derived/<slug> holds an incomplete derive: a
+// manifest written before compiling (spec E1) whose compiled flag never became
+// true. That is what a derive killed mid-flight leaves behind, and it is the only
+// state the engine may overwrite.
+//
+// False for everything else, deliberately: no directory (the normal case, where
+// force would only mask a race with a concurrent CLI run), a compiled KB, and a
+// manifest that cannot be parsed — an unreadable manifest is not evidence that
+// the articles underneath it are worthless.
+func (r *Runner) replaceable(slug string) bool {
+	dir, err := kbpath.Resolve(r.cfg.KBDir, slug)
+	if err != nil {
+		return false
+	}
+	m, err := kbpath.ReadManifest(dir)
+	if err != nil {
+		r.logger.Warn("derive: cannot read the existing manifest, not replacing the directory",
+			"slug", slug, "err", err)
+		return false
+	}
+	return !m.Compiled
 }
 
 // finish writes a terminal row on a fresh context: the run may have ended

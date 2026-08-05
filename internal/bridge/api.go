@@ -140,6 +140,10 @@ type DeriveRequest struct {
 
 // DeriveResponse mirrors the derive command's success payload. Stored verbatim
 // as a derive job's result, so the UI can report counts and cost.
+//
+// Compile and Cost carry no omitempty: the engine always emits both keys, and a
+// JSON null decodes to the four-byte literal "null" rather than a nil slice, so
+// the tag never fired and only suggested otherwise.
 type DeriveResponse struct {
 	DerivedKB     string          `json:"derived_kb"`
 	Slug          string          `json:"slug"`
@@ -150,7 +154,7 @@ type DeriveResponse struct {
 	Offtopic      int             `json:"offtopic"`
 	FilterBatches int             `json:"filter_batches"`
 	Compiled      bool            `json:"compiled"`
-	Compile       json.RawMessage `json:"compile,omitempty"`
-	Cost          json.RawMessage `json:"cost,omitempty"`
+	Compile       json.RawMessage `json:"compile"`
+	Cost          json.RawMessage `json:"cost"`
 	Warnings      []string        `json:"warnings,omitempty"`
 }

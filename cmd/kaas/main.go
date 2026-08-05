@@ -237,23 +237,11 @@ func run(configFile string) error {
 
 	logger := newLogger(cfg.Log)
 
-	// The sqlite.Store satisfies both api.TaskStore and api.SessionStore; cast
-	// to extract the session persistence interface from the same store instance.
-	ss, _ := st.(api.SessionStore)
-	srv := api.NewServer(q, st, ss, chatBr, api.Config{
-		Addr:          net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port)),
-		KBDir:         cfg.Storage.KBDir,
-		Model:         cfg.LLM.Model,
-		WebDir:        cfg.Server.WebDir,
-		MCPURL:        cfg.AI.MCPURL,
-		Upload:        cfg.Upload,
-		MCPEnabled:    cfg.AI.MCP.Enabled,
-		MCPToken:      cfg.AI.MCP.Token,
-		MCPTimeoutSec: cfg.AI.MCP.TimeoutSec,
-	}, logger)
-
 	// Derive jobs are KB-level, so they run beside the per-document dispatcher
-	// rather than inside it (see internal/derive's package comment).
+	// rather than inside it (see internal/derive's package comment). Built before
+	// the API server so the server can be told whether anything will consume the
+	// derive queue: POST /api/derive must answer 501 rather than queue a job that
+	// would sit at "pending" forever.
 	var deriveRunner *derive.Runner
 	if js, ok := st.(store.DerivedJobStore); ok {
 		if dc, ok := chatBr.(*bridge.DaemonClient); ok {
@@ -271,6 +259,22 @@ func run(configFile string) error {
 		// will silently disable derive — log loudly so the gap is visible.
 		logger.Warn("derive: store does not implement DerivedJobStore; derive runner disabled")
 	}
+
+	// The sqlite.Store satisfies both api.TaskStore and api.SessionStore; cast
+	// to extract the session persistence interface from the same store instance.
+	ss, _ := st.(api.SessionStore)
+	srv := api.NewServer(q, st, ss, chatBr, api.Config{
+		Addr:          net.JoinHostPort(cfg.Server.Host, strconv.Itoa(cfg.Server.Port)),
+		KBDir:         cfg.Storage.KBDir,
+		Model:         cfg.LLM.Model,
+		WebDir:        cfg.Server.WebDir,
+		MCPURL:        cfg.AI.MCPURL,
+		Upload:        cfg.Upload,
+		DeriveEnabled: deriveRunner != nil,
+		MCPEnabled:    cfg.AI.MCP.Enabled,
+		MCPToken:      cfg.AI.MCP.Token,
+		MCPTimeoutSec: cfg.AI.MCP.TimeoutSec,
+	}, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

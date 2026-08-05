@@ -146,12 +146,14 @@ const (
 // Derive job stage values, reported on the job status endpoint. These describe
 // one KB-level derive, which is why derive does not reuse Task's per-document
 // Stage* values.
+//
+// The bridge call covers filter → copy → compile → prune in one round trip, so
+// compile is the only mid-flight stage the runner can honestly report; there are
+// deliberately no copy and prune constants to write.
 const (
 	DerivedStageQueued  = "queued"
 	DerivedStageFilter  = "filter"
-	DerivedStageCopy    = "copy"
 	DerivedStageCompile = "compile"
-	DerivedStagePrune   = "prune"
 	DerivedStageDone    = "done"
 )
 
@@ -182,8 +184,6 @@ type DerivedJobStore interface {
 	CreateDerivedJob(ctx context.Context, j *DerivedJob) error
 	// GetDerivedJob returns the job by id, or ErrNotFound.
 	GetDerivedJob(ctx context.Context, id string) (*DerivedJob, error)
-	// ListDerivedJobs returns the newest jobs first, capped at limit (0 = all).
-	ListDerivedJobs(ctx context.Context, limit int) ([]*DerivedJob, error)
 	// ClaimNextDerivedJob marks the oldest pending job running and returns it.
 	// Returns (nil, nil) when nothing is pending OR when a job is already
 	// running: a derive spends real money and rewrites a directory, so the

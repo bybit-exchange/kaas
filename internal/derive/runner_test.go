@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
@@ -47,10 +49,6 @@ func (f *fakeJobStore) GetDerivedJob(_ context.Context, id string) (*store.Deriv
 		return nil, store.ErrNotFound
 	}
 	return j, nil
-}
-
-func (f *fakeJobStore) ListDerivedJobs(context.Context, int) ([]*store.DerivedJob, error) {
-	return nil, nil
 }
 
 func (f *fakeJobStore) ClaimNextDerivedJob(_ context.Context, _ int64) (*store.DerivedJob, error) {
@@ -114,7 +112,14 @@ func testLogger() *slog.Logger {
 // mechanism — the done channel is.
 func runOnce(t *testing.T, js *fakeJobStore, br *fakeBridge) {
 	t.Helper()
-	r := NewRunner(js, br, Config{KBDir: "/kb", Model: "default-model",
+	runOnceIn(t, js, br, "/kb")
+}
+
+// runOnceIn is runOnce with an explicit KB root, for the cases that need a real
+// derived/ directory on disk.
+func runOnceIn(t *testing.T, js *fakeJobStore, br *fakeBridge, kbDir string) {
+	t.Helper()
+	r := NewRunner(js, br, Config{KBDir: kbDir, Model: "default-model",
 		PollInterval: time.Millisecond, Timeout: time.Minute}, testLogger())
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -212,6 +217,50 @@ func TestRunnerMarksStagesAsItGoes(t *testing.T) {
 	js.mu.Unlock()
 	if len(stages) == 0 || stages[0] != store.DerivedStageCompile {
 		t.Errorf("stages = %v, want the compile stage recorded", stages)
+	}
+}
+
+// TestRunnerForcesOnlyAnIncompleteDerive covers the replace path: the API lets a
+// retry through when derived/<slug>/manifest.json says compiled:false, and the
+// engine refuses to write into an existing directory without force. The decision
+// is made here, at claim time, from what is on disk — not persisted on the job row
+// at request time, which would need a schema change and could be stale by now.
+func TestRunnerForcesOnlyAnIncompleteDerive(t *testing.T) {
+	tests := []struct {
+		name      string
+		manifest  string // "" = no derived/<slug>/ directory at all
+		wantForce bool
+	}{
+		{"no directory", "", false},
+		{"incomplete derive", `{"slug":"pricing","compiled":false}`, true},
+		{"manifest without the compiled key", `{"slug":"pricing"}`, true},
+		{"compiled kb", `{"slug":"pricing","compiled":true}`, false},
+		{"unreadable manifest", `{not json`, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			kbDir := t.TempDir()
+			if tc.manifest != "" {
+				dir := filepath.Join(kbDir, "derived", "pricing")
+				if err := os.MkdirAll(dir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(dir, "manifest.json"),
+					[]byte(tc.manifest), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			js := newFakeJobStore(&store.DerivedJob{
+				ID: "j1", Slug: "pricing", Topic: "t",
+				Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+			})
+			br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+			runOnceIn(t, js, br, kbDir)
+
+			if br.req.Force != tc.wantForce {
+				t.Errorf("force = %v, want %v", br.req.Force, tc.wantForce)
+			}
+		})
 	}
 }
 

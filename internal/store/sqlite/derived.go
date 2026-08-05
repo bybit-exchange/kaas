@@ -82,31 +82,6 @@ func (s *Store) GetDerivedJob(ctx context.Context, id string) (*store.DerivedJob
 	return j, nil
 }
 
-// ListDerivedJobs returns the newest jobs first.
-func (s *Store) ListDerivedJobs(ctx context.Context, limit int) ([]*store.DerivedJob, error) {
-	q := `SELECT ` + derivedJobColumns + ` FROM derived_jobs ORDER BY created_at DESC`
-	args := []any{}
-	if limit > 0 {
-		q += ` LIMIT ?`
-		args = append(args, limit)
-	}
-	rows, err := s.db.QueryContext(ctx, q, args...)
-	if err != nil {
-		return nil, fmt.Errorf("list derived jobs: %w", err)
-	}
-	defer rows.Close()
-
-	var out []*store.DerivedJob
-	for rows.Next() {
-		j, err := scanDerivedJob(rows)
-		if err != nil {
-			return nil, fmt.Errorf("list derived jobs: scan: %w", err)
-		}
-		out = append(out, j)
-	}
-	return out, rows.Err()
-}
-
 // ClaimNextDerivedJob marks the oldest pending job running, but only when no job
 // is already running: a derive rewrites a directory and spends money, so
 // single-flight is enforced here rather than trusted to the caller.
@@ -159,15 +134,35 @@ func (s *Store) FinishDerivedJob(ctx context.Context, id, status, errMsg, result
 // RecoverRunningDerivedJobs fails every job a previous process left running.
 //
 // Not requeued: a derive is not resumable. It may have died anywhere between the
-// filter and the prune, and re-running it from the start would need --force to
-// get past the directory it already created. Failing loudly puts that decision
-// back with the operator.
+// filter and the prune, and its directory is already on disk. Failing loudly puts
+// the decision back with the operator, who can retry from the UI — the
+// interrupted derive left an uncompiled KB, and POST /api/derive replaces one of
+// those instead of refusing the slug.
+//
+// # Single instance
+//
+// This assumes exactly one kaas process per SQLite file, and it is the one place
+// that assumption is load-bearing: every running row is failed unconditionally,
+// with no owner id and no lease deadline to tell "mine, crashed" from "another
+// process, still working". A second process starting against the same file would
+// fail the first one's in-flight derive, and because the row goes terminal it
+// stops blocking the partial unique index, so the claim hands the same slug out
+// again and two processes write the same derived/<slug>/.
+//
+// The tasks table in this package does carry lease_owner / lease_expires_at and
+// recovers by deadline (RecoverExpired) instead. That deliberately does not carry
+// over: tasks are many, short and retryable, so leases buy real throughput,
+// whereas a derive is single-flight by construction — the claim refuses to start
+// one while another runs — so a lease would only add machinery around a queue
+// depth of one. Multi-instance was never in scope (see the spec); if it ever is,
+// this function and ClaimNextDerivedJob are what need leases, together.
 func (s *Store) RecoverRunningDerivedJobs(ctx context.Context, now int64) (int, error) {
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE derived_jobs SET status = ?, stage = ?, error = ?, updated_at = ?
 		WHERE status = ?`,
 		store.DerivedStatusFailed, store.DerivedStageDone,
-		"interrupted by a backend restart; re-run the derive with force enabled",
+		"interrupted by a backend restart; the derived knowledge base was left "+
+			"incomplete, so retry the derive to replace it",
 		now, store.DerivedStatusRunning)
 	if err != nil {
 		return 0, fmt.Errorf("recover derived jobs: %w", err)
