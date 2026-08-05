@@ -1,0 +1,45 @@
+internal/store/sqlite/derived_test.go
+  18a7fbd61a480463 7,200-206,208-209,263-270
+internal/store/store.go
+  18a7fbd61a480463 149-152
+internal/store/sqlite/derived.go
+  18a7fbd61a480463 137-158,164-165
+internal/api/server.go
+  18a7fbd61a480463 72-77
+internal/derive/runner_test.go
+  18a7fbd61a480463 9-10,115-122,223-263
+internal/api/derive.go
+  18a7fbd61a480463 6,13,58-62,77-79,93-98,111-135,187-196,203-208,218-224,226-227
+cmd/kaas/main.go
+  18a7fbd61a480463 241-244,263-277
+internal/api/derive_test.go
+  18a7fbd61a480463 68-79,82,86,88-108,134,168,195,213,226,242,254-256,258,268-363,372,397,440,453,493-521,543-547
+internal/derive/runner.go
+  18a7fbd61a480463 18,38-46,133-138,159-179
+internal/bridge/api.go
+  18a7fbd61a480463 143-146,157-158
+internal/api/wiki.go
+  18a7fbd61a480463 197-200,205,207,218,315
+internal/api/chat.go
+  18a7fbd61a480463 51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3477a1ad3400655d50b6f6d7939ecd1e15a3005a",
+  "prompts": {
+    "18a7fbd61a480463": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5ecb62c9-bbf9-4da6-8782-a5a85f397b7d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 871,
+      "total_deletions": 257,
+      "accepted_lines": 1462,
+      "overriden_lines": 0
+    }
+  }
+}
