@@ -217,7 +217,10 @@ def run_classify_phase(
     else:
         # Multiple groups -- run in parallel using contextual_submit
         num_workers = min(len(groups), _MAX_CLASSIFY_GROUPS)
-        all_group_results: list[tuple[list[int], list[tuple]]] = []
+        # Keyed by the item's index in `items` rather than appended in completion
+        # order, so the phase output does not depend on which group won the race.
+        slots: dict[int, tuple] = {}
+        completed_groups = 0
 
         with ThreadPoolExecutor(max_workers=num_workers) as pool:
             futures = {}
@@ -237,7 +240,6 @@ def run_classify_phase(
             for future in as_completed(futures):
                 group_indices = futures[future]
                 if cancel_event and cancel_event.is_set():
-                    completed_groups = len(all_group_results)
                     total_groups = len(groups)
                     print(
                         f"[pipeline] cancel detected in classify: "
@@ -248,32 +250,36 @@ def run_classify_phase(
                     break
                 try:
                     results = future.result()
-                    all_group_results.append((group_indices, results))
+                    # _classify_group returns one result per item, in group order.
+                    for idx, result in zip(group_indices, results):
+                        slots[idx] = result
                 except Exception as e:
                     for idx in group_indices:
                         item = items[idx]
-                        errors.append({
-                            "content_hash": item.get("content_hash", ""),
-                            "status": "error",
-                            "error": str(e),
-                            "phase": "classify",
-                        })
+                        slots[idx] = (
+                            "error",
+                            item.get("content_hash", ""),
+                            item.get("source_ref", "unknown"),
+                            None,
+                            str(e),
+                        )
+                completed_groups += 1
 
             # Cancel pending futures if cancelled
             if cancel_event and cancel_event.is_set():
                 for f in futures:
                     f.cancel()
 
-        for _indices, results in all_group_results:
-            for status, content_hash, source_ref, extraction, data in results:
-                if status == "ok":
-                    classified_items.append((content_hash, source_ref, extraction, data))
-                else:
-                    errors.append({
-                        "content_hash": content_hash,
-                        "status": "error",
-                        "error": data,
-                        "phase": "classify",
-                    })
+        for idx in sorted(slots):
+            status, content_hash, source_ref, extraction, data = slots[idx]
+            if status == "ok":
+                classified_items.append((content_hash, source_ref, extraction, data))
+            else:
+                errors.append({
+                    "content_hash": content_hash,
+                    "status": "error",
+                    "error": data,
+                    "phase": "classify",
+                })
 
     return classified_items, errors

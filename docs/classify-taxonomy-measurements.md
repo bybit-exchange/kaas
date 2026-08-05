@@ -44,15 +44,34 @@ Because classification is deterministic given its inputs, the only way one
 document gets two different types across runs is that its *context* differed —
 which articles already existed when it was classified.
 
-That context is built per run by `_cluster_by_topic_overlap()` grouping plus
-parallel worker scheduling, neither of which is order-stable. Early decisions
-change later contexts, so the effect compounds. This is the mechanism behind the
-recorded 48-vs-98 article variance on identical input, and behind a case
-observed directly: `CONTRIBUTING.md` classified as `decision` in one KB and
-`project` in another, from the same single source document and the same 4-item
-menu.
+Early decisions change later contexts, so the effect compounds. This is the
+mechanism behind the recorded 48-vs-98 article variance on identical input, and
+behind a case observed directly: `CONTRIBUTING.md` classified as `decision` in
+one KB and `project` in another, from the same single source document and the
+same 4-item menu.
 
-The fix implied is deterministic ordering, not temperature or retries.
+Reading `_phase_classify.py` for the specific unstable inputs found three
+distinct ones, and ruled two candidates out:
+
+- **Ruled out — worker scheduling.** Each group is handed its own
+  `list(base_existing)` (`_phase_classify.py:230`), so no group can observe
+  another's creations. Which group runs first cannot change any group's context.
+- **Ruled out — the clustering itself.** `_cluster_by_topic_overlap()` sorts its
+  candidate pairs and breaks ties on `(i, j)`, and its set usage is
+  order-independent, so it is stable *given a stable input order*.
+- **Real, fixed — result collection order.** `as_completed()` collected groups in
+  completion order, so `classified_items` came back shuffled and the dedup and
+  write phases saw a different order every run.
+- **Real, open — cross-group duplicate creation.** `dedup_create_new()` only
+  dedups against the calling group's copy, so N groups can each create the same
+  article. This inflates the article count as a function of grouping, and is the
+  best candidate for a 48→98 doubling.
+- **Real, open — the input `items` order.** It arrives from
+  `input_data["items"]` (`_entry.py:56`); group membership, and therefore each
+  group's serial context, follows from it.
+
+So the fix is ordering rather than temperature or retries, but "deterministic
+ordering" is three fixes, not one.
 
 ## Result 3: usage saturates at five categories, and growing the menu re-partitions
 
@@ -159,9 +178,12 @@ corpora that carry ADRs or meeting notes.
 
 What remains, in priority order:
 
-1. **Deterministic ordering in the classify phase.** Still open, and still the
-   most valuable item: it is the demonstrated defect, and the only one that
-   changes output correctness run to run.
+1. **Cross-group duplicate creation in the classify phase.** Now the most
+   valuable item, and the likeliest cause of the article-count variance: parallel
+   groups can each create the same article because `dedup_create_new()` only sees
+   one group's copy of `existing`. Needs shared state or a post-join dedup pass.
+   (The sibling problem, collection order, is fixed — the phase now emits in
+   input order regardless of which group finishes first.)
 2. **Category set as per-KB configuration**, frozen at KB creation and exposed on
    `kb-ai distill`. Today the parameter exists but `distill` never passes it.
 3. **The classify cache key should include the prompt text.** Changing the

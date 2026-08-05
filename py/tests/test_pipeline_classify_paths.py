@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from concurrent.futures import wait
 
 import pytest
 from openai import APIError as LLMAPIError
@@ -253,6 +254,66 @@ def test_classify_contains_a_failing_item_in_the_parallel_branch(store, classifi
         "error": "Error (Classify): boom",
         "phase": "classify",
     }
+
+
+def reverse_completion_order(monkeypatch):
+    """Make as_completed() hand groups back in reverse submission order.
+
+    Real completion order depends on which group's LLM calls return first, which
+    a test cannot pin down. Reversing submission order is a deterministic stand-in
+    for "the groups did not finish in the order they were submitted".
+    """
+    def as_completed_reversed(futures):
+        pending = list(futures)
+        wait(pending)  # like as_completed, yield only finished futures -- and never raise
+        yield from reversed(pending)
+
+    monkeypatch.setattr(pc, "as_completed", as_completed_reversed)
+
+
+def test_classify_returns_items_in_input_order_whatever_order_groups_finish_in(
+        store, classifier, monkeypatch):
+    """The phase output must not depend on which group won the race."""
+    reverse_completion_order(monkeypatch)
+    items = [make_item(f"h{i}", [f"topic{i}"]) for i in range(4)]
+
+    classified, errors = run_classify_phase(items, store, categories=CATS)
+
+    assert errors == []
+    assert [c[0] for c in classified] == ["h0", "h1", "h2", "h3"]
+
+
+def test_classify_returns_errors_in_input_order_whatever_order_groups_finish_in(
+        store, classifier, monkeypatch):
+    reverse_completion_order(monkeypatch)
+    for ref in ("raw/h0.md", "raw/h2.md"):
+        classifier["raise"][ref] = RuntimeError("boom")
+    items = [make_item(f"h{i}", [f"topic{i}"]) for i in range(4)]
+
+    classified, errors = run_classify_phase(items, store, categories=CATS)
+
+    assert [c[0] for c in classified] == ["h1", "h3"]
+    assert [e["content_hash"] for e in errors] == ["h0", "h2"]
+
+
+def test_classify_orders_a_crashed_group_with_the_groups_that_survived(
+        store, classifier, monkeypatch):
+    """A group that dies wholesale must still land in its items' input positions."""
+    reverse_completion_order(monkeypatch)
+    real_classify_group = pc._classify_group
+
+    def boom_on_h1(group_items, *args, **kwargs):
+        if group_items[0]["content_hash"] == "h1":
+            raise RuntimeError("group exploded")
+        return real_classify_group(group_items, *args, **kwargs)
+
+    monkeypatch.setattr(pc, "_classify_group", boom_on_h1)
+    items = [make_item(f"h{i}", [f"topic{i}"]) for i in range(3)]
+
+    classified, errors = run_classify_phase(items, store, categories=CATS)
+
+    assert [c[0] for c in classified] == ["h0", "h2"]
+    assert [e["content_hash"] for e in errors] == ["h1"]
 
 
 def test_classify_turns_a_crashed_group_into_one_error_per_item(store, monkeypatch, classifier):
