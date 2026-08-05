@@ -1,0 +1,39 @@
+web/src/features/wiki/DeriveDialog.tsx
+  7ffe3cbd84b1c09e 1-163
+web/src/pages/Wiki.tsx
+  7ffe3cbd84b1c09e 16,33-34,81,105-109
+web/src/pages/Chat.test.tsx
+  7ffe3cbd84b1c09e 8,57,82,227-262
+web/src/features/wiki/KBSelector.tsx
+  7ffe3cbd84b1c09e 17-21,30,36-39,58
+web/src/pages/Chat.tsx
+  7ffe3cbd84b1c09e 10,23-24,219,299
+web/src/i18n/strings.ts
+  7ffe3cbd84b1c09e 27-38,164-175
+web/src/features/wiki/DeriveDialog.test.tsx
+  7ffe3cbd84b1c09e 1-179
+web/src/pages/Wiki.test.tsx
+  7ffe3cbd84b1c09e 3,24-25,30-31,44,64,123-149
+docs/features/derive-topic-kb-from-catalog/notes.md
+  7ffe3cbd84b1c09e 159-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "de30cd7dc84108d45906309228b40fce8f5756c6",
+  "prompts": {
+    "7ffe3cbd84b1c09e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7d76f94a-b343-4aca-b6da-e23a7322cf3f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2625,
+      "total_deletions": 1760,
+      "accepted_lines": 1967,
+      "overriden_lines": 0
+    }
+  }
+}
