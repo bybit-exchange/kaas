@@ -1,0 +1,44 @@
+web/src/pages/Wiki.test.tsx
+  7ffe3cbd84b1c09e 2,6,23-29,39,42-53,56-58,105-122
+web/src/i18n/strings.ts
+  7ffe3cbd84b1c09e 24-26,149-151
+web/src/pages/Wiki.tsx
+  7ffe3cbd84b1c09e 15-16,22,36,40,56,66,75-79
+web/src/features/wiki/KBSelector.tsx
+  7ffe3cbd84b1c09e 1-79
+web/src/features/wiki/KBSelector.test.tsx
+  7ffe3cbd84b1c09e 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "08edecca448170ecf7b249e2fa7acd3f42bbcda4",
+  "prompts": {
+    "7ffe3cbd84b1c09e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7d76f94a-b343-4aca-b6da-e23a7322cf3f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 388,
+      "total_deletions": 49,
+      "accepted_lines": 240,
+      "overriden_lines": 0
+    },
+    "a88b6c4f2e21915e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5adf3276-c1e9-4785-a6d5-0cc8e3d76429",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 784,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
