@@ -1,0 +1,31 @@
+internal/api/wiki_test.go
+  eb98b08c272483ec 5-6,152-154,156-255
+internal/api/chat.go
+  eb98b08c272483ec 48-55,79-80,95
+internal/api/wiki.go
+  eb98b08c272483ec 15,23-24,26,32-61,191-208,210-211,213,217-222,229,292,315-319
+internal/api/api_test.go
+  eb98b08c272483ec 162-163,166-172,177-202,698-732
+internal/api/wiki_file_test.go
+  eb98b08c272483ec 18-23,174-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "00459cd66733f84f3511ba9e34ea564a35ceae71",
+  "prompts": {
+    "eb98b08c272483ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a224094f-a91e-42c4-ba30-e67d585c6e74",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 300,
+      "total_deletions": 29,
+      "accepted_lines": 25851,
+      "overriden_lines": 0
+    }
+  }
+}
