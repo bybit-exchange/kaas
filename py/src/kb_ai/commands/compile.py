@@ -1,5 +1,3 @@
-import hashlib
-import json
 import os
 import sys
 import threading
@@ -9,7 +7,13 @@ from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
-from kb_ai.core.classify import classify_article, classify_cache_key, dedup_create_new, hash_existing_articles
+from kb_ai.core.classify import (
+    classify_article,
+    classify_cache_key,
+    classify_inputs_hash,
+    dedup_create_new,
+    hash_existing_articles,
+)
 from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
 from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index, update_timeline
 from kb_ai.core.people import update_people_stubs
@@ -175,7 +179,7 @@ def compile_kb(
         classifications: dict[str, dict] = {}
         classify_cache_hits = 0
         art_hash = hash_existing_articles(existing_articles)
-        cat_hash = hashlib.sha256(json.dumps(categories or [], sort_keys=True).encode()).hexdigest()[:8]
+        cat_hash = classify_inputs_hash(categories)
 
         log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
         for rf, extraction in items_to_classify:

@@ -105,8 +105,8 @@ created after it.
 So changing the set on a populated KB is not a mass migration. What it does cost
 is a mixed taxonomy over time — older articles filed under the old set, newer
 ones under the new — plus a one-time re-classification, because the set feeds
-`categories_hash` and so invalidates the classify cache. A KB compiled from
-scratch after the change does get the full re-partition.
+the cache key's prompt hash and so invalidates the classify cache. A KB compiled
+from scratch after the change does get the full re-partition.
 
 Choosing the set at KB creation and freezing it is still the right default. The
 set is already a parameter (`categories`, threaded through `compile_kb` and
@@ -186,9 +186,7 @@ What remains, in priority order:
    input order regardless of which group finishes first.)
 2. **Category set as per-KB configuration**, frozen at KB creation and exposed on
    `kb-ai distill`. Today the parameter exists but `distill` never passes it.
-3. **The classify cache key should include the prompt text.** Changing the
-   default category set invalidated the cache this time, via `categories_hash`,
-   so the new definitions do take effect. A future prompt-only edit would not.
+   Needs a place to store per-KB config, which the KB layout does not yet have.
 
 ## Caveats
 
@@ -198,11 +196,18 @@ corpus-specific: a code-heavy or meeting-notes corpus would saturate at a
 different number, so re-run the measurement rather than porting these
 percentages.
 
-Also note a gap found while running this: the classify cache key is
-`checksum + articles_hash + categories_hash` (`core/classify.py:classify_cache_key`)
-and does not include the prompt text. Editing `classify.md` therefore leaves
-cached classifications in place, so a prompt change appears to do nothing on a
-KB that has already been compiled.
+A gap found while running this has since been fixed: the third cache-key
+component hashed only the category *names*, so editing `classify.md` left cached
+classifications in place and a prompt change appeared to do nothing on a KB that
+had already been compiled. It now hashes the rendered system prompt
+(`core/classify.py:classify_inputs_hash`), which moves when the prompt file, a
+category definition, or the category list changes.
+
+That fix also closed a mismatch it exposed: `compile_kb` hashed its own
+`categories or []` argument while `classify_article` substituted the defaults for
+a falsy list, so every `kb-ai distill` run — which never passes categories —
+wrote cache entries keyed as "no categories" for runs that used all six. Both
+call sites now derive the hash from the effective list.
 
 ## Reproducing
 

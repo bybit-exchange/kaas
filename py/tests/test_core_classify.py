@@ -8,11 +8,13 @@ from kb_ai.core.classify import (
     category_definitions_block,
     classify_article,
     classify_cache_key,
+    classify_inputs_hash,
     dedup_create_new,
     hash_existing_articles,
     _title_words,
 )
 from kb_ai.core.extract import ExtractionResult
+from kb_ai import prompts as prompts_module
 from kb_ai.prompts import default_registry
 from kb_ai.storage.store import ArticleMeta
 
@@ -102,3 +104,48 @@ def test_classify_cache_key_format():
     """classify_cache_key joins components with dashes."""
     key = classify_cache_key("abc123", "art456", "cat789")
     assert key == "abc123-art456-cat789"
+
+
+# ── classify_inputs_hash: what must move the cache ──────────────────
+
+def test_inputs_hash_is_stable_for_the_same_categories():
+    assert classify_inputs_hash(["concept"]) == classify_inputs_hash(["concept"])
+
+
+def test_inputs_hash_moves_when_the_category_list_changes():
+    assert classify_inputs_hash(["concept"]) != classify_inputs_hash(["concept", "guide"])
+
+
+def test_inputs_hash_treats_an_empty_category_list_as_the_defaults():
+    """compile_kb passes categories=None and hashed it as `[]`, but
+    classify_article falls back to the defaults -- so the old key described a run
+    that never happened. Both falsy forms must hash as the defaults."""
+    assert classify_inputs_hash(None) == classify_inputs_hash(DEFAULT_CATEGORIES)
+    assert classify_inputs_hash([]) == classify_inputs_hash(DEFAULT_CATEGORIES)
+
+
+def test_inputs_hash_moves_when_the_prompt_text_changes(monkeypatch, tmp_path):
+    """Editing classify.md must invalidate the cache. Without this, a prompt-only
+    edit leaves every cached classification in place and the edit does nothing."""
+    before = classify_inputs_hash(["concept"])
+
+    prompts_dir = tmp_path / "prompts"
+    prompts_dir.mkdir()
+    original = default_registry().get("classify").content
+    (prompts_dir / "classify.md").write_text(
+        original + "\nAn extra instruction that changes the model's behaviour.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("KAAS_PROMPTS_DIR", str(prompts_dir))
+    monkeypatch.setattr(prompts_module, "_registry", None)
+
+    assert classify_inputs_hash(["concept"]) != before
+
+
+def test_inputs_hash_moves_when_a_category_definition_changes(monkeypatch):
+    """The definitions live in code, not in the prompt file, and the old
+    categories-only hash could not see an edit to them."""
+    before = classify_inputs_hash(["concept"])
+    monkeypatch.setitem(CATEGORY_DEFINITIONS, "concept", "a completely different meaning")
+
+    assert classify_inputs_hash(["concept"]) != before

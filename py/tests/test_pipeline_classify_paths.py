@@ -10,8 +10,6 @@ the caller of run_pipeline_orchestrated().
 """
 from __future__ import annotations
 
-import hashlib
-import json
 import threading
 from concurrent.futures import wait
 
@@ -23,7 +21,11 @@ from kb_ai.commands.pipeline import _orchestrator as orch
 from kb_ai.commands.pipeline import _phase_classify as pc
 from kb_ai.commands.pipeline._orchestrator import PipelineContext, run_pipeline_orchestrated
 from kb_ai.commands.pipeline._phase_classify import run_classify_phase
-from kb_ai.core.classify import classify_cache_key, hash_existing_articles
+from kb_ai.core.classify import (
+    classify_cache_key,
+    classify_inputs_hash,
+    hash_existing_articles,
+)
 from kb_ai.storage.store import KBStore
 
 CATS = ["concept"]
@@ -88,11 +90,8 @@ def make_item(content_hash: str, topics: list[str]) -> dict:
 
 def cache_key_for(store: KBStore, content_hash: str, categories: list[str]) -> str:
     """Recompute the cache key exactly the way run_classify_phase does."""
-    cat_hash = hashlib.sha256(
-        json.dumps(categories, sort_keys=True).encode()
-    ).hexdigest()[:8]
     art_hash = hash_existing_articles(store.existing_articles())
-    return classify_cache_key(content_hash, art_hash, cat_hash)
+    return classify_cache_key(content_hash, art_hash, classify_inputs_hash(categories))
 
 
 def errors_by_hash(errors: list[dict]) -> dict[str, dict]:

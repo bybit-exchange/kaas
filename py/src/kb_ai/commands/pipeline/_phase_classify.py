@@ -8,8 +8,6 @@ This module handles:
 
 from __future__ import annotations
 
-import hashlib
-import json
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,6 +21,7 @@ from kb_ai.core.classify import (
     DEFAULT_CATEGORIES,
     classify_article,
     classify_cache_key,
+    classify_inputs_hash,
     dedup_create_new,
     hash_existing_articles,
 )
@@ -181,9 +180,7 @@ def run_classify_phase(
         categories = list(DEFAULT_CATEGORIES)
 
     base_existing = store.existing_articles()
-    cat_hash = hashlib.sha256(
-        json.dumps(categories, sort_keys=True).encode()
-    ).hexdigest()[:8]
+    cat_hash = classify_inputs_hash(categories)
     art_hash = hash_existing_articles(base_existing)
 
     groups = _cluster_by_topic_overlap(items)

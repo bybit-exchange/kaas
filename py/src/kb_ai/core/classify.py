@@ -37,6 +37,39 @@ CATEGORY_DEFINITIONS = {
 }
 
 
+def effective_categories(categories: list[str] | None) -> list[str]:
+    """The category list classify_article() will actually use.
+
+    Callers pass None to mean "the defaults", so any cache key built from the
+    caller's own argument would describe a run that never happened.
+    """
+    return list(categories) if categories else list(DEFAULT_CATEGORIES)
+
+
+def classify_inputs_hash(categories: list[str] | None) -> str:
+    """Hash the classify prompt as it will actually be sent, minus the articles.
+
+    Hashing the rendered system template rather than the category list means the
+    key moves when the prompt file changes, when a CATEGORY_DEFINITIONS entry
+    changes, or when the category list changes. The old categories-only hash saw
+    only the last of those, so a prompt-only edit silently kept serving
+    classifications produced by the previous prompt. The articles are excluded
+    because classify_cache_key() carries them separately.
+    """
+    return hashlib.sha256(
+        _render_classify_system(effective_categories(categories)).encode()
+    ).hexdigest()[:8]
+
+
+def _render_classify_system(categories: list[str]) -> str:
+    """Render the classify system template, articles placeholder still unfilled."""
+    return default_registry().get("classify").render(
+        categories_str=", ".join(categories),
+        categories=categories,
+        category_definitions=category_definitions_block(categories),
+    )
+
+
 def category_definitions_block(categories: list[str]) -> str:
     """Render definitions for whichever active categories have one."""
     known = [(c, CATEGORY_DEFINITIONS[c]) for c in categories if c in CATEGORY_DEFINITIONS]
@@ -92,9 +125,7 @@ def classify_article(
     model: str = "claude-sonnet-4-6",
     categories: list[str] | None = None,
 ) -> ClassificationResult:
-    if not categories:
-        categories = list(DEFAULT_CATEGORIES)
-    categories_str = ", ".join(categories)
+    categories = effective_categories(categories)
 
     # Sort articles by relevance (descending) before building prompt
     sorted_articles = sorted(
@@ -132,11 +163,7 @@ def classify_article(
     # the source f-string text byte-exact (with `{{ARTICLES_PLACEHOLDER}}`,
     # `{{{{`, `{categories_str}`, `{categories[0]}`), so .render() with the
     # right kwargs reproduces the original f-string output exactly.
-    system_template = default_registry().get("classify").render(
-        categories_str=categories_str,
-        categories=categories,
-        category_definitions=category_definitions_block(categories),
-    )
+    system_template = _render_classify_system(categories)
 
     skeleton_len = len(system_template.replace("{ARTICLES_PLACEHOLDER}", ""))
     articles_budget = MAX_PROMPT_CHARS - skeleton_len - len(user) - _SAFETY_MARGIN
