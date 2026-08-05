@@ -71,6 +71,18 @@ describe('streamChat', () => {
     expect(result).toBe(rawRes)
   })
 
+  it('scopes the stream to a derived kb', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, null))
+    await streamChat({ query: 'q' }, undefined, 'pricing')
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/chat?kb=pricing')
+  })
+
+  it('omits kb for the root knowledge base', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, null))
+    await streamChat({ query: 'q' }, undefined, null)
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/chat')
+  })
+
   it('does NOT call res.json() or res.text()', async () => {
     const rawRes = makeResponse(200, null)
     rawRes.json = vi.fn()

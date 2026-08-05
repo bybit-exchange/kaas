@@ -33,6 +33,18 @@ describe('listWiki', () => {
     const result = await listWiki()
     expect(result.tree).toEqual(tree)
   })
+
+  it('scopes the tree request to a derived kb', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { tree: [] }))
+    await listWiki('pricing')
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/wiki?kb=pricing')
+  })
+
+  it('omits kb for the root knowledge base', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { tree: [] }))
+    await listWiki(null)
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/wiki')
+  })
 })
 
 describe('fetchWikiArticle', () => {
@@ -48,5 +60,17 @@ describe('fetchWikiArticle', () => {
     mockFetch.mockResolvedValue(makeResponse(200, article))
     const result = await fetchWikiArticle('a/b.md')
     expect(result.content).toBe('Hello')
+  })
+
+  it('scopes the article request to a derived kb', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { path: 'a.md', title: 'A', content: '' }))
+    await fetchWikiArticle('concepts/a.md', 'pricing')
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/wiki/file?path=concepts%2Fa.md&kb=pricing')
+  })
+
+  it('omits kb for the root knowledge base', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { path: 'a.md', title: 'A', content: '' }))
+    await fetchWikiArticle('a.md', null)
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/wiki/file?path=a.md')
   })
 })
