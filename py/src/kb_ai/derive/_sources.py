@@ -8,10 +8,26 @@ documents that did resolve.
 """
 from __future__ import annotations
 
+import posixpath
+
 import yaml
 
 from kb_ai.derive._types import DocumentRef, Skipped
 from kb_ai.storage.store import KBStore, _compute_checksum
+
+_RAW_PREFIX = "raw/"
+
+
+def _is_raw_document(rel: str) -> bool:
+    """True when rel names a file inside the KB's raw/ subtree (spec C1).
+
+    KBStore._resolve only enforces containment in the KB, so without this an
+    LLM-written 'sources: wiki/pricing.md' would copy a compiled article into the
+    derived wiki, and 'sources: .compile-state.json' would make the derived
+    compile believe every document was already compiled. Normalised first, so
+    'raw/../wiki/x.md' does not pass on its lexical prefix.
+    """
+    return posixpath.normpath(rel).startswith(_RAW_PREFIX)
 
 
 def parse_sources(store: KBStore, article_path: str) -> tuple[list[str] | None, str]:
@@ -98,6 +114,13 @@ def resolve_documents(
             except OSError:
                 seen_bad.add(rel)
                 skipped_documents.append(Skipped(ref=rel, reason="document_unreadable"))
+                continue
+            # Checked after the read so an escaping entry keeps its escapes_kb
+            # reason (B3); only entries that resolve inside the KB but outside
+            # raw/ reach this branch.
+            if not _is_raw_document(rel):
+                seen_bad.add(rel)
+                skipped_documents.append(Skipped(ref=rel, reason="not_a_raw_document"))
                 continue
             found[rel] = DocumentRef(
                 rel_path=rel,

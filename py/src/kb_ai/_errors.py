@@ -80,6 +80,12 @@ class NestedDeriveError(DeriveError):
     code = "NESTED_DERIVE"
 
 
+class TopicTooLargeError(DeriveError):
+    """The topic is so long that no catalog line fits alongside it in one prompt."""
+
+    code = "TOPIC_TOO_LARGE"
+
+
 class NoDocumentsError(DeriveError):
     """No selected article resolved to a readable source document."""
 

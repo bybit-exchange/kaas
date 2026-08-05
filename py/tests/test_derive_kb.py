@@ -99,7 +99,9 @@ def test_happy_path_layout_and_report(tmp_path: Path):
     assert report.dropped_invented_paths == 1
     assert report.filter_batches == 1
     assert report.compiled is True
-    assert report.compile == {"compiled": 2, "errors": [], "cost": {"total_cost_usd": 1.25}}
+    # compile_kb's own "cost" key is stripped: it is a process-wide tracker
+    # summary, not this run's spend. report.cost is the authoritative figure.
+    assert report.compile == {"compiled": 2, "errors": []}
     assert report.offtopic_articles == ["wiki/stray.md"]
     assert (derived / "_offtopic" / "stray.md").exists()
 
@@ -148,6 +150,43 @@ def test_manifest_is_written_before_compiling(tmp_path: Path):
 
     assert seen["manifest"]["slug"] == "pricing"
     assert seen["manifest"]["documents"]
+
+
+def test_a_failed_copy_leaves_a_manifest_a_force_retry_accepts(tmp_path: Path,
+                                                               monkeypatch):
+    """A derive that dies while copying documents must stay recoverable.
+
+    The manifest is written as soon as create() succeeds, so the half-built
+    directory identifies itself as derive's own and check_slug_available lets the
+    --force retry the CLI advises replace it. Before the fix the retry hit
+    "refusing to replace a directory this command did not create" and the only
+    way out was a manual rm -rf.
+    """
+    import kb_ai.derive as derive_mod
+
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+    real_copy = derive_mod.copy_documents
+
+    def failing_copy(*a, **kw):
+        raise OSError("ENOSPC")
+
+    monkeypatch.setattr(derive_mod, "copy_documents", failing_copy)
+    with pytest.raises(OSError, match="ENOSPC"):
+        derive_kb(str(kb), "pricing", model="m", select=select,
+                  compile_fn=_fake_compile)
+
+    derived = kb / "derived" / "pricing"
+    manifest = json.loads((derived / "manifest.json").read_text())
+    assert manifest["slug"] == "pricing"
+    assert manifest["compiled"] is False
+    assert manifest["documents"] == []  # nothing was copied, so nothing is claimed
+
+    monkeypatch.setattr(derive_mod, "copy_documents", real_copy)
+    report = derive_kb(str(kb), "pricing", model="m", force=True, select=select,
+                       compile_fn=_fake_compile)
+    assert report.compiled is True
+    assert (derived / "raw" / "pricing-notes.md").exists()
 
 
 def test_declining_the_gate_leaves_raw_and_manifest_uncompiled(tmp_path: Path):
@@ -251,6 +290,7 @@ def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
     """report.cost must include PRECISION spend that compile's cost snapshot cannot hold (F6)."""
     kb = _fixture_kb(tmp_path)
     req_tracker = CostTracker(store_details=False)
+    snapshot: dict = {}
 
     # Stub selector records one LLM call per pass (RECALL + PRECISION = 2 calls).
     def select_with_cost(catalog, topic, mode):
@@ -274,8 +314,8 @@ def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
             "# Knowledge Base Index\n\n"
             "- [Pricing](wiki/pricing.md) — Fees.\n"
         )
-        return {"compiled": 1, "errors": [],
-                "cost": {"total_cost_usd": round(compile_cost, 6)}}
+        snapshot["cost"] = {"total_cost_usd": round(compile_cost, 6)}
+        return {"compiled": 1, "errors": [], "cost": snapshot["cost"]}
 
     set_request_tracker(req_tracker)
     try:
@@ -287,9 +327,65 @@ def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
     # 3 recorded calls: RECALL + compile + PRECISION (the last one is AFTER compile's snapshot).
     assert report.cost["calls"] == 3
     # The whole-run total must exceed compile's own cost snapshot (which lacks PRECISION).
-    assert report.cost["total_cost_usd"] > report.compile["cost"]["total_cost_usd"]
+    assert report.cost["total_cost_usd"] > snapshot["cost"]["total_cost_usd"]
     # Shape differs too: tracker.summary() carries token counts that compile's dict does not.
-    assert report.cost != report.compile["cost"]
+    assert report.cost != snapshot["cost"]
+
+
+def test_the_reported_compile_blob_carries_no_cost(tmp_path: Path):
+    """compile_kb's "cost" is a process-wide tracker summary, so derive drops it.
+
+    In the CLI it silently includes the RECALL pass; in the long-lived daemon it is
+    the daemon's lifetime spend, and this feature publishes the blob over HTTP and
+    into the manifest. report.cost is the authoritative per-request figure.
+    """
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m", select=select,
+                       compile_fn=_fake_compile)
+
+    assert "cost" not in report.compile
+    assert report.compile["compiled"] == 2
+    assert report.cost is not None
+
+    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text())
+    assert "cost" not in manifest["compile"]
+    assert manifest["cost"] is not None
+
+
+def test_a_declined_gate_still_reports_the_recall_pass_cost(tmp_path: Path):
+    """The RECALL pass is already paid for when the gate is offered (F6, E3).
+
+    Reporting cost: null there hides real spend -- N LLM calls on a large catalog
+    -- in both the CLI payload and the on-disk manifest.
+    """
+    kb = _fixture_kb(tmp_path)
+    req_tracker = CostTracker(store_details=False)
+
+    def select_with_cost(catalog, topic, mode):
+        req_tracker.record("claude-haiku-4-5", prompt_tokens=100, completion_tokens=10)
+        present = {a.path for a in catalog}
+        return SelectionResult(paths=[p for p in ["wiki/pricing.md"] if p in present],
+                               batches=1, dropped_invented=0, skipped=[])
+
+    def compile_fn(*a, **kw):
+        raise AssertionError("compile must not run when the gate declines")
+
+    set_request_tracker(req_tracker)
+    try:
+        report = derive_kb(str(kb), "pricing", model="m", select=select_with_cost,
+                           compile_fn=compile_fn, approve=lambda r: False)
+    finally:
+        set_request_tracker(None)
+
+    assert report.compiled is False
+    assert report.cost == req_tracker.summary()
+    assert report.cost["calls"] == 1
+    assert report.cost["total_cost_usd"] > 0
+
+    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text())
+    assert manifest["cost"]["total_cost_usd"] == report.cost["total_cost_usd"]
 
 
 def test_per_request_tracker_takes_precedence_over_global(tmp_path: Path, monkeypatch):

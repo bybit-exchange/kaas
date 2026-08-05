@@ -10,7 +10,7 @@ unioning, never a global ranking.
 """
 from __future__ import annotations
 
-from kb_ai._errors import DeriveError
+from kb_ai._errors import DeriveError, TopicTooLargeError
 from kb_ai.derive._types import (
     MODE_PRECISION,
     MODE_RECALL,
@@ -103,6 +103,16 @@ def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
 
     valid = {a.path for a in catalog}
     budget = MAX_PROMPT_CHARS - len(build_prompt(topic, mode, "")) - _SAFETY_MARGIN
+    if budget <= 0:
+        # Every catalog line would be dropped as line_over_budget and the run
+        # would fail as NO_DOCUMENTS, blaming the catalog for a topic-length
+        # problem. A8 drops individual oversized lines; it does not cover a topic
+        # that leaves no room for any line at all.
+        raise TopicTooLargeError(
+            f"the {len(topic)}-character topic leaves no room for catalog lines "
+            f"within the {MAX_PROMPT_CHARS}-character prompt budget; shorten the "
+            "topic"
+        )
     batches, skipped = pack_batches(catalog, budget)
 
     paths: list[str] = []

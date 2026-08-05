@@ -55,7 +55,9 @@ def validate_slug(slug: str) -> None:
     """Raise InvalidSlugError unless slug is a single safe path segment (C3)."""
     if not slug or not SLUG_RE.fullmatch(slug):
         raise InvalidSlugError(
-            f"invalid slug {slug!r}: expected 1-40 chars matching {SLUG_RE.pattern}"
+            f"invalid slug {slug!r}: expected 1-40 chars matching {SLUG_RE.pattern}; "
+            "pass --slug to name the derived knowledge base explicitly (a topic "
+            "with no ASCII letters or digits normalises to nothing)"
         )
 
 
@@ -80,6 +82,11 @@ def derived_dir(source_kb: Path, slug: str) -> Path:
     return Path(source_kb).expanduser().resolve() / DERIVED_DIRNAME / slug
 
 
+def _is_empty_dir(target: Path) -> bool:
+    """True for an existing directory with nothing in it."""
+    return target.is_dir() and not any(target.iterdir())
+
+
 def check_slug_available(source_kb: Path, slug: str, force: bool) -> None:
     """Raise SlugExistsError now if create() would later refuse (C4).
 
@@ -92,14 +99,19 @@ def check_slug_available(source_kb: Path, slug: str, force: bool) -> None:
         raise SlugExistsError(
             f"{target} already exists; pass --force to replace it"
         )
-    manifest = read_manifest(target)
-    if manifest.get("slug") != slug:
-        # --force replaces a directory derive created. Refusing anything else is
-        # what stops a mistyped --kb plus --force from being a data-loss bug.
-        raise SlugExistsError(
-            f"{target} exists but holds no {MANIFEST_NAME} naming slug {slug!r}; "
-            "refusing to replace a directory this command did not create"
-        )
+    if read_manifest(target).get("slug") == slug:
+        return
+    # An empty directory is the window between create()'s mkdir and the first
+    # manifest flush: a derive that died in between left it, and there is nothing
+    # in it to lose, so --force may take it over. Anything non-empty without our
+    # manifest is refused -- that is what stops a mistyped --kb plus --force from
+    # being a data-loss bug.
+    if _is_empty_dir(target):
+        return
+    raise SlugExistsError(
+        f"{target} exists but holds no {MANIFEST_NAME} naming slug {slug!r}; "
+        "refusing to replace a directory this command did not create"
+    )
 
 
 def _safe_create_target(source_kb: Path, slug: str) -> Path:
@@ -174,7 +186,10 @@ def copy_documents(source_store: KBStore, derived_dir: Path,
         content = source_store.read_raw(doc.rel_path)
         dest = derived_dir / doc.rel_path
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(content)
+        # Explicit utf-8 and no newline translation: the checksum the cache keys on
+        # is sha256(content.encode()), so the copy must be exactly those bytes
+        # whatever the locale default is (C7).
+        dest.write_text(content, encoding="utf-8", newline="")
         copied += 1
 
         cache_src = source_store.base_dir / ".extract-cache" / f"{doc.checksum}.json"
@@ -228,10 +243,13 @@ def list_derived(root_kb: str) -> list[dict]:
             continue
         if not SLUG_RE.fullmatch(child.name):
             continue
-        # Reject symlinks pointing outside derived/ -- same containment logic as
-        # resolve_kb_dir: compare the resolved path against the unresolved base so
-        # a symlink at <kb>/derived or <kb>/derived/<slug> is both caught.
-        if not child.resolve().is_relative_to(root):
+        # Reject symlinks pointing outside derived/, or at derived/ itself -- same
+        # containment logic as resolve_kb_dir: compare the resolved path against
+        # the unresolved base so a symlink at <kb>/derived or <kb>/derived/<slug>
+        # is both caught, and a slug that resolves to the base is not listed as a
+        # KB resolve_kb_dir would then refuse.
+        resolved = child.resolve()
+        if resolved == root or not resolved.is_relative_to(root):
             continue
         manifest = read_manifest(child)
         if manifest:
@@ -250,6 +268,11 @@ def resolve_kb_dir(root_kb: str, slug: str | None) -> str:
     that points outside the KB is rejected -- matching KBStore._resolve, and
     matching kbpath.Resolve in internal/kbpath/kbpath.go, which guards the Go
     bridge path the same way.
+
+    target == base is rejected too: is_relative_to() is true for base itself, so a
+    slug symlinked to derived/ would otherwise resolve to the whole derived tree
+    and retrieval would span every derived KB at once. _safe_create_target refuses
+    the same layout on the write path; the read path must not be more permissive.
     """
     root = Path(root_kb).expanduser().resolve()
     if not slug:
@@ -257,6 +280,7 @@ def resolve_kb_dir(root_kb: str, slug: str | None) -> str:
     validate_slug(slug)
     base = root / DERIVED_DIRNAME
     target = (base / slug).resolve()
-    if not target.is_relative_to(base) or not (target / MANIFEST_NAME).exists():
+    if (target == base or not target.is_relative_to(base)
+            or not (target / MANIFEST_NAME).exists()):
         raise UnknownDerivedKBError(f"no derived knowledge base named {slug!r}")
     return str(target)

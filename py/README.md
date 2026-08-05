@@ -59,6 +59,7 @@ daemon 就绪后向 stderr 输出 `__READY__`，随后在 stdin 上接收 JSON-l
 | `chat` | 流式 RAG 对话（含 citations） |
 | `fetch-url` | 抓取 URL 并提取可读内容 |
 | `cancel` | 取消正在进行的流式请求 |
+| `derive` | Derive a topic-scoped KB from the article catalog into `derived/<slug>/` |
 
 ## MCP Server
 
@@ -72,6 +73,11 @@ uv run kb-ai mcp --http --host 127.0.0.1 --port 8082
 
 提供一个 `ask` tool：对编译后的 KaaS wiki 进行 LLM 迭代检索 + 回答，返回
 带引用的 markdown。
+
+Signature: `ask(query, paths?, model?, kb?)`. `kb` selects a derived,
+topic-scoped knowledge base by slug (see `kb-ai derive`); omit it to search the
+whole wiki. An unknown slug is rejected rather than silently falling back to the
+full wiki.
 
 | 参数 | 说明 |
 |------|------|
@@ -91,10 +97,16 @@ uv run kb-ai fetch-url     # 从 stdin 读入 JSON，抓取 URL 转 markdown
 uv run kb-ai chat          # 从 stdin 读入 JSON，执行 RAG 对话
 uv run kb-ai rewrite       # 从 stdin 读入 JSON，改写检索 query
 uv run kb-ai distill <paths...> [--kb .kaas]  # 将文件/目录摄入 KB 并编译
+uv run kb-ai derive <topic> [--kb .kaas] [--slug s] [--force] [--model m] [--yes]
 ```
 
-每个命令（distill 除外）从 stdin 读取 JSON 请求，输出
+每个命令（distill / derive 除外）从 stdin 读取 JSON 请求，输出
 `{"ok": ..., "data"|"error": ...}` 至 stdout。
+
+`derive` builds a topic-scoped knowledge base at `<kb>/derived/<slug>/` from the
+source KB's article catalog, leaving the source KB untouched. It prompts before
+compiling unless `--yes` is given, and prints the resolved document count and the
+run's cost. `--force` replaces an existing `derived/<slug>/` from a previous run.
 
 ## 环境变量
 

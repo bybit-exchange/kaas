@@ -240,6 +240,11 @@ def _handle_derive(request_id: str, payload: dict) -> None:
     inner = payload.get("payload", {})
     kb_dir = inner.get("kb_dir", "")
     topic = inner.get("topic", "")
+    # An empty kb_dir resolves to the daemon's own working directory, and this is
+    # the one handler that creates directories.
+    if not kb_dir.strip():
+        _respond_error(request_id, "EMPTY_KB_DIR", "kb_dir must not be empty")
+        return
     if not topic.strip():
         _respond_error(request_id, "EMPTY_TOPIC", "topic must not be empty")
         return

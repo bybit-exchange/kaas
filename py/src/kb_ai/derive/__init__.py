@@ -17,9 +17,9 @@ See docs/features/derive-topic-kb-from-catalog/spec.md.
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Callable
 
 from kb_ai._errors import (  # noqa: F401 -- re-exported for callers
     DeriveError,
@@ -151,7 +151,6 @@ def derive_kb(
         )
 
     derived_dir = create(source, slug, force)
-    copy_documents(source_store, derived_dir, documents)
 
     report = DeriveReport(
         derived_kb=str(derived_dir),
@@ -160,7 +159,6 @@ def derive_kb(
         selected_articles=list(selection.paths),
         skipped_articles=skipped_articles,
         skipped_documents=skipped_documents,
-        documents=documents,
         dropped_invented_paths=selection.dropped_invented,
         filter_batches=selection.batches,
     )
@@ -178,15 +176,45 @@ def derive_kb(
             report, source_kb=source, model=model, created_at=created_at,
             sources_by_article=sources_by_article, titles_by_path=titles_by_path))
 
-    flush()  # E1: written before compiling, so a run that dies still records intent
+    def snapshot_cost() -> None:
+        """Record whole-run spend into report.cost.
+
+        Prefers the per-request tracker when the daemon has set one
+        (server_daemon.py creates a fresh CostTracker per request to avoid
+        cross-request accumulation); falls back to the process-wide tracker for
+        the one-shot CLI path where no per-request tracker is set.
+        """
+        req = get_request_tracker()
+        report.cost = (req if req is not None else tracker).summary()
+
+    # Written the moment the directory exists, before anything that can fail:
+    # a half-built derive then identifies itself as ours, so the --force retry
+    # the CLI advises is accepted instead of hitting check_slug_available's
+    # "a directory this command did not create". documents is still empty here
+    # -- nothing has been copied yet, so nothing is claimed.
+    flush()
+
+    copy_documents(source_store, derived_dir, documents)
+    report.documents = documents
+    flush()  # E1: full record written before compiling, so a run that dies
+             # mid-compile still records what it intended.
 
     if approve is not None and not approve(report):
+        # The RECALL pass has already been paid for; a declined run must still
+        # report and record what it spent (F6, E3).
+        snapshot_cost()
+        flush()
         return report
 
-    report.compile = compile_fn(str(derived_dir), extract_model=model,
+    compile_result = compile_fn(str(derived_dir), extract_model=model,
                                 compile_model=model, write_model=model)
+    # compile_kb returns the PROCESS-WIDE tracker summary, which here would be the
+    # RECALL pass plus, in the long-lived daemon, every earlier request's spend.
+    # report.cost is the authoritative per-request figure, so the misleading key
+    # is dropped rather than published over HTTP and into the manifest.
+    report.compile = {k: v for k, v in compile_result.items() if k != "cost"}
     report.compiled = True
-    flush()  # F3: record compiled=true before the PRECISION pass; if prune raises,
+    flush()  # E3: record compiled=true before the PRECISION pass; if prune raises,
              # the on-disk manifest still shows a fully compiled KB rather than the
              # pre-compile state, so recovery does not need to re-pay for compile.
 
@@ -194,13 +222,8 @@ def derive_kb(
     report.offtopic_articles = moved
     report.warnings.extend(warnings)
 
-    # Prefer the per-request tracker when the daemon has set one (server_daemon.py
-    # creates a fresh CostTracker per request to avoid cross-request accumulation);
-    # fall back to the process-wide tracker for the one-shot CLI path where no
-    # per-request tracker is set.  Either way, this read is after the PRECISION
-    # pass so that pass's spend is included — compile's own cost snapshot cannot
-    # contain it.
-    req = get_request_tracker()
-    report.cost = (req if req is not None else tracker).summary()
+    # After the PRECISION pass, so that pass's spend is included -- compile's own
+    # cost snapshot cannot contain it.
+    snapshot_cost()
     flush()
     return report

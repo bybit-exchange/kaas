@@ -887,6 +887,24 @@ def test_derive_requires_a_topic(monkeypatch):
     assert errors_seen[0][0] == "EMPTY_TOPIC"
 
 
+def test_derive_requires_a_kb_dir(monkeypatch):
+    """An empty kb_dir would become Path("").resolve() -- the daemon's own CWD.
+
+    This is the one handler that creates directories, so the missing input is
+    guarded like every sibling handler's (EMPTY_CONTENT, EMPTY_QUERY, EMPTY_URL).
+    """
+    from kb_ai import server_daemon
+
+    errors_seen: list = []
+    monkeypatch.setattr(server_daemon, "_respond_error",
+                        lambda rid, code, msg: errors_seen.append((code, msg)))
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda *a, **kw: pytest.fail("derive must not run"))
+
+    server_daemon._handle_derive("req-1", {"payload": {"topic": "pricing"}})
+    assert errors_seen[0][0] == "EMPTY_KB_DIR"
+
+
 def test_derive_isolates_cost_to_request_tracker(monkeypatch):
     """Per-request tracker must isolate cost from global tracker accumulation.
 

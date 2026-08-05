@@ -115,3 +115,17 @@ def test_declined_run_reports_ok_with_compiled_false(monkeypatch):
     assert resp["ok"] is True
     assert resp["data"]["compiled"] is False
     assert "--force" in resp["data"]["next"]
+
+
+def test_declined_run_guidance_does_not_promise_a_resume(monkeypatch):
+    """--force re-runs the filter and re-copies the documents; only the source KB's
+    extract cache is reused. Promising a cheap resume sends the operator into a
+    second full-price run they were told they had already paid for.
+    """
+    resp = _run(monkeypatch, ["pricing", "--yes"],
+                derive=lambda *a, **kw: _report(compiled=False, compile=None,
+                                                offtopic_articles=[], cost=None))
+    guidance = resp["data"]["next"]
+    assert "without re-resolving documents" not in guidance
+    assert "filter runs again" in guidance
+    assert "extract cache is reused" in guidance

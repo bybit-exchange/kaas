@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Callable
+from collections.abc import Callable
 
 from kb_ai._errors import KBError
 from kb_ai.derive import DeriveReport, derive_kb
@@ -79,8 +79,14 @@ def run_derive(argv: list[str]) -> None:
     if report.compiled:
         next_step = f"Register MCP: KAAS_KB_DIR={report.derived_kb} kb-ai mcp"
     else:
+        # No resume path exists: --force calls create(), which deletes the
+        # directory and starts over -- the topic filter runs again at full cost and
+        # the documents are resolved and copied again. The source KB's extract
+        # cache is the one thing genuinely reused, and it was never lost.
         next_step = (f"Declined before compiling. Re-run with --force --yes to "
-                     f"compile {report.derived_kb} without re-resolving documents.")
+                     f"replace {report.derived_kb}: the topic filter runs again "
+                     f"and the documents are re-copied, but the source knowledge "
+                     f"base's extract cache is reused.")
 
     respond(True, data={
         "derived_kb": report.derived_kb,

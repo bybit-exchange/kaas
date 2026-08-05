@@ -85,6 +85,25 @@ def test_force_refuses_a_directory_with_no_matching_manifest(tmp_path: Path):
     assert (target / "precious.md").exists()
 
 
+def test_force_replaces_an_empty_directory(tmp_path: Path):
+    """An empty derived/<slug>/ is the residual window between mkdir and the first
+    manifest flush, so --force must be able to take it over (there is nothing to
+    lose). Without this, a derive that died inside create() left a directory only
+    a manual rm -rf could clear.
+    """
+    target = tmp_path / "derived" / "pricing"
+    target.mkdir(parents=True)
+
+    out = _layout.create(tmp_path, "pricing", force=True)
+    assert out == target and out.is_dir()
+
+
+def test_an_empty_directory_is_still_refused_without_force(tmp_path: Path):
+    (tmp_path / "derived" / "pricing").mkdir(parents=True)
+    with pytest.raises(SlugExistsError):
+        _layout.create(tmp_path, "pricing", force=False)
+
+
 def test_force_refuses_a_manifest_naming_another_slug(tmp_path: Path):
     target = tmp_path / "derived" / "pricing"
     target.mkdir(parents=True)
@@ -246,6 +265,36 @@ def test_copy_documents_copies_content_and_extract_cache(tmp_path: Path):
     assert (derived / ".extract-cache" / f"{checksum}.json").read_text() == '{"summary": "cached"}'
 
 
+def test_copy_documents_writes_the_exact_bytes_the_checksum_names(tmp_path: Path):
+    """The copy must be sha256(content.encode())'s input verbatim (C7).
+
+    The extract cache keys on that checksum, so a locale-dependent encoding or a
+    newline translation on the write side would silently stop the derived compile
+    from finding the extraction already paid for. CRLF plus non-ASCII covers both
+    halves. (On a UTF-8, LF platform the defaults happen to agree; the assertion is
+    what stops that from being an accident.)
+    """
+    src = tmp_path / "src"
+    (src / "raw").mkdir(parents=True)
+    (src / "raw" / "notes.md").write_bytes("héllo\r\nwörld\n".encode())
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    store = KBStore(str(src), read_only=True)
+
+    from kb_ai.storage.store import _compute_checksum
+    content = store.read_raw("raw/notes.md")
+    checksum = _compute_checksum(content)
+
+    _layout.copy_documents(store, derived, [
+        DocumentRef(rel_path="raw/notes.md", checksum=checksum,
+                    size_bytes=len(content.encode())),
+    ])
+
+    dest_bytes = (derived / "raw" / "notes.md").read_bytes()
+    assert dest_bytes == content.encode("utf-8")
+    assert _compute_checksum(dest_bytes.decode("utf-8")) == checksum
+
+
 def test_copy_documents_tolerates_a_missing_cache_entry(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
@@ -364,6 +413,26 @@ def test_resolve_kb_dir_rejects_a_symlinked_derived_kb(tmp_path: Path):
         _layout.resolve_kb_dir(str(tmp_path / "kb"), "escape")
 
 
+def test_resolve_kb_dir_rejects_a_slug_symlinked_to_derived_itself(tmp_path: Path):
+    """<kb>/derived/<slug> -> <kb>/derived itself must not resolve to the base.
+
+    is_relative_to() is true when target == base, so the pre-fix containment test
+    accepted the link and returned <kb>/derived as the KB dir -- retrieval would
+    then span every derived KB at once, the cross-corpus contamination G3 exists
+    to prevent.  _safe_create_target already treats this exact layout as hostile
+    on the write path (its base-itself case); the read path must not be more
+    permissive than the write path.
+    """
+    derived_root = tmp_path / "kb" / "derived"
+    derived_root.mkdir(parents=True)
+    # A manifest at derived/ itself is what makes the pre-fix check pass.
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}))
+    (derived_root / "self").symlink_to(derived_root, target_is_directory=True)
+
+    with pytest.raises(UnknownDerivedKBError):
+        _layout.resolve_kb_dir(str(tmp_path / "kb"), "self")
+
+
 def test_list_derived_reads_manifests(tmp_path: Path):
     for slug, topic in (("pricing", "pricing"), ("compliance", "compliance rules")):
         d = tmp_path / "derived" / slug
@@ -394,6 +463,19 @@ def test_list_derived_skips_dir_with_trailing_newline_name(tmp_path: Path):
 
     got = _layout.list_derived(str(tmp_path))
     assert got == [], f"expected [], got {got!r}"
+
+
+def test_list_derived_skips_a_child_symlinked_to_derived_itself(tmp_path: Path):
+    """Keeps list_derived in agreement with resolve_kb_dir, which rejects this
+    layout: a listed slug that resolve_kb_dir then refuses is a phantom KB in the
+    selector.
+    """
+    derived_root = tmp_path / "kb" / "derived"
+    derived_root.mkdir(parents=True)
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}))
+    (derived_root / "self").symlink_to(derived_root, target_is_directory=True)
+
+    assert _layout.list_derived(str(tmp_path / "kb")) == []
 
 
 def test_list_derived_skips_symlinked_children(tmp_path: Path):

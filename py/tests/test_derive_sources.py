@@ -132,6 +132,46 @@ def test_unreadable_document_is_recorded(tmp_path: Path, monkeypatch):
     assert skipped_docs[0].reason == "document_unreadable"
 
 
+def test_an_entry_outside_raw_is_skipped_not_copied(tmp_path: Path):
+    """sources: is LLM-written, so an entry may name a file outside raw/ (C1).
+
+    Copying wiki/pricing.md into the derived KB would inject an article that was
+    never compiled from the derived raw/, so the entry is skipped like any other
+    unusable one.
+    """
+    _raw(tmp_path, "ok.md", "fine")
+    p = _article(tmp_path, "one.md",
+                 'title: One\nsources:\n  - wiki/pricing.md\n  - raw/ok.md')
+    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n")
+
+    docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
+    assert [d.rel_path for d in docs] == ["raw/ok.md"]
+    assert [(s.ref, s.reason) for s in skipped_docs] == [
+        ("wiki/pricing.md", "not_a_raw_document")]
+
+
+def test_the_compile_state_file_is_not_a_source_document(tmp_path: Path):
+    """Copying .compile-state.json in would make the derived compile a no-op."""
+    (tmp_path / ".compile-state.json").write_text('{"files": {}}')
+    p = _article(tmp_path, "one.md", 'title: One\nsources:\n  - .compile-state.json')
+
+    docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
+    assert docs == []
+    assert [(s.ref, s.reason) for s in skipped_docs] == [
+        (".compile-state.json", "not_a_raw_document")]
+
+
+def test_an_entry_climbing_out_of_raw_is_skipped(tmp_path: Path):
+    """'raw/../wiki/x.md' starts with raw/ lexically but names a wiki article."""
+    p = _article(tmp_path, "one.md",
+                 'title: One\nsources:\n  - raw/../wiki/pricing.md')
+    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n")
+
+    docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
+    assert docs == []
+    assert skipped_docs[0].reason == "not_a_raw_document"
+
+
 def test_a_document_skipped_once_is_not_reported_twice(tmp_path: Path):
     p1 = _article(tmp_path, "one.md", 'title: One\nsources:\n  - raw/gone.md')
     p2 = _article(tmp_path, "two.md", 'title: Two\nsources:\n  - raw/gone.md')

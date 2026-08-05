@@ -28,8 +28,8 @@ class Skipped:
 
     reason is drawn from a fixed vocabulary so the manifest stays
     machine-readable: no_sources_key, empty_sources, unparseable_frontmatter,
-    article_unreadable, escapes_kb, document_missing, document_unreadable,
-    line_over_budget.
+    article_unreadable, escapes_kb, not_a_raw_document, document_missing,
+    document_unreadable, line_over_budget.
     """
 
     ref: str
@@ -62,7 +62,13 @@ class DocumentRef:
 
 @dataclass
 class DeriveReport:
-    """Everything one derive run decided and did. Serialised into manifest.json."""
+    """Everything one derive run decided and did. Serialised into manifest.json.
+
+    cost is the authoritative per-request spend for the whole run. compile holds
+    compile_kb's result summary with its own "cost" key removed: that key is a
+    process-wide tracker snapshot, so in the long-lived daemon it would report the
+    daemon's lifetime spend rather than this run's.
+    """
 
     derived_kb: str
     slug: str
@@ -76,8 +82,10 @@ class DeriveReport:
     offtopic_articles: list[str] = field(default_factory=list)
     compiled: bool = False
     compile: dict | None = None
-    # Whole-run LLM spend, read from the process-wide tracker after the second
-    # pass -- compile's own summary predates that pass, so it is not the total.
+    # Whole-run LLM spend, read from the per-request tracker (or the process-wide
+    # one on the CLI path) after the second pass -- compile's own summary predates
+    # that pass, so it is not the total. Set even when the volume gate declines:
+    # the RECALL pass has already been paid for by then (F6, E3).
     cost: dict | None = None
     warnings: list[str] = field(default_factory=list)
 

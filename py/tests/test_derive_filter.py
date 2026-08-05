@@ -121,6 +121,26 @@ def test_a_line_over_a_whole_batch_is_skipped_not_fatal(monkeypatch):
     assert [(s.ref, s.reason) for s in result.skipped] == [("wiki/huge.md", "line_over_budget")]
 
 
+def test_a_topic_too_long_to_leave_a_budget_fails_naming_the_topic(monkeypatch):
+    """A topic that fills the prompt budget must blame the topic, not the catalog.
+
+    Before the fix the budget went non-positive, every catalog line was dropped as
+    line_over_budget, and the run failed as NO_DOCUMENTS -- "none of the 0 matching
+    articles resolved", which sends the operator hunting through their catalog for
+    a topic-length problem.
+    """
+    from kb_ai._errors import TopicTooLargeError
+    from kb_ai.llm import MAX_PROMPT_CHARS
+
+    def boom(**kwargs):
+        raise AssertionError("completion_json must not be called")
+
+    monkeypatch.setattr(_filter, "completion_json", boom)
+    with pytest.raises(TopicTooLargeError, match="topic"):
+        _filter.select_by_topic(_catalog(3), "x" * MAX_PROMPT_CHARS, MODE_RECALL,
+                                model="m")
+
+
 def test_the_two_modes_give_different_inclusion_instructions():
     recall = _filter.build_prompt("pricing", MODE_RECALL, "- wiki/a.md — A: s")
     precision = _filter.build_prompt("pricing", MODE_PRECISION, "- wiki/a.md — A: s")
