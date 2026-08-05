@@ -16,6 +16,7 @@
 package kbpath
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -65,6 +66,14 @@ func ValidSlug(slug string) bool {
 // inside derived/ (the accepted case in TestResolveSymlinkContainment/
 // slug_symlinked_to_sibling_inside), the sibling's canonical path is returned
 // rather than <resolved-root>/derived/<slug>.
+//
+// Resolve is deliberately indifferent to whether the KB finished compiling: a
+// manifest saying compiled:false resolves like any other. Reaching an incomplete
+// KB is a CLI-driven flow — a declined volume gate leaves exactly that state
+// (spec F5) — and browsing it simply finds an empty wiki. The listing side is
+// stricter: ListSlugs's caller filters uncompiled KBs out of GET /api/derived so
+// the KB selector cannot offer one. The asymmetry is intentional; do not "fix" it
+// by making Resolve reject uncompiled KBs, or the CLI loses read access to them.
 //
 // root is absolutised with filepath.Abs before symlink resolution so a relative
 // root (e.g. "./mykb") produces a consistent absolute path matching what
@@ -117,8 +126,51 @@ func Resolve(root, slug string) (string, error) {
 	return resolved, nil
 }
 
+// Manifest is the subset of a derived KB's manifest.json that the Go side reads.
+// The engine writes many more fields (see _manifest_payload in
+// py/src/kb_ai/derive/__init__.py); unknown ones are ignored.
+type Manifest struct {
+	Slug      string `json:"slug"`
+	Topic     string `json:"topic"`
+	CreatedAt string `json:"created_at"`
+	// Compiled is written true only once the compile pass has finished (spec F3).
+	// The manifest itself is written before compiling (spec E1), so compiled=false
+	// — or the key missing entirely — marks a derive that never completed: a
+	// directory with no wiki/ to browse. It is also the deliberate resting state
+	// of a CLI run whose volume gate was declined (spec F5).
+	Compiled bool `json:"compiled"`
+}
+
+// ReadManifest reads the manifest of the derived KB at dir, as returned by
+// Resolve. An absent, unreadable or malformed manifest is an error, so a caller
+// can tell "not compiled" from "cannot tell".
+func ReadManifest(dir string) (Manifest, error) {
+	raw, err := os.ReadFile(filepath.Join(dir, manifestName))
+	if err != nil {
+		return Manifest{}, fmt.Errorf("kbpath: read manifest: %w", err)
+	}
+	var m Manifest
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return Manifest{}, fmt.Errorf("kbpath: parse manifest: %w", err)
+	}
+	return m, nil
+}
+
 // ListSlugs returns the slugs of every derived knowledge base under root,
 // sorted. An absent derived/ directory yields an empty slice, not an error.
+//
+// Membership is decided by Resolve, one entry at a time, so "what is a derived
+// KB" is encoded once. Deciding it here independently drifted twice: os.ReadDir
+// reports DirEntry.IsDir from an lstat, so a slug symlinked to a sibling inside
+// derived/ was skipped while Resolve followed it; and a lexical ValidSlug on the
+// on-disk name skipped a "Pricing" directory that Resolve serves for slug
+// "pricing" on a case-insensitive filesystem. The listing must not hide a KB
+// that ?kb= answers for.
+//
+// The candidate slug is the lower-cased entry name — the form a client can pass,
+// since ValidSlug rejects upper case. Lower-casing is a no-op for a name that is
+// already a valid slug, and on a case-sensitive filesystem the lower-cased
+// candidate simply fails Resolve, so nothing that cannot be served is listed.
 func ListSlugs(root string) ([]string, error) {
 	entries, err := os.ReadDir(filepath.Join(root, DerivedDirName))
 	if err != nil {
@@ -127,15 +179,18 @@ func ListSlugs(root string) ([]string, error) {
 		}
 		return nil, fmt.Errorf("kbpath: read derived dir: %w", err)
 	}
+	seen := make(map[string]struct{}, len(entries))
 	var slugs []string
 	for _, e := range entries {
-		if !e.IsDir() || !ValidSlug(e.Name()) {
+		slug := strings.ToLower(e.Name())
+		if _, dup := seen[slug]; dup {
 			continue
 		}
-		if _, err := os.Stat(filepath.Join(root, DerivedDirName, e.Name(), manifestName)); err != nil {
+		if _, err := Resolve(root, slug); err != nil {
 			continue
 		}
-		slugs = append(slugs, e.Name())
+		seen[slug] = struct{}{}
+		slugs = append(slugs, slug)
 	}
 	sort.Strings(slugs)
 	return slugs, nil

@@ -126,6 +126,77 @@ func TestListSlugs(t *testing.T) {
 	}
 }
 
+// TestListSlugsAgreesWithResolve covers the two layouts where the pre-fix
+// ListSlugs (os.ReadDir + IsDir + ValidSlug + manifest Stat) omitted a slug that
+// Resolve accepts, so GET /api/derived hid a KB that ?kb= served happily.
+//
+// Pre-fix behaviour documented per sub-case so the RED→GREEN transition is
+// auditable.
+func TestListSlugsAgreesWithResolve(t *testing.T) {
+	t.Run("slug_symlinked_to_sibling_inside", func(t *testing.T) {
+		// Pre-fix: os.ReadDir reports the symlink entry with IsDir()==false
+		// (DirEntry.IsDir is lstat-based), so "alias" is skipped even though
+		// Resolve follows it to the sibling and accepts it.
+		root := t.TempDir()
+		compliance := filepath.Join(root, DerivedDirName, "compliance")
+		if err := os.MkdirAll(compliance, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(compliance, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// derived/alias -> derived/compliance
+		if err := os.Symlink(compliance, filepath.Join(root, DerivedDirName, "alias")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Resolve(root, "alias"); err != nil {
+			t.Fatalf("precondition: Resolve(alias) = %v, want nil", err)
+		}
+
+		got, err := ListSlugs(root)
+		if err != nil {
+			t.Fatalf("ListSlugs: %v", err)
+		}
+		if !contains(got, "alias") {
+			t.Errorf("ListSlugs = %v, want it to contain the resolvable alias", got)
+		}
+	})
+
+	t.Run("case_insensitive_filesystem", func(t *testing.T) {
+		// Pre-fix: the on-disk name "Pricing" fails ValidSlug so the entry is
+		// skipped, while Resolve("pricing") succeeds on a case-insensitive
+		// filesystem (EvalSymlinks does not case-canonicalise).
+		root := t.TempDir()
+		upper := filepath.Join(root, DerivedDirName, "Pricing")
+		if err := os.MkdirAll(upper, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(upper, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Resolve(root, "pricing"); err != nil {
+			t.Skipf("case-sensitive filesystem: Resolve(pricing) = %v", err)
+		}
+
+		got, err := ListSlugs(root)
+		if err != nil {
+			t.Fatalf("ListSlugs: %v", err)
+		}
+		if !contains(got, "pricing") {
+			t.Errorf("ListSlugs = %v, want it to contain pricing, which Resolve accepts", got)
+		}
+	})
+}
+
+func contains(ss []string, want string) bool {
+	for _, s := range ss {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestListSlugsNoDerivedDir(t *testing.T) {
 	got, err := ListSlugs(t.TempDir())
 	if err != nil {
@@ -134,6 +205,53 @@ func TestListSlugsNoDerivedDir(t *testing.T) {
 	if len(got) != 0 {
 		t.Errorf("ListSlugs = %v, want empty", got)
 	}
+}
+
+func TestReadManifest(t *testing.T) {
+	dir := t.TempDir()
+	raw := `{"slug":"pricing","topic":"Pricing","created_at":"2024-01-01","compiled":true}`
+	if err := os.WriteFile(filepath.Join(dir, manifestName), []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := ReadManifest(dir)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if m.Slug != "pricing" || m.Topic != "Pricing" || m.CreatedAt != "2024-01-01" || !m.Compiled {
+		t.Errorf("manifest = %+v", m)
+	}
+}
+
+func TestReadManifestErrors(t *testing.T) {
+	t.Run("absent", func(t *testing.T) {
+		if _, err := ReadManifest(t.TempDir()); err == nil {
+			t.Error("ReadManifest of a directory with no manifest returned nil error")
+		}
+	})
+	t.Run("not_json", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, manifestName), []byte("{oops"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ReadManifest(dir); err == nil {
+			t.Error("ReadManifest of a corrupt manifest returned nil error")
+		}
+	})
+	t.Run("compiled_absent_is_false", func(t *testing.T) {
+		// A manifest written before the compile pass has no compiled key at all
+		// (spec E1), which must read as an incomplete derive rather than an error.
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, manifestName), []byte(`{"slug":"x"}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		m, err := ReadManifest(dir)
+		if err != nil {
+			t.Fatalf("ReadManifest: %v", err)
+		}
+		if m.Compiled {
+			t.Error("compiled = true for a manifest without the key")
+		}
+	})
 }
 
 // TestResolveSymlinkContainment verifies that Resolve rejects three symlink
@@ -223,6 +341,99 @@ func TestResolveSymlinkContainment(t *testing.T) {
 		}
 		if got != wantResolved {
 			t.Errorf("Resolve with sibling symlink = %q, want resolved %q", got, wantResolved)
+		}
+	})
+}
+
+// TestResolveContainmentBoundaries pins the two boundary conditions of the
+// containment check in Resolve, plus the dangling-symlink case that mirrors the
+// Python write-path suite. All three already behave correctly; the tests exist so
+// that weakening the check is caught.
+//
+// Pre-fix behaviour documented here as "what a plausible simplification would
+// do", since the failure mode is a future edit rather than the original code:
+//
+//	case slug_symlinked_to_derived_itself: with the check written as
+//	  strings.HasPrefix(resolved, base) the resolved path equals base, the prefix
+//	  matches, derived/manifest.json is found and derived/ itself is served as a
+//	  KB — every other derived KB visible underneath it.
+//
+//	case sibling_derived_evil_dir: with the same simplification the resolved
+//	  path <root>/derived-evil shares the "<root>/derived" prefix, so a KB
+//	  outside derived/ is served (the classic /kb/derived-evil bypass). The
+//	  separator in base+string(filepath.Separator) is what rejects it.
+func TestResolveContainmentBoundaries(t *testing.T) {
+	t.Run("slug_symlinked_to_derived_itself", func(t *testing.T) {
+		root := t.TempDir()
+		derivedDir := filepath.Join(root, DerivedDirName)
+		if err := os.MkdirAll(derivedDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// A manifest directly in derived/ so only the containment check can reject.
+		if err := os.WriteFile(filepath.Join(derivedDir, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// derived/self -> derived/
+		if err := os.Symlink(derivedDir, filepath.Join(derivedDir, "self")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Resolve(root, "self"); !errors.Is(err, ErrUnknownKB) {
+			t.Fatalf("Resolve with slug symlinked to derived/ itself: err = %v, want ErrUnknownKB", err)
+		}
+	})
+
+	t.Run("sibling_derived_evil_dir", func(t *testing.T) {
+		root := t.TempDir()
+		derivedDir := filepath.Join(root, DerivedDirName)
+		if err := os.MkdirAll(derivedDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// <root>/derived-evil shares the "<root>/derived" string prefix but is not
+		// inside derived/.
+		evil := filepath.Join(root, DerivedDirName+"-evil")
+		if err := os.MkdirAll(evil, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(evil, manifestName), []byte("{}"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// derived/evil -> ../derived-evil
+		if err := os.Symlink(evil, filepath.Join(derivedDir, "evil")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Resolve(root, "evil"); !errors.Is(err, ErrUnknownKB) {
+			t.Fatalf("Resolve with sibling derived-evil: err = %v, want ErrUnknownKB", err)
+		}
+		// The same layout must not surface in the listing either.
+		got, err := ListSlugs(root)
+		if err != nil {
+			t.Fatalf("ListSlugs: %v", err)
+		}
+		if contains(got, "evil") {
+			t.Errorf("ListSlugs = %v, want it to omit the out-of-tree evil slug", got)
+		}
+	})
+
+	t.Run("dangling_symlink", func(t *testing.T) {
+		root := t.TempDir()
+		derivedDir := filepath.Join(root, DerivedDirName)
+		if err := os.MkdirAll(derivedDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		// derived/gone -> a target that never existed.
+		if err := os.Symlink(filepath.Join(root, "no-such-target"),
+			filepath.Join(derivedDir, "gone")); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Resolve(root, "gone"); !errors.Is(err, ErrUnknownKB) {
+			t.Fatalf("Resolve with dangling symlink: err = %v, want ErrUnknownKB", err)
+		}
+		got, err := ListSlugs(root)
+		if err != nil {
+			t.Fatalf("ListSlugs: %v", err)
+		}
+		if contains(got, "gone") {
+			t.Errorf("ListSlugs = %v, want it to omit the dangling symlink", got)
 		}
 	})
 }
