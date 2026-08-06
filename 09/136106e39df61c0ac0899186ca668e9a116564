@@ -1,0 +1,25 @@
+py/tests/test_small_gaps.py
+  a79d849a4ac92c35 235,240-256,269,271
+py/src/kb_ai/distill.py
+  a79d849a4ac92c35 49-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "09136106e39df61c0ac0899186ca668e9a116564",
+  "prompts": {
+    "a79d849a4ac92c35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b7d2d2c-789d-4132-b2b2-a28a0eb10e87",
+        "model": "claude-opus-5"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 7,
+      "accepted_lines": 31,
+      "overriden_lines": 0
+    }
+  }
+}
