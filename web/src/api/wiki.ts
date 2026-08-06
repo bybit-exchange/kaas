@@ -19,12 +19,14 @@ export interface WikiArticle {
   content: string
 }
 
-export async function listWiki(): Promise<{ tree: WikiTreeNode[] }> {
-  const res = await apiFetch('/wiki')
+/** Lists the wiki tree of the root knowledge base, or of a derived one when kb is a slug. */
+export async function listWiki(kb?: string | null): Promise<{ tree: WikiTreeNode[] }> {
+  const res = await apiFetch(kb ? `/wiki?kb=${encodeURIComponent(kb)}` : '/wiki')
   return res.json() as Promise<{ tree: WikiTreeNode[] }>
 }
 
-export async function fetchWikiArticle(path: string): Promise<WikiArticle> {
-  const res = await apiFetch(`/wiki/file?path=${encodeURIComponent(path)}`)
+export async function fetchWikiArticle(path: string, kb?: string | null): Promise<WikiArticle> {
+  const query = `path=${encodeURIComponent(path)}${kb ? `&kb=${encodeURIComponent(kb)}` : ''}`
+  const res = await apiFetch(`/wiki/file?${query}`)
   return res.json() as Promise<WikiArticle>
 }

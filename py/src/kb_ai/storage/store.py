@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -22,6 +23,17 @@ class ArticleMeta:
     tags: list[str] = field(default_factory=list)
     status: str = ""
     keys: str = ""
+
+
+def render_catalog_line(a: ArticleMeta) -> str:
+    """Render one catalog line the way the master index writes it.
+
+    Shared by retrieval's page selection and derive's topic filter: two copies of
+    this f-string would drift, and a change to the keys column would silently
+    stop reaching one of them.
+    """
+    return (f"- {a.path} — {a.title}: {a.summary}"
+            + (f"{KEYS_MARKER}{a.keys}" if a.keys else ""))
 
 
 @dataclass
@@ -59,6 +71,38 @@ class KBStore:
     @property
     def index_dir(self) -> Path:
         return self.base_dir / "index"
+
+    @property
+    def config_path(self) -> Path:
+        return self.base_dir / "kaas.json"
+
+    def load_config(self) -> dict:
+        """Read per-KB config, or {} if there is none.
+
+        A missing file is the normal state for a KB created before config
+        existed. A corrupt one is treated the same way rather than raised: the
+        config only carries defaults, so a bad file should not stop a compile.
+        """
+        if not self.config_path.exists():
+            return {}
+        try:
+            data = json.loads(self.config_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            print(
+                f"[config] ignoring unreadable {self.config_path}",
+                file=sys.stderr,
+                flush=True,
+            )
+            return {}
+        return data if isinstance(data, dict) else {}
+
+    def save_config(self, config: dict) -> None:
+        if self.read_only:
+            raise PermissionError("KBStore is read-only")
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        self.config_path.write_text(
+            json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
 
     def _iter_raw_paths(self) -> Iterator[Path]:
         """Yield raw/*.md paths in sorted order, applying skip rules.

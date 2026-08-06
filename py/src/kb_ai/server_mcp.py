@@ -55,7 +55,8 @@ def _with_sources_footer(answer: str, sources: list[dict]) -> str:
 
 
 @mcp.tool()
-def ask(query: str, paths: list[str] | None = None, model: str | None = None) -> dict:
+def ask(query: str, paths: list[str] | None = None, model: str | None = None,
+        kb: str | None = None) -> dict:
     """Ask the compiled KaaS wiki a question; returns a cited answer.
 
     Args:
@@ -63,6 +64,10 @@ def ask(query: str, paths: list[str] | None = None, model: str | None = None) ->
         paths: Optional wiki article paths to ground the answer in (skips
             master-index navigation and reads those pages in full).
         model: Optional chat model override.
+        kb: Optional derived knowledge-base slug (a directory under
+            <kb_dir>/derived/). Omit for the root knowledge base. An unknown slug
+            is an error, never a silent fallback to the root: answering from the
+            wrong corpus is worse than failing.
 
     Returns a dict: {answer (markdown, inline citations + Sources footer),
     sources [{title, path}], cost_usd}.
@@ -80,7 +85,10 @@ def ask(query: str, paths: list[str] | None = None, model: str | None = None) ->
             raise RuntimeError(ev.get("message") or ev.get("code") or "chat failed")
         # "status" and any unknown event types are ignored.
 
-    input_data: dict = {"query": query, "kb_dir": _kb_dir(), "include_sources": True}
+    from kb_ai.derive import resolve_kb_dir
+
+    input_data: dict = {"query": query, "kb_dir": resolve_kb_dir(_kb_dir(), kb),
+                        "include_sources": True}
     if paths:
         input_data["paths"] = paths
     if model:

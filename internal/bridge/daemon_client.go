@@ -216,6 +216,27 @@ func (c *DaemonClient) Index(ctx context.Context, req IndexRequest) (json.RawMes
 	return resp.Data, nil
 }
 
+// Derive builds a topic-scoped knowledge base via the daemon.
+//
+// One call covering filter → copy → compile → prune, so it can run long: the
+// caller sets the context deadline. There is no volume gate on this path — it is
+// async and there is nobody to prompt (spec H5).
+func (c *DaemonClient) Derive(ctx context.Context, req DeriveRequest) (*DeriveResponse, error) {
+	payload, _ := json.Marshal(req)
+	resp, err := c.daemon.call(ctx, daemonRequest{Cmd: "derive", Payload: payload})
+	if err != nil {
+		return nil, err
+	}
+	if !resp.OK {
+		return nil, daemonRespError(resp)
+	}
+	var out DeriveResponse
+	if err := json.Unmarshal(resp.Data, &out); err != nil {
+		return nil, fmt.Errorf("daemon derive: decode response: %w", err)
+	}
+	return &out, nil
+}
+
 // Rewrite rewrites a query for retrieval via the daemon.
 func (c *DaemonClient) Rewrite(ctx context.Context, req RewriteRequest) (json.RawMessage, error) {
 	payload, _ := json.Marshal(req)

@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Sun, Moon, Languages, Bot, MessageSquare, Upload, BookOpen, Activity, type LucideIcon } from 'lucide-react'
 import { useT } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
+import { useSyncKB } from '@/hooks/useSyncKB'
 import { cn } from '@/lib/cn'
 import { Button } from '@/components/ui/button'
 
@@ -16,6 +17,10 @@ export function AppLayout() {
   const t = useT()
   const { theme, lang, setTheme, setLang } = usePrefs()
   const { pathname } = useLocation()
+
+  // Here rather than next to the selector: a stale slug breaks chat too, and
+  // chat is reachable without ever rendering the wiki page.
+  useSyncKB()
 
   function toggleTheme() {
     setTheme(theme === 'light' ? 'dark' : 'light')

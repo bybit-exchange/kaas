@@ -26,6 +26,7 @@ import (
 	"github.com/bybit-exchange/kaas/internal/bridge"
 	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/config"
+	"github.com/bybit-exchange/kaas/internal/derive"
 	"github.com/bybit-exchange/kaas/internal/frontmatter"
 	"github.com/bybit-exchange/kaas/internal/queue"
 	"github.com/bybit-exchange/kaas/internal/store"
@@ -236,6 +237,29 @@ func run(configFile string) error {
 
 	logger := newLogger(cfg.Log)
 
+	// Derive jobs are KB-level, so they run beside the per-document dispatcher
+	// rather than inside it (see internal/derive's package comment). Built before
+	// the API server so the server can be told whether anything will consume the
+	// derive queue: POST /api/derive must answer 501 rather than queue a job that
+	// would sit at "pending" forever.
+	var deriveRunner *derive.Runner
+	if js, ok := st.(store.DerivedJobStore); ok {
+		if dc, ok := chatBr.(*bridge.DaemonClient); ok {
+			deriveRunner = derive.NewRunner(js, dc, derive.Config{
+				KBDir:        cfg.Storage.KBDir,
+				Model:        cfg.LLM.Model,
+				PollInterval: time.Duration(cfg.Worker.PollIntervalMS) * time.Millisecond,
+			}, logger)
+		} else {
+			logger.Warn("derive: HTTP bridge not a DaemonClient; derive runner disabled")
+		}
+	} else {
+		// store.Store intentionally does not embed DerivedJobStore; the SQLite
+		// backend satisfies both. Any new backend that forgets DerivedJobStore
+		// will silently disable derive — log loudly so the gap is visible.
+		logger.Warn("derive: store does not implement DerivedJobStore; derive runner disabled")
+	}
+
 	// The sqlite.Store satisfies both api.TaskStore and api.SessionStore; cast
 	// to extract the session persistence interface from the same store instance.
 	ss, _ := st.(api.SessionStore)
@@ -246,6 +270,7 @@ func run(configFile string) error {
 		WebDir:        cfg.Server.WebDir,
 		MCPURL:        cfg.AI.MCPURL,
 		Upload:        cfg.Upload,
+		DeriveEnabled: deriveRunner != nil,
 		MCPEnabled:    cfg.AI.MCP.Enabled,
 		MCPToken:      cfg.AI.MCP.Token,
 		MCPTimeoutSec: cfg.AI.MCP.TimeoutSec,
@@ -263,11 +288,15 @@ func run(configFile string) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	var wg sync.WaitGroup
-	errc := make(chan error, 2)
-	for name, fn := range map[string]func(context.Context) error{
+	runnables := map[string]func(context.Context) error{
 		"server":     srv.Run,
 		"dispatcher": d.Run,
-	} {
+	}
+	if deriveRunner != nil {
+		runnables["derive-runner"] = deriveRunner.Run
+	}
+	errc := make(chan error, len(runnables))
+	for name, fn := range runnables {
 		wg.Add(1)
 		go func(name string, fn func(context.Context) error) {
 			defer wg.Done()

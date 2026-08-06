@@ -69,6 +69,12 @@ type Config struct {
 	// Deprecated: use MCPEnabled + native handler instead.
 	MCPURL string
 	Upload config.UploadConf
+	// DeriveEnabled reports that a derive runner is actually consuming the job
+	// queue. A store that records derive jobs is not enough: cmd/kaas disables the
+	// runner when the bridge cannot serve derives, and a job nobody claims sits at
+	// "pending" forever with the UI showing "Queued". POST /api/derive answers 501
+	// unless this is set.
+	DeriveEnabled bool
 	// Native MCP handler fields (preferred over MCPURL reverse proxy).
 	MCPEnabled    bool
 	MCPToken      string
@@ -81,6 +87,7 @@ type Server struct {
 	st     TaskStore
 	ss     SessionStore
 	br     ChatBridge
+	js     store.DerivedJobStore // derive jobs; nil when the backing store has none
 	cfg    Config
 	logger *slog.Logger
 	mcpH   http.Handler // native MCP handler, nil if disabled
@@ -93,6 +100,11 @@ func NewServer(q Queue, st TaskStore, ss SessionStore, br ChatBridge, cfg Config
 		logger = slog.Default()
 	}
 	s := &Server{q: q, st: st, ss: ss, br: br, cfg: cfg, logger: logger}
+	// The sqlite store implements DerivedJobStore too; a backend that does not
+	// simply leaves the derive routes answering 501.
+	if js, ok := st.(store.DerivedJobStore); ok {
+		s.js = js
+	}
 
 	if cfg.MCPEnabled {
 		if cfg.MCPURL != "" {
@@ -120,6 +132,9 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
 	mux.HandleFunc("GET /api/wiki", s.handleListWiki)
 	mux.HandleFunc("GET /api/wiki/file", s.handleWikiFile)
+	mux.HandleFunc("POST /api/derive", s.handleDerive)
+	mux.HandleFunc("GET /api/derive/{id}", s.handleGetDeriveJob)
+	mux.HandleFunc("GET /api/derived", s.handleListDerived)
 	mux.HandleFunc("POST /api/chat", s.handleChat)
 	mux.HandleFunc("GET /api/sessions", s.handleListSessions)
 	mux.HandleFunc("POST /api/sessions", s.handleCreateSession)

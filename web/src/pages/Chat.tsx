@@ -7,6 +7,7 @@ import { streamChat } from '@/api/chat'
 import { listSessions, createSession, deleteSession, renameSession, getMessages } from '@/api/sessions'
 import { readChatStream } from '@/features/chat/StreamHandler'
 import { useChatStore, INITIAL_STREAM_STATE, EMPTY_MESSAGES } from '@/store/chat'
+import { useKB } from '@/store/kb'
 import { MessageList } from '@/features/chat/MessageList'
 import type { ChatMessage } from '@/features/chat/MessageList'
 import { MessageInput } from '@/features/chat/MessageInput'
@@ -19,6 +20,8 @@ export function Chat() {
   const navigate = useNavigate()
   const inputRef = useRef<MessageInputHandle>(null)
   const prevSessionIdRef = useRef<string | undefined>(sessionId)
+  // Answers come from the knowledge base the wiki view has selected.
+  const kb = useKB((s) => s.kb)
 
   // --- Store selectors ---
   const sessions = useChatStore((state) => state.sessions)
@@ -213,6 +216,7 @@ export function Chat() {
         const res = await streamChat(
           { query, messages: history, include_sources: true, session_id: targetSessionId },
           controller.signal,
+          kb,
         )
 
         await readChatStream(res, (event) => {
@@ -292,7 +296,7 @@ export function Chat() {
         s.endStream(targetSessionId)
       }
     },
-    [sessionId, navigate, t],
+    [sessionId, navigate, t, kb],
   )
 
   return (

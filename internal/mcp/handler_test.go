@@ -5,8 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -461,5 +465,96 @@ func TestHandler_ToolsCall_Ask_Timeout(t *testing.T) {
 	}
 	if resp.Error.Message != "tool call timeout" {
 		t.Fatalf("expected message 'tool call timeout', got %q", resp.Error.Message)
+	}
+}
+
+func TestHandleAskResolvesDerivedKB(t *testing.T) {
+	root := t.TempDir()
+	derived := filepath.Join(root, "derived", "pricing")
+	if err := os.MkdirAll(derived, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(derived, "manifest.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Resolve now returns the canonical (symlink-free) path, so the want value
+	// must match what EvalSymlinks would return (relevant on macOS where
+	// t.TempDir() may sit under a symlinked /tmp -> /private/tmp).
+	wantDerived, err := filepath.EvalSymlinks(derived)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotKBDir string
+	chat := func(ctx context.Context, req bridge.ChatRequest, onEvent func(json.RawMessage) error) error {
+		gotKBDir = req.KBDir
+		return onEvent(json.RawMessage(`{"type":"done","cost_usd":0}`))
+	}
+	h := NewHandler(chat, root, "model", "", time.Minute, slog.Default())
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ask","arguments":{"query":"q","kb":"pricing"}}}`
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body)))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if gotKBDir != wantDerived {
+		t.Errorf("KBDir = %q, want %q", gotKBDir, wantDerived)
+	}
+}
+
+func TestHandleAskRejectsUnknownDerivedKB(t *testing.T) {
+	chat := func(ctx context.Context, req bridge.ChatRequest, onEvent func(json.RawMessage) error) error {
+		t.Fatal("chat must not run for an unknown kb")
+		return nil
+	}
+	h := NewHandler(chat, t.TempDir(), "model", "", time.Minute, slog.Default())
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ask","arguments":{"query":"q","kb":"nope"}}}`
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body)))
+
+	resp := parseResponse(t, rec.Body)
+	if resp.Error == nil {
+		t.Fatal("expected JSON-RPC error for unknown kb, got nil")
+	}
+	// ask.go maps both ErrInvalidSlug and ErrUnknownKB to -32602 (invalid params).
+	// Assert the code so a future regression that switches to -32603 (internal error)
+	// or drops the error object entirely would be caught here.
+	if resp.Error.Code != -32602 {
+		t.Errorf("Error.Code = %d, want -32602", resp.Error.Code)
+	}
+	if !strings.Contains(resp.Error.Message, "unknown derived knowledge base") {
+		t.Errorf("Error.Message = %q, want substring %q", resp.Error.Message, "unknown derived knowledge base")
+	}
+}
+
+func TestHandleAskDefaultKBDir(t *testing.T) {
+	root := t.TempDir()
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var gotKBDir string
+	chat := func(ctx context.Context, req bridge.ChatRequest, onEvent func(json.RawMessage) error) error {
+		gotKBDir = req.KBDir
+		return onEvent(json.RawMessage(`{"type":"done","cost_usd":0}`))
+	}
+	h := NewHandler(chat, root, "model", "", time.Minute, slog.Default())
+
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ask","arguments":{"query":"q"}}}`
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp", strings.NewReader(body)))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	// An ask without a kb argument must reach the handler's own kbDir (the root KB).
+	// Resolve returns the resolved (canonical) form of root so both layers agree
+	// on the path by string equality (Task 16 stores and compares this string).
+	if gotKBDir != resolvedRoot {
+		t.Errorf("KBDir = %q, want resolved root %q", gotKBDir, resolvedRoot)
 	}
 }

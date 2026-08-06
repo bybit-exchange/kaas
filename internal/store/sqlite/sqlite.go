@@ -98,6 +98,9 @@ func (s *Store) Migrate(ctx context.Context) error {
 	if err := s.migrateFileTitle(ctx); err != nil {
 		return err
 	}
+	if _, err := s.db.ExecContext(ctx, derivedSchema); err != nil {
+		return fmt.Errorf("migrate derived schema: %w", err)
+	}
 	return nil
 }
 

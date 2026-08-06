@@ -114,3 +114,10 @@ def test_mcp_command_recognized(monkeypatch):
         main()
 
     assert called == [[]]
+
+
+def test_derive_command_is_registered():
+    from kb_ai.__main__ import COMMANDS
+
+    assert "derive" in COMMANDS
+    assert callable(COMMANDS["derive"]())

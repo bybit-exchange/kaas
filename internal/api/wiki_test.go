@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -147,10 +149,109 @@ func TestHandleListWiki_Cache(t *testing.T) {
 	// Verify the cache was actually populated (internal state check).
 	s.wikiC.mu.RLock()
 	defer s.wikiC.mu.RUnlock()
-	if s.wikiC.tree == nil {
-		t.Error("wikiC.tree is nil after two requests; cache not populated")
+	e := s.wikiC.entries[""]
+	if e == nil || e.tree == nil {
+		t.Error("wikiC.entries[\"\"].tree is nil after two requests; cache not populated")
 	}
-	if s.wikiC.builtAt.IsZero() {
-		t.Error("wikiC.builtAt is zero; cache not populated")
+	if e == nil || e.builtAt.IsZero() {
+		t.Error("wikiC.entries[\"\"].builtAt is zero; cache not populated")
+	}
+}
+
+// --- handleListWiki: derived KB scoping ---
+
+// TestListWikiScopedToADerivedKB verifies that GET /api/wiki returns only the
+// root KB's tree and GET /api/wiki?kb=<slug> returns only the derived KB's tree.
+func TestListWikiScopedToADerivedKB(t *testing.T) {
+	s, kb := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	writeWiki(t, kb, "root.md", "# Root Article\n\ncontent")
+	setupDerivedKB(t, kb, "pricing")
+	writeDerivedWiki(t, kb, "pricing", "derived.md", "# Derived Article\n\ncontent")
+
+	// Root KB: must see root.md only.
+	rec := do(t, s, "GET", "/api/wiki", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("root tree status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var rootOut struct {
+		Tree []wikiTreeNode `json:"tree"`
+	}
+	mustJSON(t, rec, &rootOut)
+	if len(rootOut.Tree) != 1 {
+		t.Fatalf("root tree: got %d nodes, want 1; nodes=%+v", len(rootOut.Tree), rootOut.Tree)
+	}
+	if rootOut.Tree[0].Path != "root.md" {
+		t.Errorf("root tree: unexpected node path %q, want root.md", rootOut.Tree[0].Path)
+	}
+
+	// Derived KB: must see derived.md only.
+	rec = do(t, s, "GET", "/api/wiki?kb=pricing", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("derived tree status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var derivedOut struct {
+		Tree []wikiTreeNode `json:"tree"`
+	}
+	mustJSON(t, rec, &derivedOut)
+	if len(derivedOut.Tree) != 1 {
+		t.Fatalf("derived tree: got %d nodes, want 1; nodes=%+v", len(derivedOut.Tree), derivedOut.Tree)
+	}
+	if derivedOut.Tree[0].Path != "derived.md" {
+		t.Errorf("derived tree: unexpected node path %q, want derived.md", derivedOut.Tree[0].Path)
+	}
+}
+
+// TestListWikiCacheIsKeyedBySlug verifies that the cache does not serve one
+// KB's tree for another KB's request. A single-entry cache would serve the
+// derived tree for the root request after ?kb=pricing warms it.
+func TestListWikiCacheIsKeyedBySlug(t *testing.T) {
+	s, kb := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	writeWiki(t, kb, "root.md", "# Root\n\ncontent")
+	setupDerivedKB(t, kb, "pricing")
+	writeDerivedWiki(t, kb, "pricing", "derived.md", "# Derived\n\ncontent")
+
+	checkTree := func(t *testing.T, rec *httptest.ResponseRecorder, wantPath string) {
+		t.Helper()
+		var out struct {
+			Tree []wikiTreeNode `json:"tree"`
+		}
+		mustJSON(t, rec, &out)
+		if len(out.Tree) != 1 {
+			t.Fatalf("got %d nodes, want 1; body=%s", len(out.Tree), rec.Body.String())
+		}
+		if out.Tree[0].Path != wantPath {
+			t.Errorf("node path = %q, want %q", out.Tree[0].Path, wantPath)
+		}
+	}
+
+	// First: root KB warms the root cache entry.
+	rec := do(t, s, "GET", "/api/wiki", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("root status = %d", rec.Code)
+	}
+	checkTree(t, rec, "root.md")
+
+	// Second: derived KB must not serve the cached root tree.
+	rec = do(t, s, "GET", "/api/wiki?kb=pricing", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("derived status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	checkTree(t, rec, "derived.md")
+
+	// Third: root KB again, still within TTL — must serve root, not derived.
+	rec = do(t, s, "GET", "/api/wiki", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("root second status = %d", rec.Code)
+	}
+	checkTree(t, rec, "root.md")
+}
+
+// TestListWikiRejectsAnUnknownKB verifies that an unknown ?kb= slug returns
+// 400 rather than silently falling back to the root KB.
+func TestListWikiRejectsAnUnknownKB(t *testing.T) {
+	s, _ := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	rec := do(t, s, "GET", "/api/wiki?kb=nope", "")
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
 	}
 }

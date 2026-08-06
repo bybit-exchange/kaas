@@ -35,9 +35,9 @@ func TestAskToolDefinition_MarshalJSON(t *testing.T) {
 
 func TestAskInputSchema_Structure(t *testing.T) {
 	var schema struct {
-		Type       string                       `json:"type"`
-		Properties map[string]json.RawMessage   `json:"properties"`
-		Required   []string                     `json:"required"`
+		Type       string                     `json:"type"`
+		Properties map[string]json.RawMessage `json:"properties"`
+		Required   []string                   `json:"required"`
 	}
 	if err := json.Unmarshal(askInputSchema, &schema); err != nil {
 		t.Fatalf("unmarshal inputSchema: %v", err)
@@ -57,5 +57,33 @@ func TestAskInputSchema_Structure(t *testing.T) {
 	// Verify required contains only "query".
 	if len(schema.Required) != 1 || schema.Required[0] != "query" {
 		t.Errorf("required = %v, want [\"query\"]", schema.Required)
+	}
+}
+
+func TestAskInputSchemaHasKB(t *testing.T) {
+	var schema struct {
+		Properties map[string]struct {
+			Type        string `json:"type"`
+			Description string `json:"description"`
+		} `json:"properties"`
+		Required []string `json:"required"`
+	}
+	if err := json.Unmarshal(askInputSchema, &schema); err != nil {
+		t.Fatalf("unmarshal askInputSchema: %v", err)
+	}
+	kb, ok := schema.Properties["kb"]
+	if !ok {
+		t.Fatal("askInputSchema has no kb property")
+	}
+	if kb.Type != "string" {
+		t.Errorf("kb type = %q, want string", kb.Type)
+	}
+	if kb.Description == "" {
+		t.Error("kb property has no description")
+	}
+	for _, r := range schema.Required {
+		if r == "kb" {
+			t.Error("kb must not be required")
+		}
 	}
 }

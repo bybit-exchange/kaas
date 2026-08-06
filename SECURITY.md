@@ -2,20 +2,27 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+KaaS is pre-1.0 (latest release `v0.1.0`). There are no long-term support
+branches yet, and no version other than the most recent release receives
+security fixes. Fixes land on `main` and go out in the next release.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+Once 1.0 ships, this section should name the supported minor versions.
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report vulnerabilities privately through GitHub's private vulnerability
+reporting: open the repository's **Security** tab and choose **Report a
+vulnerability**. That opens a channel visible only to the maintainers.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Do not open a public issue or pull request for a security problem, and do not
+describe it in a public discussion — a KaaS instance can hold an organisation's
+internal knowledge base, so the details matter.
+
+What to include, where you have it:
+
+- what an attacker can do, and what access they need to start
+- the steps to reproduce it
+- the affected version or commit
+- any logs or output that show the effect
+
+If you are unsure whether something counts, report it anyway.

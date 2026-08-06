@@ -12,11 +12,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { MarkdownArticle } from '@/features/wiki/MarkdownArticle'
 import { TableOfContents } from '@/features/wiki/TableOfContents'
 import { FileTree } from '@/features/wiki/FileTree'
+import { KBSelector } from '@/features/wiki/KBSelector'
+import { DeriveDialog } from '@/features/wiki/DeriveDialog'
+import { useKB } from '@/store/kb'
 
 export function Wiki() {
   const t = useT()
   const params = useParams()
   const path = params['*'] || null
+  const kb = useKB((s) => s.kb)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [tree, setTree] = useState<WikiTreeNode[]>([])
@@ -26,15 +30,17 @@ export function Wiki() {
   const [articleError, setArticleError] = useState<string | null>(null)
   const [showAllTags, setShowAllTags] = useState(false)
   const [showSources, setShowSources] = useState(false)
+  // Bumped when a derive finishes, so the selector picks up the new KB.
+  const [kbListVersion, setKBListVersion] = useState(0)
 
   // Load index list
   useEffect(() => {
     setIndexLoading(true)
-    listWiki()
+    listWiki(kb)
       .then(({ tree }) => setTree(tree))
       .catch(() => setTree([]))
       .finally(() => setIndexLoading(false))
-  }, [])
+  }, [kb])
 
   // Load article when path changes
   useEffect(() => {
@@ -50,7 +56,7 @@ export function Wiki() {
     setShowAllTags(false)
     setShowSources(false)
 
-    fetchWikiArticle(path)
+    fetchWikiArticle(path, kb)
       .then(setArticle)
       .catch((err) => {
         if (err instanceof ApiError && err.status === 404) {
@@ -60,7 +66,7 @@ export function Wiki() {
         }
       })
       .finally(() => setArticleLoading(false))
-  }, [path, t])
+  }, [path, t, kb])
 
 
   const pathParts = path?.split('/') ?? []
@@ -69,8 +75,11 @@ export function Wiki() {
     <div className="flex h-full overflow-hidden">
       {/* Left index list */}
       <aside className="w-80 shrink-0 border-r bg-muted/30">
-        <div className="flex h-14 items-center px-4">
-          <h2 className="text-sm font-semibold">{t('wiki.indexTitle')}</h2>
+        <div className="flex h-14 items-center gap-2 px-4">
+          <h2 className="shrink-0 text-sm font-semibold">{t('wiki.indexTitle')}</h2>
+          <div className="min-w-0 flex-1">
+            <KBSelector reloadKey={kbListVersion} />
+          </div>
         </div>
         <Separator />
         <div className="p-3">
@@ -93,7 +102,13 @@ export function Wiki() {
             )}
           </div>
         </div>
-        <ScrollArea className="h-[calc(100%-3.5rem-3rem)]">
+        <div className="px-3 pb-2">
+          <DeriveDialog onDerived={() => setKBListVersion((v) => v + 1)} />
+        </div>
+        {/* Everything above: header (h-14 = 3.5rem) + separator (1px) + search
+            row (p-3 + h-9 input = 3.75rem) + derive row (h-8 button + pb-2 =
+            2.5rem). */}
+        <ScrollArea className="h-[calc(100%-3.5rem-1px-3.75rem-2.5rem)]">
           <nav className="p-3">
             {indexLoading ? (
               <div className="space-y-2 p-2">

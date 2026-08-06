@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"gopkg.in/yaml.v2"
 )
 
@@ -19,14 +20,43 @@ import (
 // unconditionally rebuilt, even if the directory modtime has not changed.
 const wikiCacheTTL = 60 * time.Second
 
-// wikiCache holds the in-memory cached wiki tree with dual invalidation:
-// directory modtime change triggers immediate rebuild; TTL expiry guarantees
+// wikiCacheEntry holds one KB's cached wiki tree with dual invalidation:
+// directory modtime change triggers an immediate rebuild; TTL expiry guarantees
 // eventual consistency even when modtime does not reflect nested changes.
-type wikiCache struct {
-	mu      sync.RWMutex
+type wikiCacheEntry struct {
 	tree    []wikiTreeNode
 	builtAt time.Time
 	dirMod  time.Time
+}
+
+// wikiCache holds one entry per knowledge base, keyed by derived-KB slug ("" for
+// the root). A single shared entry would thrash the moment a user switches KBs in
+// the selector, and could serve one KB's tree for another's request.
+type wikiCache struct {
+	mu      sync.RWMutex
+	entries map[string]*wikiCacheEntry
+}
+
+func (c *wikiCache) get(slug string, dirMod time.Time) ([]wikiTreeNode, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	e, ok := c.entries[slug]
+	if !ok || e.tree == nil {
+		return nil, false
+	}
+	if !e.dirMod.Equal(dirMod) || time.Since(e.builtAt) >= wikiCacheTTL {
+		return nil, false
+	}
+	return e.tree, true
+}
+
+func (c *wikiCache) put(slug string, tree []wikiTreeNode, dirMod time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.entries == nil {
+		c.entries = map[string]*wikiCacheEntry{}
+	}
+	c.entries[slug] = &wikiCacheEntry{tree: tree, builtAt: time.Now(), dirMod: dirMod}
 }
 
 // wikiArticle is a list entry for a compiled wiki page.
@@ -158,30 +188,48 @@ func sortTree(nodes []wikiTreeNode) {
 	}
 }
 
-// handleListWiki serves GET /api/wiki: returns a tree structure of all *.md
-// files under KBDir/wiki. An absent wiki dir is treated as empty.
+// resolveKB maps the request's optional ?kb=<slug> to a knowledge-base root.
 //
-// The response is cached in memory; the cache is invalidated when either:
+// The slug reaches us from a browser query string, so it is untrusted input to a
+// path join: kbpath validates it lexically and requires the target to hold a
+// manifest. An unknown slug answers 400 rather than falling back to the root KB
+// (spec H3) — silently answering from the wrong corpus is the failure worth
+// avoiding. Returns (dir, slug, true) on success, or writes the error and returns
+// ("", "", false). The slug comes back with the directory so a caller that keys
+// per-KB state on it does not parse the query string a second time.
+func (s *Server) resolveKB(w http.ResponseWriter, r *http.Request) (string, string, bool) {
+	slug := r.URL.Query().Get("kb")
+	dir, err := kbpath.Resolve(s.cfg.KBDir, slug)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return "", "", false
+	}
+	return dir, slug, true
+}
+
+// handleListWiki serves GET /api/wiki: returns a tree structure of all *.md
+// files under KBDir/wiki (or a derived KB's wiki when ?kb=<slug> is set).
+// An absent wiki dir is treated as empty.
+//
+// The response is cached in memory per slug; the cache is invalidated when either:
 //   - the wiki directory's modtime changes (immediate rebuild), or
 //   - 60 seconds have elapsed since the last build (TTL expiry).
 func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
-	wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
+	kbDir, slug, ok := s.resolveKB(w, r)
+	if !ok {
+		return
+	}
+	wikiDir := filepath.Join(kbDir, "wiki")
 
 	// Stat the directory to detect modtime changes.
 	dirInfo, statErr := os.Stat(wikiDir)
 
 	// Fast path: serve from cache if still valid.
 	if statErr == nil {
-		s.wikiC.mu.RLock()
-		if s.wikiC.tree != nil &&
-			s.wikiC.dirMod.Equal(dirInfo.ModTime()) &&
-			time.Since(s.wikiC.builtAt) < wikiCacheTTL {
-			tree := s.wikiC.tree
-			s.wikiC.mu.RUnlock()
+		if tree, hit := s.wikiC.get(slug, dirInfo.ModTime()); hit {
 			writeJSON(w, http.StatusOK, map[string]any{"tree": tree})
 			return
 		}
-		s.wikiC.mu.RUnlock()
 	}
 
 	// Slow path: full rebuild.
@@ -241,11 +289,7 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 
 	// Update cache. Re-stat to get the most recent modtime after the walk.
 	if di, e := os.Stat(wikiDir); e == nil {
-		s.wikiC.mu.Lock()
-		s.wikiC.tree = tree
-		s.wikiC.builtAt = time.Now()
-		s.wikiC.dirMod = di.ModTime()
-		s.wikiC.mu.Unlock()
+		s.wikiC.put(slug, tree, di.ModTime())
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"tree": tree})
@@ -268,7 +312,11 @@ func (s *Server) handleWikiFile(w http.ResponseWriter, r *http.Request) {
 	}
 	rel = filepath.Clean(rel)
 
-	wikiDir := filepath.Join(s.cfg.KBDir, "wiki")
+	kbDir, _, ok := s.resolveKB(w, r)
+	if !ok {
+		return
+	}
+	wikiDir := filepath.Join(kbDir, "wiki")
 	// os.Root enforces containment per path element at the syscall level, which
 	// a lexical check cannot do: it also refuses a symlink inside the wiki dir
 	// that points outside it, and is not subject to check-then-open races.

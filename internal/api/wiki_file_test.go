@@ -15,7 +15,12 @@ import (
 // test can assert on what an operator would see.
 func newTestServerWithLog(t *testing.T, buf *bytes.Buffer) (*Server, string) {
 	t.Helper()
-	kb := t.TempDir()
+	raw := t.TempDir()
+	// Use the EvalSymlinks-resolved path for consistency with kbpath.Resolve.
+	kb := raw
+	if r, err := filepath.EvalSymlinks(raw); err == nil {
+		kb = r
+	}
 	cfg := Config{KBDir: kb, Model: "test-model", Upload: testUploadConf()}
 	return NewServer(&fakeQueue{}, &fakeStore{}, nil, &fakeBridge{}, cfg, testLogger(buf)), kb
 }
@@ -164,5 +169,45 @@ func TestHandleWikiFile_LogsCauseKeepsResponseGeneric(t *testing.T) {
 	}
 	if !strings.Contains(logged, "err=") && !strings.Contains(logged, `"err"`) {
 		t.Errorf("log does not carry the underlying error; log=%s", logged)
+	}
+}
+
+// --- handleWikiFile: derived KB scoping ---
+
+// TestWikiFileScopedToADerivedKB verifies that ?kb=<slug> reads from the
+// derived KB and without ?kb= the root KB is used.
+func TestWikiFileScopedToADerivedKB(t *testing.T) {
+	s, kb := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	setupDerivedKB(t, kb, "pricing")
+	writeDerivedWiki(t, kb, "pricing", "derived.md", "# Derived Article\n\nbody content")
+
+	// With kb=pricing: serves the derived article.
+	rec := do(t, s, "GET", "/api/wiki/file?kb=pricing&path=derived.md", "")
+	if rec.Code != 200 {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out wikiFileResponse
+	mustJSON(t, rec, &out)
+	if out.Title != "Derived Article" {
+		t.Errorf("title = %q, want %q", out.Title, "Derived Article")
+	}
+	if !strings.Contains(out.Content, "body content") {
+		t.Errorf("content = %q, want it to contain %q", out.Content, "body content")
+	}
+
+	// Without kb: the path does not exist in the root wiki — must 404.
+	rec = do(t, s, "GET", "/api/wiki/file?path=derived.md", "")
+	if rec.Code != 404 {
+		t.Fatalf("status = %d, want 404 for root KB; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestWikiFileRejectsAnInvalidKBSlug verifies that a lexically invalid ?kb=
+// value returns 400 before the article path is evaluated.
+func TestWikiFileRejectsAnInvalidKBSlug(t *testing.T) {
+	s, _ := newTestServer(t, &fakeQueue{}, &fakeStore{}, &fakeBridge{})
+	rec := do(t, s, "GET", "/api/wiki/file?kb=../..&path=a.md", "")
+	if rec.Code != 400 {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
 	}
 }

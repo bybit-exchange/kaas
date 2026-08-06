@@ -3,6 +3,7 @@ data/
 *.db
 
 # Go
+/bin/
 /cmd/kaas/kaas
 *.exe
 
