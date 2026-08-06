@@ -295,3 +295,40 @@ func TestEventType(t *testing.T) {
 		})
 	}
 }
+
+// TestDaemonStopForceKillsAnUnresponsiveProcess covers Stop's escape hatch. The
+// graceful path relies on the child exiting when stdin closes; a wedged daemon
+// never will, and without the force-kill Stop would block shutdown forever.
+// Costs the full 5-second grace period by design — that timeout is what is being
+// tested.
+func TestDaemonStopForceKillsAnUnresponsiveProcess(t *testing.T) {
+	requireShell(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Announces readiness, then ignores stdin entirely.
+	d := NewMultiplexStreamDaemon(DaemonConfig{
+		Command: "sh",
+		Args:    []string{"-c", "echo __READY__ >&2; sleep 300"},
+	})
+	if err := d.Start(ctx); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stopped := make(chan struct{})
+	go func() {
+		d.Stop()
+		close(stopped)
+	}()
+
+	select {
+	case <-stopped:
+	case <-time.After(15 * time.Second):
+		t.Fatal("Stop never returned; the unresponsive process was not force-killed")
+	}
+
+	if d.Ready() {
+		t.Error("daemon still reports ready after Stop")
+	}
+}

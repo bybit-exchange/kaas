@@ -320,3 +320,37 @@ func TestRunnerRecoveryErrorStopsRun(t *testing.T) {
 		t.Errorf("err = %v, want it to wrap the recovery error", err)
 	}
 }
+
+// TestNewRunnerFillsMissingConfig pins the constructor's fallbacks. Both matter
+// operationally: a zero PollInterval would make time.NewTicker panic and take
+// the process down, and a zero Timeout would let one derive hang forever behind
+// the single-flight claim, blocking every later job.
+func TestNewRunnerFillsMissingConfig(t *testing.T) {
+	r := NewRunner(newFakeJobStore(), &fakeBridge{}, Config{KBDir: "/kb"}, nil)
+
+	if r.cfg.PollInterval != 2*time.Second {
+		t.Errorf("PollInterval = %v, want the 2s default", r.cfg.PollInterval)
+	}
+	if r.cfg.Timeout != 2*time.Hour {
+		t.Errorf("Timeout = %v, want the 2h default", r.cfg.Timeout)
+	}
+	if r.logger == nil {
+		t.Error("logger is nil; a nil logger must fall back to slog.Default()")
+	}
+}
+
+// TestNewRunnerRejectsNegativeDurations covers the same fallbacks reached via
+// negative values rather than the zero value, which a hand-edited config file
+// can produce.
+func TestNewRunnerRejectsNegativeDurations(t *testing.T) {
+	r := NewRunner(newFakeJobStore(), &fakeBridge{}, Config{
+		KBDir: "/kb", PollInterval: -time.Second, Timeout: -time.Hour,
+	}, testLogger())
+
+	if r.cfg.PollInterval != 2*time.Second {
+		t.Errorf("PollInterval = %v, want the 2s default", r.cfg.PollInterval)
+	}
+	if r.cfg.Timeout != 2*time.Hour {
+		t.Errorf("Timeout = %v, want the 2h default", r.cfg.Timeout)
+	}
+}
