@@ -6,7 +6,7 @@ Orchestration only -- every phase lives in a private submodule:
     articles -> _sources.resolve_documents
     disk     -> _layout.create / copy_documents / write_manifest
     compile  -> commands.compile.compile_kb  (UNCHANGED)
-    catalog' -> _offtopic.prune            (PRECISION)
+    catalog' -> _offtopic.prune            (PRECISION, opt-in via prune=True)
 
 select, compile_fn and approve are injected and default late (None), so every
 test drives this function with stubs and no test needs a real LLM (spec I1).
@@ -43,7 +43,7 @@ from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
     validate_slug,
     write_manifest,
 )
-from kb_ai.derive._offtopic import prune
+from kb_ai.derive._offtopic import prune as prune_offtopic
 from kb_ai.derive._sources import parse_sources, resolve_documents
 from kb_ai.derive._types import (  # noqa: F401 -- re-exported for callers
     MODE_PRECISION,
@@ -100,6 +100,7 @@ def derive_kb(
     *,
     slug: str | None = None,
     force: bool = False,
+    prune: bool = False,
     model: str,
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
@@ -111,6 +112,12 @@ def derive_kb(
     validated and checked for availability BEFORE the first LLM call, so a name
     clash costs nothing, while the derived directory is created only after at
     least one document resolves (B5).
+
+    prune runs the PRECISION pass, which moves articles the topic filter rejects
+    a second time into _offtopic/. It defaults to off: the two runs that have
+    measured it put the move ratio at 0.83 and 0.00 -- too strict, then selecting
+    nothing at all -- so it does not yet earn a place in the default output. See
+    issue #24.
 
     Raises DeriveError or a subclass on every failure named in the spec.
     """
@@ -206,8 +213,13 @@ def derive_kb(
         flush()
         return report
 
+    # A derived KB inherits its source's frozen category set. Falling back to
+    # DEFAULT_CATEGORIES would file the derived articles under categories the
+    # source deliberately excluded -- the silent re-partition that freezing the
+    # set per KB exists to prevent. None on a source predating that feature.
     compile_result = compile_fn(str(derived_dir), extract_model=model,
-                                compile_model=model, write_model=model)
+                                compile_model=model, write_model=model,
+                                categories=source_store.load_config().get("categories"))
     # compile_kb returns the PROCESS-WIDE tracker summary, which here would be the
     # RECALL pass plus, in the long-lived daemon, every earlier request's spend.
     # report.cost is the authoritative per-request figure, so the misleading key
@@ -218,9 +230,10 @@ def derive_kb(
              # the on-disk manifest still shows a fully compiled KB rather than the
              # pre-compile state, so recovery does not need to re-pay for compile.
 
-    moved, warnings = prune(derived_dir, topic, select)
-    report.offtopic_articles = moved
-    report.warnings.extend(warnings)
+    if prune:
+        moved, warnings = prune_offtopic(derived_dir, topic, select)
+        report.offtopic_articles = moved
+        report.warnings.extend(warnings)
 
     # After the PRECISION pass, so that pass's spend is included -- compile's own
     # cost snapshot cannot contain it.

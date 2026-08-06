@@ -43,7 +43,7 @@ def _fake_compile(derived_dir: str, **kwargs) -> dict:
 
 def test_source_compile_and_index_do_not_see_the_derived_kb(tmp_path: Path):
     kb = _source_kb(tmp_path)
-    report = derive_kb(str(kb), "pricing", model="m", slug="pricing",
+    report = derive_kb(str(kb), "pricing", model="m", slug="pricing", prune=True,
                        select=_select, compile_fn=_fake_compile)
     assert report.offtopic_articles == ["wiki/moved-aside.md"]
 
@@ -67,7 +67,7 @@ def test_source_compile_and_index_do_not_see_the_derived_kb(tmp_path: Path):
 
 def test_offtopic_is_outside_the_derived_kbs_own_index(tmp_path: Path):
     kb = _source_kb(tmp_path)
-    derive_kb(str(kb), "pricing", model="m", slug="pricing",
+    derive_kb(str(kb), "pricing", model="m", slug="pricing", prune=True,
               select=_select, compile_fn=_fake_compile)
 
     derived = kb / "derived" / "pricing"

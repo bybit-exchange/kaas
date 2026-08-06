@@ -30,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
                         help="model for the topic filter and the derived compile")
     parser.add_argument("--yes", action="store_true",
                         help="skip the volume gate and compile without confirming")
+    parser.add_argument("--prune", action="store_true",
+                        help="run the second topic filter over the derived catalog and "
+                             "move articles it rejects into _offtopic/ (off by default: "
+                             "see issue #24)")
     return parser
 
 
@@ -69,7 +73,7 @@ def run_derive(argv: list[str]) -> None:
     try:
         report = derive_kb(
             args.kb, args.topic,
-            slug=args.slug, force=args.force, model=model,
+            slug=args.slug, force=args.force, prune=args.prune, model=model,
             approve=_make_approve(args),
         )
     except KBError as e:

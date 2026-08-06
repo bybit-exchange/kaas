@@ -80,7 +80,7 @@ def test_happy_path_layout_and_report(tmp_path: Path):
     select, modes = _select(["wiki/pricing.md", "wiki/fees.md", "wiki/orphan.md"],
                             ["wiki/pricing.md"])
 
-    report = derive_kb(str(kb), "pricing and fees", model="m",
+    report = derive_kb(str(kb), "pricing and fees", model="m", prune=True,
                        select=select, compile_fn=_fake_compile)
 
     derived = kb / "derived" / "pricing-and-fees"
@@ -106,11 +106,81 @@ def test_happy_path_layout_and_report(tmp_path: Path):
     assert (derived / "_offtopic" / "stray.md").exists()
 
 
+def test_the_precision_pass_is_off_by_default(tmp_path: Path):
+    """RECALL is the only pass that runs unless pruning is asked for.
+
+    Two measured runs put the move ratio at 0.83 and 0.00 -- too strict, then
+    selecting nothing at all -- so the pass ships off and stays available as an
+    instrument rather than shaping the default output.
+    """
+    kb = _fixture_kb(tmp_path)
+    select, modes = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m",
+                       select=select, compile_fn=_fake_compile)
+
+    assert modes == [MODE_RECALL]
+    assert report.offtopic_articles == []
+    assert not (kb / "derived" / "pricing" / "_offtopic").exists()
+    # The article the pass would have moved is still in the derived wiki.
+    assert (kb / "derived" / "pricing" / "wiki" / "stray.md").exists()
+
+
+def test_prune_opts_into_the_precision_pass(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, modes = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m", prune=True,
+                       select=select, compile_fn=_fake_compile)
+
+    assert modes == [MODE_RECALL, MODE_PRECISION]
+    assert report.offtopic_articles == ["wiki/stray.md"]
+    assert (kb / "derived" / "pricing" / "_offtopic" / "stray.md").exists()
+
+
+def test_the_derived_compile_inherits_the_source_categories(tmp_path: Path):
+    """A derived KB is a KB: it must not re-partition under a different taxonomy.
+
+    The source's set is frozen in its kaas.json. Letting the derived compile fall
+    back to DEFAULT_CATEGORIES would file articles under categories the operator
+    excluded, which is the silent re-partition freezing exists to prevent.
+    """
+    from kb_ai.storage.store import KBStore
+
+    kb = _fixture_kb(tmp_path)
+    KBStore(str(kb)).save_config({"categories": ["concept", "decision"]})
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=capturing_compile)
+
+    assert seen["categories"] == ["concept", "decision"]
+
+
+def test_a_source_without_a_frozen_set_leaves_the_categories_unset(tmp_path: Path):
+    """A KB predating the frozen-config feature keeps the compile's own default."""
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=capturing_compile)
+
+    assert seen["categories"] is None
+
+
 def test_manifest_contents(tmp_path: Path):
     kb = _fixture_kb(tmp_path)
     select, _ = _select(["wiki/pricing.md", "wiki/orphan.md"], ["wiki/pricing.md"])
 
-    derive_kb(str(kb), "pricing", model="gpt-test", slug="p",
+    derive_kb(str(kb), "pricing", model="gpt-test", slug="p", prune=True,
               select=select, compile_fn=_fake_compile)
 
     manifest = json.loads((kb / "derived" / "p" / "manifest.json").read_text())
@@ -319,7 +389,7 @@ def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
 
     set_request_tracker(req_tracker)
     try:
-        report = derive_kb(str(kb), "pricing", model="m",
+        report = derive_kb(str(kb), "pricing", model="m", prune=True,
                            select=select_with_cost, compile_fn=compile_with_cost)
     finally:
         set_request_tracker(None)

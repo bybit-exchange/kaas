@@ -39,6 +39,22 @@ def test_defaults_kb_to_dot_kaas():
     args = derive_cmd.build_parser().parse_args(["pricing"])
     assert args.kb == "./.kaas"
     assert args.slug is None and args.force is False and args.yes is False
+    assert args.prune is False
+
+
+def test_prune_is_off_unless_asked_for(monkeypatch):
+    """The PRECISION pass ships off; --prune is the only way to reach it."""
+    seen: dict = {}
+
+    def fake_derive(source_kb, topic, **kw):
+        seen.update(kw)
+        return _report()
+
+    _run(monkeypatch, ["pricing", "--kb", "/kb", "--yes"], derive=fake_derive)
+    assert seen["prune"] is False
+
+    _run(monkeypatch, ["pricing", "--kb", "/kb", "--yes", "--prune"], derive=fake_derive)
+    assert seen["prune"] is True
 
 
 def test_success_payload(monkeypatch):
