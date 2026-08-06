@@ -1,0 +1,31 @@
+internal/bridge/daemon_client_new_test.go
+  e01d6c10fedc01bd 1-128
+internal/api/submit_files_rollback_test.go
+  e01d6c10fedc01bd 1-93
+internal/derive/runner_test.go
+  e01d6c10fedc01bd 323-356
+internal/store/sqlite/migrate_test.go
+  e01d6c10fedc01bd 1-133
+internal/bridge/daemon_lifecycle_test.go
+  e01d6c10fedc01bd 298-334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "1c52cd4c29b5391877db024ff5bda4801bccb95c",
+  "prompts": {
+    "e01d6c10fedc01bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44cc217-2af0-4c90-96be-bc8bbc46f782",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3806,
+      "overriden_lines": 0
+    }
+  }
+}
