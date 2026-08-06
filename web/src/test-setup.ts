@@ -16,6 +16,26 @@ if (typeof window !== 'undefined' && !window.IntersectionObserver) {
   })
 }
 
+// jsdom implements no scrolling at all. Components that keep a streaming view
+// pinned to the bottom (ThinkingBlock, MessageList) call these from an effect,
+// where a TypeError unmounts the whole tree and the test sees an empty document
+// rather than a useful failure.
+// Defined on Element.prototype, not HTMLElement.prototype: a test that wants to
+// spy on one of these replaces it on Element, and a stub further down the
+// prototype chain would shadow that spy.
+if (typeof window !== 'undefined') {
+  const noop = () => {}
+  for (const method of ['scrollTo', 'scrollIntoView', 'scrollBy'] as const) {
+    if (!(method in window.Element.prototype)) {
+      Object.defineProperty(window.Element.prototype, method, {
+        value: noop,
+        writable: true,
+        configurable: true,
+      })
+    }
+  }
+}
+
 // Node.js 22+ ships an experimental localStorage that conflicts with jsdom.
 // When --localstorage-file is not passed, Node sets globalThis.localStorage to
 // undefined, overwriting jsdom's own implementation. We restore it here so
