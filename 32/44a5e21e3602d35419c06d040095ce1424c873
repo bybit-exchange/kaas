@@ -1,0 +1,80 @@
+py/src/kb_ai/commands/compile.py
+  2265ca7267faed63 19-24,412-414
+py/src/kb_ai/commands/derive.py
+  2265ca7267faed63 37-42,58-64,66,89-90
+py/tests/test_commands_derive.py
+  2265ca7267faed63 148-186
+py/tests/test_storage_index.py
+  2265ca7267faed63 14-21,540-716
+py/tests/test_derive_kb.py
+  2265ca7267faed63 11,14,489-645
+py/tests/test_derive_sources.py
+  2265ca7267faed63 195-266
+py/src/kb_ai/derive/_types.py
+  2265ca7267faed63 24-34,88-91
+py/src/kb_ai/server_daemon.py
+  2265ca7267faed63 252-253,261,275-278
+py/tests/test_server_daemon.py
+  2265ca7267faed63 828,946
+py/src/kb_ai/storage/index.py
+  2265ca7267faed63 9-22,123-234
+py/tests/test_core_people.py
+  2265ca7267faed63 13,15,17,292-357
+py/src/kb_ai/derive/__init__.py
+  2265ca7267faed63 47-51,55-56,64,74-75,84-87,93,117,136-141,146-150,167-197,201-203,208,213-214,221-228,235-236
+py/src/kb_ai/commands/pipeline/_entry.py
+  2265ca7267faed63 17-21,83,115
+py/src/kb_ai/storage/store.py
+  2265ca7267faed63 215-226
+py/src/kb_ai/core/people.py
+  2265ca7267faed63 10,16-18,78-107,115-117,119-120,125
+  1086cfc105a52e5e 77,118
+py/src/kb_ai/derive/_sources.py
+  2265ca7267faed63 77-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3244a5e21e3602d35419c06d040095ce1424c873",
+  "prompts": {
+    "1086cfc105a52e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "56cf04c6-d997-4b05-8d11-b5fb369ce551",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 3,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "2265ca7267faed63": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac70f34a-cce0-4950-a306-94f0cc43f098",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 4688,
+      "total_deletions": 58,
+      "accepted_lines": 886,
+      "overriden_lines": 0
+    },
+    "cde9e4ebd93eddec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ce86fd80-57a5-4a81-933a-e3662aa13d04",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3637,
+      "total_deletions": 0,
+      "accepted_lines": 3637,
+      "overriden_lines": 0
+    }
+  }
+}
