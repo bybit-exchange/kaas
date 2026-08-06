@@ -1,0 +1,23 @@
+web/src/test-setup.ts
+  e01d6c10fedc01bd 19-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "89a4c7407b425d913e5f9932e5a9e00a280a9ab5",
+  "prompts": {
+    "e01d6c10fedc01bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44cc217-2af0-4c90-96be-bc8bbc46f782",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3381,
+      "overriden_lines": 0
+    }
+  }
+}
