@@ -1,0 +1,25 @@
+Makefile
+  e01d6c10fedc01bd 1,25-34
+py/pyproject.toml
+  e01d6c10fedc01bd 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "20a8d8b5c76686d28d1cc97aca717011282ba2ff",
+  "prompts": {
+    "e01d6c10fedc01bd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44cc217-2af0-4c90-96be-bc8bbc46f782",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3772,
+      "total_deletions": 19,
+      "accepted_lines": 3720,
+      "overriden_lines": 3
+    }
+  }
+}
