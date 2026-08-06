@@ -1,0 +1,66 @@
+docs/features/derive-topic-kb-from-catalog/tech-design.md
+  1086cfc105a52e5e 318
+web/src/i18n/strings.ts
+  1086cfc105a52e5e 29,32-36,171,174-178
+internal/bridge/api.go
+  1086cfc105a52e5e 139-143,153-159
+web/src/features/wiki/DeriveDialog.test.tsx
+  1086cfc105a52e5e 61-98
+internal/api/derive.go
+  1086cfc105a52e5e 27-28,102-114,155-163
+web/src/api/derived.ts
+  1086cfc105a52e5e 10-17,20-22,51-52
+internal/derive/runner.go
+  1086cfc105a52e5e 140-143
+internal/store/sqlite/sqlite.go
+  1086cfc105a52e5e 104-107,111-125,127,138,140,145,148-150,155-170
+internal/derive/runner_test.go
+  1086cfc105a52e5e 142-174
+web/src/features/wiki/DeriveDialog.tsx
+  1086cfc105a52e5e 4,18-25,41,44,105-108,157-191
+internal/api/derive_test.go
+  1086cfc105a52e5e 211-278
+internal/store/store.go
+  1086cfc105a52e5e 160-172,180-193
+internal/store/sqlite/derived.go
+  1086cfc105a52e5e 18-19,27-37,47-48,60-62
+internal/store/sqlite/migrate_test.go
+  1086cfc105a52e5e 74-75,96-100
+internal/store/sqlite/derived_test.go
+  1086cfc105a52e5e 50-171
+internal/bridge/daemon_client_test.go
+  1086cfc105a52e5e 857-904
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "41572be69a9ae9a2c68a51c0403c87fe01557625",
+  "prompts": {
+    "1086cfc105a52e5e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "56cf04c6-d997-4b05-8d11-b5fb369ce551",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 836,
+      "total_deletions": 922,
+      "accepted_lines": 571,
+      "overriden_lines": 0
+    },
+    "cd7b9a38bbf9ccf6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ff4b318-1b9f-42f8-af8a-5b687e2929ec",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 38,
+      "total_deletions": 0,
+      "accepted_lines": 38,
+      "overriden_lines": 0
+    }
+  }
+}
