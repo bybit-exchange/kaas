@@ -8,10 +8,10 @@ import pytest
 
 from kb_ai._cost import CostTracker
 from kb_ai._errors import (
-    NestedDeriveError, NoCatalogError, NoDocumentsError, SlugExistsError,
+    DeriveError, NestedDeriveError, NoCatalogError, NoDocumentsError, SlugExistsError,
 )
 from kb_ai.derive import derive_kb
-from kb_ai.derive._types import MODE_PRECISION, MODE_RECALL, SelectionResult
+from kb_ai.derive._types import MODE_PRECISION, MODE_RECALL, SelectionResult, Skipped
 from kb_ai.llm import set_request_tracker
 
 
@@ -486,3 +486,160 @@ def test_per_request_tracker_takes_precedence_over_global(tmp_path: Path, monkey
     # report.cost must equal the per-request tracker's summary, not the global's.
     assert report.cost == req_tracker.summary()
     assert report.cost != fake_global.summary()
+
+
+# ── select_from="documents" ──────────────────────────────────────────
+
+def _uncompiled_kb(tmp_path: Path) -> Path:
+    """A KB that was fetched into but never compiled: raw only, no wiki, no catalog."""
+    kb = tmp_path / "kb"
+    (kb / "raw").mkdir(parents=True)
+    (kb / "raw" / "pricing-notes.md").write_text(
+        "---\ntitle: Pricing Notes\ndate: 2026-06-03\nsource: lark\n---\n\nFee schedule and tiers.")
+    (kb / "raw" / "infra-notes.md").write_text(
+        "---\ntitle: Infra Notes\n---\n\nCluster topology.")
+    return kb
+
+
+def test_documents_mode_selects_documents_directly(tmp_path: Path):
+    """The selected path IS the document, so no sources: hop is involved."""
+    kb = _fixture_kb(tmp_path)
+    select, modes = _select(["raw/pricing-notes.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m", select_from="documents",
+                       select=select, compile_fn=_fake_compile)
+
+    assert report.selected_documents == ["raw/pricing-notes.md"]
+    assert report.selected_articles == []
+    assert [d.rel_path for d in report.documents] == ["raw/pricing-notes.md"]
+    assert modes == [MODE_RECALL]
+
+
+def test_documents_mode_works_on_an_uncompiled_kb(tmp_path: Path):
+    """The whole point: an article catalog does not exist yet, and requiring one
+    would mean every KB must be compiled before it can contribute to a topic."""
+    kb = _uncompiled_kb(tmp_path)
+    select, _ = _select(["raw/pricing-notes.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m", select_from="documents",
+                       select=select, compile_fn=_fake_compile)
+
+    assert [d.rel_path for d in report.documents] == ["raw/pricing-notes.md"]
+
+
+def test_documents_mode_does_not_write_to_the_source_kb(tmp_path: Path):
+    """A source KB may belong to someone else and be read-only; the in-memory
+    catalog must be used rather than materialising an index inside it."""
+    kb = _uncompiled_kb(tmp_path)
+    select, _ = _select(["raw/pricing-notes.md"])
+
+    derive_kb(str(kb), "pricing", model="m", select_from="documents",
+              select=select, compile_fn=_fake_compile)
+
+    assert not (kb / "index" / "document-index.md").exists()
+
+
+def test_documents_mode_sees_the_document_catalog(tmp_path: Path):
+    """The selector must receive document lines -- title, date, source and the
+    summary -- not article lines."""
+    kb = _uncompiled_kb(tmp_path)
+    seen: list = []
+
+    def select(catalog, topic, mode):
+        seen.append(list(catalog))
+        return SelectionResult(paths=[catalog[0].path], batches=1,
+                               dropped_invented=0, skipped=[])
+
+    derive_kb(str(kb), "pricing", model="m", select_from="documents",
+              select=select, compile_fn=_fake_compile)
+
+    paths = {a.path for a in seen[0]}
+    assert paths == {"raw/infra-notes.md", "raw/pricing-notes.md"}
+    pricing = next(a for a in seen[0] if a.path == "raw/pricing-notes.md")
+    assert "2026-06-03" in pricing.summary
+    assert "lark" in pricing.summary
+    assert "Fee schedule" in pricing.summary
+
+
+def test_documents_mode_prefers_a_written_document_index(tmp_path: Path):
+    """When the index exists it is read rather than recomputed -- that is what
+    makes a selection free on an already-compiled KB."""
+    kb = _uncompiled_kb(tmp_path)
+    (kb / "index").mkdir(exist_ok=True)
+    (kb / "index" / "document-index.md").write_text(
+        "# Document Index\n\n- [Only One](raw/pricing-notes.md) — Hand-written line.\n")
+    seen: list = []
+
+    def select(catalog, topic, mode):
+        seen.append(list(catalog))
+        return SelectionResult(paths=["raw/pricing-notes.md"], batches=1,
+                               dropped_invented=0, skipped=[])
+
+    derive_kb(str(kb), "pricing", model="m", select_from="documents",
+              select=select, compile_fn=_fake_compile)
+
+    assert [a.path for a in seen[0]] == ["raw/pricing-notes.md"]
+    assert seen[0][0].summary == "Hand-written line."
+
+
+def test_documents_mode_records_the_mode_in_the_manifest(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["raw/pricing-notes.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m", select_from="documents",
+                       select=select, compile_fn=_fake_compile)
+
+    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text())
+    assert manifest["select_from"] == "documents"
+    assert manifest["selected_documents"] == ["raw/pricing-notes.md"]
+
+
+def test_articles_mode_stays_the_default(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+
+    report = derive_kb(str(kb), "pricing", model="m",
+                       select=select, compile_fn=_fake_compile)
+
+    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text())
+    assert manifest["select_from"] == "articles"
+    assert report.selected_articles == ["wiki/pricing.md"]
+    assert report.selected_documents == []
+
+
+def test_documents_mode_with_an_empty_raw_dir(tmp_path: Path):
+    kb = tmp_path / "kb"
+    (kb / "raw").mkdir(parents=True)
+    select, _ = _select([])
+
+    with pytest.raises(NoDocumentsError):
+        derive_kb(str(kb), "pricing", model="m", select_from="documents",
+                  select=select, compile_fn=_fake_compile)
+
+
+def test_unknown_select_from_is_rejected(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select([])
+
+    with pytest.raises(DeriveError, match="select_from"):
+        derive_kb(str(kb), "pricing", model="m", select_from="everything",
+                  select=select, compile_fn=_fake_compile)
+
+
+def test_documents_mode_records_dropped_lines_as_documents(tmp_path: Path):
+    """A catalog line too long for a whole batch is dropped by pack_batches. In
+    documents mode that ref is a document path, so recording it under
+    skipped_articles would file a document under the wrong kind of path."""
+    kb = _uncompiled_kb(tmp_path)
+
+    def select(catalog, topic, mode):
+        return SelectionResult(
+            paths=["raw/pricing-notes.md"], batches=1, dropped_invented=0,
+            skipped=[Skipped(ref="raw/infra-notes.md", reason="line_over_budget")])
+
+    report = derive_kb(str(kb), "pricing", model="m", select_from="documents",
+                       select=select, compile_fn=_fake_compile)
+
+    assert report.skipped_articles == []
+    assert ("raw/infra-notes.md", "line_over_budget") in [
+        (s.ref, s.reason) for s in report.skipped_documents]

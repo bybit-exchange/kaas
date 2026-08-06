@@ -192,3 +192,75 @@ def test_a_source_filename_containing_three_dashes_is_not_truncated(tmp_path: Pa
 
     assert reason == ""
     assert entries == [f"raw/{name}"]
+
+
+# ── documents_from_paths (select_from="documents") ───────────────────
+
+def test_documents_from_paths_resolves_directly(tmp_path: Path):
+    """Selecting over documents makes the selected path the document itself, so
+    there is no sources: hop to follow -- and none of its failure modes."""
+    _raw(tmp_path, "a.md", "alpha")
+    _raw(tmp_path, "b.md", "beta")
+
+    docs, skipped = _sources.documents_from_paths(
+        _kb(tmp_path), ["raw/b.md", "raw/a.md"])
+
+    assert [d.rel_path for d in docs] == ["raw/a.md", "raw/b.md"]
+    assert docs[0].checksum == _compute_checksum("alpha")
+    assert docs[0].size_bytes == len("alpha".encode())
+    assert skipped == []
+
+
+def test_documents_from_paths_dedupes(tmp_path: Path):
+    _raw(tmp_path, "a.md", "alpha")
+
+    docs, skipped = _sources.documents_from_paths(
+        _kb(tmp_path), ["raw/a.md", "raw/a.md"])
+
+    assert len(docs) == 1
+    assert skipped == []
+
+
+def test_documents_from_paths_rejects_non_raw(tmp_path: Path):
+    """Paths come from LLM output, so a wiki/ path would copy a compiled article
+    into the derived raw/ and make the derived compile treat it as a source."""
+    _article(tmp_path, "x.md", "title: X")
+
+    docs, skipped = _sources.documents_from_paths(_kb(tmp_path), ["wiki/x.md"])
+
+    assert docs == []
+    assert [(s.ref, s.reason) for s in skipped] == [("wiki/x.md", "not_a_raw_document")]
+
+
+def test_documents_from_paths_rejects_escapes(tmp_path: Path):
+    docs, skipped = _sources.documents_from_paths(
+        _kb(tmp_path), ["../outside.md", "/etc/passwd"])
+
+    assert docs == []
+    assert {s.reason for s in skipped} == {"escapes_kb"}
+
+
+def test_documents_from_paths_records_missing(tmp_path: Path):
+    docs, skipped = _sources.documents_from_paths(_kb(tmp_path), ["raw/gone.md"])
+
+    assert docs == []
+    assert [(s.ref, s.reason) for s in skipped] == [("raw/gone.md", "document_missing")]
+
+
+def test_documents_from_paths_skips_non_strings(tmp_path: Path):
+    """One bad entry must not discard the documents that did resolve."""
+    _raw(tmp_path, "a.md", "alpha")
+
+    docs, skipped = _sources.documents_from_paths(_kb(tmp_path), [None, "raw/a.md", 7])
+
+    assert [d.rel_path for d in docs] == ["raw/a.md"]
+
+
+def test_documents_from_paths_records_unreadable(tmp_path: Path):
+    """A directory where a document was expected reads as unreadable, not missing."""
+    (tmp_path / "raw" / "adir.md").mkdir(parents=True)
+
+    docs, skipped = _sources.documents_from_paths(_kb(tmp_path), ["raw/adir.md"])
+
+    assert docs == []
+    assert [(s.ref, s.reason) for s in skipped] == [("raw/adir.md", "document_unreadable")]

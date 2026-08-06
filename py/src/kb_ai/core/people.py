@@ -7,10 +7,15 @@ from pathlib import Path
 import yaml
 
 from kb_ai._frontmatter import split_frontmatter
+from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.storage.store import KBStore
 
 STUB_SENTINEL = "<!-- kb:stub -->"
 WIKILINK_RE = re.compile(r"\[\[([^\]]+)\]\]")
+
+# Marks a title list cut short, mirroring storage.index._KEYS_ELLIPSIS: a
+# half-written title would read as a different article.
+_SUMMARY_ELLIPSIS = ", …"
 
 
 def _slug(name: str) -> str:
@@ -69,6 +74,37 @@ def _existing_created(path: Path) -> str | None:
     return str(created)
 
 
+def _stub_summary(mentions: int, sources: list[tuple[str, str]]) -> str:
+    """The stub's catalog line: who, how often, and in which articles.
+
+    A stub declares its own summary because storage.index._derive_summary
+    otherwise falls back to the body's first paragraph -- STUB_SENTINEL -- so
+    every person occupied a catalog line reading "<!-- kb:stub -->", routing
+    nothing while still costing prompt budget. The article titles are the
+    routing terms: they are what a page selection or a topic filter can match a
+    question against.
+
+    Capped at the catalog's own SUMMARY_MAX_CHARS, keeping whole titles only:
+    a person mentioned everywhere must not monopolise a prompt that carries the
+    entire catalog. The name is deliberately absent -- every consumer of a
+    summary renders the title alongside it (render_catalog_line, the master
+    index line, classify's article list), so repeating it here would only spend
+    budget that the titles use better.
+    """
+    head = f"Person stub, {mentions} mention(s)"
+    out = head
+    for i, (title, _path) in enumerate(sources):
+        # Reserve room for the cut marker while titles are still pending, so
+        # appending it later cannot push the summary past the budget.
+        limit = SUMMARY_MAX_CHARS - (
+            len(_SUMMARY_ELLIPSIS) if i < len(sources) - 1 else 0)
+        candidate = f"{out} in: {title}" if out == head else f"{out}, {title}"
+        if len(candidate) > limit:
+            return out if out == head else f"{out}{_SUMMARY_ELLIPSIS}"
+        out = candidate
+    return out
+
+
 def _format_stub(canonical: str, mentions: int, aliases_seen: list[str],
                  sources: list[tuple[str, str]], created: str, updated: str) -> str:
     sources_yaml = "\n".join(f"  - {path}" for _, path in sources)
@@ -76,10 +112,17 @@ def _format_stub(canonical: str, mentions: int, aliases_seen: list[str],
     mentions_block = "\n".join(
         f"- [{title}]({path})" for title, path in sources
     )
+    # Dumped rather than interpolated: titles reach here from article
+    # frontmatter, so a quote or a colon in one would break the YAML.
+    summary_yaml = yaml.safe_dump(
+        {"summary": _stub_summary(mentions, sources)},
+        allow_unicode=True, default_flow_style=False, width=10**6,
+    ).strip()
     return (
         f"---\n"
         f'title: "{canonical}"\n'
         f"type: person\n"
+        f"{summary_yaml}\n"
         f"mentions: {mentions}\n"
         f"aliases: [{aliases_inline}]\n"
         f"sources:\n{sources_yaml}\n"

@@ -825,6 +825,7 @@ def test_derive_command_dispatches_to_derive_kb(monkeypatch):
         slug = "pricing"
         topic = "pricing"
         selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
         skipped_articles: list = []
         skipped_documents: list = []
         documents: list = []
@@ -942,6 +943,7 @@ def test_derive_isolates_cost_to_request_tracker(monkeypatch):
             derived_kb = "/kb/derived/t"
             slug = "t"
             selected_articles: list = []
+            selected_documents: list = []
             skipped_articles: list = []
             skipped_documents: list = []
             documents: list = []
@@ -971,3 +973,43 @@ def test_derive_isolates_cost_to_request_tracker(monkeypatch):
         f"cost isolation failed: reported {reported} USD; "
         "expected 0.02 (5.0 from prior global spend must not appear)"
     )
+
+
+def test_derive_command_passes_select_from(monkeypatch):
+    """Without this the async path can only ever filter over articles, so a KB
+    that was never compiled is unreachable through the daemon."""
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles: list = []
+        selected_documents = ["raw/a.md", "raw/b.md"]
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing", "select_from": "documents",
+    }})
+
+    assert seen["select_from"] == "documents"
+    assert responses[0]["select_from"] == "documents"
+    # selected_articles is empty by design in this mode; reporting it would say 0.
+    assert responses[0]["selected"] == 2

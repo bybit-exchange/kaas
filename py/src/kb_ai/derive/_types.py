@@ -21,6 +21,17 @@ from kb_ai.storage.store import ArticleMeta
 MODE_RECALL = "recall"
 MODE_PRECISION = "precision"
 
+# What a run filters over.
+#   ARTICLES  -- the compiled catalog, then each selected article's sources:.
+#                Summaries are the write phase's own prose, so they are single-
+#                topic and already de-noised, and the catalog is smaller.
+#   DOCUMENTS -- the raw-document catalog. The unit of selection becomes the unit
+#                that gets copied, which removes the sources: hop, reaches
+#                documents that produced no article, and works on a KB that was
+#                never compiled -- what a cross-KB topic merge needs.
+SELECT_FROM_ARTICLES = "articles"
+SELECT_FROM_DOCUMENTS = "documents"
+
 
 @dataclass(frozen=True)
 class Skipped:
@@ -74,6 +85,10 @@ class DeriveReport:
     slug: str
     topic: str
     selected_articles: list[str] = field(default_factory=list)
+    # Populated instead of selected_articles under SELECT_FROM_DOCUMENTS. Kept
+    # separate rather than overloading one field: the two hold different kinds of
+    # path, and a manifest reader must not have to guess which.
+    selected_documents: list[str] = field(default_factory=list)
     skipped_articles: list[Skipped] = field(default_factory=list)
     skipped_documents: list[Skipped] = field(default_factory=list)
     documents: list[DocumentRef] = field(default_factory=list)

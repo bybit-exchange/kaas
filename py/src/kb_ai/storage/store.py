@@ -212,7 +212,18 @@ class KBStore:
         full.write_text(content)
 
     def existing_articles(self) -> list[ArticleMeta]:
-        index_path = self.index_dir / "master-index.md"
+        return self._parse_index(self.index_dir / "master-index.md")
+
+    def existing_documents(self) -> list[ArticleMeta]:
+        """The raw-document catalog, for selecting documents without compiling.
+
+        Same line format and same parser as the article catalog, so the topic
+        filter and page selection consume either one unchanged. Empty when the
+        index has not been built -- a KB that has only ever been fetched into.
+        """
+        return self._parse_index(self.index_dir / "document-index.md")
+
+    def _parse_index(self, index_path: Path) -> list[ArticleMeta]:
         if not index_path.exists():
             return []
         articles = []

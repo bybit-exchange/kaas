@@ -44,10 +44,16 @@ from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
     write_manifest,
 )
 from kb_ai.derive._offtopic import prune as prune_offtopic
-from kb_ai.derive._sources import parse_sources, resolve_documents
+from kb_ai.derive._sources import (
+    documents_from_paths,
+    parse_sources,
+    resolve_documents,
+)
 from kb_ai.derive._types import (  # noqa: F401 -- re-exported for callers
     MODE_PRECISION,
     MODE_RECALL,
+    SELECT_FROM_ARTICLES,
+    SELECT_FROM_DOCUMENTS,
     DeriveReport,
     DocumentRef,
     SelectionResult,
@@ -55,6 +61,7 @@ from kb_ai.derive._types import (  # noqa: F401 -- re-exported for callers
     Skipped,
 )
 from kb_ai.llm import get_request_tracker, tracker
+from kb_ai.storage.index import build_document_catalog
 from kb_ai.storage.store import KBStore
 
 # Bumped when the manifest's shape changes incompatibly, so a future re-derive
@@ -64,7 +71,8 @@ MANIFEST_SCHEMA_VERSION = 1
 
 def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
                       created_at: str, sources_by_article: dict[str, list[str]],
-                      titles_by_path: dict[str, str]) -> dict:
+                      titles_by_path: dict[str, str],
+                      select_from: str) -> dict:
     """Serialise a report into the manifest shape (spec E2, E3)."""
     return {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -73,11 +81,16 @@ def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
         "slug": report.slug,
         "created_at": created_at,
         "filter_model": model,
+        # Which catalog the run filtered over. Additive, so schema_version stays
+        # at 1: a reader that predates it sees the same keys it already knew, and
+        # selected_articles is still empty exactly when no article was selected.
+        "select_from": select_from,
         "selected_articles": [
             {"path": p, "title": titles_by_path.get(p, ""),
              "sources": sources_by_article.get(p, [])}
             for p in report.selected_articles
         ],
+        "selected_documents": list(report.selected_documents),
         "skipped_articles": [{"path": s.ref, "reason": s.reason}
                              for s in report.skipped_articles],
         "skipped_documents": [{"ref": s.ref, "reason": s.reason}
@@ -101,6 +114,7 @@ def derive_kb(
     slug: str | None = None,
     force: bool = False,
     prune: bool = False,
+    select_from: str = SELECT_FROM_ARTICLES,
     model: str,
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
@@ -119,10 +133,21 @@ def derive_kb(
     nothing at all -- so it does not yet earn a place in the default output. See
     issue #24.
 
+    select_from picks which catalog the RECALL pass filters over; see
+    SELECT_FROM_ARTICLES / SELECT_FROM_DOCUMENTS. It stays on articles by default
+    because those summaries are single-topic write-phase prose over a catalog
+    roughly half the size, so the selection is both better and cheaper whenever
+    the source KB is compiled and its articles carry sources:.
+
     Raises DeriveError or a subclass on every failure named in the spec.
     """
     if not topic.strip():
         raise DeriveError("topic must not be empty")
+    if select_from not in (SELECT_FROM_ARTICLES, SELECT_FROM_DOCUMENTS):
+        raise DeriveError(
+            f"unknown select_from {select_from!r}; expected "
+            f"{SELECT_FROM_ARTICLES!r} or {SELECT_FROM_DOCUMENTS!r}"
+        )
 
     source = Path(source_kb).expanduser().resolve()
     assert_not_nested(source)
@@ -138,50 +163,77 @@ def derive_kb(
         from kb_ai.commands.compile import compile_kb as compile_fn  # noqa: F811
 
     source_store = KBStore(str(source), read_only=True)
-    catalog = source_store.existing_articles()
-    if not catalog:
-        raise NoCatalogError(
-            f"{source} has no index/master-index.md; derive needs a compiled "
-            "knowledge base"
-        )
-    titles_by_path = {a.path: a.title for a in catalog}
 
-    selection = select(catalog, topic, MODE_RECALL)
-    documents, skipped_articles, skipped_documents = resolve_documents(
-        source_store, selection.paths)
-    skipped_articles = list(selection.skipped) + skipped_articles
+    if select_from == SELECT_FROM_DOCUMENTS:
+        # Prefer the written index (free), fall back to computing the catalog in
+        # memory. Never materialise it here: source_store is read-only and, in a
+        # cross-KB merge, the KB may not be ours to write to.
+        catalog = source_store.existing_documents() or build_document_catalog(
+            source_store)
+        if not catalog:
+            raise NoDocumentsError(
+                f"{source} has no documents under raw/; nothing to select from")
+        selection = select(catalog, topic, MODE_RECALL)
+        documents, skipped_documents = documents_from_paths(
+            source_store, selection.paths)
+        # selection.skipped holds line_over_budget refs, which here are document
+        # paths -- so they belong under skipped_documents. No article is involved
+        # in this mode, so skipped_articles stays empty rather than holding
+        # document paths under an article-shaped key.
+        skipped_documents = list(selection.skipped) + skipped_documents
+        skipped_articles = []
+    else:
+        catalog = source_store.existing_articles()
+        if not catalog:
+            raise NoCatalogError(
+                f"{source} has no index/master-index.md; derive needs a compiled "
+                "knowledge base"
+            )
+        selection = select(catalog, topic, MODE_RECALL)
+        documents, skipped_articles, skipped_documents = resolve_documents(
+            source_store, selection.paths)
+        skipped_articles = list(selection.skipped) + skipped_articles
+
+    titles_by_path = {a.path: a.title for a in catalog}
 
     if not documents:
         raise NoDocumentsError(
-            f"none of the {len(selection.paths)} matching articles resolved to a "
-            "readable source document; nothing to derive"
+            f"none of the {len(selection.paths)} matching "
+            f"{'documents' if select_from == SELECT_FROM_DOCUMENTS else 'articles'} "
+            "resolved to a readable source document; nothing to derive"
         )
 
     derived_dir = create(source, slug, force)
 
+    documents_mode = select_from == SELECT_FROM_DOCUMENTS
     report = DeriveReport(
         derived_kb=str(derived_dir),
         slug=slug,
         topic=topic,
-        selected_articles=list(selection.paths),
+        selected_articles=[] if documents_mode else list(selection.paths),
+        selected_documents=list(selection.paths) if documents_mode else [],
         skipped_articles=skipped_articles,
         skipped_documents=skipped_documents,
         dropped_invented_paths=selection.dropped_invented,
         filter_batches=selection.batches,
     )
 
-    # sources: per selected article, for the manifest's provenance record.
-    sources_by_article = {}
-    for path in selection.paths:
-        entries, _reason = parse_sources(source_store, path)
-        sources_by_article[path] = entries or []
+    # sources: per selected article, for the manifest's provenance record. Under
+    # SELECT_FROM_DOCUMENTS the selected paths ARE the documents, so there is no
+    # indirection to record -- report.documents already carries them.
+    sources_by_article: dict[str, list[str]] = {}
+    if not documents_mode:
+        for path in selection.paths:
+            entries, _reason = parse_sources(source_store, path)
+            sources_by_article[path] = entries or []
 
     created_at = datetime.now().isoformat(timespec="seconds")
 
     def flush() -> None:
         write_manifest(derived_dir, _manifest_payload(
             report, source_kb=source, model=model, created_at=created_at,
-            sources_by_article=sources_by_article, titles_by_path=titles_by_path))
+            sources_by_article=sources_by_article, titles_by_path=titles_by_path,
+            select_from=select_from))
 
     def snapshot_cost() -> None:
         """Record whole-run spend into report.cost.

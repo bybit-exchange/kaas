@@ -16,7 +16,12 @@ from kb_ai.core.classify import (
     resolve_categories,
 )
 from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
-from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index, update_timeline
+from kb_ai.storage.index import (
+    SUMMARY_MAX_CHARS,
+    update_document_index,
+    update_markdown_index,
+    update_timeline,
+)
 from kb_ai.core.people import update_people_stubs
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import create_new_article, merge_into_article
@@ -404,6 +409,9 @@ def compile_kb(
     index_t0 = time.monotonic()
     update_markdown_index(store, min_articles=topic_index_min_articles,
                           summary_max_chars=summary_max_chars)
+    # Built here so it cannot drift from raw/, and so a later derive over
+    # documents reads it instead of recomputing every summary.
+    update_document_index(store, summary_max_chars=summary_max_chars)
     update_timeline(store, [rf.rel_path for rf in to_compile])
     update_people_stubs(store, people_cfg)
     index_elapsed = round(time.monotonic() - index_t0, 2)

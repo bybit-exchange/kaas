@@ -6,7 +6,20 @@ from datetime import datetime
 import yaml
 
 from kb_ai._frontmatter import split_frontmatter
-from kb_ai.storage.store import KEYS_MARKER, KBStore
+from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore, _compute_checksum
+
+DOCUMENT_INDEX_NAME = "document-index.md"
+
+# Joins the routing signals a raw document's frontmatter carries for free onto
+# its summary. Deliberately not separate columns: the line is only ever read by
+# an LLM, and keeping the format byte-identical to the article catalog is what
+# lets one parser (KBStore._parse_index) and one topic filter serve both.
+_DOC_FIELD_SEP = " · "
+
+# Frontmatter keys worth spending catalog budget on. `source` is the highest-value
+# one in a cross-KB selection: it says which person or channel a document came
+# from, which no amount of summary prose conveys.
+_DOC_CONTEXT_KEYS = ("date", "source")
 
 # Backstop bounding one catalog line, NOT the length the write phase aims for:
 # core.merge asks it for "one sentence under 150 characters" and it empirically
@@ -105,6 +118,118 @@ def _derive_keys(body: str) -> str:
             return f"{out}{_KEYS_ELLIPSIS}" if out else ""
         out = candidate
     return out
+
+
+def _document_frontmatter(content: str) -> tuple[dict, str]:
+    """Split a raw document into (frontmatter, body), tolerating both absences.
+
+    Unlike a wiki article, a raw document is not required to carry frontmatter --
+    and a malformed one must not make the document unselectable, only unlabelled.
+    So where update_markdown_index skips, this degrades to ({}, whole content).
+    """
+    split = split_frontmatter(content)
+    if split is None:
+        return {}, content
+    try:
+        fm = yaml.safe_load(split[0])
+    except yaml.YAMLError:
+        return {}, split[1]
+    return (fm if isinstance(fm, dict) else {}), split[1]
+
+
+def _document_summary(store: KBStore, fm: dict, body: str, content: str,
+                      max_chars: int) -> str:
+    """The catalog summary for one raw document, cheapest source first.
+
+    1. a ``summary`` declared in the document's own frontmatter
+    2. the ``summary`` of its extract-cache entry -- the document-level summary
+       the compile pipeline already paid for and wrote to disk
+    3. the first prose paragraph, via the same _derive_summary the article
+       catalog uses
+
+    Layer 2 is what makes this catalog nearly free on a compiled KB (980 of 994
+    documents hit it in this repository's reference KB); layer 3 is what keeps it
+    working for a KB that has been fetched into but never compiled -- exactly the
+    case where an article catalog does not exist at all.
+
+    Note the cached summary is written for extraction, not for a catalog line:
+    its median length is 361 chars against this budget's 200, so most entries are
+    clipped by _flatten. Whether that clipping costs selection recall is open --
+    it is measured before any second summarisation pass is worth paying for.
+    """
+    declared = fm.get("summary")
+    if isinstance(declared, str) and declared.strip():
+        return _flatten(declared, max_chars)
+
+    cached = store.load_extract_cache(_compute_checksum(content))
+    if cached:
+        summary = cached.get("summary")
+        if isinstance(summary, str) and summary.strip():
+            return _flatten(summary, max_chars)
+
+    # Empty frontmatter, so _derive_summary goes straight to the body.
+    return _derive_summary({}, body.strip(), max_chars)
+
+
+def build_document_catalog(store: KBStore, *,
+                           summary_max_chars: int | None = None) -> list[ArticleMeta]:
+    """The raw-document catalog, computed without writing anything.
+
+    The article catalog can only offer what compiling produced: a document that
+    yielded no article is unreachable through it, and a KB that was never
+    compiled has no catalog at all. Selecting over documents instead makes the
+    unit of selection the unit that actually gets copied, which is what a
+    cross-KB topic merge needs -- it can then read this and each KB's raw/, and
+    never touch anyone's compiled wiki/.
+
+    Returns ArticleMeta, not a document-specific type, so render_catalog_line,
+    _filter.pack_batches and _filter.select_by_topic consume a document catalog
+    and an article catalog through the same code path.
+
+    Separate from update_document_index because derive opens its source KB
+    read-only and, across KBs, that KB may belong to someone else and be
+    genuinely unwritable -- a selection must not require write access.
+
+    Content is read one document at a time and dropped, so peak memory stays at
+    the size of the largest single document.
+    """
+    if summary_max_chars is None:
+        summary_max_chars = SUMMARY_MAX_CHARS
+
+    catalog: list[ArticleMeta] = []
+    for path in store._iter_raw_paths():
+        content = path.read_text()
+        fm, body = _document_frontmatter(content)
+
+        context = _DOC_FIELD_SEP.join(
+            str(fm[k]) for k in _DOC_CONTEXT_KEYS if fm.get(k))
+        # The context prefix is paid for out of the same budget, not added on
+        # top of it, so one line cannot exceed what the caller allowed.
+        spent = len(context) + len(_DOC_FIELD_SEP) if context else 0
+        summary = _document_summary(store, fm, body, content,
+                                    max(summary_max_chars - spent, 0))
+
+        catalog.append(ArticleMeta(
+            title=str(fm.get("title") or path.stem),
+            path=str(path.relative_to(store.base_dir)),
+            summary=_DOC_FIELD_SEP.join(p for p in (context, summary) if p),
+        ))
+    return catalog
+
+
+def update_document_index(store: KBStore, *,
+                          summary_max_chars: int | None = None) -> None:
+    """Write build_document_catalog() to index/document-index.md.
+
+    Rebuilt wholesale like update_markdown_index, so it cannot drift from raw/.
+    Persisting it is what makes a later selection free; derive falls back to
+    computing the catalog in memory when this file is absent.
+    """
+    catalog = build_document_catalog(store, summary_max_chars=summary_max_chars)
+    store.index_dir.mkdir(exist_ok=True)
+    out = "# Document Index\n\n" + "".join(
+        f"- [{d.title}]({d.path}) — {d.summary}\n" for d in catalog)
+    (store.index_dir / DOCUMENT_INDEX_NAME).write_text(out)
 
 
 def update_markdown_index(store: KBStore, *, min_articles: int = 3,

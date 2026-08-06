@@ -11,8 +11,14 @@ from types import SimpleNamespace
 import pytest
 
 from kb_ai.storage import index as index_mod
-from kb_ai.storage.index import update_markdown_index, update_timeline
-from kb_ai.storage.store import KBStore
+from kb_ai.storage.index import (
+    DOCUMENT_INDEX_NAME,
+    build_document_catalog,
+    update_document_index,
+    update_markdown_index,
+    update_timeline,
+)
+from kb_ai.storage.store import KBStore, _compute_checksum
 
 
 def _store(tmp_path: Path) -> KBStore:
@@ -531,3 +537,180 @@ def test_index_skips_non_mapping_frontmatter_without_losing_good_articles(
     index = _master(store)
     assert "Good" in index
     assert "bad-fm" not in index
+
+
+# ── document index ──────────────────────────────────────────────────
+
+def _documents(store: KBStore) -> str:
+    return (store.index_dir / DOCUMENT_INDEX_NAME).read_text(encoding="utf-8")
+
+
+def _cache(store: KBStore, content: str, summary: str) -> None:
+    """Seed the extract-cache entry a compiled document would have."""
+    store.save_extract_cache(_compute_checksum(content), {"summary": summary})
+
+
+def test_document_index_prefers_the_cached_extraction_summary(tmp_path: Path):
+    """The document-level summary already exists in .extract-cache; reuse it
+    rather than paying an LLM to summarise the document again."""
+    store = _store(tmp_path)
+    content = "---\ntitle: Weekly Standup\ndate: 2026-06-03\nsource: lark\n---\n\nWe shipped the retry queue."
+    _write(store, "raw/2026-06/standup.md", content)
+    _cache(store, content, "The team shipped the retry queue and deferred the dashboard.")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "raw/2026-06/standup.md" in line
+    assert "Weekly Standup" in line
+    assert "shipped the retry queue and deferred the dashboard" in line
+
+
+def test_document_index_prefers_a_declared_frontmatter_summary(tmp_path: Path):
+    """A hand-written summary beats the cache: it was written to be the catalog line."""
+    store = _store(tmp_path)
+    content = "---\ntitle: Standup\nsummary: Retry queue rollout decision\n---\n\nbody text"
+    _write(store, "raw/a.md", content)
+    _cache(store, content, "cached wording that should lose")
+
+    update_document_index(store)
+
+    assert "Retry queue rollout decision" in _documents(store)
+    assert "cached wording" not in _documents(store)
+
+
+def test_document_index_falls_back_to_the_body_when_uncompiled(tmp_path: Path):
+    """A KB that was never compiled has no cache; the catalog must still work."""
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: Notes\n---\n\n# Heading\n\nThe actual first paragraph.")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "The actual first paragraph." in line
+    assert "Heading" not in line
+
+
+def test_document_index_carries_date_and_source(tmp_path: Path):
+    """date and source are free routing signals: every raw document has them, and
+    in a cross-KB merge `source` says which person or channel a document came from."""
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: Sync\ndate: 2026-06-03\nsource: lark\n---\n\nbody")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "2026-06-03" in line
+    assert "lark" in line
+
+
+def test_document_index_caps_the_summary(tmp_path: Path):
+    store = _store(tmp_path)
+    content = "---\ntitle: Long\n---\n\n" + "word " * 500
+    _write(store, "raw/a.md", content)
+
+    update_document_index(store, summary_max_chars=80)
+
+    body_line = [ln for ln in _documents(store).splitlines() if ln.startswith("- ")][0]
+    assert len(body_line) < 200
+    assert body_line.endswith("…")
+
+
+def test_document_index_skips_the_skipped_dir(tmp_path: Path):
+    """raw/_skipped/ holds documents moved out by cost review; they are not compiled
+    and must not be selectable either."""
+    store = _store(tmp_path)
+    _write(store, "raw/keep.md", "---\ntitle: Keep\n---\n\nkeep me")
+    _write(store, "raw/_skipped/drop.md", "---\ntitle: Drop\n---\n\ndrop me")
+
+    update_document_index(store)
+
+    assert "raw/keep.md" in _documents(store)
+    assert "drop.md" not in _documents(store)
+
+
+def test_document_index_handles_a_document_without_frontmatter(tmp_path: Path):
+    """Unlike wiki articles, a raw document is not required to have frontmatter --
+    skipping it would make the document unreachable rather than merely unlabelled."""
+    store = _store(tmp_path)
+    _write(store, "raw/plain.md", "just prose, no frontmatter at all")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "raw/plain.md" in line
+    assert "just prose" in line
+
+
+def test_existing_documents_round_trips_the_written_index(tmp_path: Path):
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: Alpha\nsummary: About alpha\n---\n\nbody")
+    _write(store, "raw/b.md", "---\ntitle: Beta\nsummary: About beta\n---\n\nbody")
+
+    update_document_index(store)
+    docs = store.existing_documents()
+
+    assert [d.path for d in docs] == ["raw/a.md", "raw/b.md"]
+    assert docs[0].title == "Alpha"
+    assert "About alpha" in docs[0].summary
+
+
+def test_existing_documents_without_an_index(tmp_path: Path):
+    assert _store(tmp_path).existing_documents() == []
+
+
+def test_build_document_catalog_needs_no_write_access(tmp_path: Path):
+    """derive opens a source KB read-only, and in a cross-KB selection that KB may
+    belong to someone else and be genuinely unwritable. The catalog a topic filter
+    consumes must therefore be computable without touching the KB at all."""
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: Alpha\nsummary: About alpha\n---\n\nbody")
+
+    catalog = build_document_catalog(KBStore(str(tmp_path), read_only=True))
+
+    assert [d.path for d in catalog] == ["raw/a.md"]
+    assert "About alpha" in catalog[0].summary
+    assert not (store.index_dir / DOCUMENT_INDEX_NAME).exists()
+
+
+def test_build_document_catalog_matches_what_the_index_round_trips(tmp_path: Path):
+    """The in-memory catalog and the on-disk one must be the same selection input:
+    otherwise which of the two derive used would change its results."""
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: Alpha\ndate: 2026-06-03\nsource: lark\n---\n\nbody one")
+    _write(store, "raw/b.md", "---\ntitle: Beta\n---\n\nbody two")
+
+    in_memory = build_document_catalog(store)
+    update_document_index(store)
+    from_disk = store.existing_documents()
+
+    assert [(d.path, d.title, d.summary) for d in in_memory] == \
+           [(d.path, d.title, d.summary) for d in from_disk]
+
+
+def test_index_command_builds_both_catalogs(tmp_path: Path):
+    """The document catalog is rebuilt alongside the article one, so it cannot go
+    stale relative to raw/ and a later derive pays nothing to read it."""
+    from kb_ai.commands.pipeline._entry import run_server_index_with_input
+
+    store = _store(tmp_path)
+    _write(store, "wiki/a.md", "---\ntitle: Alpha\nsummary: An article\n---\n\nbody")
+    _write(store, "raw/doc.md", "---\ntitle: Doc\n---\n\nA raw document.")
+
+    run_server_index_with_input({"kb_dir": str(tmp_path)})
+
+    assert "wiki/a.md" in _master(store)
+    assert "raw/doc.md" in _documents(store)
+
+
+def test_document_index_tolerates_broken_frontmatter(tmp_path: Path):
+    """Malformed YAML must leave the document unlabelled, not unselectable -- the
+    opposite of the article index, which skips such a file entirely."""
+    store = _store(tmp_path)
+    _write(store, "raw/bad.md", "---\ntitle: [unclosed\n---\n\nThe body still routes.")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "raw/bad.md" in line
+    assert "The body still routes." in line
