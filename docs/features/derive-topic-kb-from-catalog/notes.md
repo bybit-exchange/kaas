@@ -311,9 +311,13 @@ Two operational observations from the same run:
 
 Still outstanding:
 
-- Task 10 Step 3 — the declined-volume-gate path (F5) live.
-- Task 12 Step 7 — a grounded MCP answer from a derived KB.
-- Task 20 Step 7 — a successful derive over HTTP (the CLI path is now proven).
+- Task 12 Step 7 — a grounded answer from a derived KB *through MCP*. The
+  retrieval path underneath it is now proven (see the HTTP section below), so
+  what is left unexercised is the MCP `kb` selector end to end, which has Go
+  unit coverage but no live run.
+
+Closed since: Task 10 Step 3 (the declined-volume-gate path, exercised eight
+times by the sweep below) and Task 20 Step 7 (a successful derive over HTTP).
 
 #### Re-measured on a larger corpus, 2026-08-05: PRECISION is now off by default
 
@@ -379,6 +383,71 @@ Worth knowing even when the category sets match: a derived KB is recompiled from
 an empty existing-articles context, so its distribution does not resemble its
 source's. Same run — source `concept 36, reference 8, decision 6, guide 2` against
 derived `reference 12, decision 9, project 1, concept 0`.
+
+#### Task 20 Step 7 — derive over HTTP, 2026-08-06
+
+The last unproven path. Backend built from this branch, SQLite store, `kb_dir`
+pointed at a copy of the 52-article KB above, Python daemon spawned by the
+backend (`[multiplex-stream] process ready`), LLM credentials by environment.
+
+```
+POST /api/derive {"topic":"the circuit breaker and failure handling","slug":"cb-http"}
+  -> 202 {"job_id":"ee5d4bda-...","slug":"cb-http"}
+GET  /api/derive/ee5d4bda-...
+  -> running, stage=compile
+  -> succeeded, stage=done
+GET  /api/derived
+  -> [{"slug":"cb-http", "topic":"...", "article_count":27}]
+```
+
+| Figure | Value |
+|---|---|
+| Articles selected by RECALL | 11 of 52 |
+| Documents resolved | 30 of 88 |
+| Bytes recompiled | 183,524 |
+| Articles in the derived KB | 27 |
+| Moved off-topic | 0 (pruning off by default) |
+| Errors | 0 |
+| Total cost | 3.007176 USD, 81 calls |
+| extract | 0.0s, 0.00 USD (cache hit) |
+| classify | 136.53s, 0.2533 USD |
+| write | 986.65s, 2.7332 USD |
+| Wall clock | 1123.2s |
+
+Four things this pins down.
+
+The job lifecycle works: 202 with a job id, `stage` advancing through `compile`
+to `done`, and `GET /api/derived` reporting the finished KB with its article
+count. Nothing sat at "pending".
+
+The new default holds over HTTP. `offtopic: 0` with no `_offtopic/` directory —
+and this time because pruning is off, not because the PRECISION pass selected
+nothing. The daemon takes no `prune` switch, so the API cannot reach the pass.
+
+The category set was inherited: the derived `kaas.json` carries the source's six
+rather than re-freezing the default. That is the #25 fix on the path that
+motivated it.
+
+The stall recurred, making it three derive runs and three stalls: 901.2s,
+`prompt_chars=6219`, timed out and retried successfully. One detail for issue #26
+— it appears only in the backend's daemon-stderr passthrough, not in the derived
+KB's own `.compile.log`, so the obvious place to look for it is the wrong one.
+
+Two observations that are not defects but affect how the numbers above should be
+read.
+
+A grounded answer out of the derived KB, asked directly of the retrieval layer:
+"What is the circuit breaker failure threshold and cooldown, and what happens to
+calls while it is open?" returned 5 consecutive failures and 30 seconds with the
+correct open-state behaviour, 6 articles retrieved, 3 cited, 0.057897 USD. So a
+derived KB is answerable, which is the point of deriving one.
+
+RECALL selection is not reproducible run to run. The same topic over the same
+catalog at `temperature=0` selected 10 articles and 26 documents during the sweep
+above and 11 articles and 30 documents here. One comparison only, so treat the
+sweep's figures as accurate to about one article rather than exact — the
+amplification conclusion is unaffected at that resolution, but this is worth
+knowing before anyone quotes a single row of that table as a fixed number.
 
 ### 2. A long derive cannot be cancelled
 
