@@ -315,7 +315,7 @@ The rest of Stage 3 assumes Option A.
 
 | Endpoint | Behaviour |
 |---|---|
-| `POST /api/derive` | `{topic, slug?, model?}` → insert `derived_jobs` row, return `{job_id, slug}` (202). No volume gate — async, nobody to prompt (H5). |
+| `POST /api/derive` | `{topic, slug?, model?, select_from?}` → insert `derived_jobs` row, return `{job_id, slug}` (202). No volume gate — async, nobody to prompt (H5). `select_from` is `articles` or `documents`; anything else is a 400, and omitting it leaves the default to the engine. |
 | `GET /api/derive/{id}` | Job status, stage, error, result (cost, counts). |
 | `GET /api/derived` | List from manifests: `[{slug, topic, created_at, article_count}]` (H2). |
 | `GET /api/wiki?kb=` | Existing tree handler, rooted at the resolved KB (H3). |

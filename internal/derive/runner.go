@@ -137,6 +137,10 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		// a queued job can wait behind a long derive.
 		Force: r.replaceable(job.Slug),
 		Model: model,
+		// Forwarded verbatim, with no fallback of its own: unlike Model, the
+		// engine owns this default, so substituting one here would override a job
+		// that deliberately left it unset.
+		SelectFrom: job.SelectFrom,
 	})
 	if err != nil {
 		r.logger.Error("derive: failed", "id", job.ID, "slug", job.Slug, "err", err)

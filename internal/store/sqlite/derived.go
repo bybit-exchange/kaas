@@ -15,8 +15,8 @@ import (
 var _ store.DerivedJobStore = (*Store)(nil)
 
 // derivedJobColumns is the canonical column order for SELECT + scanDerivedJob.
-const derivedJobColumns = `id, slug, topic, model, status, stage, error, result,
-	created_at, updated_at`
+const derivedJobColumns = `id, slug, topic, model, select_from, status, stage,
+	error, result, created_at, updated_at`
 
 // derivedSchema holds KB-level derive jobs. The partial unique index is the
 // whole point of the table: it enforces "one active derive per slug" in the
@@ -24,16 +24,17 @@ const derivedJobColumns = `id, slug, topic, model, status, stage, error, result,
 // re-derive can sit alongside.
 const derivedSchema = `
 CREATE TABLE IF NOT EXISTS derived_jobs (
-	id         TEXT PRIMARY KEY,
-	slug       TEXT NOT NULL,
-	topic      TEXT NOT NULL,
-	model      TEXT NOT NULL DEFAULT '',
-	status     TEXT NOT NULL,
-	stage      TEXT NOT NULL,
-	error      TEXT NOT NULL DEFAULT '',
-	result     TEXT NOT NULL DEFAULT '',
-	created_at INTEGER NOT NULL,
-	updated_at INTEGER NOT NULL
+	id          TEXT PRIMARY KEY,
+	slug        TEXT NOT NULL,
+	topic       TEXT NOT NULL,
+	model       TEXT NOT NULL DEFAULT '',
+	select_from TEXT NOT NULL DEFAULT '',
+	status      TEXT NOT NULL,
+	stage       TEXT NOT NULL,
+	error       TEXT NOT NULL DEFAULT '',
+	result      TEXT NOT NULL DEFAULT '',
+	created_at  INTEGER NOT NULL,
+	updated_at  INTEGER NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_derived_jobs_active_slug
 	ON derived_jobs(slug) WHERE status IN ('pending', 'running');
@@ -43,8 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_derived_jobs_status_created
 
 func scanDerivedJob(row interface{ Scan(...any) error }) (*store.DerivedJob, error) {
 	var j store.DerivedJob
-	err := row.Scan(&j.ID, &j.Slug, &j.Topic, &j.Model, &j.Status, &j.Stage,
-		&j.Error, &j.Result, &j.CreatedAt, &j.UpdatedAt)
+	err := row.Scan(&j.ID, &j.Slug, &j.Topic, &j.Model, &j.SelectFrom, &j.Status,
+		&j.Stage, &j.Error, &j.Result, &j.CreatedAt, &j.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -56,9 +57,9 @@ func scanDerivedJob(row interface{ Scan(...any) error }) (*store.DerivedJob, err
 func (s *Store) CreateDerivedJob(ctx context.Context, j *store.DerivedJob) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO derived_jobs (`+derivedJobColumns+`)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		j.ID, j.Slug, j.Topic, j.Model, j.Status, j.Stage, j.Error, j.Result,
-		j.CreatedAt, j.UpdatedAt)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		j.ID, j.Slug, j.Topic, j.Model, j.SelectFrom, j.Status, j.Stage, j.Error,
+		j.Result, j.CreatedAt, j.UpdatedAt)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return fmt.Errorf("%w: %q", store.ErrDerivedJobExists, j.Slug)

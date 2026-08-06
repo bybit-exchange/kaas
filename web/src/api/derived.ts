@@ -7,8 +7,19 @@ export interface DerivedKB {
   article_count: number
 }
 
+/**
+ * Which catalog a derive filters over.
+ *
+ * - `articles`: the compiled catalog, then each matching article's sources.
+ * - `documents`: the raw-document catalog, skipping the compiled wiki entirely.
+ */
+export type SelectFrom = 'articles' | 'documents'
+
 /** Counts and cost the engine reported for a finished derive. */
 export interface DeriveResult {
+  /** The catalog the run actually filtered, as resolved by the engine. */
+  select_from?: SelectFrom
+  /** Articles or documents, depending on `select_from`. */
   selected: number
   documents: number
   bytes: number
@@ -37,6 +48,8 @@ export interface StartDeriveRequest {
   topic: string
   slug?: string
   model?: string
+  /** Omit for the engine default. Sending a value the backend does not know is a 400. */
+  select_from?: SelectFrom
 }
 
 export async function listDerived(): Promise<{ kbs: DerivedKB[] }> {

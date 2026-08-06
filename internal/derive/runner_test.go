@@ -139,6 +139,39 @@ func runOnceIn(t *testing.T, js *fakeJobStore, br *fakeBridge, kbDir string) {
 	<-runDone // wait for Run to return before assertions read store state
 }
 
+// TestRunnerForwardsSelectFrom pins the runner as pass-through for select_from.
+// Unlike Model it has no server-side default to fall back to: the engine owns
+// that, so the runner substituting one here would override an operator who
+// deliberately left it unset.
+func TestRunnerForwardsSelectFrom(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t", SelectFrom: store.SelectFromDocuments,
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+	runOnce(t, js, br)
+
+	if br.req.SelectFrom != store.SelectFromDocuments {
+		t.Errorf("req.SelectFrom = %q, want %q", br.req.SelectFrom, store.SelectFromDocuments)
+	}
+}
+
+// TestRunnerLeavesAnUnsetSelectFromEmpty is the other half: a job that never
+// asked must reach the engine with no value, so the default stays defined in one
+// place instead of being pinned twice and drifting.
+func TestRunnerLeavesAnUnsetSelectFromEmpty(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+	runOnce(t, js, br)
+
+	if br.req.SelectFrom != "" {
+		t.Errorf("req.SelectFrom = %q, want empty", br.req.SelectFrom)
+	}
+}
+
 func TestRunnerRunsAPendingJobToSuccess(t *testing.T) {
 	js := newFakeJobStore(&store.DerivedJob{
 		ID: "j1", Slug: "pricing", Topic: "pricing and fees", Model: "",

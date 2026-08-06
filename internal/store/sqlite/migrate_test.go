@@ -71,8 +71,8 @@ func TestMigrateOnClosedStoreFails(t *testing.T) {
 	}
 }
 
-// TestColumnMigrationsSurfaceRealErrors calls the two ALTER TABLE migrations
-// against a database that has neither table. Both tolerate one specific failure
+// TestColumnMigrationsSurfaceRealErrors calls each ALTER TABLE migration against
+// a database that has none of the tables. They tolerate one specific failure
 // to stay idempotent — a column that already exists — and this pins that
 // carve-out as narrow: any other failure must be returned, or a database that
 // never got the column would be treated as fully migrated and every later query
@@ -92,6 +92,11 @@ func TestColumnMigrationsSurfaceRealErrors(t *testing.T) {
 			name:       "file_title",
 			migrate:    func(s *Store) error { return s.migrateFileTitle(context.Background()) },
 			wantPrefix: "migrate file_title: alter:",
+		},
+		{
+			name:       "select_from",
+			migrate:    func(s *Store) error { return s.migrateDeriveSelectFrom(context.Background()) },
+			wantPrefix: "migrate select_from: alter:",
 		},
 	}
 
