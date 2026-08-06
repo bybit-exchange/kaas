@@ -177,3 +177,18 @@ def test_a_document_skipped_once_is_not_reported_twice(tmp_path: Path):
     p2 = _article(tmp_path, "two.md", 'title: Two\nsources:\n  - raw/gone.md')
     _, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p1, p2])
     assert len(skipped_docs) == 1
+
+
+def test_a_source_filename_containing_three_dashes_is_not_truncated(tmp_path: Path):
+    # Frontmatter must be delimited by a line that is exactly "---". Splitting on
+    # the first three dashes anywhere cuts this filename in half, which silently
+    # loses the document and drops every key after it.
+    name = "meeting---part-2.md"
+    _raw(tmp_path, name, "alpha")
+    p = _article(tmp_path, "one.md",
+                 f'title: One\nsources:\n  - raw/{name}\ncreated: 2026-08-06')
+
+    entries, reason = _sources.parse_sources(_kb(tmp_path), p)
+
+    assert reason == ""
+    assert entries == [f"raw/{name}"]

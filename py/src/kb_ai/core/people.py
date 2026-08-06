@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from kb_ai._frontmatter import split_frontmatter
 from kb_ai.storage.store import KBStore
 
 STUB_SENTINEL = "<!-- kb:stub -->"
@@ -32,40 +33,34 @@ def _extract_target(wikilink_body: str) -> str:
 
 
 def _article_title(md_path: Path, content: str) -> str:
-    if content.startswith("---"):
-        parts = content.split("---", 2)
-        if len(parts) >= 3:
-            try:
-                fm = yaml.safe_load(parts[1]) or {}
-                title = fm.get("title")
-                if title:
-                    return str(title)
-            except yaml.YAMLError:
-                pass
+    split = split_frontmatter(content)
+    if split is not None:
+        try:
+            fm = yaml.safe_load(split[0]) or {}
+            title = fm.get("title")
+            if title:
+                return str(title)
+        except yaml.YAMLError:
+            pass
     return md_path.stem
 
 
 def _is_stub(content: str) -> bool:
-    if not content.startswith("---"):
+    split = split_frontmatter(content)
+    if split is None:
         return False
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return False
-    body = parts[2].lstrip()
-    return body.startswith(STUB_SENTINEL)
+    return split[1].lstrip().startswith(STUB_SENTINEL)
 
 
 def _existing_created(path: Path) -> str | None:
     if not path.exists():
         return None
     content = path.read_text()
-    if not content.startswith("---"):
-        return None
-    parts = content.split("---", 2)
-    if len(parts) < 3:
+    split = split_frontmatter(content)
+    if split is None:
         return None
     try:
-        fm = yaml.safe_load(parts[1]) or {}
+        fm = yaml.safe_load(split[0]) or {}
     except yaml.YAMLError:
         return None
     created = fm.get("created")
