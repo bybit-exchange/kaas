@@ -12,6 +12,7 @@ import posixpath
 
 import yaml
 
+from kb_ai._frontmatter import split_frontmatter
 from kb_ai.derive._types import DocumentRef, Skipped
 from kb_ai.storage.store import KBStore, _compute_checksum
 
@@ -41,13 +42,11 @@ def parse_sources(store: KBStore, article_path: str) -> tuple[list[str] | None, 
     except (OSError, ValueError):
         return None, "article_unreadable"
 
-    if not content.startswith("---"):
-        return None, "unparseable_frontmatter"
-    parts = content.split("---", 2)
-    if len(parts) < 3:
+    split = split_frontmatter(content)
+    if split is None:
         return None, "unparseable_frontmatter"
     try:
-        fm = yaml.safe_load(parts[1])
+        fm = yaml.safe_load(split[0])
     except yaml.YAMLError:
         return None, "unparseable_frontmatter"
     if not isinstance(fm, dict):

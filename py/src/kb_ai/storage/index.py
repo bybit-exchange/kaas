@@ -5,6 +5,7 @@ from datetime import datetime
 
 import yaml
 
+from kb_ai._frontmatter import split_frontmatter
 from kb_ai.storage.store import KEYS_MARKER, KBStore
 
 # Backstop bounding one catalog line, NOT the length the write phase aims for:
@@ -128,13 +129,11 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
 
     for md_file in store.wiki_dir.rglob("*.md"):
         content = md_file.read_text()
-        if not content.startswith("---"):
-            continue
-        parts = content.split("---", 2)
-        if len(parts) < 3:
+        split = split_frontmatter(content)
+        if split is None:
             continue
         try:
-            fm = yaml.safe_load(parts[1])
+            fm = yaml.safe_load(split[0])
         except yaml.YAMLError:
             continue
         # Empty frontmatter loads as None and scalar frontmatter as str. Skip
@@ -148,7 +147,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
         article_type = fm.get("type", "unknown")
         tags = fm.get("tags", [])
         status = fm.get("status", "")
-        body = parts[2].strip()
+        body = split[1].strip()
         summary = _derive_summary(fm, body, summary_max_chars)
 
         articles.append({

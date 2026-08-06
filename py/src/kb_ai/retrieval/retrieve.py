@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import sys
 
+from kb_ai._frontmatter import split_frontmatter
 from kb_ai.llm import completion_json
 from kb_ai.storage.store import ArticleMeta, KBStore, render_catalog_line
 
@@ -84,12 +85,10 @@ def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
 
 def _strip_frontmatter(content: str) -> str:
     """Drop a leading YAML frontmatter block (``---\\n...\\n---``)."""
-    if not content.startswith("---"):
+    split = split_frontmatter(content)
+    if split is None:
         return content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return content
-    return parts[2].lstrip("\n")
+    return split[1].lstrip("\n")
 
 
 def _fit_to_budget(path: str, body: str) -> str:
