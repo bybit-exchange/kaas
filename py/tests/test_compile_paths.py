@@ -149,6 +149,86 @@ def test_compile_records_merge_create_failure_for_every_source(kb_two, fakes):
     assert "[merge→create-error] wiki/concept/target.md ← 2 sources" in log_of(kb_two)
 
 
+def test_compile_does_not_promote_a_merge_after_the_same_path_create_failed(
+    kb_two, fakes, monkeypatch
+):
+    """A create that failed this run must not be replaced by a merge promoted to
+    a stem-titled create: the article would carry the *other* document's content
+    under a title describing the document whose create failed. Leave the path
+    absent and report the merge sources so the next compile retries both."""
+    def classify_by_source(extraction, existing, model="m", categories=None):
+        if "content of a" in extraction.summary:
+            return {"merge_into": [], "create_new": [
+                {"path": "wiki/reference/policy.md", "type": "reference", "title": "A Policy"},
+            ]}
+        return merges("wiki/reference/policy.md")
+
+    monkeypatch.setattr(cm, "classify_article", classify_by_source)
+    fakes["fail_write"] = {"A Policy"}
+
+    out = cm.compile_kb(str(kb_two.base_dir))
+
+    assert fakes["created"] == [], "no article may be written once its create failed"
+    assert not (kb_two.base_dir / "wiki/reference/policy.md").exists()
+    assert out["compiled"] == 0
+    assert {e["file"] for e in out["errors"]} == {"raw/a.md", "raw/b.md"}
+    assert all(e["article"] == "wiki/reference/policy.md" for e in out["errors"])
+    assert kb_two.load_compile_state() == {}, "both sources must be retried"
+    log = log_of(kb_two)
+    assert "[create-error] wiki/reference/policy.md ← raw/a.md" in log
+    assert "[merge-skipped] wiki/reference/policy.md ← 1 sources" in log
+    assert "[merge→create]" not in log
+
+
+def test_compile_still_merges_when_a_create_failed_but_the_article_exists(
+    kb_two, fakes, monkeypatch
+):
+    """The skip is conditioned on the article being absent, not on a create having
+    failed. An existing target is already properly titled, so a create that failed
+    against it -- it merges, the path being taken -- must not hold the others back."""
+    kb_two.write_article("wiki/concept/target.md", "prior body\n")
+    calls: list[str] = []
+
+    def first_merge_fails(article_path, article_content, extraction, source_path, model="m"):
+        calls.append(source_path)
+        if len(calls) == 1:
+            raise RuntimeError(f"merge failed for {source_path}")
+        return article_content + f"\nmerged {source_path}\n"
+
+    def classify_by_source(extraction, existing, model="m", categories=None):
+        if "content of a" in extraction.summary:
+            return {"merge_into": [], "create_new": [
+                {"path": "wiki/concept/target.md", "type": "concept", "title": "A Target"},
+            ]}
+        return merges("wiki/concept/target.md")
+
+    monkeypatch.setattr(cm, "classify_article", classify_by_source)
+    monkeypatch.setattr(cm, "merge_into_article", first_merge_fails)
+
+    out = cm.compile_kb(str(kb_two.base_dir))
+
+    assert calls == ["raw/a.md", "raw/b.md"], "the surviving source must still merge"
+    assert "merged raw/b.md" in (kb_two.base_dir / "wiki/concept/target.md").read_text()
+    assert out["compiled"] == 1
+    assert {e["file"] for e in out["errors"]} == {"raw/a.md"}
+    log = log_of(kb_two)
+    assert "[create-error] wiki/concept/target.md ← raw/a.md" in log
+    assert "[merge] wiki/concept/target.md ← raw/b.md" in log
+    assert "[merge-skipped]" not in log
+
+
+def test_compile_still_promotes_a_merge_when_no_create_was_attempted(kb_two, fakes):
+    """The guard above is scoped to the failure route. A merge into a path that
+    was never a create target keeps promoting to a create, as before."""
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(kb_two.base_dir))
+
+    assert fakes["created"] == [("concept", "Target", "raw/a.md, raw/b.md")]
+    assert out["compiled"] == 2
+    assert "[merge→create] wiki/concept/target.md ← 2 sources" in log_of(kb_two)
+
+
 # ── merge-batch failure ─────────────────────────────────────────────
 
 def test_compile_records_merge_batch_failure_for_every_source(kb_two, fakes):
