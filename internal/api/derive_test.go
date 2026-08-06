@@ -208,6 +208,74 @@ func TestPostDeriveDerivesTheSlugFromTheTopic(t *testing.T) {
 	}
 }
 
+// TestPostDeriveStoresSelectFrom pins the value onto the job row. The runner
+// reads it back at claim time, so a value dropped here derives over articles
+// while the response still reports 202.
+func TestPostDeriveStoresSelectFrom(t *testing.T) {
+	fds := newFakeDerivedStore()
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing","select_from":"documents"}`)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored == nil {
+		t.Fatal("CreateDerivedJob not called")
+	}
+	if fds.createStored.SelectFrom != store.SelectFromDocuments {
+		t.Errorf("stored select_from = %q, want %q",
+			fds.createStored.SelectFrom, store.SelectFromDocuments)
+	}
+}
+
+// TestPostDeriveLeavesAnOmittedSelectFromEmpty keeps the default with the engine.
+// Materialising "articles" here would make a job that never asked
+// indistinguishable from one that asked for the current default, so a future
+// change of default would silently not apply to queued jobs.
+func TestPostDeriveLeavesAnOmittedSelectFromEmpty(t *testing.T) {
+	fds := newFakeDerivedStore()
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored == nil {
+		t.Fatal("CreateDerivedJob not called")
+	}
+	if fds.createStored.SelectFrom != "" {
+		t.Errorf("stored select_from = %q, want empty", fds.createStored.SelectFrom)
+	}
+}
+
+// TestPostDeriveRejectsAnUnknownSelectFrom rejects at the boundary rather than
+// letting the engine raise. A queued job that fails on an unknown value costs the
+// operator a round trip through the runner to learn about a typo, and burns the
+// slug's active-index slot until it goes terminal.
+func TestPostDeriveRejectsAnUnknownSelectFrom(t *testing.T) {
+	for _, bad := range []string{"Documents", "docs", "raw", " documents"} {
+		t.Run(bad, func(t *testing.T) {
+			fds := newFakeDerivedStore()
+			s, _ := newDeriveTestServer(t, fds)
+
+			body, err := json.Marshal(map[string]string{"topic": "pricing", "select_from": bad})
+			if err != nil {
+				t.Fatal(err)
+			}
+			rec := do(t, s, "POST", "/api/derive", string(body))
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+			}
+			if fds.createStored != nil {
+				t.Error("a job was created for an unknown select_from")
+			}
+		})
+	}
+}
+
 func TestPostDeriveRejectsAnEmptyTopic(t *testing.T) {
 	fds := newFakeDerivedStore()
 	s, _ := newDeriveTestServer(t, fds)

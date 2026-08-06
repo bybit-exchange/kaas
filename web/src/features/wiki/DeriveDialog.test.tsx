@@ -58,6 +58,44 @@ describe('DeriveDialog', () => {
     )
   })
 
+  // The engine owns the default, so the form omits select_from when it shows the
+  // default rather than sending "articles" the UI invented. One rule across every
+  // layer: absent means engine default.
+  it('filters over compiled articles by default, without naming it', async () => {
+    render(<DeriveDialog />)
+    await userEvent.click(screen.getByRole('button', { name: /derive/i }))
+    expect(await screen.findByRole('radio', { name: /compiled articles/i })).toBeChecked()
+
+    await userEvent.type(await screen.findByLabelText('Topic'), 'pricing')
+    await userEvent.click(screen.getByRole('button', { name: /^start$/i }))
+    await waitFor(() =>
+      expect(derivedApi.startDerive).toHaveBeenCalledWith({ topic: 'pricing' }),
+    )
+  })
+
+  it('filters over raw documents when asked', async () => {
+    render(<DeriveDialog />)
+    await userEvent.click(screen.getByRole('button', { name: /derive/i }))
+    await userEvent.type(await screen.findByLabelText('Topic'), 'pricing')
+    await userEvent.click(screen.getByRole('radio', { name: /raw documents/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^start$/i }))
+
+    await waitFor(() =>
+      expect(derivedApi.startDerive).toHaveBeenCalledWith({
+        topic: 'pricing',
+        select_from: 'documents',
+      }),
+    )
+  })
+
+  // Same reason the topic input is disabled mid-run: the choice is already on the
+  // queued job, so an input that still moves claims it affects a run it cannot.
+  it('locks the catalog choice while a derive runs', async () => {
+    await start()
+    expect(await screen.findByText('Stage: compile')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /raw documents/i })).toBeDisabled()
+  })
+
   it('will not start with an empty topic', async () => {
     await start('')
     expect(screen.getByRole('button', { name: /^start$/i })).toBeDisabled()

@@ -24,6 +24,8 @@ type deriveRequest struct {
 	Topic string `json:"topic"`
 	Slug  string `json:"slug,omitempty"`
 	Model string `json:"model,omitempty"`
+	// Which catalog to filter; see store.SelectFrom*. Omit for the engine default.
+	SelectFrom string `json:"select_from,omitempty"`
 }
 
 // derivedKBSummary is one entry of GET /api/derived, read from the KB's manifest.
@@ -97,6 +99,19 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validated here rather than left to the engine: an unknown value would
+	// otherwise queue a job that fails only once the runner picks it up, holding
+	// the slug's active-index slot until then and reporting a typo as a failed
+	// derive. Empty stays empty — the engine owns the default.
+	if req.SelectFrom != "" &&
+		req.SelectFrom != store.SelectFromArticles &&
+		req.SelectFrom != store.SelectFromDocuments {
+		writeErr(w, http.StatusBadRequest, fmt.Sprintf(
+			"invalid select_from %q: expected %q or %q",
+			req.SelectFrom, store.SelectFromArticles, store.SelectFromDocuments))
+		return
+	}
+
 	slug := req.Slug
 	if slug == "" {
 		slug = slugFromTopic(req.Topic)
@@ -137,14 +152,15 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 
 	now := time.Now().UnixMilli()
 	job := &store.DerivedJob{
-		ID:        uuid.NewString(),
-		Slug:      slug,
-		Topic:     req.Topic,
-		Model:     req.Model,
-		Status:    store.DerivedStatusPending,
-		Stage:     store.DerivedStageQueued,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:         uuid.NewString(),
+		Slug:       slug,
+		Topic:      req.Topic,
+		Model:      req.Model,
+		SelectFrom: req.SelectFrom,
+		Status:     store.DerivedStatusPending,
+		Stage:      store.DerivedStageQueued,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	if err := s.js.CreateDerivedJob(r.Context(), job); err != nil {
 		if errors.Is(err, store.ErrDerivedJobExists) {

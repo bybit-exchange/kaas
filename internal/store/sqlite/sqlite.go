@@ -101,15 +101,30 @@ func (s *Store) Migrate(ctx context.Context) error {
 	if _, err := s.db.ExecContext(ctx, derivedSchema); err != nil {
 		return fmt.Errorf("migrate derived schema: %w", err)
 	}
+	// After derivedSchema, which is what creates the table this alters.
+	if err := s.migrateDeriveSelectFrom(ctx); err != nil {
+		return err
+	}
 	return nil
 }
 
-// migrateFileTitle idempotently adds the file_title column to existing databases
-// that were created before this column was part of the schema.
-func (s *Store) migrateFileTitle(ctx context.Context) error {
-	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(tasks)`)
+// addColumnIfMissing idempotently adds one column to an existing table, for
+// databases created before that column was part of the schema.
+//
+// Idempotency comes from the PRAGMA rather than from swallowing the ALTER's
+// error: "duplicate column name" is indistinguishable by message from a real
+// failure, and treating an un-migrated database as migrated would fail every
+// later query naming the column at runtime instead of here at startup.
+//
+// label prefixes every error so a startup failure names the column at fault;
+// Migrate runs several of these against one database, and SQLite's own message
+// says only "SQL logic error".
+func (s *Store) addColumnIfMissing(ctx context.Context, label, table, column, ddl string) error {
+	// table is a compile-time constant at every call site, never user input, so
+	// it is interpolated -- PRAGMA does not accept a bound parameter here.
+	rows, err := s.db.QueryContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
-		return fmt.Errorf("migrate file_title: pragma: %w", err)
+		return fmt.Errorf("migrate %s: pragma: %w", label, err)
 	}
 	defer rows.Close()
 
@@ -120,21 +135,39 @@ func (s *Store) migrateFileTitle(ctx context.Context) error {
 		var dflt sql.NullString
 		var pk int
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
-			return fmt.Errorf("migrate file_title: scan pragma: %w", err)
+			return fmt.Errorf("migrate %s: scan pragma: %w", label, err)
 		}
-		if name == "file_title" {
+		if name == column {
 			return nil // column already exists
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("migrate file_title: rows: %w", err)
+		return fmt.Errorf("migrate %s: rows: %w", label, err)
 	}
 
-	_, err = s.db.ExecContext(ctx, `ALTER TABLE tasks ADD COLUMN file_title TEXT NOT NULL DEFAULT ''`)
-	if err != nil {
-		return fmt.Errorf("migrate file_title: alter: %w", err)
+	if _, err := s.db.ExecContext(ctx,
+		`ALTER TABLE `+table+` ADD COLUMN `+column+` `+ddl); err != nil {
+		return fmt.Errorf("migrate %s: alter: %w", label, err)
 	}
 	return nil
+}
+
+// migrateFileTitle idempotently adds the file_title column to existing databases
+// that were created before this column was part of the schema.
+func (s *Store) migrateFileTitle(ctx context.Context) error {
+	return s.addColumnIfMissing(ctx, "file_title", "tasks", "file_title",
+		`TEXT NOT NULL DEFAULT ''`)
+}
+
+// migrateDeriveSelectFrom idempotently adds derived_jobs.select_from.
+//
+// Defaulting to the empty string rather than to articles keeps a pre-migration
+// row and a job that simply did not ask indistinguishable: the engine resolves
+// the default in one place, so backfilling a value here would only invent an
+// intent the operator never expressed.
+func (s *Store) migrateDeriveSelectFrom(ctx context.Context) error {
+	return s.addColumnIfMissing(ctx, "select_from", "derived_jobs", "select_from",
+		`TEXT NOT NULL DEFAULT ''`)
 }
 
 // CreateTask inserts a task, mapping the unique-index violation to ErrDuplicate.

@@ -47,6 +47,128 @@ func TestCreateAndGetDerivedJob(t *testing.T) {
 	}
 }
 
+// TestDerivedJobRoundTripsSelectFrom pins select_from onto the row rather than
+// the runner: the runner reads it back at claim time, so a value dropped by the
+// INSERT would silently derive over articles after the operator asked for
+// documents — a wrong-but-plausible KB, not a visible failure.
+func TestDerivedJobRoundTripsSelectFrom(t *testing.T) {
+	s := newDerivedStore(t)
+	ctx := context.Background()
+	job := &store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t", SelectFrom: store.SelectFromDocuments,
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+		CreatedAt: 100, UpdatedAt: 100,
+	}
+	if err := s.CreateDerivedJob(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := s.GetDerivedJob(ctx, "j1")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.SelectFrom != store.SelectFromDocuments {
+		t.Errorf("SelectFrom = %q, want %q", got.SelectFrom, store.SelectFromDocuments)
+	}
+}
+
+// TestClaimNextDerivedJobCarriesSelectFrom covers the claim path specifically:
+// it SELECTs through its own RETURNING clause, so a column missing from
+// derivedJobColumns would round-trip through Get and still be lost here — and
+// the claim is the only read the runner performs.
+func TestClaimNextDerivedJobCarriesSelectFrom(t *testing.T) {
+	s := newDerivedStore(t)
+	ctx := context.Background()
+	job := &store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t", SelectFrom: store.SelectFromDocuments,
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+		CreatedAt: 100, UpdatedAt: 100,
+	}
+	if err := s.CreateDerivedJob(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := s.ClaimNextDerivedJob(ctx, 200)
+	if err != nil {
+		t.Fatalf("claim: %v", err)
+	}
+	if got == nil {
+		t.Fatal("claim returned no job")
+	}
+	if got.SelectFrom != store.SelectFromDocuments {
+		t.Errorf("SelectFrom = %q, want %q", got.SelectFrom, store.SelectFromDocuments)
+	}
+}
+
+// TestDerivedJobSelectFromDefaultsToEmpty pins that an unset SelectFrom stays
+// empty rather than becoming a literal "articles" in the database. Empty is what
+// a row written before this column existed reads back as, so the two cases must
+// be indistinguishable — the engine resolves the default in one place.
+func TestDerivedJobSelectFromDefaultsToEmpty(t *testing.T) {
+	s := newDerivedStore(t)
+	ctx := context.Background()
+	job := &store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+		CreatedAt: 100, UpdatedAt: 100,
+	}
+	if err := s.CreateDerivedJob(ctx, job); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	got, err := s.GetDerivedJob(ctx, "j1")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.SelectFrom != "" {
+		t.Errorf("SelectFrom = %q, want empty", got.SelectFrom)
+	}
+}
+
+// TestMigrateAddsSelectFromToAnOlderDatabase builds derived_jobs as it stood
+// before the column existed, then migrates. Without the ALTER TABLE every derive
+// query would name a column the table lacks, so an upgraded install would fail at
+// the first derive rather than at startup.
+func TestMigrateAddsSelectFromToAnOlderDatabase(t *testing.T) {
+	s, err := Open(":memory:")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { s.Close() })
+	ctx := context.Background()
+
+	if _, err := s.db.ExecContext(ctx, `
+		CREATE TABLE derived_jobs (
+			id         TEXT PRIMARY KEY,
+			slug       TEXT NOT NULL,
+			topic      TEXT NOT NULL,
+			model      TEXT NOT NULL DEFAULT '',
+			status     TEXT NOT NULL,
+			stage      TEXT NOT NULL,
+			error      TEXT NOT NULL DEFAULT '',
+			result     TEXT NOT NULL DEFAULT '',
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		)`); err != nil {
+		t.Fatalf("plant pre-migration table: %v", err)
+	}
+	if _, err := s.db.ExecContext(ctx, `
+		INSERT INTO derived_jobs (id, slug, topic, status, stage, created_at, updated_at)
+		VALUES ('old', 'legacy', 't', ?, ?, 1, 1)`,
+		store.DerivedStatusSucceeded, store.DerivedStageDone); err != nil {
+		t.Fatalf("plant pre-migration row: %v", err)
+	}
+
+	if err := s.Migrate(ctx); err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	got, err := s.GetDerivedJob(ctx, "old")
+	if err != nil {
+		t.Fatalf("get the pre-migration row: %v", err)
+	}
+	if got.SelectFrom != "" {
+		t.Errorf("SelectFrom = %q, want empty for a row that predates the column", got.SelectFrom)
+	}
+}
+
 func TestGetDerivedJobNotFound(t *testing.T) {
 	s := newDerivedStore(t)
 	if _, err := s.GetDerivedJob(context.Background(), "nope"); !errors.Is(err, store.ErrNotFound) {

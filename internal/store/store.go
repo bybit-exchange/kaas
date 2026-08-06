@@ -157,6 +157,19 @@ const (
 	DerivedStageDone    = "done"
 )
 
+// Which catalog a derive filters over. Mirrors SELECT_FROM_* in
+// py/src/kb_ai/derive/_types.py; both sides must agree, or a value this side
+// accepts fails the engine after the job is already queued.
+//
+//   - SelectFromArticles: the compiled catalog, then each selected article's
+//     sources:. Better and cheaper when the source KB is compiled.
+//   - SelectFromDocuments: the raw-document catalog. Reaches documents that
+//     produced no article, and works on a KB that was never compiled.
+const (
+	SelectFromArticles  = "articles"
+	SelectFromDocuments = "documents"
+)
+
 // DerivedJob is one request to build a topic-scoped knowledge base.
 //
 // Deliberately not a Task: Task is document-shaped (RawPath, uniquely indexed
@@ -164,16 +177,20 @@ const (
 // so re-deriving a topic would collide with ErrDuplicate and every document
 // ingestion would pay for a branch it never takes.
 type DerivedJob struct {
-	ID        string // UUID
-	Slug      string // derived/<slug>; unique among pending and running jobs
-	Topic     string // the topic string handed to the filter
-	Model     string // optional model override ("" = server default)
-	Status    string // see DerivedStatus* constants
-	Stage     string // see DerivedStage* constants
-	Error     string // failure message, empty while healthy
-	Result    string // JSON blob: counts and cost, written on success
-	CreatedAt int64  // unix ms
-	UpdatedAt int64  // unix ms
+	ID    string // UUID
+	Slug  string // derived/<slug>; unique among pending and running jobs
+	Topic string // the topic string handed to the filter
+	Model string // optional model override ("" = server default)
+	// Which catalog to filter; see SelectFrom* constants. "" = engine default,
+	// which is what every row written before this column existed reads back as,
+	// so the default is resolved in the engine rather than materialised here.
+	SelectFrom string
+	Status     string // see DerivedStatus* constants
+	Stage      string // see DerivedStage* constants
+	Error      string // failure message, empty while healthy
+	Result     string // JSON blob: counts and cost, written on success
+	CreatedAt  int64  // unix ms
+	UpdatedAt  int64  // unix ms
 }
 
 // DerivedJobStore persists derive jobs. Kept separate from Store so the compile

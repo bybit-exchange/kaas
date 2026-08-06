@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { useT } from '@/i18n'
-import { getDeriveJob, startDerive, type DeriveJob } from '@/api/derived'
+import { getDeriveJob, startDerive, type DeriveJob, type SelectFrom } from '@/api/derived'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -14,6 +14,14 @@ import {
 import { Input } from '@/components/ui/input'
 
 const POLL_MS = 2000
+
+/**
+ * The catalog the form shows selected initially, which is also the engine's own
+ * default. Kept as a constant because onStart compares against it: the request
+ * omits select_from while it holds, so "absent means engine default" is the one
+ * rule every layer follows rather than the UI inventing a value of its own.
+ */
+const DEFAULT_SELECT_FROM: SelectFrom = 'articles'
 
 interface DeriveDialogProps {
   /** Called with the new slug once a derive succeeds, so the KB list can reload. */
@@ -30,8 +38,10 @@ interface DeriveDialogProps {
 export function DeriveDialog({ onDerived }: DeriveDialogProps) {
   const t = useT()
   const topicId = useId()
+  const selectFromId = useId()
   const [open, setOpen] = useState(false)
   const [topic, setTopic] = useState('')
+  const [selectFrom, setSelectFrom] = useState<SelectFrom>(DEFAULT_SELECT_FROM)
   const [jobId, setJobId] = useState<string | null>(null)
   const [job, setJob] = useState<DeriveJob | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -92,7 +102,10 @@ export function DeriveDialog({ onDerived }: DeriveDialogProps) {
     setJob(null)
     setJobId(null)
     try {
-      const { job_id } = await startDerive({ topic: wanted })
+      const { job_id } = await startDerive({
+        topic: wanted,
+        ...(selectFrom === DEFAULT_SELECT_FROM ? {} : { select_from: selectFrom }),
+      })
       setJobId(job_id)
     } catch (err) {
       setError((err as Error).message)
@@ -141,6 +154,41 @@ export function DeriveDialog({ onDerived }: DeriveDialogProps) {
             placeholder={t('derive.topicPlaceholder')}
             disabled={running}
           />
+
+          {/* Native radios rather than the Select used elsewhere: two mutually
+              exclusive choices that each need a line of explanation read better
+              side by side than behind a closed dropdown, and a radio group is
+              keyboard- and screen-reader-navigable without any extra wiring. */}
+          <fieldset disabled={running} className="space-y-2">
+            <legend className="text-sm font-medium">{t('derive.selectFromLabel')}</legend>
+            {(
+              [
+                ['articles', 'derive.selectFromArticles', 'derive.selectFromArticlesHint'],
+                ['documents', 'derive.selectFromDocuments', 'derive.selectFromDocumentsHint'],
+              ] as const
+            ).map(([value, labelKey, hintKey]) => (
+              <label
+                key={value}
+                htmlFor={`${selectFromId}-${value}`}
+                className="flex gap-2 text-sm"
+              >
+                <input
+                  id={`${selectFromId}-${value}`}
+                  type="radio"
+                  name={selectFromId}
+                  className="mt-1 shrink-0"
+                  value={value}
+                  checked={selectFrom === value}
+                  onChange={() => setSelectFrom(value)}
+                />
+                <span>
+                  <span className="font-medium">{t(labelKey)}</span>
+                  <span className="block text-xs text-muted-foreground">{t(hintKey)}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+
           <Button
             onClick={() => void onStart()}
             disabled={starting || running || !topic.trim()}
