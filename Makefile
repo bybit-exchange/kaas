@@ -1,4 +1,4 @@
-.PHONY: dev build test clean tarball verify-install verify-tarball release
+.PHONY: dev build test cover clean tarball verify-install verify-tarball release
 
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -21,6 +21,16 @@ test:
 	@go test ./... -v -count=1
 	@cd py && uv run pytest tests/ -v
 	@cd web && pnpm test
+
+# Run all tests with coverage and print one total per component.
+# Note: the Python figure does not include lines executed only inside a
+# subprocess (the tests marked `slow` spawn one), because coverage.py traces
+# the test process only.
+cover:
+	@go test ./... -count=1 -coverprofile=coverage.out
+	@go tool cover -func=coverage.out | tail -1
+	@cd py && uv run pytest tests/ -q --cov=src/kb_ai --cov-report=term-missing:skip-covered
+	@cd web && pnpm vitest run --coverage
 
 # Initialize data directory
 init:
