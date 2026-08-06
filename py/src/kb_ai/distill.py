@@ -46,7 +46,17 @@ def _raw_rel(root: Path, file: Path) -> str:
     except ValueError:
         rel = Path(file.name)
     flat = "__".join(rel.parts)
-    return f"raw/{root.name}__{flat}.md"
+    # The suffix is appended rather than replaced: KBStore only scans raw/*.md,
+    # so a .go or .yaml source needs it, and keeping the original extension in
+    # the name is how the source's type stays visible. A source that is already
+    # ".md" keeps its single suffix.
+    #
+    # Deliberately case-sensitive, though ingest_paths() accepts an uppercase
+    # ".MD": the raw scan globs "*.md", which pathlib matches case-sensitively on
+    # POSIX, so leaving "NOTE.MD" alone would ingest a file that never compiles.
+    # Appending gives "NOTE.MD.md", which is ugly and correct.
+    suffix = "" if flat.endswith(".md") else ".md"
+    return f"raw/{root.name}__{flat}{suffix}"
 
 
 def ingest_paths(paths: list[str], kb_dir: str) -> IngestReport:

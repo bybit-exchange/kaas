@@ -232,12 +232,28 @@ def test_registry_caches_a_loaded_prompt(tmp_path):
 def test_raw_rel_falls_back_to_the_bare_filename_outside_the_root():
     rel = distill_mod._raw_rel(Path("/kb/project"), Path("/elsewhere/deep/note.md"))
     # The unrelated directories are dropped — only the bare filename survives.
-    assert rel == "raw/project__note.md.md"
+    assert rel == "raw/project__note.md"
 
 
 def test_raw_rel_flattens_nested_paths_under_the_root():
     rel = distill_mod._raw_rel(Path("/kb/project"), Path("/kb/project/docs/note.md"))
-    assert rel == "raw/project__docs__note.md.md"
+    assert rel == "raw/project__docs__note.md"
+
+
+def test_raw_rel_appends_md_to_a_non_markdown_source():
+    # KBStore only scans raw/*.md, so a source that is not already markdown has
+    # to gain the suffix — which is why the suffix cannot simply be stripped.
+    rel = distill_mod._raw_rel(Path("/kb/project"), Path("/kb/project/main.go"))
+    assert rel == "raw/project__main.go.md"
+
+
+def test_raw_rel_still_appends_md_to_an_uppercase_md_source():
+    # ingest_paths() lowercases the suffix before deciding to ingest, so an
+    # uppercase .MD reaches this function — and must still gain ".md", because
+    # KBStore's raw scan globs "*.md" case-sensitively on POSIX. Skipping the
+    # append here would ingest a file that never compiles.
+    rel = distill_mod._raw_rel(Path("/kb/project"), Path("/kb/project/NOTE.MD"))
+    assert rel == "raw/project__NOTE.MD.md"
 
 
 def test_ingest_paths_skips_a_text_file_with_undecodable_bytes(tmp_path):
@@ -250,9 +266,9 @@ def test_ingest_paths_skips_a_text_file_with_undecodable_bytes(tmp_path):
     report = distill_mod.ingest_paths([str(src)], str(kb))
 
     assert len(report.ingested) == 1
-    assert report.ingested[0].endswith("ok.md.md")
+    assert report.ingested[0].endswith("ok.md")
     assert any(s.endswith("broken.md") for s in report.skipped)
-    assert not (kb / "raw" / "src__broken.md.md").exists()
+    assert not (kb / "raw" / "src__broken.md").exists()
 
 
 # ── _types: dict-compatible access ──────────────────────────────────
