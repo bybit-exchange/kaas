@@ -1,0 +1,31 @@
+py/src/kb_ai/derive/__init__.py
+  8ba1c433bb074510 9,46,103,116-121,216-219,221-222,233-236
+py/src/kb_ai/commands/derive.py
+  8ba1c433bb074510 33-36,76
+py/tests/test_derive_nesting.py
+  8ba1c433bb074510 46,70
+py/tests/test_derive_kb.py
+  8ba1c433bb074510 83,109-178,183,392
+py/tests/test_commands_derive.py
+  8ba1c433bb074510 42-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "0ee93ab0931ca1f380b4f820fb29fd44538fb3c0",
+  "prompts": {
+    "8ba1c433bb074510": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e84d6f3-5185-465d-85d9-e6cbf11a57cb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2730,
+      "total_deletions": 1078,
+      "accepted_lines": 2280,
+      "overriden_lines": 0
+    }
+  }
+}
