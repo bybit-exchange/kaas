@@ -145,3 +145,42 @@ def test_declined_run_guidance_does_not_promise_a_resume(monkeypatch):
     assert "without re-resolving documents" not in guidance
     assert "filter runs again" in guidance
     assert "extract cache is reused" in guidance
+
+
+# ── --select-from ────────────────────────────────────────────────────
+
+def test_select_from_defaults_to_articles():
+    args = derive_cmd.build_parser().parse_args(["pricing"])
+    assert args.select_from == "articles"
+
+
+def test_select_from_documents_reaches_derive_kb(monkeypatch):
+    seen: dict = {}
+
+    def fake_derive(source_kb, topic, **kw):
+        seen.update(kw)
+        return _report()
+
+    _run(monkeypatch, ["pricing", "--kb", "/kb", "--yes",
+                       "--select-from", "documents"], derive=fake_derive)
+    assert seen["select_from"] == "documents"
+
+
+def test_select_from_rejects_an_unknown_value():
+    with pytest.raises(SystemExit):
+        derive_cmd.build_parser().parse_args(["pricing", "--select-from", "everything"])
+
+
+def test_gate_counts_documents_in_documents_mode(monkeypatch, capsys):
+    """selected_articles is empty by design under --select-from documents, so a
+    gate that only reports articles would tell the user nothing matched."""
+    monkeypatch.setattr(derive_cmd.sys.stdin, "isatty", lambda: False, raising=False)
+    args = derive_cmd.build_parser().parse_args(
+        ["pricing", "--select-from", "documents"])
+    report = _report(compiled=False)
+    report.selected_articles = []
+    report.selected_documents = ["raw/a.md", "raw/b.md"]
+
+    derive_cmd._make_approve(args)(report)
+
+    assert "2 documents matched" in capsys.readouterr().err

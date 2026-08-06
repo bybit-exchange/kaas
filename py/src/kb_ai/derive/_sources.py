@@ -74,6 +74,59 @@ def parse_sources(store: KBStore, article_path: str) -> tuple[list[str] | None, 
     return out, ""
 
 
+def _read_document(store: KBStore, rel: str) -> tuple[DocumentRef | None, str]:
+    """Resolve one raw-document path to a DocumentRef, or (None, reason).
+
+    The security checks and their ordering match resolve_documents: containment
+    is enforced by KBStore._resolve (which also resolves symlinks), and the
+    raw/ check runs after the read so an escaping entry keeps the more specific
+    escapes_kb reason.
+    """
+    try:
+        content = store.read_raw(rel)
+    except ValueError:
+        return None, "escapes_kb"
+    except FileNotFoundError:
+        return None, "document_missing"
+    except OSError:
+        return None, "document_unreadable"
+    if not _is_raw_document(rel):
+        return None, "not_a_raw_document"
+    return DocumentRef(rel_path=rel, checksum=_compute_checksum(content),
+                       size_bytes=len(content.encode())), ""
+
+
+def documents_from_paths(
+    store: KBStore, paths: list[str],
+) -> tuple[list[DocumentRef], list[Skipped]]:
+    """Resolve selected raw-document paths straight to DocumentRefs.
+
+    The document-catalog counterpart of resolve_documents: when the topic filter
+    selects over documents, the selected path IS the document, so there is no
+    sources: frontmatter to follow -- and none of its failure modes
+    (no_sources_key, unparseable_frontmatter, a batch-merged comma-joined entry).
+
+    Same guarantees as resolve_documents otherwise: de-duplicated, sorted by
+    rel_path, every rejection recorded rather than raised, and content read only
+    to compute the checksum and size before being dropped.
+    """
+    found: dict[str, DocumentRef] = {}
+    skipped: list[Skipped] = []
+    seen_bad: set[str] = set()
+
+    for rel in paths:
+        if not isinstance(rel, str) or rel in found or rel in seen_bad:
+            continue
+        doc, reason = _read_document(store, rel)
+        if doc is None:
+            seen_bad.add(rel)
+            skipped.append(Skipped(ref=rel, reason=reason))
+            continue
+        found[rel] = doc
+
+    return [found[k] for k in sorted(found)], skipped
+
+
 def resolve_documents(
     store: KBStore, article_paths: list[str],
 ) -> tuple[list[DocumentRef], list[Skipped], list[Skipped]]:

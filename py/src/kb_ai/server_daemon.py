@@ -249,6 +249,8 @@ def _handle_derive(request_id: str, payload: dict) -> None:
         _respond_error(request_id, "EMPTY_TOPIC", "topic must not be empty")
         return
 
+    select_from = inner.get("select_from") or "articles"
+
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)
     try:
@@ -256,6 +258,7 @@ def _handle_derive(request_id: str, payload: dict) -> None:
             kb_dir, topic,
             slug=inner.get("slug") or None,
             force=bool(inner.get("force")),
+            select_from=select_from,
             model=inner.get("model") or "claude-sonnet-4-6",
             approve=None,
         )
@@ -269,7 +272,10 @@ def _handle_derive(request_id: str, payload: dict) -> None:
         "derived_kb": report.derived_kb,
         "slug": report.slug,
         "topic": report.topic,
-        "selected": len(report.selected_articles),
+        "select_from": select_from,
+        # Whichever unit the filter selected: selected_articles is empty by design
+        # under select_from="documents", so reporting it would always say 0 there.
+        "selected": len(report.selected_documents or report.selected_articles),
         "documents": len(report.documents),
         "bytes": sum(d.size_bytes for d in report.documents),
         "offtopic": len(report.offtopic_articles),

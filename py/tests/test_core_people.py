@@ -10,8 +10,11 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+import yaml
 
+from kb_ai._frontmatter import split_frontmatter
 from kb_ai.core import people
+from kb_ai.storage.index import SUMMARY_MAX_CHARS, _derive_summary
 from kb_ai.storage.store import KBStore
 
 TODAY = date.today().isoformat()
@@ -286,3 +289,69 @@ def test_update_people_stubs_sorts_sources_by_title(tmp_path):
 
     content = _stub_path(store, "grace-hopper").read_text()
     assert content.index("[Alpha]") < content.index("[Zulu]")
+
+
+# ── catalog summary ─────────────────────────────────────────────────
+
+def test_format_stub_declares_a_catalog_summary():
+    """A stub must carry its own summary:.
+
+    Without one, storage.index._derive_summary falls back to the body's first
+    paragraph, which for a stub is the STUB_SENTINEL comment -- so every person
+    occupied a catalog line reading "<!-- kb:stub -->".
+    """
+    content = people._format_stub(
+        canonical="Grace Hopper", mentions=3, aliases_seen=["Grace"],
+        sources=[("Weekly Sync", "wiki/notes/meeting.md")],
+        created=TODAY, updated=TODAY,
+    )
+    fm = yaml.safe_load(split_frontmatter(content)[0])
+
+    assert "Person stub" in fm["summary"]
+    assert "Weekly Sync" in fm["summary"]
+    # The name is the article's title; repeating it in the summary would spend
+    # catalog budget every consumer already pays for once.
+    assert "Grace Hopper" not in fm["summary"]
+
+
+def test_stub_summary_is_what_the_catalog_line_uses():
+    """The declared summary must win over the body, and say something routable."""
+    content = people._format_stub(
+        canonical="Grace Hopper", mentions=2, aliases_seen=["Grace"],
+        sources=[("Compiler Design", "wiki/concept/compilers.md")],
+        created=TODAY, updated=TODAY,
+    )
+    fm_text, body = split_frontmatter(content)
+    derived = _derive_summary(yaml.safe_load(fm_text), body.strip(), SUMMARY_MAX_CHARS)
+
+    assert people.STUB_SENTINEL not in derived
+    assert "Person stub" in derived
+    assert "Compiler Design" in derived
+
+
+def test_stub_summary_survives_a_quote_in_a_title():
+    """Titles reach here from article frontmatter, so YAML must stay parseable."""
+    content = people._format_stub(
+        canonical="Grace Hopper", mentions=1, aliases_seen=["Grace"],
+        sources=[('The "Real" Story: a retrospective', "wiki/notes/a.md")],
+        created=TODAY, updated=TODAY,
+    )
+    fm = yaml.safe_load(split_frontmatter(content)[0])
+
+    assert 'The "Real" Story: a retrospective' in fm["summary"]
+
+
+def test_stub_summary_stays_within_the_catalog_budget():
+    """A person mentioned everywhere must not monopolise the catalog: the whole
+    catalog goes into every page-selection and topic-filter prompt."""
+    content = people._format_stub(
+        canonical="Grace Hopper", mentions=40,
+        aliases_seen=["Grace"],
+        sources=[(f"A Very Long Article Title Number {i}", f"wiki/a{i}.md")
+                 for i in range(40)],
+        created=TODAY, updated=TODAY,
+    )
+    fm = yaml.safe_load(split_frontmatter(content)[0])
+
+    assert len(fm["summary"]) <= SUMMARY_MAX_CHARS
+    assert fm["summary"].endswith("…")

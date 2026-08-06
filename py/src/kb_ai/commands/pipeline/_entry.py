@@ -14,7 +14,11 @@ import sys
 
 from kb_ai._context import get_context, set_pipeline_deadline
 from kb_ai.commands.pipeline._orchestrator import PipelineContext, run_pipeline_orchestrated
-from kb_ai.storage.index import SUMMARY_MAX_CHARS, update_markdown_index
+from kb_ai.storage.index import (
+    SUMMARY_MAX_CHARS,
+    update_document_index,
+    update_markdown_index,
+)
 from kb_ai.llm import tracker
 from kb_ai.core.classify import resolve_categories
 from kb_ai.core.people import update_people_stubs
@@ -76,6 +80,7 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     # ── Phase 3: Update indices once ──
     update_markdown_index(store, min_articles=topic_index_min_articles,
                           summary_max_chars=summary_max_chars)
+    update_document_index(store, summary_max_chars=summary_max_chars)
     update_people_stubs(store, people_cfg)
 
     return item_results
@@ -107,6 +112,7 @@ def run_server_index_with_input(input_data: dict) -> dict:
 
     update_markdown_index(store, min_articles=topic_index_min_articles,
                           summary_max_chars=summary_max_chars)
+    update_document_index(store, summary_max_chars=summary_max_chars)
     update_people_stubs(store, people_cfg)
 
     article_count = sum(1 for _ in store.wiki_dir.rglob("*.md")) if store.wiki_dir.exists() else 0

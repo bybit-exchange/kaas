@@ -34,6 +34,12 @@ def build_parser() -> argparse.ArgumentParser:
                         help="run the second topic filter over the derived catalog and "
                              "move articles it rejects into _offtopic/ (off by default: "
                              "see issue #24)")
+    parser.add_argument("--select-from", choices=["articles", "documents"],
+                        default="articles", dest="select_from",
+                        help="which catalog to filter: 'articles' uses the compiled "
+                             "catalog and follows each article's sources: (default); "
+                             "'documents' filters raw/ directly, which also works on a "
+                             "knowledge base that was never compiled")
     return parser
 
 
@@ -49,8 +55,15 @@ def _make_approve(args: argparse.Namespace) -> Callable[[DeriveReport], bool] | 
 
     def approve(report: DeriveReport) -> bool:
         total_bytes = sum(d.size_bytes for d in report.documents)
+        # Report whichever unit the filter actually selected: under
+        # --select-from documents selected_articles is empty by design, and
+        # "0 articles matched" would read as "nothing matched".
+        if args.select_from == "documents":
+            matched = f"{len(report.selected_documents)} documents matched"
+        else:
+            matched = f"{len(report.selected_articles)} articles matched"
         print(f"[derive] topic: {report.topic}", file=sys.stderr)
-        print(f"[derive] {len(report.selected_articles)} articles matched, "
+        print(f"[derive] {matched}, "
               f"{len(report.documents)} documents resolved, "
               f"{total_bytes:,} bytes to compile", file=sys.stderr)
         if not sys.stdin.isatty():
@@ -73,7 +86,8 @@ def run_derive(argv: list[str]) -> None:
     try:
         report = derive_kb(
             args.kb, args.topic,
-            slug=args.slug, force=args.force, prune=args.prune, model=model,
+            slug=args.slug, force=args.force, prune=args.prune,
+            select_from=args.select_from, model=model,
             approve=_make_approve(args),
         )
     except KBError as e:
