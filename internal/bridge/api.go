@@ -136,6 +136,11 @@ type DeriveRequest struct {
 	Slug  string `json:"slug,omitempty"`
 	Force bool   `json:"force,omitempty"`
 	Model string `json:"model,omitempty"`
+	// Which catalog to filter: store.SelectFromArticles or
+	// store.SelectFromDocuments. omitempty on purpose — the engine owns the
+	// default, so an unset value must arrive as an absent key rather than as an
+	// empty string this side invented.
+	SelectFrom string `json:"select_from,omitempty"`
 }
 
 // DeriveResponse mirrors the derive command's success payload. Stored verbatim
@@ -145,9 +150,13 @@ type DeriveRequest struct {
 // JSON null decodes to the four-byte literal "null" rather than a nil slice, so
 // the tag never fired and only suggested otherwise.
 type DeriveResponse struct {
-	DerivedKB     string          `json:"derived_kb"`
-	Slug          string          `json:"slug"`
-	Topic         string          `json:"topic"`
+	DerivedKB string `json:"derived_kb"`
+	Slug      string `json:"slug"`
+	Topic     string `json:"topic"`
+	// Which catalog the run actually filtered, as resolved by the engine. Worth
+	// echoing rather than assuming: Selected counts articles or documents
+	// depending on it, so a reader cannot interpret that number without it.
+	SelectFrom    string          `json:"select_from,omitempty"`
 	Selected      int             `json:"selected"`
 	Documents     int             `json:"documents"`
 	Bytes         int64           `json:"bytes"`

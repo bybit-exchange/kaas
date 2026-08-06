@@ -854,6 +854,54 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	}
 }
 
+// TestDeriveCarriesSelectFrom pins select_from onto the wire payload. The engine
+// defaults an absent key to articles, so a field dropped in marshalling would
+// derive over the wrong catalog and still report success.
+func TestDeriveCarriesSelectFrom(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{
+		"derived_kb": "/kb/derived/pricing",
+		"slug": "pricing",
+		"topic": "pricing",
+		"select_from": "documents",
+		"selected": 4,
+		"documents": 3,
+		"compiled": true
+	}`)}
+
+	got, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "pricing", SelectFrom: "documents",
+	})
+	if err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.SelectFrom != "documents" {
+		t.Errorf("sent.SelectFrom = %q, want documents", sent.SelectFrom)
+	}
+	if got.SelectFrom != "documents" {
+		t.Errorf("got.SelectFrom = %q, want documents", got.SelectFrom)
+	}
+}
+
+// TestDeriveOmitsAnUnsetSelectFrom keeps the default resolved in one place: the
+// engine. Sending "" explicitly would work only because the daemon coerces a
+// falsy value, so the omission is what the assertion pins.
+func TestDeriveOmitsAnUnsetSelectFrom(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("select_from")) {
+		t.Errorf("payload = %s, want no select_from key", fake.lastPayload)
+	}
+}
+
 func TestDeriveSurfacesAnEngineError(t *testing.T) {
 	c, fake := newFakeDaemonClient(t)
 	fake.reply = daemonResponse{OK: false,
