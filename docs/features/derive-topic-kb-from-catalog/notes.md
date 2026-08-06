@@ -315,6 +315,71 @@ Still outstanding:
 - Task 12 Step 7 — a grounded MCP answer from a derived KB.
 - Task 20 Step 7 — a successful derive over HTTP (the CLI path is now proven).
 
+#### Re-measured on a larger corpus, 2026-08-05: PRECISION is now off by default
+
+The section above asked for "several topics across a corpus large enough that the
+derived catalog is tens of articles, not six" before changing the design. That was
+run. Source KB: this repository's own source distilled fresh, 88 documents,
+428,646 bytes, 52 articles. Model `us.claude-sonnet-4-6` through the same gateway,
+`temperature=0`.
+
+The volume gate makes the RECALL half measurable without paying for a recompile:
+with no TTY and no `--yes` it reports articles matched, documents resolved and
+bytes, then stops. Eight topics at roughly 0.02 USD each:
+
+| topic | articles | documents | corpus bytes | amplification |
+|---|---|---|---|---|
+| retrieval and chat answer path | 24/52 | 59/88 | 56.2% | 1.22x |
+| circuit breaker and failure handling | 10/52 | 26/88 | 34.4% | 1.79x |
+| configuration and environment variables | 16/52 | 51/88 | 55.6% | 1.81x |
+| the web user interface | 18/52 | 33/88 | 42.2% | 1.22x |
+| Go task queue and worker lease | 12/52 | 27/88 | 39.7% | 1.72x |
+| MCP server integration | 18/52 | 51/88 | 57.3% | 1.66x |
+| classify phase and article taxonomy | 17/52 | 45/88 | 54.0% | 1.65x |
+| cost tracking and pricing | 14/52 | 45/88 | 52.8% | 1.96x |
+
+Mean amplification 1.63x, median 1.69x, range 1.22-1.96x. 1 filter batch and 0
+invented paths every time.
+
+This corrects the reading above. The amplification *factor* replicated — 1.50x
+there sits inside 1.22-1.96x here — but the 94%-of-corpus figure did not, and it
+was the alarming part. An 8-article catalog forced a topic to select 62.5% of
+articles; a 52-article catalog selects 31% and resolves 49% of bytes. So "the run
+paid to recompile almost the entire corpus" is a small-corpus artefact rather than
+a property of article-level filtering, and the case for revisiting brainstorm
+decision 1 is weaker than this section concluded.
+
+PRECISION is the half that did not survive. One paid run, topic
+`the web user interface`, 33 documents, 22 derived articles, 2.011101 USD:
+
+```
+offtopic: 0
+warnings: ["second_pass_selected_nothing"]
+```
+
+Move ratio 0.00 against 0.83 in the run above — too strict, then selecting
+nothing at all. The `_offtopic.py:43-45` guard is right to refuse to act on an
+empty selection ("An empty derived wiki is worse than an unfiltered one"), but the
+pass was paid for and contributed nothing. Two runs, two degenerate extremes, no
+useful middle observed.
+
+So the pass now ships off, reachable with `kb-ai derive --prune`, and the default
+output is RECALL-only. It is kept rather than deleted because it is also the
+instrument needed to decide whether a working regime exists. Tracked in issue #24.
+
+Two further findings from the same run, both filed:
+
+- The derived compile did not inherit the source KB's frozen category set, so a
+  KB built with `--categories` got a derived KB under the defaults (issue #25,
+  fixed here).
+- Another 901.7s write-phase stall, timed out and retried, dominating wall clock
+  at 967.75s of 1127.55s total. Two derive runs, two stalls (issue #26).
+
+Worth knowing even when the category sets match: a derived KB is recompiled from
+an empty existing-articles context, so its distribution does not resemble its
+source's. Same run — source `concept 36, reference 8, decision 6, guide 2` against
+derived `reference 12, decision 9, project 1, concept 0`.
+
 ### 2. A long derive cannot be cancelled
 
 `internal/bridge/daemon_protocol.go`'s `call` returns on `ctx.Done()` without
