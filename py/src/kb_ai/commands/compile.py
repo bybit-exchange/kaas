@@ -283,6 +283,7 @@ def compile_kb(
             set_request_tracker(_write_req_tracker)
             creates = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "create"]
             merges = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "merge"]
+            create_failed = False
 
             for rel, _cs, extraction, details in creates:
                 try:
@@ -302,6 +303,7 @@ def compile_kb(
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
                 except Exception as e:
+                    create_failed = True
                     with _write_lock:
                         errors.append({"file": rel, "error": str(e), "article": art_path})
                     log(f"  [create-error] {art_path} ← {rel}: {e}")
@@ -311,6 +313,22 @@ def compile_kb(
 
             full = store.base_dir / art_path
             if not full.exists():
+                if create_failed:
+                    # The create meant to establish this article failed, so promoting
+                    # a merge would title the article from the path stem while filling
+                    # it with a different document's content -- a permanent mislabel on
+                    # the catalog line that page selection reads. Report the merge
+                    # sources instead, so the next compile retries them against a
+                    # create that succeeds.
+                    with _write_lock:
+                        for rel, _cs, _ext, _det in merges:
+                            errors.append({
+                                "file": rel,
+                                "error": f"merge skipped: create of {art_path} failed in this run",
+                                "article": art_path,
+                            })
+                    log(f"  [merge-skipped] {art_path} ← {len(merges)} sources: create failed in this run")
+                    return
                 full.parent.mkdir(parents=True, exist_ok=True)
                 path_parts = art_path.split("/")
                 article_type = path_parts[1] if len(path_parts) > 2 else "concept"
