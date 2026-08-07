@@ -95,7 +95,9 @@ three new `ExtractRequest` fields and stops carrying the extraction blob.
 
 ## Stage 4 — smoke run and notes (G8, H7, H8)
 
-- [ ] **T16. Real run** — needs approval, spends ~17.5 USD. `cp -R` backup
+- [x] **T16. Real run** — done 2026-08-08, 17.6931 USD spent. `cp -R` backup
   first, then extract `data/kb-2026-06` from scratch, rebuild the document index,
   derive one topic, run the F5 check over the seven existing derived KBs, and
-  record everything in `notes.md`.
+  record everything in `notes.md`. Extract cost 17.4280 USD against the 17.4541
+  baseline (−0.15%); the document-index comparison had no baseline to run
+  against. See [notes.md](notes.md#stage-4--run-on-2026-08-08).

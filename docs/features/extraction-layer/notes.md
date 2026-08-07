@@ -1,12 +1,12 @@
 # Extraction layer — implementation notes
 
-Date: 2026-08-07
+Date: 2026-08-07, Stage 4 run 2026-08-08
 Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md) · Alignment:
 [alignment-questions.md](alignment-questions.md)
 
-Stages 1–3 are implemented and verified offline. Stage 4 (the real extraction run
-over `data/kb-2026-06`, about 17.5 USD) is not started: it spends real money and
-needs approval first.
+Stages 1–3 are implemented and verified offline. Stage 4 — the real extraction run
+over `data/kb-2026-06` — was approved and ran on 2026-08-08; its outcome is
+recorded at the end of this file.
 
 ## Verification
 
@@ -21,8 +21,11 @@ No test calls a real LLM.
 
 ## Measurements taken during implementation
 
-All against the reference KB at `data/kb-2026-06`, which still holds its
-pre-change `.extract-cache/`.
+All against the reference KB at `data/kb-2026-06`, which still held its
+pre-change `.extract-cache/` when these were taken. The Stage 4 run re-measured
+the round-trip, the layer size and the gate cost against real files rather than
+replayed cache payloads; where the two differ, the Stage 4 figure is the one to
+quote.
 
 **The serializer round-trips every real extraction.** All 108 cache entries were
 parsed into `ExtractionResult`, serialized through `storage.extraction.serialize`
@@ -110,26 +113,137 @@ and the write phase would then refuse it, forever. Scales linearly, so budget
    extraction gate selects need content now. Left out as beyond this spec; the
    TODO at `commands/compile.py` records it.
 
-## Stage 4 — not run (needs approval)
+## Stage 4 — run on 2026-08-08
 
-Spec G8, H7 and H8. What it involves, in order:
+Spec G8, H7 and H8. Approved and executed. Model `claude-sonnet-4-6` through the
+LiteLLM proxy (`LLM_BASE_URL=…/v1`), `workers=12`. Same model and worker count as
+the baseline run, so the cost figures are comparable.
 
-1. `cp -R data/kb-2026-06 data/kb-2026-06.bak-pre-extraction-layer` — the
-   repository already has `data/kb-2026-06.bak-pre-md-rename` as precedent.
-   `.extract-cache/` is left untouched on disk either way, as the recoverable
-   pre-change state.
-2. Extract all 108 documents from scratch, `--extract-only` first so the wiki is
-   untouched. **Real spend: about 17.5 USD**, from the reference KB's own
-   `.compile.log` (`Phase 1 done: 108 extracted (0 cached), 0 errors, $17.4541`).
-   This run is the second measurement of that figure.
-3. Rebuild `index/document-index.md` and compare selection against the current
-   file.
-4. Derive one existing topic and confirm the copied extractions satisfy B10
-   against the copied documents, so the derived compile pays nothing for extract.
-5. Run the F5 check over the seven existing derived KBs. Known-good baseline:
-   `ai-coding-cost-governance` should report 53 documents in sync, 0 changed in
-   the parent, 0 gone. F3 will report every document missing there, which is
-   expected — they hold `.extract-cache/` and no `extraction/` (F7).
-6. Record the outcome here: documents extracted, measured cost against 17.5 USD,
-   the first-run wiki-lag report G5 predicts (it will name every article, with
-   the first-run reason), and any selection differences.
+Total spend 17.6931 USD: 17.4280 for the 108-document run, 0.2213 for a
+two-document smoke run beforehand, 0.0438 for the derive topic filter.
+
+### 1. Backup
+
+`cp -R data/kb-2026-06 data/kb-2026-06.bak-pre-extraction-layer` (28 MB),
+verified with `diff -rq` against the original: identical, 108 raw documents and
+108 `.extract-cache/` entries. `.extract-cache/` is still on disk in both copies
+as the recoverable pre-change state; nothing reads it any more.
+
+### 2. Extraction from scratch — the cost figure reproduces
+
+A two-document smoke run went first, to avoid discovering a write-path defect
+17 USD in: 2 extracted, 0.2213 USD, correct provenance header on disk, and a
+second run over the same KB extracted nothing, which is the freshness gate
+working against real files.
+
+Then all 108, `--extract-only`, wiki untouched:
+
+| | Baseline (`.compile.log`, 2026-08-06) | Stage 4 (2026-08-08) | Delta |
+|---|---|---|---|
+| Documents | 108 extracted, 0 errors | 108 extracted, 0 revised, 0 errors | — |
+| Cost | 17.4541 USD | **17.4280 USD** | −0.0261 USD (−0.15%) |
+| Wall clock | 720.5 s | 500.4 s | −220.1 s (−30.5%) |
+| LLM calls | not recorded | 302 | — |
+| Tokens | not recorded | 2,146,991 prompt + 732,471 completion, 0 cached | — |
+
+The cost lands within 0.15% of the baseline. That is what this step was for:
+17.5 USD is the real number for this corpus at this model, and one run was not a
+fluke.
+
+Nothing in this change explains the 30% speedup. The extraction phase does the
+same work; only where the result gets written moved. Proxy latency or contention
+on the baseline day is the likely cause, and it should not be read as a
+performance claim.
+
+Two caveats on the baseline for anyone re-running this:
+
+- `.compile.log` predates the `.md.md` rename (`eba18d0`) — its filenames carry
+  the doubled suffix. Only names changed, and cost follows content, so the
+  comparison holds.
+- That log records a 30.2286 USD full compile, of which extract was 17.4541 and
+  the write phase 10.7246. Stage 4 deliberately paid only the extract part.
+
+### 3. Round-trip and header consistency over the real layer
+
+All 108 freshly written files were parsed and re-serialized: **0 parse failures
+and 0 differences, byte for byte**. That is stronger than the field-for-field
+check taken during implementation, which replayed cache payloads rather than
+reading what the new code actually wrote. Every file agrees on `prompt_version`
+(`69f137466914`), `extract_model` (`claude-sonnet-4-6`), `extract_strategy`
+(`chunked`) and `schema_version` (`1`).
+
+Measured on those real files, the layer is smaller than the cache it replaces:
+2.05 MB of markdown in 108 files against 2.42 MB of JSON in 108 cache entries
+(2.27 MB vs 2.63 MB of allocated blocks).
+
+The gate is cheap. A no-op re-run over all 108 documents, full parse, every file
+fresh, completes in 1.26–1.54 s wall clock *including* interpreter startup and
+reports `nothing to compile` at zero cost.
+
+G5's wiki-lag report fired with the first-run reason:
+`wiki_lag: {"articles": 108, "first_run": true}`, logged as *"108 articles were
+written from an older extraction — expected on the first run after the extraction
+layer landed, since no existing compile-state entry records a prompt_version"*.
+
+### 4. `index/document-index.md` — no baseline existed to compare against
+
+The plan asked for a selection comparison against the current file. There is no
+current file: the reference KB was compiled on 2026-08-06, and the document
+catalog only landed on 2026-08-07 (`c46d88a`). So this run *created*
+`index/document-index.md` for the first time — 108 entries, and no
+`[document-index] N of M documents without extraction` line, meaning every
+document resolved to an extraction. The comparison is available to the next run,
+not to this one.
+
+`update_markdown_index` also rewrote `master-index.md`, `topic-index.md` and
+`topic-index-longtail.md`. Expected: Phase 3 sits outside the write-phase guard,
+and `wiki/` was untouched, so they regenerate from the same articles.
+
+### 5. Derive — the selection reproduces and the extract phase is free
+
+Derived the topic behind the existing `ai-coding-cost-governance` KB into a fresh
+slug, so the existing seven were left alone. The topic filter **reproduced that
+manifest exactly, 37 articles matched and 53 documents resolved**, in 1 batch,
+0 dropped invented paths, 0 warnings, 0.0438 USD. No TTY and no `--yes`, so it
+stopped before the compile by design.
+
+The copy carries 53 extraction files and no `.extract-cache/`, and F3 over the
+derived KB reports 53 match, 0 missing, 0 mismatched. B10 holds against the
+copied documents.
+
+Then `compile --extract-only` over the derived KB: **0 extracted, 0 cost, 0.73 s**.
+That is the economic claim of the whole change, measured. The precise reading:
+under `extract_only` the composition gate is skipped, so `nothing to compile` here
+means the extraction gate found nothing stale. The write phase was not run. The
+derived KB has no `.compile-state.json` and no `wiki/`, so all 53 documents would
+still have to be composed, at the roughly 10 USD that costs.
+
+### 6. F3 and F5 over the parent and the seven existing derived KBs
+
+F3 over the parent: **108 match, 0 missing, 0 mismatched.**
+
+F5 over each derived KB, all `in_sync`:
+
+| Derived KB | In sync | Changed in parent | Gone |
+|---|---|---|---|
+| `ai-coding-cost-governance` | 53 | 0 | 0 |
+| `bybit-ai-phase1` | 30 | 0 | 0 |
+| `cloud-cost-optimization` | 20 | 0 | 0 |
+| `kb-distillation` | 24 | 0 | 0 |
+| `multi-site-launch` | 24 | 0 | 0 |
+| `reliability-drills` | 23 | 0 | 0 |
+| `supply-chain-ai-security` | 25 | 0 | 0 |
+
+`ai-coding-cost-governance` matches the predicted known-good baseline of 53 / 0 / 0.
+
+F3 over those same seven reports every document missing — 53, 30, 20, 24, 24, 23
+and 25 respectively, all with reason `missing`. Expected under F7: they hold
+`.extract-cache/` and no `extraction/`. They will keep reporting that until each
+is re-derived or recompiled.
+
+### Artefacts this run left behind
+
+- `data/kb-2026-06.bak-pre-extraction-layer/` — the pre-run state, kept.
+- `data/kb-2026-06/derived/stage4-extraction-check/` — the derive check above.
+  Not one of the seven documented derived KBs, so it will show up as an eighth in
+  any later F5 sweep. Costs 0.0438 USD to recreate; remove it if that is noise.
