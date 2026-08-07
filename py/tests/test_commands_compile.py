@@ -19,6 +19,8 @@ from kb_ai.commands import compile as cm
 from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import get_request_tracker
+from kb_ai.prompts import NoActivePromptError
+from kb_ai.storage import extraction as exl
 from kb_ai.storage.store import KBStore
 
 
@@ -105,7 +107,7 @@ def merges(*paths) -> dict:
 def test_compile_with_no_raw_files(tmp_path, fakes):
     out = cm.compile_kb(str(tmp_path))
 
-    assert out == {"compiled": 0, "message": "nothing to compile"}
+    assert out == {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
     assert fakes["extracted"] == []
 
 
@@ -117,7 +119,7 @@ def test_compile_skips_unchanged_files(kb, fakes):
 
     # Second run: checksums match and everything completed, so nothing reruns.
     second = cm.compile_kb(str(kb.base_dir))
-    assert second == {"compiled": 0, "message": "nothing to compile"}
+    assert second == {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
 
 
 def test_compile_reprocesses_a_changed_file(kb, fakes):
@@ -216,7 +218,7 @@ def test_compile_writes_a_log_file(kb, fakes):
     cm.compile_kb(str(kb.base_dir))
 
     log = (kb.base_dir / ".compile.log").read_text()
-    assert "Starting compile: 2 files" in log
+    assert "Starting compile: 2 to extract, 2 to compose" in log
     assert "Phase 1" in log
     assert "Compile done" in log
 
@@ -252,17 +254,21 @@ def test_compile_passes_models_through(kb, fakes, monkeypatch):
 
 # ── caches ──────────────────────────────────────────────────────────
 
-def test_compile_uses_the_extract_cache(kb, fakes):
+def test_compile_reuses_a_fresh_extraction(kb, fakes):
+    """The extraction gate is independent of the compile state (spec G1).
+
+    Dropping the state file puts both documents back into the write gate, and the
+    extraction gate still sees two fresh extractions on disk.
+    """
     fakes["classification"] = creates("wiki/concept/a.md")
     cm.compile_kb(str(kb.base_dir))
 
-    # Force a recompile without changing content: drop the state file only.
     kb.save_compile_state({})
     fakes["extracted"].clear()
 
     cm.compile_kb(str(kb.base_dir))
 
-    assert fakes["extracted"] == [], "extraction cache should have served both files"
+    assert fakes["extracted"] == [], "extraction/ should have served both files"
 
 
 def test_compile_uses_the_classify_cache(kb, fakes):
@@ -277,7 +283,7 @@ def test_compile_uses_the_classify_cache(kb, fakes):
     assert fakes["classified"] == [], "classify cache should have served both files"
 
 
-def test_compile_logs_full_cache_hits(kb, fakes):
+def test_compile_logs_that_nothing_needed_extracting(kb, fakes):
     fakes["classification"] = creates("wiki/concept/a.md")
     cm.compile_kb(str(kb.base_dir))
     kb.save_compile_state({})
@@ -285,7 +291,7 @@ def test_compile_logs_full_cache_hits(kb, fakes):
     cm.compile_kb(str(kb.base_dir))
 
     log = (kb.base_dir / ".compile.log").read_text()
-    assert "hit extraction cache" in log
+    assert "every extraction is present and fresh" in log
     assert "hit classify cache" in log
 
 
@@ -312,7 +318,7 @@ def test_compile_aborts_when_every_extraction_fails(kb, fakes):
     assert len(out["errors"]) == 2
     assert "timing" not in out, "aborted compile returns the short-form result"
     log = (kb.base_dir / ".compile.log").read_text()
-    assert "All extractions failed" in log
+    assert "No usable extraction for any document to compose" in log
 
 
 def test_compile_records_classify_errors(kb, fakes, monkeypatch):
@@ -591,3 +597,193 @@ def test_run_compile_forwards_the_summary_budget(kb, fakes, capsys, monkeypatch)
 @pytest.mark.parametrize("raw", [None, 0])
 def test_run_compile_defaults_the_summary_budget(kb, fakes, capsys, monkeypatch, raw):
     assert _run_compile_seeing_summary_budget(kb, fakes, monkeypatch, raw) == SUMMARY_MAX_CHARS
+
+
+# ── the two independent gates (spec G1, G5, G6, C11, D1) ────────────
+
+def test_compile_persists_one_extraction_file_per_document(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    cm.compile_kb(str(kb.base_dir))
+
+    assert sorted(p.name for p in kb.extraction_dir.iterdir()) == ["a.md", "b.md"]
+    stored, reason = exl.load(kb, "raw/a.md")
+    assert reason == ""
+    assert stored.extraction.summary == "summary of content of a"
+    assert stored.provenance.source == "raw/a.md"
+    assert stored.provenance.extract_strategy == "chunked"
+
+
+def test_a_prompt_version_change_re_extracts_and_leaves_the_wiki_alone(kb, fakes,
+                                                                      monkeypatch):
+    """The whole point of two gates: a prompt edit costs one extraction pass."""
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir))
+    fakes["extracted"].clear()
+    fakes["created"].clear()
+    fakes["merged"].clear()
+
+    monkeypatch.setattr(exl, "extract_prompt_version", lambda: "ffffffffffff")
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["extracted"] == 2
+    assert sorted(fakes["extracted"]) == ["content of a", "content of b"]
+    assert out["compiled"] == 0
+    assert fakes["created"] == [] and fakes["merged"] == []
+    stored, _ = exl.load(kb, "raw/a.md")
+    assert stored.provenance.prompt_version == "ffffffffffff"
+
+
+def test_an_extract_model_change_re_extracts(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir), extract_model="E")
+    fakes["extracted"].clear()
+
+    out = cm.compile_kb(str(kb.base_dir), extract_model="OTHER")
+
+    assert out["extracted"] == 2
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert "extract_model changed" in log
+
+
+def test_extract_only_runs_extraction_and_stops(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    out = cm.compile_kb(str(kb.base_dir), extract_only=True)
+
+    assert out["extracted"] == 2
+    assert out["compiled"] == 0
+    assert out["extract_only"] is True
+    assert fakes["created"] == [] and fakes["merged"] == []
+    assert kb.load_compile_state() == {}
+    # The document catalog still gets rebuilt: it reads summaries out of
+    # extraction/, so an extract-only run is exactly when it should refresh.
+    assert "index" in fakes["indexed"]
+    assert "timeline" not in fakes["indexed"]
+
+
+def test_extract_only_then_a_normal_run_composes_without_re_extracting(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir), extract_only=True)
+    fakes["extracted"].clear()
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert fakes["extracted"] == []
+    assert out["compiled"] == 2
+
+
+def test_the_write_phase_composes_from_the_file_on_disk(kb, fakes, monkeypatch):
+    """D1: the extraction is handed over through extraction/, not in memory."""
+    seen: list[str] = []
+
+    def capture(article_type, title, extraction, source_path, model="m"):
+        seen.append(extraction.summary)
+        return "article"
+
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir), extract_only=True)
+
+    path = kb.extraction_path("raw/a.md")
+    path.write_text(path.read_text().replace("summary of content of a",
+                                             "edited by hand"))
+    monkeypatch.setattr(cm, "create_new_article", capture)
+
+    cm.compile_kb(str(kb.base_dir))
+
+    assert "edited by hand" in seen
+
+
+def test_compile_state_records_the_prompt_version_the_articles_came_from(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    cm.compile_kb(str(kb.base_dir))
+
+    entry = kb.load_compile_state()["raw/a.md"]
+    assert entry["prompt_version"] == exl.current_prompt_version()
+    assert "compiled_at" in entry
+
+
+def test_wiki_lag_reports_the_first_run_reason(kb, fakes):
+    """No pre-existing state entry carries a prompt_version, so every article
+    reads as lagging on the first run after this change (G5)."""
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir))
+
+    state = kb.load_compile_state()
+    for entry in state.values():
+        entry.pop("prompt_version")
+    kb.save_compile_state(state)
+    kb.write_raw("raw/c.md", "content of c")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["wiki_lag"] == {"articles": 2, "first_run": True}
+    assert "expected on the first run" in (kb.base_dir / ".compile.log").read_text()
+
+
+def test_wiki_lag_reports_a_real_lag_without_the_first_run_reason(kb, fakes,
+                                                                 monkeypatch):
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir))
+
+    monkeypatch.setattr(exl, "extract_prompt_version", lambda: "ffffffffffff")
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["wiki_lag"] == {"articles": 2, "first_run": False}
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert "written from an older extraction" in log
+    assert "expected on the first run" not in log
+
+
+def test_a_revised_document_names_the_articles_it_was_merged_into(kb, fakes):
+    """C11: merge can only add, so those articles still carry the old content."""
+    fakes["classification"] = creates("wiki/concept/a.md")
+    cm.compile_kb(str(kb.base_dir))
+
+    kb.write_raw("raw/a.md", "revised content of a")
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["revised"] == {"raw/a.md": ["wiki/concept/a.md"]}
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert "[revised] raw/a.md → wiki/concept/a.md" in log
+
+
+def test_a_first_extraction_is_not_reported_as_revised(kb, fakes):
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["revised"] == {}
+
+
+def test_unreadable_prompts_stop_the_run_without_extracting(kb, fakes, monkeypatch,
+                                                            tmp_path):
+    def boom():
+        raise NoActivePromptError("prompt file not found: extract.md")
+
+    monkeypatch.setattr(exl, "extract_prompt_version", boom)
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["compiled"] == 0
+    assert "prompt_version unavailable" in out["errors"][0]["error"]
+    assert fakes["extracted"] == []
+
+
+def test_extraction_inherits_the_raw_scan_skip_rules(kb, fakes):
+    """A5: nothing under _skipped/ and no dotfile gets an extraction.
+
+    Needs no code of its own -- extraction paths are derived from the raw scan, so
+    a document the scan skips is never handed to the layer. Asserted rather than
+    assumed, because the alternative (folding over extraction/) would not inherit
+    it.
+    """
+    kb.write_raw("raw/_skipped/costly.md", "content of costly")
+    (kb.raw_dir / ".hidden.md").write_text("content of hidden")
+    fakes["classification"] = creates("wiki/concept/a.md")
+
+    cm.compile_kb(str(kb.base_dir))
+
+    assert sorted(p.name for p in kb.extraction_dir.rglob("*.md")) == ["a.md", "b.md"]
+    assert not (kb.extraction_dir / "_skipped").exists()

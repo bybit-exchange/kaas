@@ -295,26 +295,6 @@ def test_existing_articles_missing_index_returns_empty(tmp_path: Path):
 
 # ── cache short circuits ────────────────────────────────────────────
 
-def test_extract_cache_disabled_neither_reads_nor_writes(tmp_path: Path):
-    store = KBStore(str(tmp_path), cache_enabled=False)
-
-    store.save_extract_cache("abc", {"facts": ["x"]})
-
-    assert not (store.base_dir / ".extract-cache").exists()
-    assert store.load_extract_cache("abc") is None
-
-
-def test_extract_cache_disabled_ignores_a_preexisting_entry(tmp_path: Path):
-    """A cache written earlier (enabled) must be invisible when disabled."""
-    writer = KBStore(str(tmp_path))
-    writer.save_extract_cache("abc", {"facts": ["x"]})
-    assert writer.load_extract_cache("abc") == {"facts": ["x"]}
-
-    reader = KBStore(str(tmp_path), cache_enabled=False)
-
-    assert reader.load_extract_cache("abc") is None
-
-
 def test_classify_cache_disabled_neither_reads_nor_writes(tmp_path: Path):
     store = KBStore(str(tmp_path), cache_enabled=False)
 
@@ -348,7 +328,6 @@ def test_classify_cache_serializes_objects_via_to_dict(tmp_path: Path):
 def test_caches_missing_entry_returns_none(tmp_path: Path):
     store = KBStore(str(tmp_path))
 
-    assert store.load_extract_cache("nope") is None
     assert store.load_classify_cache("nope") is None
 
 

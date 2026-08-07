@@ -43,7 +43,7 @@ def test_distill_reports_a_path_that_does_not_exist(monkeypatch, tmp_path):
 def test_compile_kb_empty_kb_returns_nothing_to_compile(tmp_path: Path):
     (tmp_path / "raw").mkdir()
     result = compile_kb(str(tmp_path))
-    assert result == {"compiled": 0, "message": "nothing to compile"}
+    assert result == {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
 
 
 def test_write_raw_creates_file_under_base(tmp_path):

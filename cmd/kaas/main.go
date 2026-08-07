@@ -228,6 +228,7 @@ func run(configFile string) error {
 		KBDir:             cfg.Storage.KBDir,
 		PipelineWorkers:   cfg.Worker.PipelineConcurrency,
 		HeartbeatInterval: heartbeatInterval(leaseTTL),
+		Model:             cfg.LLM.Model,
 		SummarizeModel:    cfg.LLM.SummarizeModel,
 	})
 	d := worker.NewDispatcher(q, w, brk, owner,

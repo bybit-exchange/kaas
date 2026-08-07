@@ -212,7 +212,7 @@ func TestDaemonClientPipeline(t *testing.T) {
 
 	resp, err := c.Pipeline(context.Background(), PipelineRequest{
 		KBDir:   "/kb",
-		Items:   []PipelineItem{{Extraction: json.RawMessage(`{"x":1}`), SourceRef: "src-1"}},
+		Items:   []PipelineItem{{ContentHash: "h1", SourceRef: "src-1"}},
 		Workers: 3,
 	})
 	if err != nil {

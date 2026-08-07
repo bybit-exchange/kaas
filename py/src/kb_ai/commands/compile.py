@@ -15,7 +15,13 @@ from kb_ai.core.classify import (
     hash_existing_articles,
     resolve_categories,
 )
-from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
+from kb_ai.core.extract import (
+    ExtractionResult,
+    extract_knowledge_chunked,
+    _combine_extractions,
+)
+from kb_ai.prompts import PromptError
+from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.index import (
     SUMMARY_MAX_CHARS,
     update_document_index,
@@ -80,6 +86,7 @@ def compile_kb(
     summary_max_chars: int = SUMMARY_MAX_CHARS,
     people_cfg: list | None = None,
     workers: int = 0,
+    extract_only: bool = False,
 ) -> dict:
     compile_t0 = time.monotonic()
 
@@ -91,26 +98,77 @@ def compile_kb(
     # TODO(2026-06-03): list_raw_files() preloads all raw content into memory.
     # The estimate path was migrated to iter_raw_file_meta() in
     # docs/kaas/plans/2026-06-03-cost-estimate-memory-optimization.md.
-    # Compile path is harder to migrate (needs content for chunking/extraction)
-    # but cached files could skip the read; revisit when memory pressure shows up.
+    # Now that the write phase reads extraction/ off disk, only the documents the
+    # extraction gate selects need content, so iter_raw_file_meta() plus a lazy
+    # read_raw() would finish this migration; revisit when memory pressure shows up.
     raw_files = store.list_raw_files()
 
-    to_compile = []
-    for rf in raw_files:
-        file_state = state.get(rf.rel_path, {})
-        if file_state.get("checksum") != rf.checksum:
-            to_compile.append(rf)
-        elif file_state.get("completed_ops") and not file_state.get("compiled_at"):
-            to_compile.append(rf)
+    # One per-process constant, computed once before the gate so a broken prompt
+    # file is reported once rather than 108 times -- and never silently treated as
+    # "fresh", which would keep serving extractions from the previous prompt.
+    try:
+        prompt_version = extraction_layer.current_prompt_version()
+    except PromptError as e:
+        return {"compiled": 0, "extracted": 0, "total_raw": len(raw_files),
+                "errors": [{"file": "", "error": f"prompt_version unavailable: {e}"}],
+                "message": "extraction prompts are unreadable; nothing was compiled"}
 
-    if not to_compile:
-        return {"compiled": 0, "message": "nothing to compile"}
+    # ── Gate 1: extraction, gated by the extraction file's own provenance ──
+    # Independent of gate 2 by design: a prompt edit re-extracts and stops there.
+    # Re-running the write phase would not rewrite articles from the new
+    # extraction -- both merge paths can only add -- it would layer new content on
+    # top of the old extraction's content (spec G1, G4).
+    to_extract = []
+    extract_reasons: dict[str, str] = {}
+    for rf in raw_files:
+        stored, reason = extraction_layer.load(store, rf.rel_path)
+        if stored is None:
+            why = reason
+        else:
+            why = extraction_layer.staleness(
+                stored.provenance,
+                source_checksum=rf.checksum,
+                extract_model=extract_model,
+                extract_strategy=extraction_layer.STRATEGY_CHUNKED,
+                prompt_version=prompt_version,
+            )
+        if why:
+            extract_reasons[rf.rel_path] = why
+            to_extract.append(rf)
+
+    # ── Gate 2: composition, gated by .compile-state.json as before ──
+    to_write = []
+    if not extract_only:
+        for rf in raw_files:
+            file_state = state.get(rf.rel_path, {})
+            if file_state.get("checksum") != rf.checksum:
+                to_write.append(rf)
+            elif file_state.get("completed_ops") and not file_state.get("compiled_at"):
+                to_write.append(rf)
+
+    if not to_extract and not to_write:
+        return {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
+
+    # The wiki can lag extraction/ under two independent gates, and that lag is
+    # reported rather than left silent (G5). No pre-existing state entry carries a
+    # prompt_version, so the first run after this change reports every article --
+    # true, but it reads as a defect without the reason.
+    lagging = sorted(rel for rel, fs in state.items()
+                     if fs.get("compiled_at")
+                     and fs.get("prompt_version") != prompt_version)
+    lag_is_first_run = any("prompt_version" not in state[rel] for rel in lagging)
 
     compiled = 0
+    extracted = 0
+    revised: list[str] = []
+    failed_extract: set[str] = set()
     errors: list[dict] = []
-    total = len(to_compile)
     cfg_workers = workers or int(os.environ.get("KB_WORKERS", 0))
-    workers = min(total, cfg_workers if cfg_workers > 0 else _DEFAULT_WORKERS)
+    workers = min(max(len(to_extract), len(to_write)),
+                  cfg_workers if cfg_workers > 0 else _DEFAULT_WORKERS)
+
+    _no_delta = {"cost": 0.0, "elapsed": 0.0}
+    extract_d = classify_d = write_d = _no_delta
 
     log_path = Path(data_dir).expanduser() / ".compile.log"
     _log_lock = threading.Lock()
@@ -121,74 +179,103 @@ def compile_kb(
                 print(msg, file=log_file, flush=True)
                 print(msg, file=sys.stderr, flush=True)
 
-        log(f"Starting compile: {total} files to process (workers={workers})")
+        log(f"Starting compile: {len(to_extract)} to extract, "
+            f"{len(to_write)} to compose (workers={workers})")
+        if lagging:
+            if lag_is_first_run:
+                log(f"  (wiki lag: {len(lagging)} articles were written from an older "
+                    "extraction — expected on the first run after the extraction "
+                    "layer landed, since no existing compile-state entry records a "
+                    "prompt_version)")
+            else:
+                log(f"  (wiki lag: {len(lagging)} articles were written from an older "
+                    "extraction; they are rewritten when their source text changes)")
 
         # ── Phase 1: Parallel extraction ──────────────────────────
         extract_snap = tracker.snapshot()
-        extractions: dict[str, ExtractionResult] = {}
-        cache_hits = 0
-
-        need_extract = []
-        for rf in to_compile:
-            cached = store.load_extract_cache(rf.checksum)
-            if cached is not None:
-                extractions[rf.rel_path] = parse_extraction_result(cached)
-                cache_hits += 1
-                log(f"  [cached] {rf.rel_path}")
-            else:
-                need_extract.append(rf)
-
         _compile_req_tracker = get_request_tracker()
 
         def _extract_one(rf):
             set_request_tracker(_compile_req_tracker)
             result = extract_knowledge_chunked(rf.content, model=extract_model)
-            store.save_extract_cache(rf.checksum, extraction_to_dict(result))
-            return rf.rel_path, result
+            _path, existed = extraction_layer.persist(
+                store, rf.rel_path, result,
+                source_checksum=rf.checksum,
+                extract_model=extract_model,
+                extract_strategy=extraction_layer.STRATEGY_CHUNKED,
+            )
+            return rf.rel_path, existed
 
-        if need_extract:
-            log(f"Phase 1: Extracting {len(need_extract)} files in parallel ({cache_hits} cached)...")
+        if to_extract:
+            log(f"Phase 1: Extracting {len(to_extract)} files in parallel...")
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = {pool.submit(_extract_one, rf): rf for rf in need_extract}
+                futures = {pool.submit(_extract_one, rf): rf for rf in to_extract}
                 for future in as_completed(futures):
                     rf = futures[future]
                     try:
-                        _, extraction = future.result()
-                        extractions[rf.rel_path] = extraction
-                        log(f"  [extracted] {rf.rel_path}")
+                        _rel, existed = future.result()
                     except Exception as e:
                         errors.append({"file": rf.rel_path, "error": str(e)})
+                        failed_extract.add(rf.rel_path)
                         log(f"  [extract-error] {rf.rel_path}: {e}")
+                        continue
+                    extracted += 1
+                    if existed:
+                        revised.append(rf.rel_path)
+                    tag = "re-extracted" if existed else "extracted"
+                    log(f"  [{tag}] {rf.rel_path} — {extract_reasons[rf.rel_path]}")
         else:
-            log(f"Phase 1: All {cache_hits} files hit extraction cache, skipping LLM calls.")
+            log("Phase 1: every extraction is present and fresh, skipping LLM calls.")
 
         extract_d = tracker.delta(extract_snap)
-        log(f"Phase 1 done: {len(extractions)} extracted ({cache_hits} cached), "
+        log(f"Phase 1 done: {extracted} extracted ({len(revised)} revised), "
             f"{len(errors)} errors, ${extract_d['cost']:.4f}, {extract_d['elapsed']:.1f}s")
 
-        if not extractions:
-            log("All extractions failed, aborting compile.")
-            return {"compiled": 0, "errors": errors, "total_raw": len(raw_files),
-                    "cost": tracker.summary()}
+        if not to_write:
+            reason = ("--extract-only" if extract_only
+                      else "no document's composition is behind")
+            log(f"Stopping after extraction ({reason}).")
 
         # ── Phase 2a: Sequential classify ─────────────────────────
+        # Classify and write read the extraction off disk (D1), so extraction/ is
+        # the only thing handing off between the two gates.
         existing_articles = store.existing_articles()
         classify_snap = tracker.snapshot()
 
+        extractions: dict[str, ExtractionResult] = {}
+        used_prompt_version: dict[str, str] = {}
+        for rf in to_write:
+            stored, reason = extraction_layer.load(store, rf.rel_path)
+            if stored is None:
+                # A document whose extraction just failed already has its error
+                # recorded; reporting the consequence again would double-count it.
+                if rf.rel_path not in failed_extract:
+                    errors.append({"file": rf.rel_path,
+                                   "error": f"no usable extraction ({reason})"})
+                log(f"  [no-extraction] {rf.rel_path}: {reason}")
+                continue
+            stored.extraction.source_path = rf.rel_path
+            extractions[rf.rel_path] = stored.extraction
+            used_prompt_version[rf.rel_path] = stored.provenance.prompt_version
+
+        if to_write and not extractions:
+            log("No usable extraction for any document to compose, aborting compile.")
+            return {"compiled": 0, "extracted": extracted, "errors": errors,
+                    "total_raw": len(raw_files), "cost": tracker.summary()}
+
         items_to_classify = []
-        for rf in to_compile:
+        for rf in to_write:
             if rf.rel_path not in extractions:
                 continue
-            extraction = extractions[rf.rel_path]
-            extraction.source_path = rf.rel_path
-            items_to_classify.append((rf, extraction))
+            items_to_classify.append((rf, extractions[rf.rel_path]))
 
         classifications: dict[str, dict] = {}
         classify_cache_hits = 0
         art_hash = hash_existing_articles(existing_articles)
         cat_hash = classify_inputs_hash(categories)
 
-        log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
+        if items_to_classify:
+            log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
         for rf, extraction in items_to_classify:
             cache_key = classify_cache_key(rf.checksum, art_hash, cat_hash)
             cached = store.load_classify_cache(cache_key)
@@ -216,16 +303,18 @@ def compile_kb(
                 errors.append({"file": rf.rel_path, "error": str(e)})
                 log(f"  [classify-error] {rf.rel_path}: {e}")
 
-        if classify_cache_hits == len(items_to_classify):
+        if items_to_classify and classify_cache_hits == len(items_to_classify):
             log(f"Phase 2a: All {classify_cache_hits} files hit classify cache, skipping LLM calls.")
 
         classify_d = tracker.delta(classify_snap)
-        log(f"Phase 2a done: {len(classifications)} classified ({classify_cache_hits} cached), "
-            f"{len(errors)} errors, ${classify_d['cost']:.4f}, {classify_d['elapsed']:.1f}s")
+        if items_to_classify:
+            log(f"Phase 2a done: {len(classifications)} classified ({classify_cache_hits} cached), "
+                f"{len(errors)} errors, ${classify_d['cost']:.4f}, {classify_d['elapsed']:.1f}s")
 
         # ── Phase 2b: Parallel write ──────────────────────────────
         write_snap = tracker.snapshot()
-        log("Phase 2b: Writing articles...")
+        if items_to_classify:
+            log("Phase 2b: Writing articles...")
 
         article_ops: dict[str, list] = {}
         file_checksums: dict[str, str] = {}
@@ -266,7 +355,11 @@ def compile_kb(
             file_op_counts[rf.rel_path] = ops
             file_total_ops[rf.rel_path] = total_ops
             if ops == 0:
-                state[rf.rel_path] = {"checksum": rf.checksum, "compiled_at": datetime.now().isoformat()}
+                state[rf.rel_path] = {
+                    "checksum": rf.checksum,
+                    "compiled_at": datetime.now().isoformat(),
+                    "prompt_version": used_prompt_version[rf.rel_path],
+                }
                 compiled += 1
 
         skipped_ops = sum(file_total_ops[r] - file_op_counts[r] for r in file_op_counts)
@@ -412,25 +505,47 @@ def compile_kb(
                 all_done = prev_done | done_now
                 if _file_done_ops.get(rel, 0) >= pending:
                     state[rel] = {"checksum": file_checksums[rel],
-                                  "compiled_at": datetime.now().isoformat()}
+                                  "compiled_at": datetime.now().isoformat(),
+                                  "prompt_version": used_prompt_version[rel]}
                     compiled += 1
                 elif done_now:
                     state[rel] = {"checksum": file_checksums[rel],
-                                  "completed_ops": sorted(all_done)}
+                                  "completed_ops": sorted(all_done),
+                                  "prompt_version": used_prompt_version[rel]}
             store.save_compile_state(state)
 
         write_d = tracker.delta(write_snap)
-        log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
-        log(f"Compile done: {compiled} compiled, {len(errors)} errors, ${tracker.total_cost:.4f} total")
+        if items_to_classify:
+            log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
+
+        # A revised document's articles were merged into, not rewritten: both
+        # merge paths are additive -- merge-diff.md offers only append_to_section
+        # and new_section, and merge-rewrite.md says nothing about supersession --
+        # so what the previous version contributed is still in there. Naming the
+        # articles is the whole point: it says which ones a human should re-read.
+        revised_articles = {rel: sorted(_file_done_articles[rel])
+                            for rel in revised
+                            if _file_done_articles.get(rel)}
+        if revised_articles:
+            log(f"Revised documents: {len(revised_articles)} re-extracted document(s) "
+                "were merged into existing articles, which still carry the previous "
+                "version's content (merge cannot retract):")
+            for rel, arts in sorted(revised_articles.items()):
+                log(f"  [revised] {rel} → {', '.join(arts)}")
+
+        log(f"Compile done: {compiled} compiled, {extracted} extracted, "
+            f"{len(errors)} errors, ${tracker.total_cost:.4f} total")
 
     # Phase 3: Index
     index_t0 = time.monotonic()
     update_markdown_index(store, min_articles=topic_index_min_articles,
                           summary_max_chars=summary_max_chars)
     # Built here so it cannot drift from raw/, and so a later derive over
-    # documents reads it instead of recomputing every summary.
+    # documents reads it instead of recomputing every summary. Rebuilt after an
+    # extract-only run too: the catalog reads its summaries out of extraction/.
     update_document_index(store, summary_max_chars=summary_max_chars)
-    update_timeline(store, [rf.rel_path for rf in to_compile])
+    if to_write:
+        update_timeline(store, [rf.rel_path for rf in to_write])
     update_people_stubs(store, people_cfg)
     index_elapsed = round(time.monotonic() - index_t0, 2)
 
@@ -443,6 +558,15 @@ def compile_kb(
 
     return {
         "compiled": compiled,
+        "extracted": extracted,
+        "extract_only": extract_only,
+        # Documents whose extraction overwrote an existing one, mapped to the
+        # articles they were merged into (C11). Empty on a first compile.
+        "revised": revised_articles,
+        # How far the wiki is behind extraction/ (G5). first_run is true when no
+        # compile-state entry records a prompt_version at all, which is what makes
+        # the count on the first run after this change expected rather than a bug.
+        "wiki_lag": {"articles": len(lagging), "first_run": lag_is_first_run},
         "errors": errors,
         "total_raw": len(raw_files),
         "cost": tracker.summary(),
@@ -472,5 +596,6 @@ def run_compile():
         summary_max_chars=int(input_data.get("summary_max_chars") or SUMMARY_MAX_CHARS),
         people_cfg=input_data.get("people") or [],
         workers=input_data.get("workers", 0) or 0,
+        extract_only=bool(input_data.get("extract_only")),
     )
     respond_ok(data=result)

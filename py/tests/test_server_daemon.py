@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from kb_ai import server_daemon as sd
+from kb_ai.core.extract import ExtractionResult
 
 
 # ── helpers ─────────────────────────────────────────────────────────
@@ -188,6 +189,18 @@ def test_handle_init_tolerates_missing_llm_block(capsys, monkeypatch):
 # ── extract ─────────────────────────────────────────────────────────
 
 @pytest.fixture
+def kb(tmp_path):
+    """A KB directory for the extraction the handler now persists."""
+    return str(tmp_path)
+
+
+def extract_request(kb_dir, **kwargs):
+    """An extract payload with the fields the worker always sends."""
+    kwargs.setdefault("source", "raw/a.md")
+    return request("extract", kb_dir=kb_dir, **kwargs)
+
+
+@pytest.fixture
 def stub_extract(monkeypatch):
     """Patch kb_ai.core.extract so routing can be observed without LLM calls."""
     import kb_ai.core.extract as ex
@@ -202,17 +215,17 @@ def stub_extract(monkeypatch):
     def chunked(content, model):
         state["routed"] = "chunked"
         state["model"] = model
-        return "chunked-result"
+        state["content"] = content
+        return ExtractionResult(summary="chunked-result")
 
     def summarized(chunks, meta, summarize_model, model):
         state["routed"] = "summarize"
         state["summarize_model"] = summarize_model
         state["model"] = model
-        return "summarized-result"
+        return ExtractionResult(summary="summarized-result")
 
     monkeypatch.setattr(ex, "extract_knowledge_chunked", chunked)
     monkeypatch.setattr(ex, "extract_knowledge_summarized", summarized)
-    monkeypatch.setattr(ex, "extraction_to_dict", lambda r: {"result": r})
     return state
 
 
@@ -224,43 +237,58 @@ def test_handle_extract_rejects_empty_content(capsys):
     assert resp["error"]["code"] == "EMPTY_CONTENT"
 
 
-def test_handle_extract_defaults_to_chunked(capsys, stub_extract):
-    sd._handle_extract("1", request("extract", content="some text"))
+@pytest.mark.parametrize("missing, code", [
+    ("kb_dir", "EMPTY_KB_DIR"),
+    ("source", "EMPTY_SOURCE"),
+])
+def test_handle_extract_requires_the_fields_it_persists_with(capsys, missing, code):
+    payload = {"kb_dir": "/kb", "source": "raw/a.md", "content": "text"}
+    payload[missing] = ""
+    sd._handle_extract("1", {"payload": payload})
+
+    resp = one_response(capsys)
+    assert resp["ok"] is False
+    assert resp["error"]["code"] == code
+
+
+def test_handle_extract_defaults_to_chunked(capsys, stub_extract, kb):
+    sd._handle_extract("1", extract_request(kb, content="some text"))
 
     resp = one_response(capsys)
     assert resp["ok"] is True
-    assert resp["data"]["extraction"] == {"result": "chunked-result"}
+    assert resp["data"]["extraction"]["summary"] == "chunked-result"
     assert "cost" in resp["data"]
     assert stub_extract["routed"] == "chunked"
 
 
-def test_handle_extract_summarize_strategy(capsys, stub_extract):
-    sd._handle_extract("1", request("extract", content="text", strategy="summarize",
-                                    summarize_model="sum-model", model="main-model"))
+def test_handle_extract_summarize_strategy(capsys, stub_extract, kb):
+    sd._handle_extract("1", extract_request(kb, content="text", strategy="summarize",
+                                            summarize_model="sum-model",
+                                            model="main-model"))
 
-    assert one_response(capsys)["data"]["extraction"] == {"result": "summarized-result"}
+    assert one_response(capsys)["data"]["extraction"]["summary"] == "summarized-result"
     assert stub_extract["routed"] == "summarize"
     assert stub_extract["summarize_model"] == "sum-model"
     assert stub_extract["model"] == "main-model"
 
 
-def test_handle_extract_auto_routes_to_summarize_for_many_chunks(capsys, stub_extract):
+def test_handle_extract_auto_routes_to_summarize_for_many_chunks(capsys, stub_extract, kb):
     stub_extract["chunks"] = ["a", "b", "c"]
 
-    sd._handle_extract("1", request("extract", content="text", strategy="auto"))
+    sd._handle_extract("1", extract_request(kb, content="text", strategy="auto"))
 
     assert stub_extract["routed"] == "summarize"
 
 
-def test_handle_extract_auto_routes_to_chunked_for_few_chunks(capsys, stub_extract):
+def test_handle_extract_auto_routes_to_chunked_for_few_chunks(capsys, stub_extract, kb):
     stub_extract["chunks"] = ["a", "b"]
 
-    sd._handle_extract("1", request("extract", content="text", strategy="auto"))
+    sd._handle_extract("1", extract_request(kb, content="text", strategy="auto"))
 
     assert stub_extract["routed"] == "chunked"
 
 
-def test_handle_extract_auto_uses_transcript_chunker(capsys, stub_extract):
+def test_handle_extract_auto_uses_transcript_chunker(capsys, stub_extract, kb):
     """A transcript must be chunked by turns, not by raw content."""
     import kb_ai.core.extract as ex
 
@@ -276,21 +304,21 @@ def test_handle_extract_auto_uses_transcript_chunker(capsys, stub_extract):
 
     with patch.object(ex, "chunk_transcript", transcript_chunker):
         with patch.object(ex, "chunk_content", content_chunker):
-            sd._handle_extract("1", request("extract", content="text", strategy="auto"))
+            sd._handle_extract("1", extract_request(kb, content="text", strategy="auto"))
 
     assert called["transcript"] is True
     assert stub_extract["routed"] == "summarize"
 
 
-def test_handle_extract_clears_request_tracker(capsys, stub_extract):
+def test_handle_extract_clears_request_tracker(capsys, stub_extract, kb):
     from kb_ai.llm import get_request_tracker
 
-    sd._handle_extract("1", request("extract", content="text"))
+    sd._handle_extract("1", extract_request(kb, content="text"))
 
     assert get_request_tracker() is None
 
 
-def test_handle_extract_clears_request_tracker_on_failure(capsys, monkeypatch):
+def test_handle_extract_clears_request_tracker_on_failure(capsys, monkeypatch, kb):
     import kb_ai.core.extract as ex
     from kb_ai.llm import get_request_tracker
 
@@ -300,7 +328,7 @@ def test_handle_extract_clears_request_tracker_on_failure(capsys, monkeypatch):
     monkeypatch.setattr(ex, "extract_knowledge_chunked", boom)
 
     with pytest.raises(RuntimeError):
-        sd._handle_extract("1", request("extract", content="text"))
+        sd._handle_extract("1", extract_request(kb, content="text"))
 
     assert get_request_tracker() is None
 
@@ -1013,3 +1041,156 @@ def test_derive_command_passes_select_from(monkeypatch):
     assert responses[0]["select_from"] == "documents"
     # selected_articles is empty by design in this mode; reporting it would say 0.
     assert responses[0]["selected"] == 2
+
+
+# ── extract: persistence, parity and reuse (spec C2-C9, H3, H6) ─────
+
+def test_handle_extract_persists_the_extraction(capsys, stub_extract, kb):
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore, _compute_checksum
+
+    sd._handle_extract("1", extract_request(kb, content="some text", model="M"))
+
+    store = KBStore(kb)
+    stored, reason = exl.load(store, "raw/a.md")
+    assert reason == ""
+    assert stored.extraction.summary == "chunked-result"
+    assert stored.provenance.source == "raw/a.md"
+    assert stored.provenance.source_checksum == _compute_checksum("some text")
+    assert stored.provenance.extract_model == "M"
+    assert stored.provenance.extract_strategy == "chunked"
+
+
+def test_handle_extract_records_the_strategy_that_ran_not_auto(capsys, stub_extract, kb):
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore
+
+    stub_extract["chunks"] = ["a", "b", "c"]
+    sd._handle_extract("1", extract_request(kb, content="text", strategy="auto",
+                                            summarize_model="S"))
+
+    stored, _ = exl.load(KBStore(kb), "raw/a.md")
+    assert stored.provenance.extract_strategy == "summarize"
+    assert stored.provenance.summarize_model == "S"
+
+
+def test_handle_extract_reuses_a_fresh_extraction_without_calling_the_model(
+        capsys, stub_extract, kb):
+    sd._handle_extract("1", extract_request(kb, content="text", model="M"))
+    capsys.readouterr()
+    stub_extract["routed"] = None
+
+    sd._handle_extract("2", extract_request(kb, content="text", model="M"))
+
+    resp = one_response(capsys)
+    assert resp["data"]["reused"] is True
+    assert resp["data"]["extraction"]["summary"] == "chunked-result"
+    assert stub_extract["routed"] is None, "a retry must not pay for extraction again"
+
+
+def test_handle_extract_re_extracts_when_the_model_changed(capsys, stub_extract, kb):
+    sd._handle_extract("1", extract_request(kb, content="text", model="M"))
+    capsys.readouterr()
+    stub_extract["routed"] = None
+
+    sd._handle_extract("2", extract_request(kb, content="text", model="OTHER"))
+
+    assert stub_extract["routed"] == "chunked"
+
+
+def test_handle_extract_fails_the_task_when_the_write_fails(capsys, stub_extract, kb,
+                                                            monkeypatch):
+    from kb_ai.storage import extraction as exl
+
+    def boom(*args, **kwargs):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(exl, "persist", boom)
+
+    sd._handle_extract("1", extract_request(kb, content="text"))
+
+    resp = one_response(capsys)
+    assert resp["ok"] is False
+    assert resp["error"]["code"] == "EXTRACTION_NOT_PERSISTED"
+    assert "No space left" in resp["error"]["message"]
+
+
+def test_handle_extract_reports_unreadable_prompts(capsys, stub_extract, kb,
+                                                   monkeypatch):
+    from kb_ai.prompts import NoActivePromptError
+    from kb_ai.storage import extraction as exl
+
+    def boom():
+        raise NoActivePromptError("prompt file not found: extract.md")
+
+    monkeypatch.setattr(exl, "extract_prompt_version", boom)
+
+    sd._handle_extract("1", extract_request(kb, content="text"))
+
+    resp = one_response(capsys)
+    assert resp["ok"] is False
+    assert resp["error"]["code"] == "PROMPT_UNAVAILABLE"
+    assert stub_extract["routed"] is None
+
+
+def test_handle_extract_normalises_crlf_before_hashing(capsys, stub_extract, kb,
+                                                      tmp_path):
+    """H6: the daemon's source_checksum equals the CLI's for a CRLF document."""
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore, _compute_checksum
+
+    raw = tmp_path / "crlf.md"
+    raw.write_bytes(b"line one\r\nline two\rline three\n")
+
+    sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
+
+    stored, _ = exl.load(KBStore(kb), "raw/a.md")
+    assert stored.provenance.source_checksum == _compute_checksum(raw.read_text())
+
+
+def test_handle_extract_prompts_the_model_with_the_same_bytes_as_the_cli(
+        capsys, stub_extract, kb, tmp_path):
+    """H6's second half: a green checksum test would still hide this."""
+    raw = tmp_path / "crlf.md"
+    raw.write_bytes(b"line one\r\nline two\rline three\n")
+
+    sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
+
+    assert stub_extract["content"] == raw.read_text()
+
+
+def test_both_routes_write_a_byte_identical_extraction_file(capsys, kb, tmp_path,
+                                                            monkeypatch):
+    """H3 / C2: one serializer, exercised through both ingestion routes.
+
+    Runs in one process on purpose -- prompt_version is memoized per process, so
+    two processes would be measuring cache timing rather than the serializer.
+    """
+    import kb_ai.core.extract as ex
+    from kb_ai.commands import compile as cm
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore
+
+    monkeypatch.setattr(exl, "_now_iso", lambda: "2026-08-07T11:22:33+00:00")
+    result = ExtractionResult(summary="同一份摘要", concepts=[{"title": "t"}],
+                             topics=["b", "a"])
+    monkeypatch.setattr(ex, "extract_knowledge_chunked",
+                        lambda content, model=None: result)
+    monkeypatch.setattr(cm, "extract_knowledge_chunked",
+                        lambda content, model=None: result)
+    monkeypatch.setattr(cm, "classify_article",
+                        lambda *a, **kw: {"merge_into": [], "create_new": []})
+    monkeypatch.setattr(cm, "dedup_create_new", lambda result_, existing: result_)
+
+    # CLI route.
+    cli = KBStore(str(tmp_path / "cli"))
+    cli.write_raw("raw/a.md", "content")
+    cm.compile_kb(str(cli.base_dir), extract_model="M", extract_only=True)
+
+    # Worker route, same document.
+    worker = KBStore(kb)
+    worker.write_raw("raw/a.md", "content")
+    sd._handle_extract("1", extract_request(kb, content="content", model="M"))
+
+    assert (worker.extraction_path("raw/a.md").read_text()
+            == cli.extraction_path("raw/a.md").read_text())

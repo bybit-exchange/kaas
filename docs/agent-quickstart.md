@@ -78,6 +78,14 @@ This wraps readable text files into the KB's `raw/`, compiles them into a
 wiki, and prints a JSON summary (`ingested`, `skipped`, `compile`). Report
 the skipped files to the user (binaries/PDFs are not converted in this flow).
 
+A knowledge base has four layers on disk: `raw/` (what came in), `extraction/`
+(what we understood about each document, one file per raw document at the same
+relative path), `wiki/` (what we composed) and `index/` (how to find it).
+
+Pass `--extract-only` to run the extraction phase and stop — the wiki is left
+alone. That is the loop for tuning an extract prompt: re-extract, read the new
+`extraction/*.md` files in an editor, then compile for real.
+
 The first run also freezes the article taxonomy into `<kb>/kaas.json`, so later
 runs keep filing articles under the same categories even if the built-in
 defaults change. To choose a different set, pass it on that first run:

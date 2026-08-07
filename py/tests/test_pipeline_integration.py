@@ -13,6 +13,8 @@ import pytest
 import kb_ai.core.classify as classify_mod
 import kb_ai.core.merge as merge_mod
 from kb_ai.commands.pipeline import run_server_pipeline_with_input
+from kb_ai.core.extract import parse_extraction_result
+from kb_ai.storage import extraction as exl
 from kb_ai.storage.store import KBStore
 
 
@@ -55,6 +57,22 @@ def _mock_completion(**kwargs) -> str:
         "sources:\n  - test-source\ncreated: 2026-07-16\nupdated: 2026-07-16\n---\n"
         "## Overview\n\nThis is a test article about test topic.\n"
     )
+
+
+def _seed_extractions(kb_dir: str, items: list[dict]) -> list[dict]:
+    """Persist each item's extraction and hand back items without the blob.
+
+    The pipeline no longer receives an extraction: the extract hop persists it
+    under extraction/<rel> and the pipeline reads it back from source_ref (D1).
+    """
+    store = KBStore(kb_dir)
+    seeded = []
+    for item in items:
+        exl.persist(store, item["source_ref"],
+                    parse_extraction_result(item["extraction"]),
+                    source_checksum="0" * 16, extract_model="test-model")
+        seeded.append({k: v for k, v in item.items() if k != "extraction"})
+    return seeded
 
 
 @pytest.fixture
@@ -100,6 +118,7 @@ def test_pipeline_end_to_end_creates_article(kb_dir):
         "people": [],
     }
 
+    input_data["items"] = _seed_extractions(kb_dir, input_data["items"])
     events: list[dict] = []
     results = run_server_pipeline_with_input(input_data, emit=events.append)
 
@@ -187,6 +206,7 @@ def test_pipeline_writes_a_cross_group_collision_once(kb_dir, monkeypatch):
         "people": [],
     }
 
+    input_data["items"] = _seed_extractions(kb_dir, input_data["items"])
     results = run_server_pipeline_with_input(input_data)
 
     store = KBStore(kb_dir)
@@ -208,6 +228,7 @@ def test_pipeline_empty_items_returns_empty(kb_dir):
         "people": [],
     }
 
+    input_data["items"] = _seed_extractions(kb_dir, input_data["items"])
     results = run_server_pipeline_with_input(input_data)
     assert results == []
 
@@ -276,6 +297,7 @@ def test_pipeline_multiple_items_all_processed(kb_dir):
         "people": [],
     }
 
+    input_data["items"] = _seed_extractions(kb_dir, input_data["items"])
     events: list[dict] = []
     results = run_server_pipeline_with_input(input_data, emit=events.append)
 

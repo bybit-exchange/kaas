@@ -99,12 +99,12 @@ def run_derive(argv: list[str]) -> None:
     else:
         # No resume path exists: --force calls create(), which deletes the
         # directory and starts over -- the topic filter runs again at full cost and
-        # the documents are resolved and copied again. The source KB's extract
-        # cache is the one thing genuinely reused, and it was never lost.
+        # the documents are resolved and copied again. The source KB's extraction
+        # layer is the one thing genuinely reused, and it was never lost.
         next_step = (f"Declined before compiling. Re-run with --force --yes to "
                      f"replace {report.derived_kb}: the topic filter runs again "
                      f"and the documents are re-copied, but the source knowledge "
-                     f"base's extract cache is reused.")
+                     f"base's extraction layer is reused.")
 
     respond(True, data={
         "derived_kb": report.derived_kb,

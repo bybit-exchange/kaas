@@ -44,6 +44,10 @@ from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
     write_manifest,
 )
 from kb_ai.derive._offtopic import prune as prune_offtopic
+from kb_ai.derive._status import (  # noqa: F401 -- re-exported for callers
+    check_extractions,
+    check_parent,
+)
 from kb_ai.derive._sources import (
     documents_from_paths,
     parse_sources,
@@ -253,7 +257,8 @@ def derive_kb(
     # -- nothing has been copied yet, so nothing is claimed.
     flush()
 
-    copy_documents(source_store, derived_dir, documents)
+    _copied, copy_warnings = copy_documents(source_store, derived_dir, documents)
+    report.warnings.extend(copy_warnings)
     report.documents = documents
     flush()  # E1: full record written before compiling, so a run that dies
              # mid-compile still records what it intended.

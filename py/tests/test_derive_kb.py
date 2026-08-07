@@ -342,18 +342,42 @@ def test_nested_derive_is_refused(tmp_path: Path):
                   select=select, compile_fn=_fake_compile)
 
 
-def test_extract_cache_entries_travel_with_their_documents(tmp_path: Path):
+def test_extractions_travel_with_their_documents(tmp_path: Path):
+    """A derived KB gets the same four layers as its parent (spec F1, F4)."""
     kb = _fixture_kb(tmp_path)
-    from kb_ai.storage.store import _compute_checksum
+    from kb_ai.core.extract import ExtractionResult
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore, _compute_checksum
     checksum = _compute_checksum("Fee schedule and tiers.")
-    (kb / ".extract-cache").mkdir()
-    (kb / ".extract-cache" / f"{checksum}.json").write_text('{"summary": "cached"}')
+    exl.persist(KBStore(str(kb)), "raw/pricing-notes.md",
+                ExtractionResult(summary="extracted pricing"),
+                source_checksum=checksum, extract_model="m")
 
     select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
-    derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=_fake_compile)
+    report = derive_kb(str(kb), "pricing", model="m", select=select,
+                       compile_fn=_fake_compile)
 
-    copied = kb / "derived" / "pricing" / ".extract-cache" / f"{checksum}.json"
-    assert copied.read_text() == '{"summary": "cached"}'
+    copied = kb / "derived" / "pricing" / "extraction" / "pricing-notes.md"
+    assert "summary: extracted pricing" in copied.read_text()
+    assert report.warnings == []
+
+
+def test_a_mismatched_extraction_is_reported_as_a_warning(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    from kb_ai.core.extract import ExtractionResult
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore
+    exl.persist(KBStore(str(kb)), "raw/pricing-notes.md",
+                ExtractionResult(summary="describes different text"),
+                source_checksum="0" * 16, extract_model="m")
+
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+    report = derive_kb(str(kb), "pricing", model="m", select=select,
+                       compile_fn=_fake_compile)
+
+    assert not (kb / "derived" / "pricing" / "extraction").exists()
+    assert len(report.warnings) == 1
+    assert "does not match the document" in report.warnings[0]
 
 
 def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):

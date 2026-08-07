@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from kb_ai._errors import ExtractionFailedError
 from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult
 
@@ -581,16 +582,27 @@ def test_summarized_empty_chunks_short_circuits():
     assert out == ExtractionResult()
 
 
-def test_summarized_all_summaries_failing_returns_empty(monkeypatch, capsys):
+def test_summarized_all_summaries_failing_raises(monkeypatch, capsys):
+    """An empty result here was indistinguishable from "nothing to say".
+
+    Now that extractions are persisted with provenance, that ambiguity would
+    become a file that looks fresh and empty forever, so the summarize path
+    propagates like the chunked one does.
+    """
     def boom(chunk, fm, model):
         raise RuntimeError("summarize down")
 
     monkeypatch.setattr(ex, "summarize_chunk", boom)
 
-    out = ex.extract_knowledge_summarized(["a", "b"], {}, "sum", "ext")
+    with pytest.raises(ExtractionFailedError, match="every chunk summarization failed"):
+        ex.extract_knowledge_summarized(["a", "b"], {}, "sum", "ext")
 
-    assert out == ExtractionResult()
     assert "summarization failed" in capsys.readouterr().err
+
+
+def test_summarized_no_chunks_still_returns_empty(spy_phase2):
+    """An empty document honestly extracts to nothing."""
+    assert ex.extract_knowledge_summarized([], {}, "sum", "ext") == ExtractionResult()
 
 
 def test_summarized_skips_failed_chunks_but_keeps_the_rest(monkeypatch, spy_phase2):

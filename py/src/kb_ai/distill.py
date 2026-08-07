@@ -90,6 +90,13 @@ def run_distill(argv: list[str]) -> None:
         help="comma-separated article categories, frozen into the KB on first use "
              "(default: the KB's frozen set, or the built-in defaults for a new KB)",
     )
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="run the extraction phase and stop, leaving wiki/ untouched — for "
+             "reading the new extraction/ files after editing an extract prompt "
+             "before paying for the write phase",
+    )
     args = parser.parse_args(argv)
 
     # Omitting the flag must stay None rather than becoming the defaults, so an
@@ -128,7 +135,8 @@ def run_distill(argv: list[str]) -> None:
 
     model = os.environ.get("LLM_MODEL") or "gpt-4o-mini"
     result = compile_kb(args.kb, extract_model=model, compile_model=model,
-                        write_model=model, categories=categories)
+                        write_model=model, categories=categories,
+                        extract_only=args.extract_only)
     respond(True, data={
         "kb": args.kb,
         "ingested": len(report.ingested),
