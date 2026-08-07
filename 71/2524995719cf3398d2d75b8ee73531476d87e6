@@ -1,0 +1,25 @@
+docs/features/extraction-layer/notes.md
+  6ffa048be1f35bc6 3,7-9,24-28,116-249
+docs/features/extraction-layer/plan.md
+  6ffa048be1f35bc6 98,101-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "712524995719cf3398d2d75b8ee73531476d87e6",
+  "prompts": {
+    "6ffa048be1f35bc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f8136f-5292-490e-97e6-ec3271b5820e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 180,
+      "total_deletions": 64,
+      "accepted_lines": 147,
+      "overriden_lines": 0
+    }
+  }
+}
