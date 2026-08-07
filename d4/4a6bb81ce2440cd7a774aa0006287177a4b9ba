@@ -1,0 +1,60 @@
+docs/features/extraction-layer/assets/kb-four-layers.zh.svg
+  6ffa048be1f35bc6 1-89
+docs/features/extraction-layer/spec.md
+  6ffa048be1f35bc6 70-73
+  c23a2da188925ca2 21-65,92-907
+docs/features/extraction-layer/spec.zh-CN.md
+  7d34c90eca0a41ae 61-64
+docs/features/extraction-layer/assets/kb-four-layers.svg
+  6ffa048be1f35bc6 1-89
+docs/features/extraction-layer/plan.md
+  6ffa048be1f35bc6 1-101
+docs/features/extraction-layer/alignment-questions.md
+  c23a2da188925ca2 18-802
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d44a6bb81ce2440cd7a774aa0006287177a4b9ba",
+  "prompts": {
+    "6ffa048be1f35bc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f8136f-5292-490e-97e6-ec3271b5820e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 645,
+      "total_deletions": 9,
+      "accepted_lines": 649,
+      "overriden_lines": 0
+    },
+    "7d34c90eca0a41ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e63d2af3-bc7b-44a3-beba-19aa331755fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1704,
+      "total_deletions": 76,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    },
+    "c23a2da188925ca2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a68d46a-2cf9-49d5-9053-24865d70f01b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2180,
+      "total_deletions": 314,
+      "accepted_lines": 1016,
+      "overriden_lines": 0
+    }
+  }
+}
