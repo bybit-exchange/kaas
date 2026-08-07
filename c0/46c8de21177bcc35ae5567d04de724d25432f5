@@ -1,0 +1,107 @@
+py/src/kb_ai/derive/__init__.py
+  a6bf8f0c766a1583 47-50,260-261
+py/src/kb_ai/derive/_types.py
+  a6bf8f0c766a1583 65-66
+py/src/kb_ai/commands/derive.py
+  a6bf8f0c766a1583 102-103,107
+py/tests/test_pipeline_integration.py
+  a6bf8f0c766a1583 16-17,62-77,121,209,231,300
+docs/agent-quickstart.md
+  a6bf8f0c766a1583 81-88
+py/src/kb_ai/storage/extraction.py
+  a6bf8f0c766a1583 1-414
+py/tests/test_small_gaps.py
+  a6bf8f0c766a1583 53-56,58
+py/tests/test_derive_kb.py
+  a6bf8f0c766a1583 345-346,348-350,352-354,357-376,378-380
+py/tests/test_server_daemon.py
+  a6bf8f0c766a1583 20,191-202,218-219,225,240-255,259,264-267,269,275,278,283,286,291,307,313,316,321,331,1044-1196
+py/tests/test_commands_derive.py
+  a6bf8f0c766a1583 138,147
+py/tests/test_commands_compile.py
+  6ffa048be1f35bc6 22-23,110,122,221,257-262,271,286,294,321,600-789
+py/src/kb_ai/core/extract.py
+  a6bf8f0c766a1583 4,15,87-93,100-103,108-154,678-688
+internal/bridge/daemon_client_test.go
+  a6bf8f0c766a1583 215
+py/src/kb_ai/commands/pipeline/_entry.py
+  a6bf8f0c766a1583 24,26,32-61,100-105,116
+py/src/kb_ai/derive/_status.py
+  a6bf8f0c766a1583 1-159
+py/src/kb_ai/_frontmatter.py
+  a6bf8f0c766a1583 20-29,35
+docs/features/extraction-layer/notes.md
+  6ffa048be1f35bc6 1-135
+internal/worker/worker.go
+  a6bf8f0c766a1583 10,29,32,92-105,111-113,142
+cmd/kaas/main.go
+  a6bf8f0c766a1583 231
+py/tests/test_storage_index.py
+  a6bf8f0c766a1583 13-14,550-553,556-557,562-563,574,578,583,587,721-765
+py/tests/test_derive_status.py
+  a6bf8f0c766a1583 1-211
+py/tests/test_storage_extraction.py
+  a6bf8f0c766a1583 1-538
+py/src/kb_ai/storage/store.py
+  a6bf8f0c766a1583 16-18,72-104
+py/tests/test_distill.py
+  a6bf8f0c766a1583 46
+py/tests/test_derive_layout.py
+  a6bf8f0c766a1583 12,15,248,254-256,261,266,268-312,318-320,345-346,354,358-359
+py/src/kb_ai/distill.py
+  a6bf8f0c766a1583 93-99,138-139
+py/src/kb_ai/storage/index.py
+  a6bf8f0c766a1583 4,10-11,142-143,147-148,152-155,157-163,170,172-174,176,179,208,212,219-221,225,228-236
+py/tests/test_pipeline_entry.py
+  a6bf8f0c766a1583 18-19,178-184,188-207
+py/src/kb_ai/commands/compile.py
+  a6bf8f0c766a1583 18-24,89,101-103,106-122,124-159,162-164,167-171,182-192,201-210,212,216,219,221-226,228,231,234-237,240-241,245-265,267,270,277-278,306,310-312,316-317,358-362,508-509,513-514,518-519,521-537,544-545,547-548,561-569,599
+  6ffa048be1f35bc6 520
+py/src/kb_ai/_errors.py
+  a6bf8f0c766a1583 49-71
+py/src/kb_ai/derive/_layout.py
+  a6bf8f0c766a1583 4,24,160,163-165,168-176,179,202-218
+internal/worker/process_test.go
+  a6bf8f0c766a1583 7,88-105,272-275,285-298,304-333
+py/tests/test_frontmatter.py
+  6ffa048be1f35bc6 53-78
+internal/bridge/api.go
+  a6bf8f0c766a1583 32-39,42-43,49-51,60-64,66-67
+py/src/kb_ai/server_daemon.py
+  a6bf8f0c766a1583 117-130,132-137,148-150,153-156,163-177,182-214,219,226-241
+py/tests/test_core_extract.py
+  a6bf8f0c766a1583 12,585-591,597-598,603-605
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c046c8de21177bcc35ae5567d04de724d25432f5",
+  "prompts": {
+    "6ffa048be1f35bc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f8136f-5292-490e-97e6-ec3271b5820e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 21,
+      "accepted_lines": 1003,
+      "overriden_lines": 0
+    },
+    "a6bf8f0c766a1583": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "408dbfc0-42ac-4db7-bfa8-63524c41ed95",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 45096,
+      "total_deletions": 1412,
+      "accepted_lines": 2415,
+      "overriden_lines": 0
+    }
+  }
+}
