@@ -1,0 +1,75 @@
+CLAUDE.md
+  6ffa048be1f35bc6 66-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "2f817dbf1a71d7a2f7c1f511f128596c7fd9bfcd",
+  "prompts": {
+    "6ffa048be1f35bc6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5f8136f-5292-490e-97e6-ec3271b5820e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 217,
+      "total_deletions": 13432,
+      "accepted_lines": 107,
+      "overriden_lines": 0
+    },
+    "7d34c90eca0a41ae": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e63d2af3-bc7b-44a3-beba-19aa331755fa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 852,
+      "total_deletions": 38,
+      "accepted_lines": 73,
+      "overriden_lines": 0
+    },
+    "a6bf8f0c766a1583": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "408dbfc0-42ac-4db7-bfa8-63524c41ed95",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 11274,
+      "total_deletions": 353,
+      "accepted_lines": 2875,
+      "overriden_lines": 8
+    },
+    "c23a2da188925ca2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6a68d46a-2cf9-49d5-9053-24865d70f01b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1090,
+      "total_deletions": 157,
+      "accepted_lines": 1024,
+      "overriden_lines": 0
+    },
+    "e09db592d0ceec07": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "de9ffb41-d0c1-4e20-af0a-3c67022761b3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 496,
+      "total_deletions": 0,
+      "accepted_lines": 496,
+      "overriden_lines": 0
+    }
+  }
+}
