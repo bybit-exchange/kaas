@@ -1,0 +1,25 @@
+py/src/kb_ai/commands/compile.py
+  cd7b9a38bbf9ccf6 286,306,316-331
+py/tests/test_compile_paths.py
+  cd7b9a38bbf9ccf6 152-229
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "81a51a64d98ab6bfe4c6f56df28019638ba6aa3f",
+  "prompts": {
+    "cd7b9a38bbf9ccf6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2ff4b318-1b9f-42f8-af8a-5b687e2929ec",
+        "model": "claude-opus-5"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 514,
+      "total_deletions": 790,
+      "accepted_lines": 96,
+      "overriden_lines": 0
+    }
+  }
+}
