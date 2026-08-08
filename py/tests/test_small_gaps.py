@@ -145,6 +145,35 @@ def test_emit_alert_omits_optional_fields_when_empty(capsys):
     assert "caller" not in err
 
 
+def test_emit_alert_also_reaches_a_context_sink(capsys, fresh_context):
+    """A stalled call has to be findable in the log of the KB being compiled.
+
+    stderr alone loses it: over the HTTP API the backend's stderr is a separate
+    stream from the compile log anyone debugging a slow run reads first.
+    """
+    lines = []
+    fresh_context.alert_sink = lines.append
+
+    emit_alert("timed out", "m", 1, "api_timeout_error")
+
+    assert len(lines) == 1
+    assert "[LLM-WARN] api_timeout_error: timed out" in lines[0]
+    # Still on stderr -- the sink is an addition, not a redirect.
+    assert "[LLM-WARN] api_timeout_error: timed out" in capsys.readouterr().err
+
+
+def test_emit_alert_survives_a_failing_sink(capsys, fresh_context):
+    """A closed log file must not turn a retryable timeout into a crash."""
+    def boom(_msg):
+        raise ValueError("log file is closed")
+
+    fresh_context.alert_sink = boom
+
+    emit_alert("timed out", "m", 1, "api_timeout_error")
+
+    assert "[LLM-WARN] api_timeout_error: timed out" in capsys.readouterr().err
+
+
 def test_count_prompt_chars_counts_text_parts_of_structured_content():
     messages = [
         {"role": "system", "content": "abcde"},                      # 5

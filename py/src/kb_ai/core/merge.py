@@ -6,10 +6,55 @@ import json
 import sys
 
 from kb_ai.core.extract import ExtractionResult
-from kb_ai.llm import MAX_PROMPT_CHARS, completion, completion_json
+from kb_ai.llm import (
+    MAX_PROMPT_CHARS,
+    completion,
+    completion_json,
+    get_call_timeout,
+    set_call_timeout,
+)
 from kb_ai.prompts import default_registry
 
 _SAFETY_MARGIN = 500
+
+# Per-call timeout for the write phase, mirroring extract's override. Without one
+# a write inherits DEFAULT_CLIENT_TIMEOUT_S, and a gateway that hangs on a 6-8K
+# prompt then costs 15 minutes to discover -- three derive runs each lost roughly
+# that to a single stalled call (issue #26).
+#
+# Sized above extract's 180s because a merge prompt carries the whole existing
+# article on top of the extraction, and below the client default because that is
+# the number this exists to replace. The one stall-free reference run
+# (docs/articles/kaas-bootstrap-case-study: 48 article groups, 16 workers) spent
+# 255.27s on the *entire* write phase, so no single call in it came close to this.
+#
+# Known bound: completion() retries a truncated response with max_tokens doubled,
+# and a write escalated past its 16384 default could plausibly need longer than
+# this. No run has produced one -- an article that overruns 16K output tokens is
+# already pathological -- so this is not scaled per attempt until one shows up.
+_WRITE_CALL_TIMEOUT_S = 300.0
+
+
+def _with_write_timeout(fn):
+    """Apply _WRITE_CALL_TIMEOUT_S to all LLM calls within fn, restoring on exit.
+
+    On the entry points rather than on their callers, so that every write path
+    reaching them is covered: both compile_kb's write phase and the pipeline's
+    run_write_phase, and anything added later.
+
+    Restoring to prev (not None) keeps nested invocations safe, matching
+    extract's _with_extract_timeout.
+    """
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        prev = get_call_timeout()
+        set_call_timeout(_WRITE_CALL_TIMEOUT_S)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            set_call_timeout(prev)
+    return wrapper
+
 
 _FIELD_PRIORITY = [
     ("summary",      "str"),
@@ -198,6 +243,7 @@ def _truncate_article_by_sections(article_content: str, topics: list[str], budge
 _LARGE_ARTICLE_THRESHOLD = 30_000
 
 
+@_with_write_timeout
 def merge_into_article(
     article_path: str,
     article_content: str,
@@ -524,6 +570,7 @@ Use [[wikilinks]] for references to related concepts.
 Return the complete article including frontmatter."""
 
 
+@_with_write_timeout
 def create_new_article(
     article_type: str,
     title: str,
