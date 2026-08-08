@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -75,6 +76,24 @@ func (s *stubQueue) snapshot() (setStageN, ackN, nackN int) {
 func taskWithRaw(t *testing.T, body string) *store.Task {
 	t.Helper()
 	raw := filepath.Join(t.TempDir(), "raw.txt")
+	if err := writeFile(raw, body); err != nil {
+		t.Fatalf("write raw: %v", err)
+	}
+	return &store.Task{
+		ID: "t1", Source: "paste", RawPath: raw, ContentHash: "h1",
+		Status: store.StatusRunning, Stage: store.StageExtract, Attempts: 1, MaxAttempts: 2,
+	}
+}
+
+// taskWithRawUnder writes the raw document inside kbDir/raw/, which is the
+// layout the worker's filepath.Rel assumes: submit.go joins KBDir with "raw".
+func taskWithRawUnder(t *testing.T, kbDir, body string) *store.Task {
+	t.Helper()
+	dir := filepath.Join(kbDir, "raw")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir raw: %v", err)
+	}
+	raw := filepath.Join(dir, "doc.md")
 	if err := writeFile(raw, body); err != nil {
 		t.Fatalf("write raw: %v", err)
 	}
@@ -250,8 +269,10 @@ func TestProcessPassesConfigToEngine(t *testing.T) {
 		onExtract:  func(r bridge.ExtractRequest) { extReq = r },
 		onPipeline: func(r bridge.PipelineRequest) { pipeReq = r },
 	}
-	cfg := Config{KBDir: "/kb/root", PipelineWorkers: 7, HeartbeatInterval: time.Hour, SummarizeModel: "sum-model"}
-	task := taskWithRaw(t, "raw body text")
+	kbDir := t.TempDir()
+	cfg := Config{KBDir: kbDir, PipelineWorkers: 7, HeartbeatInterval: time.Hour,
+		Model: "extract-model", SummarizeModel: "sum-model"}
+	task := taskWithRawUnder(t, kbDir, "raw body text")
 
 	NewWorker(&stubQueue{}, eng, newBrk(), "w1", cfg).Process(context.Background(), task)
 
@@ -261,15 +282,55 @@ func TestProcessPassesConfigToEngine(t *testing.T) {
 	if extReq.SummarizeModel != "sum-model" {
 		t.Errorf("extract summarize model = %q, want %q", extReq.SummarizeModel, "sum-model")
 	}
-	if pipeReq.KBDir != "/kb/root" || pipeReq.Workers != 7 {
-		t.Errorf("pipeline req = %+v, want KBDir=/kb/root Workers=7", pipeReq)
+	// The engine persists the extraction, so it needs the KB root and the
+	// document's relative path; the model keeps the two routes recording the same
+	// extract_model instead of the engine's own literal default.
+	if extReq.KBDir != kbDir {
+		t.Errorf("extract kb dir = %q, want %q", extReq.KBDir, kbDir)
+	}
+	if extReq.Source != filepath.Join("raw", "doc.md") {
+		t.Errorf("extract source = %q, want raw/doc.md", extReq.Source)
+	}
+	if extReq.Model != "extract-model" {
+		t.Errorf("extract model = %q, want %q", extReq.Model, "extract-model")
+	}
+	if pipeReq.KBDir != kbDir || pipeReq.Workers != 7 {
+		t.Errorf("pipeline req = %+v, want KBDir=%s Workers=7", pipeReq, kbDir)
 	}
 	if len(pipeReq.Items) != 1 {
 		t.Fatalf("pipeline items = %d, want 1", len(pipeReq.Items))
 	}
 	item := pipeReq.Items[0]
-	if item.ContentHash != task.ContentHash || item.SourceRef != task.RawPath {
-		t.Errorf("pipeline item = %+v, want hash/source from the task", item)
+	// SourceRef must be KB-relative: it becomes the article's sources: entry and
+	// the extraction file's key. Forwarding task.RawPath recorded an absolute
+	// filesystem path in every article ingested through the HTTP API or the UI.
+	if item.ContentHash != task.ContentHash || item.SourceRef != filepath.Join("raw", "doc.md") {
+		t.Errorf("pipeline item = %+v, want hash h1 and source raw/doc.md", item)
+	}
+	if extReq.Source != item.SourceRef {
+		t.Errorf("extract source %q and pipeline source ref %q must be the same value",
+			extReq.Source, item.SourceRef)
+	}
+}
+
+// TestProcessFailsWhenTheRawPathIsOutsideTheKB asserts the worker reports rather
+// than sending a "../.." source ref that no extraction path could mirror.
+func TestProcessFailsWhenTheRawPathIsOutsideTheKB(t *testing.T) {
+	eng := &recordingEngine{
+		onExtract:  func(bridge.ExtractRequest) {},
+		onPipeline: func(bridge.PipelineRequest) {},
+	}
+	q := &stubQueue{}
+	task := taskWithRaw(t, "body")
+	cfg := Config{KBDir: "relative-kb", HeartbeatInterval: time.Hour}
+
+	NewWorker(q, eng, newBrk(), "w1", cfg).Process(context.Background(), task)
+
+	if q.nackMsg == "" {
+		t.Fatal("expected the task to be nacked")
+	}
+	if !strings.Contains(q.nackMsg, "relative source ref") {
+		t.Errorf("nack message = %q, want it to name the relative source ref", q.nackMsg)
 	}
 }
 
@@ -322,5 +383,27 @@ func TestBuildResultUnmarshalableFallsBackToEmptyObject(t *testing.T) {
 	bad := &bridge.ExtractResponse{Cost: json.RawMessage(`{"unterminated":`)}
 	if got := buildResult(bad, nil); got != "{}" {
 		t.Errorf("buildResult() = %s, want {}", got)
+	}
+}
+
+// The configured strategy has to reach the engine, or the engine falls back to
+// its own default and records an extract_strategy the CLI never expects -- which
+// marked every UI-ingested extraction stale on the next CLI compile, forever,
+// once per document. Same shape as Model, one field over.
+func TestProcessForwardsTheConfiguredStrategy(t *testing.T) {
+	var extReq bridge.ExtractRequest
+	eng := &recordingEngine{
+		onExtract:  func(r bridge.ExtractRequest) { extReq = r },
+		onPipeline: func(bridge.PipelineRequest) {},
+	}
+	kbDir := t.TempDir()
+	cfg := Config{KBDir: kbDir, HeartbeatInterval: time.Hour,
+		Model: "extract-model", ExtractStrategy: "summarize"}
+	task := taskWithRawUnder(t, kbDir, "raw body text")
+
+	NewWorker(&stubQueue{}, eng, newBrk(), "w1", cfg).Process(context.Background(), task)
+
+	if extReq.Strategy != "summarize" {
+		t.Errorf("extract strategy = %q, want %q", extReq.Strategy, "summarize")
 	}
 }

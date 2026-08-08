@@ -1,7 +1,7 @@
 """Filesystem layout of a derived knowledge base (spec C1-C5, C7, E1, E2, E4, G4).
 
 Owns every path decision: what a slug may be, where derived/<slug>/ lives, how
-documents and their extract-cache entries are copied in, and how the provenance
+documents and their extractions are copied in, and how the provenance
 manifest is read back. resolve_kb_dir() is the one read-path resolver shared by
 MCP ask and the HTTP read handlers.
 """
@@ -21,6 +21,7 @@ from kb_ai._errors import (
     UnknownDerivedKBError,
 )
 from kb_ai.derive._types import DocumentRef
+from kb_ai.storage import extraction
 from kb_ai.storage.store import KBStore
 
 # One lower-case path segment, dash-separated, at most 40 chars. Validated
@@ -156,20 +157,26 @@ def create(source_kb: Path, slug: str, force: bool) -> Path:
 
 
 def copy_documents(source_store: KBStore, derived_dir: Path,
-                   docs: list[DocumentRef]) -> int:
+                   docs: list[DocumentRef]) -> tuple[int, list[str]]:
     """Copy each document into derived_dir keeping its source-relative name (C1).
 
-    The matching .extract-cache/<checksum>.json entry is copied too when it
-    exists (C7): the copies are byte-identical, so the content checksum the cache
-    keys on matches and the derived compile skips the extract call already paid
-    for. A missing entry is not an error. Copied, not symlinked, so deleting the
+    The document's extraction is copied too, mirroring the same relative path in
+    both trees, so the derived KB has the same four layers as its parent and its
+    compile pays nothing for extraction. Copied, not symlinked, so deleting the
     source KB cannot invalidate the derived one.
 
-    Caveat: the cache key carries no model or prompt version, so compiling a
-    derived KB with a different model than the source reuses the other model's
-    extractions. That is already true within one KB today.
+    Returns (copied, warnings). A missing extraction is not an error -- the
+    derived compile extracts and pays once, as before. An extraction whose
+    recorded source_checksum disagrees with the document's bytes is skipped and
+    warned about: that check is what makes keying by path safe, replacing the
+    implicit guarantee the content-addressed filename used to give.
+
+    Caveat that has not changed: a derived KB opened with a KAAS_PROMPTS_DIR
+    override has every copied extraction marked stale, and its first compile
+    re-extracts in full.
     """
     copied = 0
+    warnings: list[str] = []
     for doc in docs:
         # Reject absolute rel_path (pathlib would discard derived_dir entirely)
         # and any path that escapes via '..' (spec E4).
@@ -192,12 +199,23 @@ def copy_documents(source_store: KBStore, derived_dir: Path,
         dest.write_text(content, encoding="utf-8", newline="")
         copied += 1
 
-        cache_src = source_store.base_dir / ".extract-cache" / f"{doc.checksum}.json"
-        if cache_src.exists():
-            cache_dst = derived_dir / ".extract-cache" / f"{doc.checksum}.json"
-            cache_dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(cache_src, cache_dst)
-    return copied
+        header, reason = extraction.load_header(source_store, doc.rel_path)
+        if header is None:
+            if reason != "missing":
+                warnings.append(f"extraction for {doc.rel_path} not copied: {reason}")
+            continue
+        recorded = header.get("source_checksum")
+        if recorded != doc.checksum:
+            warnings.append(
+                f"extraction for {doc.rel_path} not copied: its source_checksum "
+                f"{recorded!r} does not match the document's {doc.checksum!r}"
+            )
+            continue
+        ext_src = source_store.extraction_path(doc.rel_path)
+        ext_dst = derived_dir / source_store.extraction_rel_path(doc.rel_path)
+        ext_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ext_src, ext_dst)
+    return copied, warnings
 
 
 def write_manifest(derived_dir: Path, payload: dict) -> None:

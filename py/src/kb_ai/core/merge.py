@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import functools
+import hashlib
 import json
 import sys
 
@@ -14,7 +16,6 @@ _FIELD_PRIORITY = [
     ("concepts",     "list"),
     ("entities",     "list"),
     ("decisions",    "list"),
-    ("connections",  "list"),
     ("topics",       "list"),
     ("claims",       "list"),
     ("action_items", "list"),
@@ -403,6 +404,12 @@ _SECTION_TEMPLATES = {
 }
 
 
+# Stands in for any article type with no template of its own, so
+# write_prompt_version() hashes _section_guidance's fallback branch too. Not a
+# real type: it only has to miss every key in _SECTION_TEMPLATES.
+_UNTEMPLATED_TYPE = "_untemplated"
+
+
 def _section_guidance(article_type: str) -> str:
     template = _SECTION_TEMPLATES.get(article_type)
     if template:
@@ -418,19 +425,79 @@ def _strip_markdown_fencing(text: str) -> str:
     return text
 
 
-def create_new_article(
-    article_type: str,
-    title: str,
-    extraction: ExtractionResult,
-    source_path: str,
-    model: str = "claude-sonnet-4-6",
-) -> str:
-    from datetime import date
-    today = date.today().isoformat()
+def _write_stage_renderings() -> list[tuple[str, str]]:
+    """Every *system* prompt the write phase sends, as it now renders.
 
+    Three sources, not two. merge-rewrite and merge-diff are prompt files; the
+    article creator's system prompt is built in code and varies by article type,
+    so a hash over the files alone would leave it a blind spot -- the same trap
+    B11 covers on the extraction side.
+
+    The user messages are deliberately out: create_new_article's user_header and
+    _merge_user_message's <article> framing are scaffolding around per-run data,
+    and extract_prompt_version draws the same line (it hashes the extract prompts,
+    not extract_knowledge's own "<document>" wrapper). Editing that scaffolding
+    moves no hash, which is a known limit of both versions rather than an
+    oversight in this one.
+
+    The article types are enumerated from _SECTION_TEMPLATES rather than mirrored
+    in a second list, so a new type is covered the moment it is added. The
+    sentinel covers _section_guidance's fallback branch, which is what the two
+    DEFAULT_CATEGORIES entries with no template of their own (reference, guide)
+    are actually sent.
+    """
+    out = [("merge-rewrite", default_registry().get("merge-rewrite").render()),
+           # .content, not .render(): merge-diff holds literal JSON example
+           # braces, exactly as _merge_diff reads it.
+           ("merge-diff", default_registry().get("merge-diff").content)]
+    for article_type in sorted(_SECTION_TEMPLATES) + [_UNTEMPLATED_TYPE]:
+        out.append((f"create-new#{article_type}", _create_system(article_type)))
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def write_prompt_version() -> str:
+    """12 hex digits over the write stage's prompt set as it now renders.
+
+    The counterpart of extract_prompt_version, and deliberately a separate value:
+    a write-prompt edit must not move the extraction's version, or every document
+    would re-extract at full cost over a prompt extraction never used.
+
+    Reported, never gated. Both merge paths are additive -- merge-diff.md offers
+    only append_to_section and new_section, and merge-rewrite.md says nothing
+    about supersession -- so re-composing an article layers new content on top of
+    the old rather than replacing it. Feeding this into the composition gate would
+    inflate every article on a prompt edit and pay the full write phase to do it.
+    Until a supersession path exists, an operator reading the count is the useful
+    thing.
+
+    Memoized for the same reason as its extraction counterpart (B12): the registry
+    caches lazily per name, so a long-lived daemon could otherwise hold
+    merge-rewrite from before an edit and merge-diff from after it.
+
+    Name and content are framed with a length prefix and a NUL separator, so a
+    trailing newline in one prompt cannot collide with the next name.
+    """
+    h = hashlib.sha256()
+    for name, text in _write_stage_renderings():
+        body = text.encode("utf-8")
+        h.update(f"{len(name)}\0{name}\0{len(body)}\0".encode("utf-8"))
+        h.update(body)
+        h.update(b"\0")
+    return h.hexdigest()[:12]
+
+
+def _create_system(article_type: str) -> str:
+    """The article creator's system prompt for one article type.
+
+    Its own function rather than an f-string inside create_new_article so that
+    write_prompt_version() can hash the text the model is actually sent. Inline,
+    it was the write phase's blind spot: editing this prompt invalidated nothing
+    and no hash could see it.
+    """
     status_line = "\nstatus: active" if article_type == "project" else ""
 
-    system = f"""You are a knowledge base article creator.
+    return f"""You are a knowledge base article creator.
 
 Required frontmatter format:
 ---
@@ -455,6 +522,19 @@ parameters, decisions — not a restatement of the title.
 
 Use [[wikilinks]] for references to related concepts.
 Return the complete article including frontmatter."""
+
+
+def create_new_article(
+    article_type: str,
+    title: str,
+    extraction: ExtractionResult,
+    source_path: str,
+    model: str = "claude-sonnet-4-6",
+) -> str:
+    from datetime import date
+    today = date.today().isoformat()
+
+    system = _create_system(article_type)
 
     user_header = f"""Create article:
 - Title: {title}

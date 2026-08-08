@@ -4,63 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from kb_ai._types import (
-    ArticleMeta,
-    ClassificationResult,
-    CreateTarget,
-    ExtractionResult,
-    MergeTarget,
-)
-
-
-class TestArticleMeta:
-    def test_basic_construction(self):
-        meta = ArticleMeta(title="Test", path="wiki/test.md")
-        assert meta.title == "Test"
-        assert meta.path == "wiki/test.md"
-        assert meta.summary == ""
-        assert meta.type == ""
-        assert meta.tags == []
-        assert meta.status == ""
-
-    def test_full_construction(self):
-        meta = ArticleMeta(
-            title="Full",
-            path="wiki/full.md",
-            summary="A summary",
-            type="concept",
-            tags=["tag1", "tag2"],
-            status="active",
-        )
-        assert meta.title == "Full"
-        assert meta.tags == ["tag1", "tag2"]
-        assert meta.status == "active"
-
-
-class TestExtractionResult:
-    def test_defaults(self):
-        result = ExtractionResult()
-        assert result.summary == ""
-        assert result.concepts == []
-        assert result.entities == []
-        assert result.decisions == []
-        assert result.action_items == []
-        assert result.claims == []
-        assert result.topics == []
-        assert result.connections == []
-        assert result.source_path == ""
-
-    def test_with_data(self):
-        result = ExtractionResult(
-            summary="Test summary",
-            concepts=[{"title": "c1"}],
-            topics=["topic1", "topic2"],
-            source_path="raw/file.md",
-        )
-        assert result.summary == "Test summary"
-        assert result.concepts == [{"title": "c1"}]
-        assert result.topics == ["topic1", "topic2"]
-        assert result.source_path == "raw/file.md"
+from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 
 
 class TestMergeTarget:

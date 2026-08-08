@@ -29,15 +29,26 @@ func EventType(raw json.RawMessage) string {
 
 // ExtractRequest mirrors the extract command. Strategy is "chunked" (default),
 // "summarize", or "auto".
+//
+// KBDir and Source are what let the engine persist the extraction under
+// <kb>/extraction/<rel>, which is the layer both ingestion routes have to
+// produce. Source is relative to the KB root, matching the raw/<rel> form the
+// CLI records. Model is carried explicitly because without it the engine falls
+// back to its own literal default and records an extract_model the CLI never
+// uses -- which would mark every UI-ingested extraction stale on the next CLI
+// compile, forever, once per document.
 type ExtractRequest struct {
 	Content        string `json:"content"`
+	KBDir          string `json:"kb_dir"`
+	Source         string `json:"source"`
 	Model          string `json:"model,omitempty"`
 	Strategy       string `json:"strategy,omitempty"`
 	SummarizeModel string `json:"summarize_model,omitempty"`
 }
 
-// ExtractResponse holds the opaque extraction plus a cost summary. Extraction
-// is passed verbatim into PipelineItem.Extraction.
+// ExtractResponse holds the extraction plus a cost summary. The extraction is
+// returned for observability only: the engine persists it under extraction/ and
+// the pipeline reads it back from there, so nothing on this side forwards it.
 type ExtractResponse struct {
 	Extraction json.RawMessage `json:"extraction"`
 	Cost       json.RawMessage `json:"cost"`
@@ -46,10 +57,14 @@ type ExtractResponse struct {
 // --- Pipeline (Classify → Write) ---
 
 // PipelineItem is one extracted unit fed into the classify/write pipeline.
+//
+// It carries no extraction blob: the engine loads extraction/<rel> from
+// SourceRef instead. That keeps "classify and write read only from extraction/"
+// a real invariant on both routes rather than a description of one, and it puts
+// the layer's parser on the production path of the route that used to skip it.
 type PipelineItem struct {
-	Extraction  json.RawMessage `json:"extraction"`
-	ContentHash string          `json:"content_hash,omitempty"`
-	SourceRef   string          `json:"source_ref,omitempty"`
+	ContentHash string `json:"content_hash,omitempty"`
+	SourceRef   string `json:"source_ref,omitempty"`
 }
 
 // PipelineRequest mirrors the pipeline command.

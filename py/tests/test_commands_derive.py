@@ -135,7 +135,7 @@ def test_declined_run_reports_ok_with_compiled_false(monkeypatch):
 
 def test_declined_run_guidance_does_not_promise_a_resume(monkeypatch):
     """--force re-runs the filter and re-copies the documents; only the source KB's
-    extract cache is reused. Promising a cheap resume sends the operator into a
+    extraction layer is reused. Promising a cheap resume sends the operator into a
     second full-price run they were told they had already paid for.
     """
     resp = _run(monkeypatch, ["pricing", "--yes"],
@@ -144,7 +144,7 @@ def test_declined_run_guidance_does_not_promise_a_resume(monkeypatch):
     guidance = resp["data"]["next"]
     assert "without re-resolving documents" not in guidance
     assert "filter runs again" in guidance
-    assert "extract cache is reused" in guidance
+    assert "extraction layer is reused" in guidance
 
 
 # ── --select-from ────────────────────────────────────────────────────

@@ -46,6 +46,29 @@ class OutputTruncatedError(KBError):
     code = "OUTPUT_TRUNCATED"
 
 
+class ExtractionFailedError(KBError):
+    """Extraction produced nothing because every chunk summarization failed.
+
+    Distinguished from a legitimately empty extraction: once extractions are
+    persisted with provenance, an empty-but-fresh file is never re-extracted, so
+    "the model never answered" must not be recorded as "the model had nothing to
+    say".
+    """
+
+    code = "EXTRACTION_FAILED"
+
+
+class ExtractionFileError(KBError):
+    """An extraction file on disk is missing, unparseable or self-inconsistent.
+
+    Always treated as an absent extraction with a reason, never as an empty but
+    valid one -- an article composed from a silently empty extraction has no
+    content and no error anywhere.
+    """
+
+    code = "EXTRACTION_FILE_INVALID"
+
+
 class DeriveError(KBError):
     """A topic-scoped derive run failed.
 

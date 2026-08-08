@@ -41,6 +41,12 @@ def test_registry_compile_resolves():
     assert callable(fn)
 
 
+def test_registry_check_resolves():
+    """The read-only F3/F5 entry point is reachable as `kb-ai check`."""
+    assert "check" in COMMANDS
+    assert callable(COMMANDS["check"]())
+
+
 def test_registry_fetch_url_resolves():
     """The 'fetch-url' command loader resolves to a callable function."""
     fn = COMMANDS["fetch-url"]()

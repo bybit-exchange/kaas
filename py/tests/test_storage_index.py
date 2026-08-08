@@ -10,6 +10,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from kb_ai.core.extract import ExtractionResult
+from kb_ai.storage import extraction as exl
 from kb_ai.storage import index as index_mod
 from kb_ai.storage.index import (
     DOCUMENT_INDEX_NAME,
@@ -545,18 +547,20 @@ def _documents(store: KBStore) -> str:
     return (store.index_dir / DOCUMENT_INDEX_NAME).read_text(encoding="utf-8")
 
 
-def _cache(store: KBStore, content: str, summary: str) -> None:
-    """Seed the extract-cache entry a compiled document would have."""
-    store.save_extract_cache(_compute_checksum(content), {"summary": summary})
+def _extraction(store: KBStore, rel_path: str, content: str, summary: str) -> None:
+    """Seed the extraction file a compiled document would have."""
+    exl.persist(store, rel_path, ExtractionResult(summary=summary),
+                source_checksum=_compute_checksum(content), extract_model="m")
 
 
-def test_document_index_prefers_the_cached_extraction_summary(tmp_path: Path):
-    """The document-level summary already exists in .extract-cache; reuse it
+def test_document_index_prefers_the_extraction_summary(tmp_path: Path):
+    """The document-level summary already exists under extraction/; reuse it
     rather than paying an LLM to summarise the document again."""
     store = _store(tmp_path)
     content = "---\ntitle: Weekly Standup\ndate: 2026-06-03\nsource: lark\n---\n\nWe shipped the retry queue."
     _write(store, "raw/2026-06/standup.md", content)
-    _cache(store, content, "The team shipped the retry queue and deferred the dashboard.")
+    _extraction(store, "raw/2026-06/standup.md", content,
+                "The team shipped the retry queue and deferred the dashboard.")
 
     update_document_index(store)
 
@@ -567,20 +571,20 @@ def test_document_index_prefers_the_cached_extraction_summary(tmp_path: Path):
 
 
 def test_document_index_prefers_a_declared_frontmatter_summary(tmp_path: Path):
-    """A hand-written summary beats the cache: it was written to be the catalog line."""
+    """A hand-written summary beats the extraction: it was written to be the line."""
     store = _store(tmp_path)
     content = "---\ntitle: Standup\nsummary: Retry queue rollout decision\n---\n\nbody text"
     _write(store, "raw/a.md", content)
-    _cache(store, content, "cached wording that should lose")
+    _extraction(store, "raw/a.md", content, "extracted wording that should lose")
 
     update_document_index(store)
 
     assert "Retry queue rollout decision" in _documents(store)
-    assert "cached wording" not in _documents(store)
+    assert "extracted wording" not in _documents(store)
 
 
 def test_document_index_falls_back_to_the_body_when_uncompiled(tmp_path: Path):
-    """A KB that was never compiled has no cache; the catalog must still work."""
+    """A KB that was never compiled has no extraction; the catalog must still work."""
     store = _store(tmp_path)
     _write(store, "raw/a.md", "---\ntitle: Notes\n---\n\n# Heading\n\nThe actual first paragraph.")
 
@@ -714,3 +718,48 @@ def test_document_index_tolerates_broken_frontmatter(tmp_path: Path):
     line = _documents(store)
     assert "raw/bad.md" in line
     assert "The body still routes." in line
+
+
+def test_document_index_reports_documents_with_no_extraction(tmp_path: Path, capsys):
+    """E2: the first-paragraph fallback is materially worse, so it is not silent."""
+    store = _store(tmp_path)
+    content = "---\ntitle: A\n---\n\nfirst paragraph of a"
+    _write(store, "raw/a.md", content)
+    _write(store, "raw/b.md", "---\ntitle: B\n---\n\nfirst paragraph of b")
+    _extraction(store, "raw/a.md", content, "the extracted summary")
+
+    update_document_index(store)
+
+    err = capsys.readouterr().err
+    assert "1 of 2 documents have no extraction yet" in err
+    line = _documents(store)
+    assert "the extracted summary" in line
+    assert "first paragraph of b" in line
+
+
+def test_document_index_ignores_an_orphan_extraction(tmp_path: Path):
+    """E1: a lookup keyed by the raw path, not a fold over extraction/.
+
+    A deleted or renamed document leaves its extraction behind, and folding over
+    the directory would list it as a document that no longer exists.
+    """
+    store = _store(tmp_path)
+    _write(store, "raw/a.md", "---\ntitle: A\n---\n\nbody a")
+    _extraction(store, "raw/gone.md", "old body", "summary of a deleted document")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "raw/gone.md" not in line
+    assert "summary of a deleted document" not in line
+
+
+def test_document_index_reads_a_nested_documents_extraction(tmp_path: Path):
+    store = _store(tmp_path)
+    content = "---\ntitle: Deep\n---\n\nbody"
+    _write(store, "raw/2026-06/deep/note.md", content)
+    _extraction(store, "raw/2026-06/deep/note.md", content, "nested summary")
+
+    update_document_index(store)
+
+    assert "nested summary" in _documents(store)

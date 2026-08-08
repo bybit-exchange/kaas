@@ -15,7 +15,17 @@ from kb_ai.core.classify import (
     hash_existing_articles,
     resolve_categories,
 )
-from kb_ai.core.extract import ExtractionResult, extract_knowledge_chunked, extraction_to_dict, parse_extraction_result, _combine_extractions
+from kb_ai.core.extract import (
+    STRATEGY_AUTO,
+    STRATEGY_CHUNKED,
+    ExtractionResult,
+    plan_extraction,
+    run_planned_extraction,
+    validate_strategy,
+    _combine_extractions,
+)
+from kb_ai.prompts import PromptError
+from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.index import (
     SUMMARY_MAX_CHARS,
     update_document_index,
@@ -24,8 +34,13 @@ from kb_ai.storage.index import (
 )
 from kb_ai.core.people import update_people_stubs
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
-from kb_ai.core.merge import create_new_article, merge_into_article
-from kb_ai.storage.store import ArticleMeta, KBStore
+from kb_ai.core.merge import (
+    create_new_article,
+    merge_into_article,
+    write_prompt_version,
+)
+from kb_ai.storage.lag import wiki_lag
+from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
 
@@ -80,37 +95,135 @@ def compile_kb(
     summary_max_chars: int = SUMMARY_MAX_CHARS,
     people_cfg: list | None = None,
     workers: int = 0,
+    extract_only: bool = False,
+    extract_strategy: str = STRATEGY_CHUNKED,
+    summarize_model: str = "",
 ) -> dict:
     compile_t0 = time.monotonic()
+
+    # Checked before anything else: a typo here would otherwise be discovered
+    # after the scan, or -- if it fell back to chunked, as the daemon used to --
+    # never. The strategy is a per-KB contract, so both routes read one value and
+    # the gate compares against what a run would actually produce (C4's shape,
+    # one field over).
+    validate_strategy(extract_strategy)
+    # The summarize path drives a second model once per chunk, so an empty name
+    # would reach the API. auto counts too: it resolves to summarize per document,
+    # which would fail partway through a run that had already paid for the chunked
+    # documents ahead of it.
+    if extract_strategy != STRATEGY_CHUNKED and not summarize_model:
+        raise ValueError(f"extract_strategy={extract_strategy!r} needs a "
+                         "summarize_model; the summarize path calls one per chunk")
 
     people_cfg = people_cfg or []
 
     store = KBStore(data_dir)
     categories = resolve_categories(store, categories)
     state = store.load_compile_state()
-    # TODO(2026-06-03): list_raw_files() preloads all raw content into memory.
-    # The estimate path was migrated to iter_raw_file_meta() in
-    # docs/kaas/plans/2026-06-03-cost-estimate-memory-optimization.md.
-    # Compile path is harder to migrate (needs content for chunking/extraction)
-    # but cached files could skip the read; revisit when memory pressure shows up.
-    raw_files = store.list_raw_files()
+    # Metadata only: both gates need rel_path and checksum, and nothing else here
+    # needs a document's text until the extraction gate has selected it. Holding
+    # every document's content cost ~62 KB retained per document (6.79 MB over the
+    # 108-document reference KB), which scales linearly with the corpus.
+    # Materialised as a list because the two gates and the lag report each iterate
+    # it; RawFileMeta carries no content, so that costs 0.05 MB at 108 documents.
+    #
+    # Byte-equivalence with the previous checksum is what makes this migration
+    # free rather than a re-extraction of every document: verified over all 108
+    # files of data/kb-2026-06, 0 differences.
+    raw_files = list(store.iter_raw_file_meta())
 
-    to_compile = []
+    # One per-process constant, computed once before the gate so a broken prompt
+    # file is reported once rather than 108 times -- and never silently treated as
+    # "fresh", which would keep serving extractions from the previous prompt.
+    try:
+        prompt_version = extraction_layer.current_prompt_version()
+    except PromptError as e:
+        return {"compiled": 0, "extracted": 0, "total_raw": len(raw_files),
+                "errors": [{"file": "", "error": f"prompt_version unavailable: {e}"}],
+                "message": "extraction prompts are unreadable; nothing was compiled"}
+
+    # The write phase's own version, recorded per document and reported, never
+    # gated -- see storage/lag.py for why re-composing on a prompt edit would be
+    # worse than the lag. Its own try because the write prompts are not this run's
+    # inputs: an --extract-only run must not be refused over a prompt it never
+    # reaches, least of all after paying for the extraction. Empty means "cannot
+    # tell", which the lag report distinguishes from "nothing is behind".
+    try:
+        write_version = write_prompt_version()
+    except PromptError as e:
+        write_version = ""
+        print(f"[compile] write prompt version unavailable: {e}", file=sys.stderr)
+
+    # ── Gate 1: extraction, gated by the extraction file's own provenance ──
+    # Independent of gate 2 by design: a prompt edit re-extracts and stops there.
+    # Re-running the write phase would not rewrite articles from the new
+    # extraction -- both merge paths can only add -- it would layer new content on
+    # top of the old extraction's content (spec G1, G4).
+    def _expected_strategy(rel_path: str) -> str:
+        """The strategy a run would record for this document.
+
+        chunked and summarize are honoured as configured, so the common case
+        compares a constant and reads nothing. Only auto resolves per document,
+        which costs a full read and a chunk count per document -- no LLM call, and
+        nothing retained past the comparison. Comparing against a literal instead
+        is what made every summarize extraction read as stale, forever, once per
+        document.
+        """
+        if extract_strategy != STRATEGY_AUTO:
+            return extract_strategy
+        return plan_extraction(store.read_raw(rel_path), STRATEGY_AUTO).strategy
+
+    to_extract = []
+    extract_reasons: dict[str, str] = {}
     for rf in raw_files:
-        file_state = state.get(rf.rel_path, {})
-        if file_state.get("checksum") != rf.checksum:
-            to_compile.append(rf)
-        elif file_state.get("completed_ops") and not file_state.get("compiled_at"):
-            to_compile.append(rf)
+        stored, reason = extraction_layer.load(store, rf.rel_path)
+        if stored is None:
+            why = reason
+        else:
+            why = extraction_layer.staleness(
+                stored.provenance,
+                source_checksum=rf.checksum,
+                extract_model=extract_model,
+                extract_strategy=_expected_strategy(rf.rel_path),
+                prompt_version=prompt_version,
+                summarize_model=summarize_model,
+            )
+        if why:
+            extract_reasons[rf.rel_path] = why
+            to_extract.append(rf)
 
-    if not to_compile:
-        return {"compiled": 0, "message": "nothing to compile"}
+    # ── Gate 2: composition, gated by .compile-state.json as before ──
+    to_write = []
+    if not extract_only:
+        for rf in raw_files:
+            file_state = state.get(rf.rel_path, {})
+            if file_state.get("checksum") != rf.checksum:
+                to_write.append(rf)
+            elif file_state.get("completed_ops") and not file_state.get("compiled_at"):
+                to_write.append(rf)
+
+    if not to_extract and not to_write:
+        return {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
+
+    # The wiki can lag its prompts under two independent gates, and that lag is
+    # reported rather than left silent (G5). No pre-existing state entry carries
+    # either version, so the first run after each one landed reports every
+    # article -- true, but it reads as a defect without the reason.
+    lag = wiki_lag(state, present={rf.rel_path for rf in raw_files},
+                   extract_prompt_version=prompt_version,
+                   write_prompt_version=write_version)
 
     compiled = 0
+    extracted = 0
+    revised: list[str] = []
+    failed_extract: set[str] = set()
     errors: list[dict] = []
-    total = len(to_compile)
     cfg_workers = workers or int(os.environ.get("KB_WORKERS", 0))
-    workers = min(total, cfg_workers if cfg_workers > 0 else _DEFAULT_WORKERS)
+    workers = min(max(len(to_extract), len(to_write)),
+                  cfg_workers if cfg_workers > 0 else _DEFAULT_WORKERS)
+
+    _no_delta = {"cost": 0.0, "elapsed": 0.0}
+    extract_d = classify_d = write_d = _no_delta
 
     log_path = Path(data_dir).expanduser() / ".compile.log"
     _log_lock = threading.Lock()
@@ -121,74 +234,128 @@ def compile_kb(
                 print(msg, file=log_file, flush=True)
                 print(msg, file=sys.stderr, flush=True)
 
-        log(f"Starting compile: {total} files to process (workers={workers})")
+        log(f"Starting compile: {len(to_extract)} to extract, "
+            f"{len(to_write)} to compose (workers={workers})")
+        if lag.behind_extract:
+            if lag.extract_first_run:
+                log(f"  (wiki lag: {len(lag.behind_extract)} articles were written "
+                    "from an older extraction — expected on the first run after the "
+                    "extraction layer landed, since no existing compile-state entry "
+                    "records a prompt_version)")
+            else:
+                log(f"  (wiki lag: {len(lag.behind_extract)} articles were written "
+                    "from an older extraction; they are rewritten when their source "
+                    "text changes)")
+        if lag.behind_write:
+            because = (" — expected on the first run after write_prompt_version "
+                       "landed, since no existing compile-state entry records one"
+                       if lag.write_first_run else "")
+            log(f"  (wiki lag: {len(lag.behind_write)} articles were composed by an "
+                f"older write prompt{because}; that is reported, never re-composed "
+                f"— both merge paths only add. Run `kb-ai check --kb {data_dir}` to "
+                "list them.)")
 
         # ── Phase 1: Parallel extraction ──────────────────────────
         extract_snap = tracker.snapshot()
-        extractions: dict[str, ExtractionResult] = {}
-        cache_hits = 0
-
-        need_extract = []
-        for rf in to_compile:
-            cached = store.load_extract_cache(rf.checksum)
-            if cached is not None:
-                extractions[rf.rel_path] = parse_extraction_result(cached)
-                cache_hits += 1
-                log(f"  [cached] {rf.rel_path}")
-            else:
-                need_extract.append(rf)
-
         _compile_req_tracker = get_request_tracker()
 
         def _extract_one(rf):
             set_request_tracker(_compile_req_tracker)
-            result = extract_knowledge_chunked(rf.content, model=extract_model)
-            store.save_extract_cache(rf.checksum, extraction_to_dict(result))
-            return rf.rel_path, result
+            # Read here rather than during the scan: this is the one place a
+            # document's text is needed, and only for what the gate selected.
+            content = store.read_raw(rf.rel_path)
+            plan = plan_extraction(content, extract_strategy)
+            result = run_planned_extraction(
+                plan, content, extract_model=extract_model,
+                summarize_model=summarize_model)
+            _path, existed = extraction_layer.persist(
+                store, rf.rel_path, result,
+                # Hashed from the text this extraction was actually made from, not
+                # from the scan: the two are separate reads now, and both ingestion
+                # routes write into raw/. A document rewritten in between and then
+                # reverted would otherwise leave a file whose recorded checksum
+                # matches the document while its payload describes text that is no
+                # longer there -- and the gate would call it fresh forever.
+                source_checksum=_compute_checksum(content),
+                extract_model=extract_model,
+                # plan.strategy, never the configured value: under auto the router
+                # decides on chunk count, and recording "auto" would make the field
+                # useless to the gate that compares it.
+                extract_strategy=plan.strategy,
+                summarize_model=summarize_model,
+            )
+            return rf.rel_path, existed
 
-        if need_extract:
-            log(f"Phase 1: Extracting {len(need_extract)} files in parallel ({cache_hits} cached)...")
+        if to_extract:
+            log(f"Phase 1: Extracting {len(to_extract)} files in parallel...")
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = {pool.submit(_extract_one, rf): rf for rf in need_extract}
+                futures = {pool.submit(_extract_one, rf): rf for rf in to_extract}
                 for future in as_completed(futures):
                     rf = futures[future]
                     try:
-                        _, extraction = future.result()
-                        extractions[rf.rel_path] = extraction
-                        log(f"  [extracted] {rf.rel_path}")
+                        _rel, existed = future.result()
                     except Exception as e:
                         errors.append({"file": rf.rel_path, "error": str(e)})
+                        failed_extract.add(rf.rel_path)
                         log(f"  [extract-error] {rf.rel_path}: {e}")
+                        continue
+                    extracted += 1
+                    if existed:
+                        revised.append(rf.rel_path)
+                    tag = "re-extracted" if existed else "extracted"
+                    log(f"  [{tag}] {rf.rel_path} — {extract_reasons[rf.rel_path]}")
         else:
-            log(f"Phase 1: All {cache_hits} files hit extraction cache, skipping LLM calls.")
+            log("Phase 1: every extraction is present and fresh, skipping LLM calls.")
 
         extract_d = tracker.delta(extract_snap)
-        log(f"Phase 1 done: {len(extractions)} extracted ({cache_hits} cached), "
+        log(f"Phase 1 done: {extracted} extracted ({len(revised)} revised), "
             f"{len(errors)} errors, ${extract_d['cost']:.4f}, {extract_d['elapsed']:.1f}s")
 
-        if not extractions:
-            log("All extractions failed, aborting compile.")
-            return {"compiled": 0, "errors": errors, "total_raw": len(raw_files),
-                    "cost": tracker.summary()}
+        if not to_write:
+            reason = ("--extract-only" if extract_only
+                      else "no document's composition is behind")
+            log(f"Stopping after extraction ({reason}).")
 
         # ── Phase 2a: Sequential classify ─────────────────────────
+        # Classify and write read the extraction off disk (D1), so extraction/ is
+        # the only thing handing off between the two gates.
         existing_articles = store.existing_articles()
         classify_snap = tracker.snapshot()
 
+        extractions: dict[str, ExtractionResult] = {}
+        used_prompt_version: dict[str, str] = {}
+        for rf in to_write:
+            stored, reason = extraction_layer.load(store, rf.rel_path)
+            if stored is None:
+                # A document whose extraction just failed already has its error
+                # recorded; reporting the consequence again would double-count it.
+                if rf.rel_path not in failed_extract:
+                    errors.append({"file": rf.rel_path,
+                                   "error": f"no usable extraction ({reason})"})
+                log(f"  [no-extraction] {rf.rel_path}: {reason}")
+                continue
+            stored.extraction.source_path = rf.rel_path
+            extractions[rf.rel_path] = stored.extraction
+            used_prompt_version[rf.rel_path] = stored.provenance.prompt_version
+
+        if to_write and not extractions:
+            log("No usable extraction for any document to compose, aborting compile.")
+            return {"compiled": 0, "extracted": extracted, "errors": errors,
+                    "total_raw": len(raw_files), "cost": tracker.summary()}
+
         items_to_classify = []
-        for rf in to_compile:
+        for rf in to_write:
             if rf.rel_path not in extractions:
                 continue
-            extraction = extractions[rf.rel_path]
-            extraction.source_path = rf.rel_path
-            items_to_classify.append((rf, extraction))
+            items_to_classify.append((rf, extractions[rf.rel_path]))
 
         classifications: dict[str, dict] = {}
         classify_cache_hits = 0
         art_hash = hash_existing_articles(existing_articles)
         cat_hash = classify_inputs_hash(categories)
 
-        log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
+        if items_to_classify:
+            log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
         for rf, extraction in items_to_classify:
             cache_key = classify_cache_key(rf.checksum, art_hash, cat_hash)
             cached = store.load_classify_cache(cache_key)
@@ -216,16 +383,18 @@ def compile_kb(
                 errors.append({"file": rf.rel_path, "error": str(e)})
                 log(f"  [classify-error] {rf.rel_path}: {e}")
 
-        if classify_cache_hits == len(items_to_classify):
+        if items_to_classify and classify_cache_hits == len(items_to_classify):
             log(f"Phase 2a: All {classify_cache_hits} files hit classify cache, skipping LLM calls.")
 
         classify_d = tracker.delta(classify_snap)
-        log(f"Phase 2a done: {len(classifications)} classified ({classify_cache_hits} cached), "
-            f"{len(errors)} errors, ${classify_d['cost']:.4f}, {classify_d['elapsed']:.1f}s")
+        if items_to_classify:
+            log(f"Phase 2a done: {len(classifications)} classified ({classify_cache_hits} cached), "
+                f"{len(errors)} errors, ${classify_d['cost']:.4f}, {classify_d['elapsed']:.1f}s")
 
         # ── Phase 2b: Parallel write ──────────────────────────────
         write_snap = tracker.snapshot()
-        log("Phase 2b: Writing articles...")
+        if items_to_classify:
+            log("Phase 2b: Writing articles...")
 
         article_ops: dict[str, list] = {}
         file_checksums: dict[str, str] = {}
@@ -266,7 +435,12 @@ def compile_kb(
             file_op_counts[rf.rel_path] = ops
             file_total_ops[rf.rel_path] = total_ops
             if ops == 0:
-                state[rf.rel_path] = {"checksum": rf.checksum, "compiled_at": datetime.now().isoformat()}
+                state[rf.rel_path] = {
+                    "checksum": rf.checksum,
+                    "compiled_at": datetime.now().isoformat(),
+                    "prompt_version": used_prompt_version[rf.rel_path],
+                    "write_prompt_version": write_version,
+                }
                 compiled += 1
 
         skipped_ops = sum(file_total_ops[r] - file_op_counts[r] for r in file_op_counts)
@@ -412,25 +586,49 @@ def compile_kb(
                 all_done = prev_done | done_now
                 if _file_done_ops.get(rel, 0) >= pending:
                     state[rel] = {"checksum": file_checksums[rel],
-                                  "compiled_at": datetime.now().isoformat()}
+                                  "compiled_at": datetime.now().isoformat(),
+                                  "prompt_version": used_prompt_version[rel],
+                                  "write_prompt_version": write_version}
                     compiled += 1
                 elif done_now:
                     state[rel] = {"checksum": file_checksums[rel],
-                                  "completed_ops": sorted(all_done)}
+                                  "completed_ops": sorted(all_done),
+                                  "prompt_version": used_prompt_version[rel],
+                                  "write_prompt_version": write_version}
             store.save_compile_state(state)
 
         write_d = tracker.delta(write_snap)
-        log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
-        log(f"Compile done: {compiled} compiled, {len(errors)} errors, ${tracker.total_cost:.4f} total")
+        if items_to_classify:
+            log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
+
+        # A revised document's articles were merged into, not rewritten: both
+        # merge paths are additive -- merge-diff.md offers only append_to_section
+        # and new_section, and merge-rewrite.md says nothing about supersession --
+        # so what the previous version contributed is still in there. Naming the
+        # articles is the whole point: it says which ones a human should re-read.
+        revised_articles = {rel: sorted(_file_done_articles[rel])
+                            for rel in revised
+                            if _file_done_articles.get(rel)}
+        if revised_articles:
+            log(f"Revised documents: {len(revised_articles)} re-extracted document(s) "
+                "were merged into existing articles, which still carry the previous "
+                "version's content (merge cannot retract):")
+            for rel, arts in sorted(revised_articles.items()):
+                log(f"  [revised] {rel} → {', '.join(arts)}")
+
+        log(f"Compile done: {compiled} compiled, {extracted} extracted, "
+            f"{len(errors)} errors, ${tracker.total_cost:.4f} total")
 
     # Phase 3: Index
     index_t0 = time.monotonic()
     update_markdown_index(store, min_articles=topic_index_min_articles,
                           summary_max_chars=summary_max_chars)
     # Built here so it cannot drift from raw/, and so a later derive over
-    # documents reads it instead of recomputing every summary.
+    # documents reads it instead of recomputing every summary. Rebuilt after an
+    # extract-only run too: the catalog reads its summaries out of extraction/.
     update_document_index(store, summary_max_chars=summary_max_chars)
-    update_timeline(store, [rf.rel_path for rf in to_compile])
+    if to_write:
+        update_timeline(store, [rf.rel_path for rf in to_write])
     update_people_stubs(store, people_cfg)
     index_elapsed = round(time.monotonic() - index_t0, 2)
 
@@ -443,6 +641,21 @@ def compile_kb(
 
     return {
         "compiled": compiled,
+        "extracted": extracted,
+        "extract_only": extract_only,
+        # Documents whose extraction overwrote an existing one, mapped to the
+        # articles they were merged into (C11). Empty on a first compile.
+        "revised": revised_articles,
+        # How far the wiki is behind each gate's prompts (G5). Counts only, since
+        # `kb-ai check` names the documents for free. The first_run flags are per
+        # gate: each says "no entry records a version for THIS gate", which is what
+        # makes a large count on the run after that version landed expected rather
+        # than a bug -- and keeps one gate's landing from excusing the other's
+        # genuine lag.
+        "wiki_lag": {"behind_extract_prompt": len(lag.behind_extract),
+                     "behind_write_prompt": len(lag.behind_write),
+                     "extract_first_run": lag.extract_first_run,
+                     "write_first_run": lag.write_first_run},
         "errors": errors,
         "total_raw": len(raw_files),
         "cost": tracker.summary(),
@@ -472,5 +685,16 @@ def run_compile():
         summary_max_chars=int(input_data.get("summary_max_chars") or SUMMARY_MAX_CHARS),
         people_cfg=input_data.get("people") or [],
         workers=input_data.get("workers", 0) or 0,
+        extract_only=bool(input_data.get("extract_only")),
+        extract_strategy=(input_data.get("extract_strategy")
+                          or os.environ.get("LLM_EXTRACT_STRATEGY")
+                          or STRATEGY_CHUNKED),
+        # Same fallback chain as the daemon's extract handler and the distill CLI:
+        # a summarize run reaching the API with an empty model name is refused by
+        # compile_kb, and falling back here is what keeps that from happening
+        # merely because the request omitted a field the environment already has.
+        summarize_model=(input_data.get("summarize_model")
+                         or os.environ.get("LLM_SUMMARIZE_MODEL")
+                         or os.environ.get("LLM_MODEL", "")),
     )
     respond_ok(data=result)

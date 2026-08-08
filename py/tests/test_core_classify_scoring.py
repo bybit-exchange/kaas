@@ -144,7 +144,7 @@ def fake_llm(monkeypatch):
 
 def test_classify_article_builds_the_user_message(fake_llm):
     extraction = ExtractionResult(
-        summary="a summary", topics=["t1"], connections=["c1"],
+        summary="a summary", topics=["t1"],
         decisions=[{"title": "d1"}],
     )
 
@@ -153,7 +153,6 @@ def test_classify_article_builds_the_user_message(fake_llm):
     user = fake_llm["user"]
     assert "- Summary: a summary" in user
     assert "t1" in user
-    assert "c1" in user
     assert "d1" in user
 
 

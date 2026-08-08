@@ -50,3 +50,29 @@ def test_carriage_returns_around_the_delimiter_are_tolerated():
 
 def test_an_empty_document_has_no_frontmatter():
     assert split_frontmatter("") is None
+
+
+def test_an_indented_delimiter_does_not_close_the_block():
+    """PyYAML renders a value containing a bare "---" line as a multi-line quoted
+    scalar whose continuation lines are indented. Closing on strip() read that
+    continuation as the end of the block: it truncated mid-scalar, safe_load then
+    raised, and every key after the truncation point was lost.
+    """
+    import yaml
+
+    content = "---\n" + yaml.safe_dump(
+        {"summary": "first\n\n---\n\nsecond", "schema_version": 1},
+        default_flow_style=False, width=10 ** 6) + "---\n\n# Body\n"
+
+    fm, body = split_frontmatter(content)
+
+    loaded = yaml.safe_load(fm)
+    assert loaded["summary"] == "first\n\n---\n\nsecond"
+    assert loaded["schema_version"] == 1, "no key after the indented --- was lost"
+    assert body == "\n# Body\n"
+
+
+def test_trailing_whitespace_on_a_real_delimiter_still_closes_the_block():
+    """The one case strip() was buying, kept by rstrip()."""
+    assert split_frontmatter("---\ntitle: One\n---  \n\n# Body\n") == (
+        "title: One\n", "\n# Body\n")

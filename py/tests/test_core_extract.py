@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from kb_ai._errors import ExtractionFailedError
 from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult
 
@@ -24,13 +25,11 @@ def test_parse_extraction_result_full():
         "action_items": [{"task": "a"}],
         "claims": [{"claim": "cl"}],
         "topics": ["t"],
-        "connections": ["conn"],
     }
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == "s"
     assert out.topics == ["t"]
-    assert out.connections == ["conn"]
 
 
 def test_parse_extraction_result_defaults_missing_fields():
@@ -38,7 +37,7 @@ def test_parse_extraction_result_defaults_missing_fields():
 
     assert out.summary == ""
     for fname in ("concepts", "entities", "decisions", "action_items",
-                  "claims", "topics", "connections"):
+                  "claims", "topics"):
         assert getattr(out, fname) == []
 
 
@@ -46,7 +45,7 @@ def test_parse_extraction_result_coerces_none_to_empty():
     """A model returning explicit nulls must not produce None fields, or every
     downstream .extend() would crash."""
     raw = {f: None for f in ("summary", "concepts", "entities", "decisions",
-                             "action_items", "claims", "topics", "connections")}
+                             "action_items", "claims", "topics")}
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == ""
@@ -114,7 +113,7 @@ def test_render_type_split_prompt_k2_groups(stub_prompts):
     b = ex._render_type_split_prompt("B", 2)
 
     assert "concepts, entities, topics, summary" in a
-    assert "claims, decisions, action_items, connections" in b
+    assert "claims, decisions, action_items" in b
     # Each group's schema must contain only its own fields.
     assert '"concepts"' in a and '"claims"' not in a
     assert '"claims"' in b and '"concepts"' not in b
@@ -441,7 +440,7 @@ def _group_response(fields: tuple[str, ...], marker: str) -> dict:
     for f in fields:
         if f == "summary":
             out[f] = marker
-        elif f in ("topics", "connections"):
+        elif f == "topics":
             out[f] = [f"{marker}-{f}"]
         else:
             out[f] = [{"marker": marker, "field": f}]
@@ -475,7 +474,7 @@ def test_extract_knowledge_type_split_merges_by_field_ownership(
             value = getattr(out, fname)
             if fname == "summary":
                 assert value == name
-            elif fname in ("topics", "connections"):
+            elif fname == "topics":
                 assert value == [f"{name}-{fname}"]
             else:
                 assert value[0]["marker"] == name
@@ -581,16 +580,27 @@ def test_summarized_empty_chunks_short_circuits():
     assert out == ExtractionResult()
 
 
-def test_summarized_all_summaries_failing_returns_empty(monkeypatch, capsys):
+def test_summarized_all_summaries_failing_raises(monkeypatch, capsys):
+    """An empty result here was indistinguishable from "nothing to say".
+
+    Now that extractions are persisted with provenance, that ambiguity would
+    become a file that looks fresh and empty forever, so the summarize path
+    propagates like the chunked one does.
+    """
     def boom(chunk, fm, model):
         raise RuntimeError("summarize down")
 
     monkeypatch.setattr(ex, "summarize_chunk", boom)
 
-    out = ex.extract_knowledge_summarized(["a", "b"], {}, "sum", "ext")
+    with pytest.raises(ExtractionFailedError, match="every chunk summarization failed"):
+        ex.extract_knowledge_summarized(["a", "b"], {}, "sum", "ext")
 
-    assert out == ExtractionResult()
     assert "summarization failed" in capsys.readouterr().err
+
+
+def test_summarized_no_chunks_still_returns_empty(spy_phase2):
+    """An empty document honestly extracts to nothing."""
+    assert ex.extract_knowledge_summarized([], {}, "sum", "ext") == ExtractionResult()
 
 
 def test_summarized_skips_failed_chunks_but_keeps_the_rest(monkeypatch, spy_phase2):
@@ -700,7 +710,6 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
             summary=f"sum-{tag}",
             concepts=[{"c": tag}],
             topics=["shared", f"t-{tag}"],
-            connections=["shared-conn"],
         )
 
     monkeypatch.setattr(ex, "extract_knowledge", fake_extract)
@@ -710,9 +719,8 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
 
     assert "sum-aaaa" in out.summary and "sum-bbbb" in out.summary
     assert len(out.concepts) == 2
-    # Topics and connections are de-duplicated across chunks.
+    # Topics are de-duplicated across chunks.
     assert sorted(out.topics) == ["shared", "t-aaaa", "t-bbbb"]
-    assert out.connections == ["shared-conn"]
 
 
 def test_chunked_routes_transcripts_through_the_turn_chunker(monkeypatch):
@@ -830,3 +838,98 @@ def test_with_extract_timeout_preserves_metadata():
 
     assert documented.__name__ == "documented"
     assert documented.__doc__ == "A docstring."
+
+
+# ── one strategy router for both ingestion routes ───────────────────
+#
+# The CLI used to hardcode "chunked" in its freshness gate while the daemon
+# recorded whichever strategy it actually routed to. A deployment configured for
+# summarize therefore had every UI-ingested document re-extracted once by the next
+# CLI compile and silently downgraded to chunked -- the two routes disagreeing
+# about the KB's own configuration. One router, one answer.
+
+def test_chunked_is_the_resolved_strategy_when_chunked_is_asked_for():
+    plan = ex.plan_extraction("body", ex.STRATEGY_CHUNKED)
+    assert plan.strategy == ex.STRATEGY_CHUNKED
+
+
+def test_summarize_resolves_without_consulting_the_content():
+    """A requested summarize is honoured whatever the document looks like, so the
+    gate can compare against it without reading a single document."""
+    plan = ex.plan_extraction("tiny", ex.STRATEGY_SUMMARIZE)
+    assert plan.strategy == ex.STRATEGY_SUMMARIZE
+
+
+def test_auto_resolves_to_chunked_for_a_document_that_does_not_split():
+    plan = ex.plan_extraction("short body", ex.STRATEGY_AUTO)
+    assert plan.strategy == ex.STRATEGY_CHUNKED
+
+
+def test_auto_resolves_to_summarize_once_the_document_splits_enough():
+    """Three chunks is the threshold the daemon has always used."""
+    plan = ex.plan_extraction("x\n" * 40_000, ex.STRATEGY_AUTO)
+    assert len(plan.chunks) >= 3
+    assert plan.strategy == ex.STRATEGY_SUMMARIZE
+
+
+def test_a_resolved_plan_never_says_auto():
+    """persist records the strategy that ran: recording "auto" would make the
+    field useless, since the router decides on chunk count."""
+    for content in ("short", "x\n" * 40_000):
+        assert ex.plan_extraction(content, ex.STRATEGY_AUTO).strategy in (
+            ex.STRATEGY_CHUNKED, ex.STRATEGY_SUMMARIZE)
+
+
+def test_an_unknown_strategy_is_refused_rather_than_treated_as_chunked():
+    """Silently falling back is what made this class of bug invisible: a typo in
+    the configuration would extract every document under the wrong strategy."""
+    with pytest.raises(ValueError, match="unknown extract strategy"):
+        ex.plan_extraction("body", "Chunked")
+
+
+def test_a_transcript_is_chunked_by_speaker_turns_under_auto():
+    """chunk_transcript, not chunk_content -- the daemon's routing did this and a
+    second implementation would have had to remember to."""
+    header = "---\nsource: meetings\nartifact_kind: vc_note_transcript\n---\n"
+    body = "**@a.b** 00:00:01\nhello\n" * 500
+    plan = ex.plan_extraction(header + body, ex.STRATEGY_AUTO)
+
+    assert ex._is_transcript(plan.meta)
+    assert plan.chunks == tuple(ex.chunk_transcript(body, plan.meta))
+    assert plan.chunks != tuple(ex.chunk_content(header + body))
+
+
+def test_running_a_chunked_plan_extracts_from_the_document_itself(monkeypatch):
+    seen = {}
+
+    def fake_chunked(content, model="m"):
+        seen["content"] = content
+        seen["model"] = model
+        return ExtractionResult(summary="s")
+
+    monkeypatch.setattr(ex, "extract_knowledge_chunked", fake_chunked)
+    plan = ex.plan_extraction("the body", ex.STRATEGY_CHUNKED)
+
+    result = ex.run_planned_extraction(plan, "the body", extract_model="m1")
+
+    assert result.summary == "s"
+    assert seen == {"content": "the body", "model": "m1"}
+
+
+def test_running_a_summarize_plan_goes_through_the_two_phase_path(monkeypatch):
+    seen = {}
+
+    def fake_summarized(chunks, meta, summarize_model, extract_model):
+        seen.update(chunks=list(chunks), summarize_model=summarize_model,
+                    extract_model=extract_model)
+        return ExtractionResult(summary="s")
+
+    monkeypatch.setattr(ex, "extract_knowledge_summarized", fake_summarized)
+    plan = ex.plan_extraction("body", ex.STRATEGY_SUMMARIZE)
+
+    ex.run_planned_extraction(plan, "body", extract_model="m1",
+                              summarize_model="m2")
+
+    assert seen["summarize_model"] == "m2"
+    assert seen["extract_model"] == "m1"
+    assert seen["chunks"] == list(plan.chunks)

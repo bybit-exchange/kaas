@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import json
 import os
 import re
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import yaml
 
+from kb_ai._errors import ExtractionFailedError
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
     completion,
@@ -57,7 +59,6 @@ class ExtractionResult:
     action_items: list = field(default_factory=list)
     claims: list = field(default_factory=list)
     topics: list = field(default_factory=list)
-    connections: list = field(default_factory=list)
     source_path: str = ""
 
 
@@ -70,7 +71,6 @@ def parse_extraction_result(raw: dict) -> ExtractionResult:
         action_items=raw.get("action_items") or [],
         claims=raw.get("claims") or [],
         topics=raw.get("topics") or [],
-        connections=raw.get("connections") or [],
     )
 
 
@@ -78,8 +78,15 @@ def extraction_to_dict(e: ExtractionResult) -> dict:
     return {
         "summary": e.summary, "concepts": e.concepts, "entities": e.entities,
         "decisions": e.decisions, "action_items": e.action_items,
-        "claims": e.claims, "topics": e.topics, "connections": e.connections,
+        "claims": e.claims, "topics": e.topics,
     }
+
+
+# Every prompt the extraction stage can send. extract_prompt_version() hashes
+# exactly this set, and load_prompt() asserts membership, so adding a fifth
+# extraction prompt without listing it here fails at first use instead of
+# silently narrowing the provenance hash (spec B14).
+EXTRACT_STAGE_PROMPTS = ("extract", "extract-types", "merge-summaries", "summarize")
 
 
 def load_prompt(name: str) -> str:
@@ -88,8 +95,59 @@ def load_prompt(name: str) -> str:
     Prompts live as .yaml/.md files under prompts/defaults/ (override the
     directory with the KAAS_PROMPTS_DIR env var).
     """
+    assert name in EXTRACT_STAGE_PROMPTS, (
+        f"prompt {name!r} is not in EXTRACT_STAGE_PROMPTS; add it there so "
+        "extract_prompt_version() keeps covering the whole extraction stage"
+    )
     from kb_ai.prompts import default_registry
     return default_registry().get(name).content
+
+
+def _extract_stage_renderings() -> list[tuple[str, str]]:
+    """Every extraction prompt as it currently renders, with a stable name.
+
+    The extract-types template is hashed through _render_type_split_prompt rather
+    than verbatim: TYPE_SPLIT_GROUPS_K2/K3 and _FIELD_JSON_SCHEMAS are code
+    constants, but they change the text actually sent to the model. Both group
+    tables are enumerated here rather than mirrored, so a new group is covered
+    the moment it is added.
+    """
+    out = [(name, load_prompt(name))
+           for name in ("extract", "merge-summaries", "summarize")]
+    for k, groups in ((2, TYPE_SPLIT_GROUPS_K2), (3, TYPE_SPLIT_GROUPS_K3)):
+        for group in groups:
+            out.append((f"extract-types#k{k}-{group}",
+                        _render_type_split_prompt(group, k)))
+    return out
+
+
+@functools.lru_cache(maxsize=1)
+def extract_prompt_version() -> str:
+    """12 hex digits over the extraction stage's prompt set as it now renders.
+
+    A pure function of the prompt files plus the two group tables, with no
+    reference to which prompts a given run used -- so an extraction's freshness
+    is a plain field comparison computable without spending anything. This is the
+    convention classify_inputs_hash already established, whose docstring records
+    that the previous categories-only hash let "a prompt-only edit silently keep
+    serving classifications produced by the previous prompt".
+
+    Memoized (spec B12): the registry caches lazily per name, so a long-lived
+    daemon could otherwise hold `extract` from before a prompt edit and
+    `summarize` from after it, making the value depend on load order rather than
+    only on time. Computing it once pins all four names into the cache together
+    and makes "restart the daemon after editing prompts" an exact rule.
+
+    Name and content are framed with a length prefix and a NUL separator, so a
+    trailing newline in one prompt cannot collide with the next name.
+    """
+    h = hashlib.sha256()
+    for name, text in _extract_stage_renderings():
+        body = text.encode("utf-8")
+        h.update(f"{len(name)}\0{name}\0{len(body)}\0".encode("utf-8"))
+        h.update(body)
+        h.update(b"\0")
+    return h.hexdigest()[:12]
 
 
 _FIELD_JSON_SCHEMAS: dict[str, str] = {
@@ -100,18 +158,17 @@ _FIELD_JSON_SCHEMAS: dict[str, str] = {
     "action_items": '"action_items": [{"task": "description", "owner": "person name if known"}]',
     "claims": '"claims": [{"claim": "the assertion", "source": "who/what said this", "surprising": false}]',
     "topics": '"topics": ["topic-tag-1", "topic-tag-2"]',
-    "connections": '"connections": ["suggested-wiki-article-title-1", "suggested-wiki-article-title-2"]',
 }
 
 TYPE_SPLIT_GROUPS_K2: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities", "topics", "summary"),
-    "B": ("claims", "decisions", "action_items", "connections"),
+    "B": ("claims", "decisions", "action_items"),
 }
 
 TYPE_SPLIT_GROUPS_K3: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities"),
     "B": ("claims", "summary", "topics"),
-    "C": ("decisions", "action_items", "connections"),
+    "C": ("decisions", "action_items"),
 }
 
 
@@ -615,7 +672,17 @@ def extract_knowledge_summarized(
     # Collect successful summaries in order
     successful = [s for s in summaries if s is not None]
     if not successful:
-        return ExtractionResult()
+        # Raise rather than return a bare ExtractionResult, matching the chunked
+        # path's `future.result()` with no except. An empty result here was
+        # indistinguishable from "the model read the content and had nothing to
+        # say", and once extractions are persisted with provenance that ambiguity
+        # becomes a file that looks fresh and empty forever. With the raise, an
+        # empty extraction means only the legitimate case. Partial chunk failure
+        # keeps degrading as before, on the survivors.
+        raise ExtractionFailedError(
+            f"every chunk summarization failed ({len(chunks)} chunks); "
+            "nothing to extract from"
+        )
 
     # Phase 2: K-adaptive dispatch with optional L2 hierarchical merge.
     #
@@ -721,11 +788,9 @@ def extract_knowledge_chunked(
         merged.action_items.extend(r.action_items)
         merged.claims.extend(r.claims)
         merged.topics.extend(r.topics)
-        merged.connections.extend(r.connections)
 
     merged.summary = " ".join(summaries)
     merged.topics = list(set(merged.topics))
-    merged.connections = list(set(merged.connections))
     return merged
 
 
@@ -742,9 +807,113 @@ def _combine_extractions(items: list[tuple[str, ExtractionResult]]) -> tuple[Ext
         combined.action_items.extend(extraction.action_items)
         combined.claims.extend(extraction.claims)
         combined.topics.extend(extraction.topics)
-        combined.connections.extend(extraction.connections)
         rels.append(rel)
     combined.summary = "\n".join(summaries)
     combined.topics = list(set(combined.topics))
-    combined.connections = list(set(combined.connections))
     return combined, rels
+
+
+# ── the extraction strategy router ──────────────────────────────────
+#
+# Both ingestion routes resolve a strategy through here rather than each deciding
+# for itself. The CLI's freshness gate used to assert "chunked" while the daemon
+# recorded whatever it routed to, so a KB configured for summarize had every
+# UI-ingested document re-extracted once by the next CLI compile and silently
+# downgraded -- the two routes disagreeing about the KB's own configuration.
+#
+# The two strategies are not coarse and fine versions of one thing. chunked sends
+# the document text (split only if it exceeds the window) to the structured
+# extractor; summarize summarizes each chunk first and extracts from the joined
+# summaries, so the structured pass never sees the original words. Which one
+# produced an extraction is therefore part of what staleness compares.
+
+STRATEGY_CHUNKED = "chunked"
+STRATEGY_SUMMARIZE = "summarize"
+# Resolved on chunk count, never recorded: persist stores the strategy that ran.
+STRATEGY_AUTO = "auto"
+EXTRACT_STRATEGIES = (STRATEGY_CHUNKED, STRATEGY_SUMMARIZE, STRATEGY_AUTO)
+
+# Below this, auto keeps the document text: summarizing one or two chunks pays a
+# second model for a loss of detail it does not need to take.
+_AUTO_SUMMARIZE_MIN_CHUNKS = 3
+
+
+@dataclass(frozen=True)
+class ExtractionPlan:
+    """What will run for one document, decided without spending anything.
+
+    strategy is what persist records, so it is never "auto". chunks and meta are
+    carried because the summarize path needs them and chunking them twice would
+    be wasted work -- and because resolving auto requires them anyway.
+    """
+
+    strategy: str
+    chunks: tuple[str, ...] = ()
+    meta: dict = field(default_factory=dict)
+
+
+def validate_strategy(requested: str) -> str:
+    """Return requested, or raise if it is not a strategy this code runs.
+
+    One message in one place, called both by the router and by a caller wanting to
+    reject a bad configuration before it starts work. Never falls back to chunked:
+    silently falling back is what kept this class of bug invisible, since a typo
+    in a deployment's configuration would extract every document under a strategy
+    nobody chose and the recorded provenance would agree with itself.
+    """
+    if requested not in EXTRACT_STRATEGIES:
+        raise ValueError(
+            f"unknown extract strategy {requested!r}, expected one of "
+            f"{', '.join(EXTRACT_STRATEGIES)}")
+    return requested
+
+
+def plan_extraction(content: str, requested: str) -> ExtractionPlan:
+    """Resolve a requested strategy for one document. No LLM call, no network.
+
+    Chunking costs nothing but CPU, which is what lets the freshness gate compare
+    against the strategy a run would actually produce before deciding to pay for
+    it. A requested chunked or summarize is honoured as asked and the content is
+    not even read; only auto has to look.
+
+    An unrecognised strategy raises rather than falling back to chunked. Silently
+    falling back is what kept this class of bug invisible: a typo in a
+    deployment's configuration would extract every document under a strategy
+    nobody chose, and the recorded provenance would agree with itself.
+    """
+    validate_strategy(requested)
+
+    if requested == STRATEGY_CHUNKED:
+        return ExtractionPlan(strategy=STRATEGY_CHUNKED)
+
+    meta, body = _parse_frontmatter(content)
+    chunks = tuple(chunk_transcript(body, meta) if _is_transcript(meta)
+                   else chunk_content(content))
+
+    if requested == STRATEGY_SUMMARIZE:
+        strategy = STRATEGY_SUMMARIZE
+    elif len(chunks) >= _AUTO_SUMMARIZE_MIN_CHUNKS:
+        strategy = STRATEGY_SUMMARIZE
+    else:
+        strategy = STRATEGY_CHUNKED
+
+    return ExtractionPlan(strategy=strategy, chunks=chunks, meta=meta)
+
+
+def run_planned_extraction(
+    plan: ExtractionPlan,
+    content: str,
+    *,
+    extract_model: str,
+    summarize_model: str = "",
+) -> ExtractionResult:
+    """Extract one document under an already-resolved plan.
+
+    Split from plan_extraction so a caller can compare the resolved strategy
+    against what is already on disk and decline to spend -- which is the whole
+    point of resolving before running.
+    """
+    if plan.strategy == STRATEGY_SUMMARIZE:
+        return extract_knowledge_summarized(
+            list(plan.chunks), plan.meta, summarize_model, extract_model)
+    return extract_knowledge_chunked(content, model=extract_model)

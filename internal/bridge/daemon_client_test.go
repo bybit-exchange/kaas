@@ -113,10 +113,11 @@ func newScriptedClient(t *testing.T, handler func(daemonRequest) []string) (*Dae
 		daemon: sd.daemon,
 		cfg:    DaemonConfig{MaxRestarts: 1, WarmupTimeoutSec: 5},
 		llm: LLMConfig{
-			APIKey:         "test-key",
-			BaseURL:        "http://llm.local/v1",
-			Model:          "test-model",
-			SummarizeModel: "test-summarize-model",
+			APIKey:          "test-key",
+			BaseURL:         "http://llm.local/v1",
+			Model:           "test-model",
+			SummarizeModel:  "test-summarize-model",
+			ExtractStrategy: "summarize",
 		},
 		ctx:    ctx,
 		cancel: cancel,
@@ -212,7 +213,7 @@ func TestDaemonClientPipeline(t *testing.T) {
 
 	resp, err := c.Pipeline(context.Background(), PipelineRequest{
 		KBDir:   "/kb",
-		Items:   []PipelineItem{{Extraction: json.RawMessage(`{"x":1}`), SourceRef: "src-1"}},
+		Items:   []PipelineItem{{ContentHash: "h1", SourceRef: "src-1"}},
 		Workers: 3,
 	})
 	if err != nil {
@@ -640,11 +641,16 @@ func TestSendInitForwardsLLMConfig(t *testing.T) {
 	if err := json.Unmarshal(req.Payload, &payload); err != nil {
 		t.Fatalf("decode init payload: %v", err)
 	}
+	// extract_strategy is forwarded on init as well as per extract call: the
+	// derive command compiles a copied extraction layer, and that compile has to
+	// compare against the strategy the copies were produced under or it
+	// re-extracts every one of them and records a different one.
 	want := map[string]string{
-		"api_key":         "test-key",
-		"base_url":        "http://llm.local/v1",
-		"model":           "test-model",
-		"summarize_model": "test-summarize-model",
+		"api_key":          "test-key",
+		"base_url":         "http://llm.local/v1",
+		"model":            "test-model",
+		"summarize_model":  "test-summarize-model",
+		"extract_strategy": "summarize",
 	}
 	for k, v := range want {
 		if payload.LLM[k] != v {

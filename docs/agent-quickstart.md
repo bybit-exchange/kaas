@@ -78,6 +78,14 @@ This wraps readable text files into the KB's `raw/`, compiles them into a
 wiki, and prints a JSON summary (`ingested`, `skipped`, `compile`). Report
 the skipped files to the user (binaries/PDFs are not converted in this flow).
 
+A knowledge base has four layers on disk: `raw/` (what came in), `extraction/`
+(what we understood about each document, one file per raw document at the same
+relative path), `wiki/` (what we composed) and `index/` (how to find it).
+
+Pass `--extract-only` to run the extraction phase and stop — the wiki is left
+alone. That is the loop for tuning an extract prompt: re-extract, read the new
+`extraction/*.md` files in an editor, then compile for real.
+
 The first run also freezes the article taxonomy into `<kb>/kaas.json`, so later
 runs keep filing articles under the same categories even if the built-in
 defaults change. To choose a different set, pass it on that first run:
@@ -88,6 +96,23 @@ kb-ai distill <path> --kb ./.kaas --categories concept,guide,reference
 
 Passing a set that disagrees with an already-frozen one is honoured but warns,
 because the result is a KB with two taxonomies in it.
+
+### 4b. Check a knowledge base without spending anything
+
+```bash
+kb-ai check --kb ./.kaas
+```
+
+Reads three things and writes nothing: whether every document's extraction still
+matches the document beside it, whether the parent has moved since a derived KB
+was built (`unknown` for a KB that was not derived), and how far the wiki is
+behind the prompts that produced it. Safe to point at a read-only KB or someone
+else's.
+
+The lag half is what a `compile` cannot tell you: editing a write prompt changes
+no document, so the next compile finds nothing to do and reports nothing. The
+counts are report-only — re-composing an article adds to it rather than replacing
+it, so a prompt edit is never a reason to pay the write phase again on its own.
 
 ### 5. Wire up MCP so later sessions can query
 

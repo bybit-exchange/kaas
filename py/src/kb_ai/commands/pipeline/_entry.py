@@ -21,10 +21,42 @@ from kb_ai.storage.index import (
 )
 from kb_ai.llm import tracker
 from kb_ai.core.classify import resolve_categories
+from kb_ai.core.extract import extraction_to_dict
 from kb_ai.core.people import update_people_stubs
+from kb_ai.storage import extraction
 from kb_ai.storage.store import KBStore
 
 _DEFAULT_WORKERS = 16
+
+
+def _load_extractions(store: KBStore, raw_items: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Attach each item's extraction, read from extraction/<rel> (spec D1).
+
+    The item arrives carrying only content_hash and source_ref: the extraction
+    was persisted by the extract hop, so the pipeline reads it back rather than
+    receiving it as a blob. That makes "classify and write read only from
+    extraction/" one invariant instead of one route plus an in-memory equivalent,
+    and it puts the layer's parser on the production path of both routes.
+
+    Returns (items, errors). A document with no usable extraction is reported and
+    dropped rather than composed from nothing.
+    """
+    items: list[dict] = []
+    errors: list[dict] = []
+    for item in raw_items:
+        source_ref = item.get("source_ref") or ""
+        stored, reason = extraction.load(store, source_ref) if source_ref else (
+            None, "no source_ref")
+        if stored is None:
+            errors.append({
+                "content_hash": item.get("content_hash", ""),
+                "status": "error",
+                "error": f"no usable extraction for {source_ref!r} ({reason})",
+                "phase": "extract",
+            })
+            continue
+        items.append({**item, "extraction": extraction_to_dict(stored.extraction)})
+    return items, errors
 
 
 def run_server_pipeline_with_input(input_data: dict, emit=None, cancel_event=None) -> list[dict]:
@@ -65,6 +97,12 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     store = KBStore(kb_dir)
     categories = resolve_categories(store, categories)
 
+    items, extraction_errors = _load_extractions(store, items)
+    for err in extraction_errors:
+        print(f"[pipeline] {err['error']}", file=sys.stderr, flush=True)
+        if emit:
+            emit(err)
+
     pipeline_ctx = PipelineContext(
         store=store,
         model=model,
@@ -75,7 +113,7 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
         emit=emit,
     )
 
-    item_results = run_pipeline_orchestrated(pipeline_ctx, items)
+    item_results = extraction_errors + run_pipeline_orchestrated(pipeline_ctx, items)
 
     # ── Phase 3: Update indices once ──
     update_markdown_index(store, min_articles=topic_index_min_articles,

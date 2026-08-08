@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -25,10 +26,12 @@ type TaskQueue interface {
 
 // Config tunes a Worker.
 type Config struct {
-	KBDir             string        // forwarded as PipelineRequest.KBDir
+	KBDir             string        // forwarded as ExtractRequest.KBDir and PipelineRequest.KBDir
 	PipelineWorkers   int           // forwarded as PipelineRequest.Workers
 	HeartbeatInterval time.Duration // lease renewal cadence (typically leaseTTL/3)
+	Model             string        // forwarded as ExtractRequest.Model
 	SummarizeModel    string        // forwarded as ExtractRequest.SummarizeModel
+	ExtractStrategy   string        // forwarded as ExtractRequest.Strategy
 }
 
 // Worker processes a single claimed task end to end.
@@ -87,12 +90,29 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		return
 	}
 
-	// Extract (Claim already set stage=extract).
+	// One relative path feeding both requests. It is the extraction file's key
+	// and the article's sources: entry, and submit.go builds RawPath by joining
+	// an already-absolute KBDir, so forwarding it verbatim used to record an
+	// absolute filesystem path in every UI-ingested article.
+	sourceRef, err := filepath.Rel(w.cfg.KBDir, task.RawPath)
+	if err != nil {
+		w.fail(ctx, task, fmt.Sprintf("relative source ref for %q under %q: %v",
+			task.RawPath, w.cfg.KBDir, err))
+		return
+	}
+
+	// Extract (Claim already set stage=extract). The engine persists the
+	// extraction under <kb>/extraction/<rel> before returning, so a pipeline
+	// failure with an attempt left replays the task without paying again.
 	var ext *bridge.ExtractResponse
 	err = w.brk.Do(func() error {
 		var e error
 		ext, e = w.eng.Extract(ctx, bridge.ExtractRequest{
 			Content:        string(content),
+			KBDir:          w.cfg.KBDir,
+			Source:         sourceRef,
+			Model:          w.cfg.Model,
+			Strategy:       w.cfg.ExtractStrategy,
 			SummarizeModel: w.cfg.SummarizeModel,
 		})
 		return e
@@ -120,9 +140,8 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 			KBDir:   w.cfg.KBDir,
 			Workers: w.cfg.PipelineWorkers,
 			Items: []bridge.PipelineItem{{
-				Extraction:  ext.Extraction,
 				ContentHash: task.ContentHash,
-				SourceRef:   task.RawPath,
+				SourceRef:   sourceRef,
 			}},
 		})
 		return e

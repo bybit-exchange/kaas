@@ -106,6 +106,13 @@ def _handle_init(request_id: str, payload: dict) -> None:
     if summarize_model:
         os.environ["LLM_SUMMARIZE_MODEL"] = summarize_model
 
+    # The extraction strategy is a per-deployment contract, not a per-request
+    # choice: the derive handler compiles a copied extraction layer and has to
+    # compare against the same value the copies were produced under.
+    extract_strategy = llm_cfg.get("extract_strategy", "")
+    if extract_strategy:
+        os.environ["LLM_EXTRACT_STRATEGY"] = extract_strategy
+
     _respond_ok(request_id, {"initialized": True})
 
 
@@ -114,55 +121,127 @@ def _handle_shutdown(request_id: str, executor: ThreadPoolExecutor) -> None:
     _respond_ok(request_id, {"shutdown": True})
 
 
+def _normalise_newlines(content: str) -> str:
+    """Make the daemon see the text the CLI would have seen.
+
+    The CLI hashes and chunks path.read_text() output, which is universal-newline
+    translated; the Go worker sends the file bytes with CRLF intact. Without this
+    the two routes diverge twice over for any CRLF document: the daemon's
+    source_checksum differs from the CLI's, so the extraction is reported
+    permanently stale and derive permanently skips copying it, and the model is
+    prompted with different bytes. Normalising once on receipt fixes both;
+    normalising inside _compute_checksum would fix only the first.
+    """
+    return content.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def _handle_extract(request_id: str, payload: dict) -> None:
-    """Handle the extract command — extract knowledge from content."""
+    """Handle the extract command — extract knowledge and persist it.
+
+    The engine writes the extraction file rather than the Go side: one markdown
+    serializer, so the two ingestion routes agree by construction instead of by
+    two implementations reproducing PyYAML's escaping decisions.
+    """
     from kb_ai.core.extract import (
-        _is_transcript,
-        _parse_frontmatter,
-        chunk_content,
-        chunk_transcript,
-        extract_knowledge_chunked,
-        extract_knowledge_summarized,
         extraction_to_dict,
+        plan_extraction,
+        run_planned_extraction,
     )
     from kb_ai.llm import CostTracker, set_phase_context, set_request_tracker
+    from kb_ai.prompts import PromptError
+    from kb_ai.storage import extraction as extraction_layer
+    from kb_ai.storage.store import KBStore, _compute_checksum
 
     inner = payload.get("payload", {})
-    content = inner.get("content", "")
-    model = inner.get("model", "claude-sonnet-4-6")
+    content = _normalise_newlines(inner.get("content", ""))
+    kb_dir = inner.get("kb_dir", "")
+    source = inner.get("source", "")
+    model = inner.get("model") or "claude-sonnet-4-6"
     strategy = inner.get("strategy", "chunked")
     summarize_model = inner.get("summarize_model") or os.environ.get("LLM_SUMMARIZE_MODEL") or os.environ.get("LLM_MODEL", "")
 
     if not content:
         _respond_error(request_id, "EMPTY_CONTENT", "content must not be empty")
         return
+    if not kb_dir.strip():
+        _respond_error(request_id, "EMPTY_KB_DIR", "kb_dir must not be empty")
+        return
+    if not source.strip():
+        _respond_error(request_id, "EMPTY_SOURCE", "source must not be empty")
+        return
+
+    store = KBStore(kb_dir)
+    checksum = _compute_checksum(content)
+    try:
+        prompt_version = extraction_layer.current_prompt_version()
+    except PromptError as e:
+        _respond_error(request_id, "PROMPT_UNAVAILABLE",
+                       f"cannot compute prompt_version: {e}")
+        return
 
     print(f"[daemon:extract] strategy={strategy} model={model} summarize_model={summarize_model}",
           file=sys.stderr, flush=True)
+
+    # Route first, so the recorded strategy is the one that ran rather than the
+    # one requested -- "auto" would make the field useless. Chunking costs no LLM
+    # call, so resolving it up front also lets the freshness check below compare
+    # the strategy the request would actually produce.
+    #
+    # Through the shared router, not a second copy of it: the CLI's gate compares
+    # against the same function, so the two routes cannot disagree about what a
+    # given configuration produces.
+    try:
+        plan = plan_extraction(content, strategy)
+    except ValueError as e:
+        _respond_error(request_id, "INVALID_STRATEGY", str(e))
+        return
+    resolved = plan.strategy
+    print(f"[daemon:extract] routed={resolved} (requested={strategy}, "
+          f"chunks={len(plan.chunks) if plan.chunks else 'n/a'})",
+          file=sys.stderr, flush=True)
+
+    # Read before calling the model: a pipeline failure with an attempt left
+    # replays the whole task, so without this every retry pays for extraction a
+    # second time. This is not re-extracting -- it is declining to.
+    stored, _reason = extraction_layer.load(store, source)
+    if stored is not None and not extraction_layer.staleness(
+            stored.provenance, source_checksum=checksum, extract_model=model,
+            extract_strategy=resolved, prompt_version=prompt_version,
+            summarize_model=summarize_model):
+        print(f"[daemon:extract] reusing {store.extraction_rel_path(source)}",
+              file=sys.stderr, flush=True)
+        _respond_ok(request_id, {
+            "extraction": extraction_to_dict(stored.extraction),
+            "cost": CostTracker().summary_with_details(),
+            "reused": True,
+        })
+        return
 
     set_phase_context("extract")
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)
     try:
-        if strategy == "summarize":
-            meta, body = _parse_frontmatter(content)
-            chunks = chunk_transcript(body, meta) if _is_transcript(meta) else chunk_content(content)
-            print(f"[daemon:extract] routed=summarize chunks={len(chunks)}", file=sys.stderr, flush=True)
-            result = extract_knowledge_summarized(chunks, meta, summarize_model, model)
-        elif strategy == "auto":
-            meta, body = _parse_frontmatter(content)
-            chunks = chunk_transcript(body, meta) if _is_transcript(meta) else chunk_content(content)
-            if len(chunks) >= 3:
-                print(f"[daemon:extract] routed=summarize (auto, chunks={len(chunks)}>=3)", file=sys.stderr, flush=True)
-                result = extract_knowledge_summarized(chunks, meta, summarize_model, model)
-            else:
-                print(f"[daemon:extract] routed=chunked (auto, chunks={len(chunks)}<3)", file=sys.stderr, flush=True)
-                result = extract_knowledge_chunked(content, model=model)
-        else:
-            print(f"[daemon:extract] routed=chunked", file=sys.stderr, flush=True)
-            result = extract_knowledge_chunked(content, model=model)
+        result = run_planned_extraction(plan, content, extract_model=model,
+                                        summarize_model=summarize_model)
     finally:
         set_request_tracker(None)
+
+    # A write failure fails the task: there is no "extracted but not persisted"
+    # state, because the pipeline reads the extraction back off disk. Not retried
+    # -- the atomic write already covers a torn file, and ENOSPC / EACCES / EROFS
+    # do not clear in milliseconds.
+    try:
+        extraction_layer.persist(
+            store, source, result,
+            source_checksum=checksum,
+            extract_model=model,
+            extract_strategy=resolved,
+            summarize_model=summarize_model,
+        )
+    except (OSError, ValueError, PermissionError) as e:
+        _respond_error(request_id, "EXTRACTION_NOT_PERSISTED",
+                       f"persist extraction for {source!r}: {e}")
+        return
 
     cost = req_tracker.summary_with_details()
     _respond_ok(request_id, {"extraction": extraction_to_dict(result), "cost": cost})
@@ -260,6 +339,16 @@ def _handle_derive(request_id: str, payload: dict) -> None:
             force=bool(inner.get("force")),
             select_from=select_from,
             model=inner.get("model") or "claude-sonnet-4-6",
+            # The deployment's strategy, put in the environment by the init
+            # command. The derived compile must compare against the value the
+            # copied extractions were produced under, or it re-extracts every one
+            # of them and records a strategy the parent then finds stale in turn.
+            extract_strategy=(inner.get("extract_strategy")
+                              or os.environ.get("LLM_EXTRACT_STRATEGY")
+                              or "chunked"),
+            summarize_model=(inner.get("summarize_model")
+                             or os.environ.get("LLM_SUMMARIZE_MODEL")
+                             or os.environ.get("LLM_MODEL", "")),
             approve=None,
         )
     except KBError as e:

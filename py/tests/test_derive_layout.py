@@ -9,8 +9,10 @@ import pytest
 from kb_ai._errors import (
     DeriveError, InvalidSlugError, NestedDeriveError, SlugExistsError, UnknownDerivedKBError,
 )
+from kb_ai.core.extract import ExtractionResult
 from kb_ai.derive import _layout
 from kb_ai.derive._types import DocumentRef
+from kb_ai.storage import extraction as exl
 from kb_ai.storage.store import KBStore
 
 
@@ -243,34 +245,79 @@ def test_create_refuses_dangling_symlink(tmp_path: Path):
     )
 
 
-def test_copy_documents_copies_content_and_extract_cache(tmp_path: Path):
+def test_copy_documents_copies_content_and_its_extraction(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
     (src / "raw" / "notes.md").write_text("body")
     from kb_ai.storage.store import _compute_checksum
     checksum = _compute_checksum("body")
-    cache_dir = src / ".extract-cache"
-    cache_dir.mkdir()
-    (cache_dir / f"{checksum}.json").write_text('{"summary": "cached"}')
+    writer = KBStore(str(src))
+    exl.persist(writer, "raw/notes.md", ExtractionResult(summary="extracted"),
+                source_checksum=checksum, extract_model="m")
 
     derived = tmp_path / "derived" / "x"
     derived.mkdir(parents=True)
     store = KBStore(str(src), read_only=True)
-    copied = _layout.copy_documents(store, derived, [
+    copied, warnings = _layout.copy_documents(store, derived, [
         DocumentRef(rel_path="raw/notes.md", checksum=checksum, size_bytes=4),
     ])
 
     assert copied == 1
+    assert warnings == []
     assert (derived / "raw" / "notes.md").read_text() == "body"
-    assert (derived / ".extract-cache" / f"{checksum}.json").read_text() == '{"summary": "cached"}'
+    copied_extraction = (derived / "extraction" / "notes.md").read_text()
+    assert copied_extraction == writer.extraction_path("raw/notes.md").read_text()
+    assert "summary: extracted" in copied_extraction
+
+
+def test_copy_documents_mirrors_a_nested_relative_path(tmp_path: Path):
+    src = tmp_path / "src"
+    (src / "raw" / "2026-06").mkdir(parents=True)
+    (src / "raw" / "2026-06" / "notes.md").write_text("body")
+    from kb_ai.storage.store import _compute_checksum
+    checksum = _compute_checksum("body")
+    writer = KBStore(str(src))
+    exl.persist(writer, "raw/2026-06/notes.md", ExtractionResult(summary="s"),
+                source_checksum=checksum, extract_model="m")
+
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    _layout.copy_documents(KBStore(str(src), read_only=True), derived, [
+        DocumentRef(rel_path="raw/2026-06/notes.md", checksum=checksum, size_bytes=4),
+    ])
+
+    assert (derived / "extraction" / "2026-06" / "notes.md").exists()
+
+
+def test_copy_documents_skips_and_reports_a_checksum_mismatch(tmp_path: Path):
+    """The check that makes keying extractions by path safe (spec F3)."""
+    src = tmp_path / "src"
+    (src / "raw").mkdir(parents=True)
+    (src / "raw" / "notes.md").write_text("body")
+    writer = KBStore(str(src))
+    exl.persist(writer, "raw/notes.md", ExtractionResult(summary="stale"),
+                source_checksum="0" * 16, extract_model="m")
+
+    derived = tmp_path / "derived" / "x"
+    derived.mkdir(parents=True)
+    from kb_ai.storage.store import _compute_checksum
+    copied, warnings = _layout.copy_documents(
+        KBStore(str(src), read_only=True), derived,
+        [DocumentRef(rel_path="raw/notes.md",
+                     checksum=_compute_checksum("body"), size_bytes=4)])
+
+    assert copied == 1
+    assert not (derived / "extraction").exists()
+    assert len(warnings) == 1
+    assert "does not match the document" in warnings[0]
 
 
 def test_copy_documents_writes_the_exact_bytes_the_checksum_names(tmp_path: Path):
     """The copy must be sha256(content.encode())'s input verbatim (C7).
 
-    The extract cache keys on that checksum, so a locale-dependent encoding or a
-    newline translation on the write side would silently stop the derived compile
-    from finding the extraction already paid for. CRLF plus non-ASCII covers both
+    The extraction's source_checksum names that content, so a locale-dependent
+    encoding or a newline translation on the write side would silently stop the
+    derived compile from reusing the extraction already paid for. CRLF plus non-ASCII covers both
     halves. (On a UTF-8, LF platform the defaults happen to agree; the assertion is
     what stops that from being an accident.)
     """
@@ -295,7 +342,8 @@ def test_copy_documents_writes_the_exact_bytes_the_checksum_names(tmp_path: Path
     assert _compute_checksum(dest_bytes.decode("utf-8")) == checksum
 
 
-def test_copy_documents_tolerates_a_missing_cache_entry(tmp_path: Path):
+def test_copy_documents_tolerates_a_missing_extraction(tmp_path: Path):
+    """Not an error: the derived compile extracts and pays once (spec F2)."""
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
     (src / "raw" / "notes.md").write_text("body")
@@ -303,11 +351,12 @@ def test_copy_documents_tolerates_a_missing_cache_entry(tmp_path: Path):
     derived.mkdir(parents=True)
     store = KBStore(str(src), read_only=True)
 
-    copied = _layout.copy_documents(store, derived, [
+    copied, warnings = _layout.copy_documents(store, derived, [
         DocumentRef(rel_path="raw/notes.md", checksum="deadbeefdeadbeef", size_bytes=4),
     ])
     assert copied == 1
-    assert not (derived / ".extract-cache").exists()
+    assert warnings == []
+    assert not (derived / "extraction").exists()
 
 
 def test_copy_documents_rejects_absolute_rel_path(tmp_path: Path):

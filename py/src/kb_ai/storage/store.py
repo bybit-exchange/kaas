@@ -13,6 +13,9 @@ from pathlib import Path
 # article documents. Written by storage.index, read back by existing_articles().
 KEYS_MARKER = " | keys: "
 
+RAW_DIRNAME = "raw"
+EXTRACTION_DIRNAME = "extraction"
+
 
 @dataclass
 class ArticleMeta:
@@ -66,7 +69,39 @@ class KBStore:
 
     @property
     def raw_dir(self) -> Path:
-        return self.base_dir / "raw"
+        return self.base_dir / RAW_DIRNAME
+
+    @property
+    def extraction_dir(self) -> Path:
+        return self.base_dir / EXTRACTION_DIRNAME
+
+    def extraction_rel_path(self, raw_rel: str) -> str:
+        """Map ``raw/<rel>`` to ``extraction/<rel>``, mirroring the path exactly.
+
+        The one path->path mapping in the tree: every reader and writer of the
+        extraction layer goes through here rather than building the path itself.
+        Only the first segment is replaced -- the rest of the relative path,
+        including intermediate directories and the ``.md`` extension, is carried
+        through untouched. No suffix arithmetic, which is what made the
+        double-suffix bug fixed in eba18d0 possible.
+
+        Raises ValueError for anything that is not a path under raw/, so a caller
+        cannot silently address a file outside the layer.
+        """
+        parts = Path(raw_rel).parts
+        if not parts or parts[0] != RAW_DIRNAME:
+            raise ValueError(f"not a raw document path: {raw_rel!r}")
+        if len(parts) == 1 or ".." in parts:
+            raise ValueError(f"not a raw document path: {raw_rel!r}")
+        return str(Path(EXTRACTION_DIRNAME, *parts[1:]))
+
+    def extraction_path(self, raw_rel: str) -> Path:
+        """Absolute path of the extraction file for a raw document.
+
+        Goes through _resolve, so an extraction path derived from an
+        attacker-influenced rel_path cannot escape the KB.
+        """
+        return self._resolve(self.extraction_rel_path(raw_rel))
 
     @property
     def index_dir(self) -> Path:
@@ -122,6 +157,14 @@ class KBStore:
             yield p
 
     def list_raw_files(self) -> list[RawFile]:
+        """Every raw document with its content. No production caller left.
+
+        Both the estimate path and compile migrated to iter_raw_file_meta() plus a
+        lazy read_raw(); this is kept as the oracle the equivalence test compares
+        that streaming scan against, since the checksum agreeing byte for byte is
+        what makes the migration free rather than a re-extraction of every
+        document. Do not reach for it in new code.
+        """
         files = []
         for p in self._iter_raw_paths():
             content = p.read_text()
@@ -253,23 +296,6 @@ class KBStore:
             except (IndexError, ValueError):
                 continue
         return articles
-
-    def load_extract_cache(self, checksum: str) -> dict | None:
-        if not self.cache_enabled:
-            return None
-        cache_path = self.base_dir / ".extract-cache" / f"{checksum}.json"
-        if cache_path.exists():
-            return json.loads(cache_path.read_text())
-        return None
-
-    def save_extract_cache(self, checksum: str, data: dict) -> None:
-        if not self.cache_enabled:
-            return
-        cache_dir = self.base_dir / ".extract-cache"
-        cache_dir.mkdir(exist_ok=True)
-        (cache_dir / f"{checksum}.json").write_text(
-            json.dumps(data, ensure_ascii=False, indent=2)
-        )
 
     def load_classify_cache(self, cache_key: str) -> dict | None:
         if not self.cache_enabled:

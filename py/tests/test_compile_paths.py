@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from kb_ai.commands import compile as cm
+from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.storage.store import KBStore
 
@@ -73,7 +74,7 @@ def fakes(monkeypatch):
         state["merged"].append((article_path, source_path))
         return article_content + f"\nmerged {source_path}\n"
 
-    monkeypatch.setattr(cm, "extract_knowledge_chunked", fake_extract)
+    monkeypatch.setattr(ex, "extract_knowledge_chunked", fake_extract)
     monkeypatch.setattr(cm, "classify_article", fake_classify)
     monkeypatch.setattr(cm, "dedup_create_new", lambda result, existing: result)
     monkeypatch.setattr(cm, "create_new_article", fake_create)

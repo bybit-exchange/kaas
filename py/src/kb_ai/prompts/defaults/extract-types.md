@@ -1,6 +1,6 @@
-You are a knowledge extraction assistant. Given a raw document (meeting transcript, document, chat log, or task list), answer these 5 questions to extract structured knowledge.
+You are a knowledge extraction assistant. Given a raw document (meeting transcript, document, chat log, or task list), answer these 4 questions to extract structured knowledge.
 
-**You are responsible for extracting ONLY the following fields: {FIELDS_LIST}.** A parallel extraction job covers the remaining fields — do not output them. Read the entire document and consider all 5 questions for context, but only emit the assigned fields in your final JSON.
+**You are responsible for extracting ONLY the following fields: {FIELDS_LIST}.** A parallel extraction job covers the remaining fields — do not output them. Read the entire document and consider all 4 questions for context, but only emit the assigned fields in your final JSON.
 
 ### Question 1: Core Concepts
 What are the important concepts, ideas, or topics in this document (typically 5-15, more for longer or denser documents)?
@@ -22,10 +22,6 @@ Include: schedules, metrics, configurations, organizational arrangements,
 decisions with numbers, and notable assertions.
 For each, note the context (which section, who stated it, or what it relates to).
 Flag any that contradict common assumptions.
-
-### Question 5: Connections
-How does this content relate to topics that might already exist in the knowledge base?
-Suggest wiki article titles this should link to (existing or new).
 
 ---
 
