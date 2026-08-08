@@ -519,3 +519,106 @@ def test_write_processes_many_articles(store, writers):
     assert written == 12
     assert len(writers["created"]) == 12
     assert all(by_hash(results)[f"h{i}"]["status"] == "ok" for i in range(12))
+
+
+# ── worker context isolation ────────────────────────────────────────
+#
+# contextual_submit hands every worker the SAME ThreadContext object, by design,
+# so that a parent can signal cancellation through it. That makes any per-worker
+# set/restore on it a race -- including the write phase's own call-timeout
+# override (issue #26).
+
+def test_write_worker_does_not_share_the_callers_context(store, writers, monkeypatch):
+    from kb_ai._context import get_context
+
+    caller_ctx = get_context()
+    seen = []
+
+    def recording_create(article_type, title, extraction, source_path, model="m"):
+        seen.append(get_context())
+        return "body\n"
+
+    monkeypatch.setattr(pw, "create_new_article", recording_create)
+
+    pw.run_write_phase(
+        [item("h1", creates=[("wiki/concept/a.md", "concept", "A")]),
+         item("h2", creates=[("wiki/concept/b.md", "concept", "B")])],
+        store, workers=2,
+    )
+
+    assert len(seen) == 2
+    assert all(ctx is not caller_ctx for ctx in seen)
+    assert seen[0] is not seen[1]
+
+
+def test_write_worker_labels_its_phase_with_the_article(store, writers, monkeypatch):
+    from kb_ai._context import get_context
+
+    seen = {}
+
+    def recording_create(article_type, title, extraction, source_path, model="m"):
+        seen["phase"] = get_context().phase
+        return "body\n"
+
+    monkeypatch.setattr(pw, "create_new_article", recording_create)
+
+    pw.run_write_phase(
+        [item("h1", creates=[("wiki/concept/a.md", "concept", "A")])], store)
+
+    assert seen["phase"] == "write:wiki/concept/a.md"
+
+
+def test_write_worker_still_sees_the_parents_cancel_event(store, writers, monkeypatch):
+    """The copy must keep sharing the Event itself, or cancellation stops working."""
+    from kb_ai._context import get_context
+
+    ev = threading.Event()
+    seen = {}
+
+    def recording_create(article_type, title, extraction, source_path, model="m"):
+        seen["event"] = get_context().cancel_event
+        return "body\n"
+
+    monkeypatch.setattr(pw, "create_new_article", recording_create)
+
+    pw.run_write_phase(
+        [item("h1", creates=[("wiki/concept/a.md", "concept", "A")])],
+        store, cancel_event=ev)
+
+    assert seen["event"] is ev
+
+
+def test_the_write_timeout_override_lands_on_the_workers_own_context(
+    store, writers, monkeypatch
+):
+    """The override must be set on the worker's copy, never on the shared object.
+
+    That is what keeps _with_write_timeout's set/restore off the critical path of
+    every other worker: on a shared context the second worker reads the first's
+    override as its own "previous" value and restores *that*, and which of the two
+    restores lands last decides whether the override outlives the phase.
+
+    Asserted as a per-worker invariant rather than by racing two workers, because
+    the interleaving that leaks is real but not reproducible on demand.
+    """
+    from kb_ai._context import get_context
+    from kb_ai.core.merge import _WRITE_CALL_TIMEOUT_S, _with_write_timeout
+
+    caller_ctx = get_context()
+    assert caller_ctx.call_timeout is None
+    seen = {}
+
+    @_with_write_timeout
+    def recording_create(article_type, title, extraction, source_path, model="m"):
+        seen["worker"] = get_context().call_timeout
+        seen["caller"] = caller_ctx.call_timeout
+        return "body\n"
+
+    monkeypatch.setattr(pw, "create_new_article", recording_create)
+
+    pw.run_write_phase(
+        [item("h1", creates=[("wiki/concept/a.md", "concept", "A")])], store)
+
+    assert seen["worker"] == _WRITE_CALL_TIMEOUT_S
+    assert seen["caller"] is None, "the override must not touch the shared context"
+    assert caller_ctx.call_timeout is None

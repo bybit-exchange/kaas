@@ -311,3 +311,206 @@ def test_under_wiki_accepts_only_paths_resolving_inside_the_wiki_subtree(
     containment check -- compile_kb had only the prefix check and could write
     outside the wiki subtree."""
     assert cm._under_wiki(kb_one, art_path) is expected
+
+
+# ── worker context: op attribution and alert routing ────────────────
+#
+# contextvars are not inherited by pool threads, so a compile worker starts on a
+# default ThreadContext unless the parent's is installed explicitly. That is what
+# made a stalled write report op=unknown and kept its warning out of the compile
+# log (issue #26).
+
+def creates(path: str, title: str, art_type: str = "concept") -> dict:
+    return {"merge_into": [],
+            "create_new": [{"path": path, "type": art_type, "title": title}]}
+
+
+def test_write_worker_labels_its_phase_with_the_article(kb_one, fakes, monkeypatch):
+    """op= in an LLM warning must name the phase and the article that stalled."""
+    from kb_ai._context import get_context
+
+    seen = {}
+
+    def recording_create(article_type, title, extraction, source_path, model="m"):
+        seen["phase"] = get_context().phase
+        return "body\n"
+
+    monkeypatch.setattr(cm, "create_new_article", recording_create)
+    fakes["classification"] = creates("wiki/concept/target.md", "Target")
+
+    cm.compile_kb(str(kb_one.base_dir))
+
+    assert seen["phase"] == "write:wiki/concept/target.md"
+
+
+def test_merge_worker_labels_its_phase_with_the_article(kb_one, fakes, monkeypatch):
+    from kb_ai._context import get_context
+
+    seen = {}
+
+    def recording_merge(article_path, article_content, extraction, source_path, model="m"):
+        seen["phase"] = get_context().phase
+        return article_content
+
+    kb_one.write_article("wiki/concept/target.md", "prior body\n")
+    monkeypatch.setattr(cm, "merge_into_article", recording_merge)
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    cm.compile_kb(str(kb_one.base_dir))
+
+    assert seen["phase"] == "write:wiki/concept/target.md"
+
+
+def test_extract_worker_labels_its_phase_with_the_document(kb_one, fakes, monkeypatch):
+    """Labelling only the write phase would leave op=unknown meaning "extract",
+    which is the same ambiguity by another name."""
+    from kb_ai._context import get_context
+
+    seen = {}
+
+    def recording_extract(content, model="m"):
+        seen["phase"] = get_context().phase
+        return ExtractionResult(summary=f"summary of {content}", topics=["t"])
+
+    monkeypatch.setattr(cm, "extract_knowledge_chunked", recording_extract)
+
+    cm.compile_kb(str(kb_one.base_dir))
+
+    assert seen["phase"] == "extract:raw/only.md"
+
+
+def test_worker_keeps_the_parents_request_tracker(kb_one, fakes, monkeypatch):
+    """Installing the parent context must not drop what set_request_tracker did:
+    a daemon request's cost is accounted against its own tracker.
+
+    Observed in the extract worker because the write worker deliberately nests a
+    per-op tracker inside it (see _measure_op_cost), which would mask this.
+    """
+    from kb_ai._context import get_context
+    from kb_ai._cost import CostTracker
+    from kb_ai.llm import set_request_tracker
+
+    req = CostTracker()
+    set_request_tracker(req)
+    seen = {}
+
+    def recording_extract(content, model="m"):
+        seen["tracker"] = get_context().request_tracker
+        return ExtractionResult(summary=f"summary of {content}", topics=["t"])
+
+    monkeypatch.setattr(cm, "extract_knowledge_chunked", recording_extract)
+    try:
+        cm.compile_kb(str(kb_one.base_dir))
+    finally:
+        set_request_tracker(None)
+
+    assert seen["tracker"] is req
+
+
+def test_write_worker_nests_its_op_tracker_under_the_parents(kb_one, fakes, monkeypatch):
+    """The per-op tracker a write worker nests must still fold into the request's,
+    or installing the parent context would have quietly changed cost accounting."""
+    from kb_ai._cost import CostTracker
+    from kb_ai.llm import set_request_tracker
+
+    req = CostTracker()
+    set_request_tracker(req)
+
+    def costing_create(article_type, title, extraction, source_path, model="m"):
+        from kb_ai.llm import get_request_tracker
+        get_request_tracker().record("m", prompt_tokens=10, completion_tokens=5, cost=0.5)
+        return "body\n"
+
+    monkeypatch.setattr(cm, "create_new_article", costing_create)
+    fakes["classification"] = creates("wiki/concept/target.md", "Target")
+    try:
+        cm.compile_kb(str(kb_one.base_dir))
+    finally:
+        set_request_tracker(None)
+
+    assert req.calls == 1
+    assert req.total_cost == 0.5
+
+
+def test_llm_warning_from_a_write_worker_reaches_the_compile_log(
+    kb_one, fakes, monkeypatch
+):
+    """The 15-minute stall showed up only in the backend's stderr; .compile.log
+    just stopped advancing with no explanation."""
+    from kb_ai.llm._infra import emit_alert
+
+    def stalling_create(article_type, title, extraction, source_path, model="m"):
+        emit_alert("op=write model=m attempt=1/3 elapsed=901.7s", "m", 1,
+                   "api_timeout_error")
+        return "body\n"
+
+    monkeypatch.setattr(cm, "create_new_article", stalling_create)
+    fakes["classification"] = creates("wiki/concept/target.md", "Target")
+
+    cm.compile_kb(str(kb_one.base_dir))
+
+    log = log_of(kb_one)
+    assert "[LLM-WARN] api_timeout_error" in log
+    assert "elapsed=901.7s" in log
+
+
+def test_the_alert_sink_does_not_outlive_the_compile(kb_one, fakes, capsys):
+    """The sink closes over an open file handle, so it must be cleared -- a later
+    call on the same thread would otherwise write into a closed compile log."""
+    from kb_ai._context import get_context
+    from kb_ai.llm._infra import emit_alert
+
+    fakes["classification"] = creates("wiki/concept/target.md", "Target")
+
+    cm.compile_kb(str(kb_one.base_dir))
+
+    assert get_context().alert_sink is None
+    emit_alert("after the compile", "m", 1, "api_timeout_error")
+    assert "after the compile" in capsys.readouterr().err
+
+
+# ── end-to-end: the failure issue #26 reported ──────────────────────
+
+def test_a_stalled_write_is_attributable_and_capped(kb_one, fakes, monkeypatch):
+    """The whole reported failure, driven through the real write path.
+
+    Before the fix a write inherited the 900s client default and its warning said
+    `op=unknown` on stderr only, so a 15-minute stall left .compile.log frozen with
+    nothing to attribute it to.
+    """
+    import time as time_mod
+    from unittest.mock import MagicMock, patch
+
+    import httpx
+    from openai import APITimeoutError
+
+    import kb_ai.llm as llm_pkg
+    from kb_ai.core.merge import _WRITE_CALL_TIMEOUT_S, create_new_article
+
+    monkeypatch.setattr(time_mod, "sleep", lambda _s: None)   # skip retry backoff
+    monkeypatch.setattr(cm, "create_new_article", create_new_article)
+    fakes["classification"] = creates("wiki/concept/target.md", "Target")
+
+    client = MagicMock()
+    client.base_url = "http://test:8080/v1"
+    client.chat.completions.create.side_effect = APITimeoutError(
+        httpx.Request("POST", "http://test:8080/v1/chat/completions"))
+    client.with_options.return_value = client
+
+    with patch.object(llm_pkg, "get_client", return_value=client):
+        out = cm.compile_kb(str(kb_one.base_dir))
+
+    # Capped: the write asked for its own timeout instead of the client default.
+    assert client.with_options.call_args_list
+    assert all(c.kwargs["timeout"] == _WRITE_CALL_TIMEOUT_S
+               for c in client.with_options.call_args_list)
+
+    # Attributable: named phase and article, in the log of the KB being compiled.
+    log = log_of(kb_one)
+    assert "[LLM-WARN] api_timeout_error" in log
+    assert "op=write:wiki/concept/target.md" in log
+    assert "op=unknown" not in log
+
+    # And the run still reports the failure rather than swallowing it.
+    assert out["compiled"] == 0
+    assert len(out["errors"]) == 1

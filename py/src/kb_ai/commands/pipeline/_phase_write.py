@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Callable
 
 from openai import APIError as LLMAPIError
 
-from kb_ai._context import cancellable, contextual_submit, get_context
+from kb_ai._context import adopt_context, cancellable, contextual_submit, get_context
 from kb_ai._errors import PipelineCancelledError
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.commands.compile import _combine_extractions
@@ -43,11 +43,13 @@ def _process_article(
     """Process a single article: create or merge all operations.
 
     Context (deadline, cancel_event, etc.) is obtained from get_context(),
-    propagated via contextual_submit from the parent thread.
+    propagated via contextual_submit from the parent thread, and adopted as a copy
+    because two things here are per-worker: the phase label naming this article,
+    and the call_timeout that create_new_article / merge_into_article set and
+    restore around their own calls. Neither may run on the object every sibling
+    worker shares.
     """
-    ctx = get_context()
-    ctx.phase = "write"
-    ctx.content_hash = ""
+    adopt_context(get_context(), phase=f"write:{art_path}", content_hash="")
 
     t_art = time.time()
     all_sources = [(ref, ext) for _ch, ref, ext, _action, _det in ops]
