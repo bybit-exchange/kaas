@@ -1,0 +1,23 @@
+py/tests/test_types.py
+  32b77a2b912c19dd 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "345c089ed3f1ece44188b259ddb40b058ca2cebb",
+  "prompts": {
+    "32b77a2b912c19dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cc6fc53-1248-4aec-b161-b330acd45dcb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 261,
+      "total_deletions": 334,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    }
+  }
+}
