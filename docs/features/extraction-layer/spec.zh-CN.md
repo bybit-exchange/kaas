@@ -43,8 +43,9 @@ CLI 摄入的文档。derive 的 `copy_documents` 找不到东西可拷（`deriv
 **2. 文件里没有 provenance，所以过期无法检测。** `extraction_to_dict`
 （`core/extract.py:77`）恰好输出八个 payload 字段——`summary`、`concepts`、`entities`、
 `decisions`、`action_items`、`claims`、`topics`、`connections`——关于「它们从哪来」
-一个字都没有。文件名是源文档的内容校验和，这让**文本**过期不可能发生，但对模型和
-prompt 一无所知。换掉抽取模型，或者编辑 `prompts/defaults/extract.md`（可通过
+一个字都没有。[Superseded 2026-08-08：七个——`connections` 已删除，见
+[notes.md](notes.md) 的「`connections` dropped on 2026-08-08」。]文件名是源文档的内容
+校验和，这让**文本**过期不可能发生，但对模型和 prompt 一无所知。换掉抽取模型，或者编辑 `prompts/defaults/extract.md`（可通过
 `KAAS_PROMPTS_DIR` 按部署覆盖，`core/extract.py:85`），所有已有条目都会被静默复用。
 代码自己已经承认了这一点，在 `derive/_layout.py:168-170`：*「the cache key carries no
 model or prompt version, so compiling a derived KB with a different model than the
@@ -59,6 +60,9 @@ source reuses the other model's extractions.」*
 一个头部：
 
 ![KaaS 知识库的四层结构](assets/kb-four-layers.zh.svg)
+
+[图为 2026-08-07 绘制时的状态。Superseded 2026-08-08：图中的 frontmatter 字段列表
+已不再包含 `connections`，见 [notes.md](notes.md)。]
 
 `raw/` 和 `extraction/` 里的文件名完全相同，例如
 `window-2026-06__docs__2026-06-01-abf-day-1.md` 在两棵树里都是这个路径。
@@ -150,12 +154,16 @@ UI，然后派生一个主题库。这份文档按它的抽取摘要被评判，
   16 位十六进制前缀）、`extract_model`、`extract_strategy`、`summarize_model`
   （仅 summarize 路径，见 B15）、`prompt_version`、`extracted_at`、`schema_version`
   ——外加三个足够扁平、适合放在这里的 payload 字段：
-  `summary`、`topics`、`connections`。
+  `summary`、`topics`、`connections`。[Superseded 2026-08-08：两个字段，`summary`
+  和 `topics`，见 [notes.md](notes.md)。]
 - B2. body 以 markdown section 承载五个对象列表型 payload 字段，顺序固定为：
   `concepts`、`entities`、`decisions`、`action_items`、`claims`。每个 section 的内容
   就是该字段列表的 `yaml.safe_dump`，于是每个条目的每个字段都是显式标注值，
   绝不靠排版暗示。section 顺序是写死的、不由 dict 迭代顺序决定，因为它是 C2
   字节一致性的一部分。
+
+  [Superseded 2026-08-08：下面示例里的 `connections: [...]` 那一行已删除，见
+  [notes.md](notes.md)。]
 
   ```markdown
   ---
@@ -302,7 +310,8 @@ UI，然后派生一个主题库。这份文档按它的抽取摘要被评判，
   唯一还站得住的答案，而 naive 本地时间一旦搬走就是误导。`extracted_at` 不是函数参数；
   H3 monkeypatch `_now_iso`，因为一个唯一真实调用方是测试的生产参数，
   就是测试基建漏进了 API。
-- B17. `topics` 和 `connections` 在序列化时排序。两者都是 `list(set(...))` 构造的——
+- B17. `topics` 和 `connections` 在序列化时排序。[Superseded 2026-08-08：只有
+  `topics`，见 [notes.md](notes.md)。]两者都是 `list(set(...))` 构造的——
   多 chunk 文档走 `core/extract.py:727-728`，merge 走 `_combine_extractions`
   （`:748-749`）——而 Python 的字符串哈希按进程随机化，所以同样内容的
   `ExtractionResult` 每次运行都会给出不同的元素顺序。实测：三个子进程对同样五个 tag

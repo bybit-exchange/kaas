@@ -300,6 +300,7 @@ months" is exactly the audit the layer exists to support.
   `ExtractionResult`, all of `source`, `source_checksum`, `extract_model`,
   `extract_strategy`, `prompt_version` (a per-process constant per Q1),
   `schema_version`, `summary`, `topics`, `connections` and `counts` are fixed.
+  [Superseded 2026-08-08: `connections` was dropped — see [notes.md](notes.md).]
 - *Can `prompt_version` differ between the two paths and break C3 quietly?* Yes —
   the daemon's lazy per-name registry cache, handled in Q1 by computing the
   version once per process before any extraction. H3 must run both paths in one
@@ -336,6 +337,9 @@ collide under a premise the spec never states — that the body is also written 
 **Decision: the body is `safe_dump` too**, which collapses O1's accepted
 "serializer/parser pair" to almost nothing. Each section's content is
 `yaml.safe_dump` of that field's list:
+
+[Superseded 2026-08-08: the `connections: [...]` line below is gone — see
+[notes.md](notes.md).]
 
 ```markdown
 ---

@@ -48,7 +48,9 @@ the CLI would not. Selection quality ends up depending on the ingestion route.
 **2. There is no provenance in the file, so staleness is undetectable.**
 `extraction_to_dict` (`core/extract.py:77`) emits exactly eight payload fields —
 `summary`, `concepts`, `entities`, `decisions`, `action_items`, `claims`,
-`topics`, `connections` — and nothing about where they came from. The filename is
+`topics`, `connections` — and nothing about where they came from.
+[Superseded 2026-08-08: seven — `connections` was dropped, see
+"`connections` dropped on 2026-08-08" in [notes.md](notes.md).] The filename is
 a content checksum of the source, which makes *text* staleness impossible but
 says nothing about model or prompt. Change the extract model, or edit
 `prompts/defaults/extract.md` (overridable per-deployment via `KAAS_PROMPTS_DIR`,
@@ -68,6 +70,9 @@ This spec proposes no new pipeline stage. It gives the existing fourth stage a
 name, a stable filename, and a header:
 
 ![The four layers of a KaaS knowledge base](assets/kb-four-layers.svg)
+
+[The diagram is as drawn on 2026-08-07. Superseded 2026-08-08: the frontmatter
+field list it shows no longer carries `connections` — see [notes.md](notes.md).]
 
 The filenames in `raw/` and `extraction/` are identical — for example
 `window-2026-06__docs__2026-06-01-abf-day-1.md` sits at that path in both trees.
@@ -184,13 +189,17 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   `extract_strategy`, `summarize_model` (only on the summarize path, see B15),
   `prompt_version`, `extracted_at`, `schema_version` — plus the three payload
   fields that are flat enough to belong there: `summary`, `topics`,
-  `connections`.
+  `connections`. [Superseded 2026-08-08: two fields, `summary` and `topics` —
+  see [notes.md](notes.md).]
 - B2. The body carries the five object-list payload fields as markdown sections,
   in this fixed order: `concepts`, `entities`, `decisions`, `action_items`,
   `claims`. Each section's content is `yaml.safe_dump` of that field's list, so
   every field of every item is an explicit labelled value and never implied by
   styling. Section order is pinned rather than derived from dict iteration,
   because it is part of C3's byte-identity.
+
+  [Superseded 2026-08-08: the `connections: [...]` line of the example below is
+  gone — see [notes.md](notes.md).]
 
   ```markdown
   ---
@@ -371,7 +380,8 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   timestamp is misleading once it has moved. `extracted_at` is not a function
   parameter; H3 monkeypatches `_now_iso`, because a production parameter whose
   only real caller is a test is test scaffolding in the API.
-- B17. `topics` and `connections` are sorted at serialisation. Both are built with
+- B17. `topics` and `connections` are sorted at serialisation. [Superseded
+  2026-08-08: `topics` only — see [notes.md](notes.md).] Both are built with
   `list(set(...))` — `core/extract.py:727-728` for a multi-chunk document and
   `_combine_extractions` (`:748-749`) for a merge — and Python randomises string
   hashing per process, so the same `ExtractionResult` content yields a different
