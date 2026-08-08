@@ -105,7 +105,9 @@ source reuses the other model's extractions.」*
 - 给写相位配上它自己的 provenance。抽取在这里拿到了 provenance，classify 也早已哈希了
   自己渲染后的 prompt（`core/classify.py:88-100`），但编辑 `merge-rewrite.md` 或
   `merge-diff.md` 仍然什么都不会失效，因为写相位只由 `.compile-state.json` 把关。
-  在此明确记为已知缺口，以免被读成疏漏。
+  在此明确记为已知缺口，以免被读成疏漏。[Superseded 2026-08-08：现在每篇文档都会记录
+  一个 `write_prompt_version`，并由 `kb-ai check` 报告，但仍然不对 composition
+  把关——见 [notes.md](notes.md) 的 gap 6。]
 
 ## 用户故事 / 场景
 
