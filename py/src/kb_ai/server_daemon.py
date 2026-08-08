@@ -97,7 +97,8 @@ def _handle_init(request_id: str, payload: dict) -> None:
     from openai import OpenAI
 
     with _client_lock:
-        infra._client = OpenAI(base_url=base_url, api_key=api_key, timeout=900.0, max_retries=0)
+        infra._client = OpenAI(base_url=base_url, api_key=api_key,
+                               timeout=infra.DEFAULT_CLIENT_TIMEOUT_S, max_retries=0)
 
     if model:
         os.environ["LLM_MODEL"] = model

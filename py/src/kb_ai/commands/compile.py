@@ -23,11 +23,39 @@ from kb_ai.storage.index import (
     update_timeline,
 )
 from kb_ai.core.people import update_people_stubs
+from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import create_new_article, merge_into_article
 from kb_ai.storage.store import ArticleMeta, KBStore
 
 _DEFAULT_WORKERS = 16
+
+
+@contextmanager
+def _compile_log(log_path: Path):
+    """Open the KB's .compile.log and route LLM warnings into it for the duration.
+
+    Yields log(msg, stderr=True). The alert sink writes to the file only, because
+    emit_alert has already put the line on stderr.
+
+    Restored on the way out: the sink closes over this file handle, and in the
+    long-lived daemon the same thread goes on to serve later requests.
+    """
+    lock = threading.Lock()
+    with open(log_path, "w") as log_file:
+        def log(msg: str, *, stderr: bool = True):
+            with lock:
+                print(msg, file=log_file, flush=True)
+                if stderr:
+                    print(msg, file=sys.stderr, flush=True)
+
+        ctx = get_context()
+        prev = ctx.alert_sink
+        ctx.alert_sink = lambda msg: log(msg, stderr=False)
+        try:
+            yield log
+        finally:
+            ctx.alert_sink = prev
 
 
 @contextmanager
@@ -113,13 +141,11 @@ def compile_kb(
     workers = min(total, cfg_workers if cfg_workers > 0 else _DEFAULT_WORKERS)
 
     log_path = Path(data_dir).expanduser() / ".compile.log"
-    _log_lock = threading.Lock()
 
-    with open(log_path, "w") as log_file:
-        def log(msg: str):
-            with _log_lock:
-                print(msg, file=log_file, flush=True)
-                print(msg, file=sys.stderr, flush=True)
+    with _compile_log(log_path) as log:
+        # Captured in the parent thread; the pool workers install a copy of it so
+        # their LLM calls carry this compile's tracker, alert sink and phase label.
+        _parent_ctx = get_context()
 
         log(f"Starting compile: {total} files to process (workers={workers})")
 
@@ -138,10 +164,8 @@ def compile_kb(
             else:
                 need_extract.append(rf)
 
-        _compile_req_tracker = get_request_tracker()
-
         def _extract_one(rf):
-            set_request_tracker(_compile_req_tracker)
+            adopt_context(_parent_ctx, phase=f"extract:{rf.rel_path}")
             result = extract_knowledge_chunked(rf.content, model=extract_model)
             store.save_extract_cache(rf.checksum, extraction_to_dict(result))
             return rf.rel_path, result
@@ -277,10 +301,8 @@ def compile_kb(
         _file_done_ops: dict[str, int] = {rel: 0 for rel in file_op_counts}
         _file_done_articles: dict[str, set] = {rel: set() for rel in file_op_counts}
 
-        _write_req_tracker = get_request_tracker()
-
         def _process_article(art_path: str, ops: list):
-            set_request_tracker(_write_req_tracker)
+            adopt_context(_parent_ctx, phase=f"write:{art_path}")
             creates = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "create"]
             merges = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "merge"]
             create_failed = False
