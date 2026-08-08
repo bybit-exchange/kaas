@@ -1,0 +1,48 @@
+py/src/kb_ai/prompts/defaults/extract.md
+  32b77a2b912c19dd 1,36
+py/tests/test_core_extract.py
+  32b77a2b912c19dd 40,48,116,443,477,722
+py/tests/test_storage_extraction.py
+  32b77a2b912c19dd 74,146-153,206,479
+py/src/kb_ai/core/extract.py
+  32b77a2b912c19dd 81,165,171
+py/src/kb_ai/storage/extraction.py
+  32b77a2b912c19dd 13-17,54,139-143,375-377
+docs/features/extraction-layer/notes.md
+  32b77a2b912c19dd 3-4,377-423
+py/src/kb_ai/prompts/defaults/extract-types.md
+  32b77a2b912c19dd 1,3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d1659935a982ff8d3764d7c0d2c20990504f334e",
+  "prompts": {
+    "32b77a2b912c19dd": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cc6fc53-1248-4aec-b161-b330acd45dcb",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 4972,
+      "total_deletions": 4930,
+      "accepted_lines": 169,
+      "overriden_lines": 0
+    },
+    "9534fb8f13b48bfb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59f095c7-2232-4c3b-afc7-872cf5398a66",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 87,
+      "total_deletions": 0,
+      "accepted_lines": 49,
+      "overriden_lines": 0
+    }
+  }
+}
