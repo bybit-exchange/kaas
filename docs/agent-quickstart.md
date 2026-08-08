@@ -97,6 +97,23 @@ kb-ai distill <path> --kb ./.kaas --categories concept,guide,reference
 Passing a set that disagrees with an already-frozen one is honoured but warns,
 because the result is a KB with two taxonomies in it.
 
+### 4b. Check a knowledge base without spending anything
+
+```bash
+kb-ai check --kb ./.kaas
+```
+
+Reads three things and writes nothing: whether every document's extraction still
+matches the document beside it, whether the parent has moved since a derived KB
+was built (`unknown` for a KB that was not derived), and how far the wiki is
+behind the prompts that produced it. Safe to point at a read-only KB or someone
+else's.
+
+The lag half is what a `compile` cannot tell you: editing a write prompt changes
+no document, so the next compile finds nothing to do and reports nothing. The
+counts are report-only — re-composing an article adds to it rather than replacing
+it, so a prompt edit is never a reason to pay the write phase again on its own.
+
 ### 5. Wire up MCP so later sessions can query
 
 **Claude Code:**

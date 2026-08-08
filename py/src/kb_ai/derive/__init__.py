@@ -30,6 +30,7 @@ from kb_ai._errors import (  # noqa: F401 -- re-exported for callers
     SlugExistsError,
     UnknownDerivedKBError,
 )
+from kb_ai.core.extract import STRATEGY_CHUNKED
 from kb_ai.derive._filter import select_by_topic
 from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
     assert_not_nested,
@@ -120,6 +121,8 @@ def derive_kb(
     prune: bool = False,
     select_from: str = SELECT_FROM_ARTICLES,
     model: str,
+    extract_strategy: str = STRATEGY_CHUNKED,
+    summarize_model: str = "",
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
     approve: Callable[[DeriveReport], bool] | None = None,
@@ -274,8 +277,15 @@ def derive_kb(
     # DEFAULT_CATEGORIES would file the derived articles under categories the
     # source deliberately excluded -- the silent re-partition that freezing the
     # set per KB exists to prevent. None on a source predating that feature.
+    # extract_strategy travels with the model for the same reason (C4): the copied
+    # extractions carry whatever strategy the source recorded, so a derived compile
+    # left on the default would find every one of them stale under a non-chunked
+    # deployment, re-extract the whole copy at full price, and record chunked --
+    # which the next compile of the source then finds stale in turn.
     compile_result = compile_fn(str(derived_dir), extract_model=model,
                                 compile_model=model, write_model=model,
+                                extract_strategy=extract_strategy,
+                                summarize_model=summarize_model,
                                 categories=source_store.load_config().get("categories"))
     # compile_kb returns the PROCESS-WIDE tracker summary, which here would be the
     # RECALL pass plus, in the long-lived daemon, every earlier request's spend.

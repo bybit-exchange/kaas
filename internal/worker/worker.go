@@ -31,6 +31,7 @@ type Config struct {
 	HeartbeatInterval time.Duration // lease renewal cadence (typically leaseTTL/3)
 	Model             string        // forwarded as ExtractRequest.Model
 	SummarizeModel    string        // forwarded as ExtractRequest.SummarizeModel
+	ExtractStrategy   string        // forwarded as ExtractRequest.Strategy
 }
 
 // Worker processes a single claimed task end to end.
@@ -111,6 +112,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 			KBDir:          w.cfg.KBDir,
 			Source:         sourceRef,
 			Model:          w.cfg.Model,
+			Strategy:       w.cfg.ExtractStrategy,
 			SummarizeModel: w.cfg.SummarizeModel,
 		})
 		return e

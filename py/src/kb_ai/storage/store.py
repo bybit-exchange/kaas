@@ -157,6 +157,14 @@ class KBStore:
             yield p
 
     def list_raw_files(self) -> list[RawFile]:
+        """Every raw document with its content. No production caller left.
+
+        Both the estimate path and compile migrated to iter_raw_file_meta() plus a
+        lazy read_raw(); this is kept as the oracle the equivalence test compares
+        that streaming scan against, since the checksum agreeing byte for byte is
+        what makes the migration free rather than a re-extraction of every
+        document. Do not reach for it in new code.
+        """
         files = []
         for p in self._iter_raw_paths():
             content = p.read_text()

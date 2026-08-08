@@ -46,6 +46,10 @@ def _lazy_commands() -> dict:
         from kb_ai.commands.derive import run_derive
         return lambda: run_derive(sys.argv[2:])
 
+    def check():
+        from kb_ai.commands.check import run_check
+        return lambda: run_check(sys.argv[2:])
+
     def daemon():
         from kb_ai.server_daemon import main as daemon_main
         return daemon_main
@@ -57,6 +61,7 @@ def _lazy_commands() -> dict:
         "rewrite": rewrite,
         "distill": distill,
         "derive": derive,
+        "check": check,
         "daemon": daemon,
     }
 

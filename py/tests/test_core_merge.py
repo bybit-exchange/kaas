@@ -674,3 +674,137 @@ def test_create_new_article_bounds_the_extraction(monkeypatch):
     mg.create_new_article("concept", "T", huge, "raw/a.md")
 
     assert len(captured["user"]) < 10_000
+
+
+# ── write-phase provenance ──────────────────────────────────────────
+#
+# The extraction layer records which extract prompt produced it, so staleness is
+# a field comparison. The write phase had no equivalent: editing merge-rewrite.md
+# or merge-diff.md invalidated nothing, and neither did editing the article
+# creator's own system prompt, which lives in code rather than in a file.
+
+@pytest.fixture(autouse=True)
+def clear_write_prompt_version_cache():
+    mg.write_prompt_version.cache_clear()
+    yield
+    mg.write_prompt_version.cache_clear()
+
+
+def _prompt_dir(tmp_path, **bodies) -> object:
+    prompts = tmp_path / "prompts"
+    prompts.mkdir(exist_ok=True)
+    for name in ("merge-rewrite", "merge-diff"):
+        (prompts / f"{name}.md").write_text(bodies.get(name, f"[{name}] body"))
+    return prompts
+
+
+def _reset_registry(monkeypatch, prompts):
+    monkeypatch.setenv("KAAS_PROMPTS_DIR", str(prompts))
+    import kb_ai.prompts as prompts_pkg
+    monkeypatch.setattr(prompts_pkg, "_registry", None)
+    mg.write_prompt_version.cache_clear()
+
+
+def test_write_prompt_version_is_twelve_hex_digits():
+    version = mg.write_prompt_version()
+    assert len(version) == 12
+    assert all(c in "0123456789abcdef" for c in version)
+
+
+def test_write_prompt_version_is_memoized_within_a_process(monkeypatch):
+    """Same reason extract_prompt_version is (B12): the registry caches per name,
+    so an unmemoized hash could mix a pre-edit and a post-edit prompt."""
+    calls: list[str] = []
+    real = mg._write_stage_renderings
+
+    def counting():
+        calls.append("rendered")
+        return real()
+
+    monkeypatch.setattr(mg, "_write_stage_renderings", counting)
+    first = mg.write_prompt_version()
+    assert mg.write_prompt_version() == first
+    assert len(calls) == 1
+
+
+def test_write_prompt_version_moves_when_merge_rewrite_changes(monkeypatch, tmp_path):
+    prompts = _prompt_dir(tmp_path)
+    _reset_registry(monkeypatch, prompts)
+    before = mg.write_prompt_version()
+
+    (prompts / "merge-rewrite.md").write_text("[merge-rewrite] body, one more rule")
+    _reset_registry(monkeypatch, prompts)
+
+    assert mg.write_prompt_version() != before
+
+
+def test_write_prompt_version_moves_when_merge_diff_changes(monkeypatch, tmp_path):
+    prompts = _prompt_dir(tmp_path)
+    _reset_registry(monkeypatch, prompts)
+    before = mg.write_prompt_version()
+
+    (prompts / "merge-diff.md").write_text("[merge-diff] body, one more rule")
+    _reset_registry(monkeypatch, prompts)
+
+    assert mg.write_prompt_version() != before
+
+
+def test_write_prompt_version_moves_when_a_section_template_changes(monkeypatch):
+    """The article creator's prompt is a code constant, so hashing the files
+    alone would leave it a blind spot -- the same trap B11 covers for extract."""
+    before = mg.write_prompt_version()
+
+    edited = dict(mg._SECTION_TEMPLATES)
+    edited["concept"] = "Sections: Definition, Why it matters, Open questions"
+    monkeypatch.setattr(mg, "_SECTION_TEMPLATES", edited)
+    mg.write_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != before
+
+
+def test_write_prompt_version_covers_a_type_with_no_section_template(monkeypatch):
+    """_section_guidance falls back for a type it has no template for, and that
+    fallback text is part of what gets sent. reference and guide are both in
+    DEFAULT_CATEGORIES and neither has a template."""
+    before = mg.write_prompt_version()
+
+    monkeypatch.setattr(mg, "_section_guidance",
+                        lambda t: "Article type: rewritten guidance")
+    mg.write_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != before
+
+
+def test_create_new_article_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
+    """Ties the hash to the production path: a version over a template the real
+    call does not use would report freshness about text nobody sent."""
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured["system"] = kwargs["messages"][0]["content"]
+        return "article"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg.create_new_article("project", "P", _extraction(), "raw/a.md")
+
+    assert captured["system"] == mg._create_system("project")
+
+
+def test_the_two_prompt_versions_are_independent(monkeypatch):
+    """A write-prompt edit must not move the extraction's version, or every
+    document would re-extract at full cost over a prompt extraction never used."""
+    from kb_ai.core import extract as ex
+
+    ex.extract_prompt_version.cache_clear()
+    extract_before = ex.extract_prompt_version()
+    write_before = mg.write_prompt_version()
+
+    edited = dict(mg._SECTION_TEMPLATES)
+    edited["concept"] = "Sections: something else entirely"
+    monkeypatch.setattr(mg, "_SECTION_TEMPLATES", edited)
+    mg.write_prompt_version.cache_clear()
+    ex.extract_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != write_before
+    assert ex.extract_prompt_version() == extract_before

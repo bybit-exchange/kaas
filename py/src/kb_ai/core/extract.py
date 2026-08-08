@@ -818,3 +818,109 @@ def _combine_extractions(items: list[tuple[str, ExtractionResult]]) -> tuple[Ext
     combined.topics = list(set(combined.topics))
     combined.connections = list(set(combined.connections))
     return combined, rels
+
+
+# ── the extraction strategy router ──────────────────────────────────
+#
+# Both ingestion routes resolve a strategy through here rather than each deciding
+# for itself. The CLI's freshness gate used to assert "chunked" while the daemon
+# recorded whatever it routed to, so a KB configured for summarize had every
+# UI-ingested document re-extracted once by the next CLI compile and silently
+# downgraded -- the two routes disagreeing about the KB's own configuration.
+#
+# The two strategies are not coarse and fine versions of one thing. chunked sends
+# the document text (split only if it exceeds the window) to the structured
+# extractor; summarize summarizes each chunk first and extracts from the joined
+# summaries, so the structured pass never sees the original words. Which one
+# produced an extraction is therefore part of what staleness compares.
+
+STRATEGY_CHUNKED = "chunked"
+STRATEGY_SUMMARIZE = "summarize"
+# Resolved on chunk count, never recorded: persist stores the strategy that ran.
+STRATEGY_AUTO = "auto"
+EXTRACT_STRATEGIES = (STRATEGY_CHUNKED, STRATEGY_SUMMARIZE, STRATEGY_AUTO)
+
+# Below this, auto keeps the document text: summarizing one or two chunks pays a
+# second model for a loss of detail it does not need to take.
+_AUTO_SUMMARIZE_MIN_CHUNKS = 3
+
+
+@dataclass(frozen=True)
+class ExtractionPlan:
+    """What will run for one document, decided without spending anything.
+
+    strategy is what persist records, so it is never "auto". chunks and meta are
+    carried because the summarize path needs them and chunking them twice would
+    be wasted work -- and because resolving auto requires them anyway.
+    """
+
+    strategy: str
+    chunks: tuple[str, ...] = ()
+    meta: dict = field(default_factory=dict)
+
+
+def validate_strategy(requested: str) -> str:
+    """Return requested, or raise if it is not a strategy this code runs.
+
+    One message in one place, called both by the router and by a caller wanting to
+    reject a bad configuration before it starts work. Never falls back to chunked:
+    silently falling back is what kept this class of bug invisible, since a typo
+    in a deployment's configuration would extract every document under a strategy
+    nobody chose and the recorded provenance would agree with itself.
+    """
+    if requested not in EXTRACT_STRATEGIES:
+        raise ValueError(
+            f"unknown extract strategy {requested!r}, expected one of "
+            f"{', '.join(EXTRACT_STRATEGIES)}")
+    return requested
+
+
+def plan_extraction(content: str, requested: str) -> ExtractionPlan:
+    """Resolve a requested strategy for one document. No LLM call, no network.
+
+    Chunking costs nothing but CPU, which is what lets the freshness gate compare
+    against the strategy a run would actually produce before deciding to pay for
+    it. A requested chunked or summarize is honoured as asked and the content is
+    not even read; only auto has to look.
+
+    An unrecognised strategy raises rather than falling back to chunked. Silently
+    falling back is what kept this class of bug invisible: a typo in a
+    deployment's configuration would extract every document under a strategy
+    nobody chose, and the recorded provenance would agree with itself.
+    """
+    validate_strategy(requested)
+
+    if requested == STRATEGY_CHUNKED:
+        return ExtractionPlan(strategy=STRATEGY_CHUNKED)
+
+    meta, body = _parse_frontmatter(content)
+    chunks = tuple(chunk_transcript(body, meta) if _is_transcript(meta)
+                   else chunk_content(content))
+
+    if requested == STRATEGY_SUMMARIZE:
+        strategy = STRATEGY_SUMMARIZE
+    elif len(chunks) >= _AUTO_SUMMARIZE_MIN_CHUNKS:
+        strategy = STRATEGY_SUMMARIZE
+    else:
+        strategy = STRATEGY_CHUNKED
+
+    return ExtractionPlan(strategy=strategy, chunks=chunks, meta=meta)
+
+
+def run_planned_extraction(
+    plan: ExtractionPlan,
+    content: str,
+    *,
+    extract_model: str,
+    summarize_model: str = "",
+) -> ExtractionResult:
+    """Extract one document under an already-resolved plan.
+
+    Split from plan_extraction so a caller can compare the resolved strategy
+    against what is already on disk and decline to spend -- which is the whole
+    point of resolving before running.
+    """
+    if plan.strategy == STRATEGY_SUMMARIZE:
+        return extract_knowledge_summarized(
+            list(plan.chunks), plan.meta, summarize_model, extract_model)
+    return extract_knowledge_chunked(content, model=extract_model)

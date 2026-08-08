@@ -245,3 +245,55 @@ def test_run_distill_rejects_an_empty_category_list(tmp_path, monkeypatch, capsy
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False
     assert payload["error"]["code"] == "EMPTY_CATEGORIES"
+
+
+def test_run_distill_defaults_the_extract_strategy_to_chunked(tmp_path, monkeypatch):
+    """The CLI has to pass a strategy at all: the gate compares against it, and
+    the value it compares must be the deployment's rather than a literal."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = {}
+    monkeypatch.setattr(distill_mod, "compile_kb",
+                        lambda data_dir, **kw: captured.update(kw) or {"compiled": 1})
+    monkeypatch.delenv("LLM_EXTRACT_STRATEGY", raising=False)
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
+
+    assert captured["extract_strategy"] == "chunked"
+
+
+def test_run_distill_takes_the_extract_strategy_from_the_environment(tmp_path,
+                                                                    monkeypatch):
+    """Mirrors LLM_EXTRACT_STRATEGY on the Go side, so one deployment variable
+    configures both routes."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    captured = {}
+    monkeypatch.setattr(distill_mod, "compile_kb",
+                        lambda data_dir, **kw: captured.update(kw) or {"compiled": 1})
+    monkeypatch.setenv("LLM_EXTRACT_STRATEGY", "auto")
+
+    distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
+
+    assert captured["extract_strategy"] == "auto"
+
+
+def test_run_distill_rejects_an_unknown_extract_strategy(tmp_path, monkeypatch):
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+
+    with pytest.raises(SystemExit):
+        distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb"),
+                                 "--extract-strategy", "Chunked"])
+
+
+def test_run_distill_rejects_a_bad_extract_strategy_from_the_environment(
+        tmp_path, monkeypatch):
+    """argparse does not check a default against choices, so the env value needs
+    the type= conversion to be validated at all."""
+    src = tmp_path / "docs"; src.mkdir()
+    (src / "n.md").write_text("# N\nbody")
+    monkeypatch.setenv("LLM_EXTRACT_STRATEGY", "Chunked")
+
+    with pytest.raises(SystemExit):
+        distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])

@@ -31,11 +31,17 @@ import yaml
 
 from kb_ai._errors import ExtractionFileError
 from kb_ai._frontmatter import split_frontmatter
-from kb_ai.core.extract import ExtractionResult, extract_prompt_version
+from kb_ai.core.extract import (
+    STRATEGY_CHUNKED,
+    STRATEGY_SUMMARIZE,
+    ExtractionResult,
+    extract_prompt_version,
+)
 from kb_ai.storage.store import KBStore
 
 # Bumped when the file shape changes incompatibly. Recorded in every file so a
-# future reader can tell what it is looking at.
+# future reader can tell what it is looking at, and enforced by parse(): any other
+# value is refused rather than read as this one.
 SCHEMA_VERSION = 1
 
 # The object-list payload fields, in the order their sections are written.
@@ -47,8 +53,10 @@ BODY_FIELDS = ("concepts", "entities", "decisions", "action_items", "claims")
 # topic-filter work parses the frontmatter only and never the body (B7).
 FRONTMATTER_PAYLOAD_FIELDS = ("summary", "topics", "connections")
 
-STRATEGY_CHUNKED = "chunked"
-STRATEGY_SUMMARIZE = "summarize"
+# STRATEGY_CHUNKED and STRATEGY_SUMMARIZE are imported above rather than defined
+# here: the router in core/extract.py decides which one runs and this module
+# records it, so two bindings would have to agree by convention. Every existing
+# `extraction.STRATEGY_CHUNKED` reference keeps working through the import.
 
 # allow_unicode keeps CJK unescaped -- the body is where the CJK-dense values
 # live, such as a concept's definition. width bounds every line so PyYAML cannot
@@ -184,6 +192,17 @@ def parse(text: str) -> StoredExtraction:
     if not isinstance(header, dict):
         raise ExtractionFileError("frontmatter is not a mapping")
 
+    # Checked here rather than in staleness(), which compares inputs and would
+    # have to call an unreadable format "fresh" or "stale" when it is neither.
+    # Refusing the parse routes a format bump into load()'s absent branch, so a
+    # v2 file read by v1 code re-extracts instead of composing an article from a
+    # payload this code does not understand.
+    version = header.get("schema_version")
+    if version != SCHEMA_VERSION:
+        raise ExtractionFileError(
+            f"unsupported schema_version: {version!r}, this code reads "
+            f"{SCHEMA_VERSION}")
+
     sections = _split_sections(split[1])
     payload: dict[str, list] = {}
     for name in BODY_FIELDS:
@@ -217,7 +236,7 @@ def parse(text: str) -> StoredExtraction:
         extract_strategy=_as_str(header.get("extract_strategy")),
         prompt_version=_as_str(header.get("prompt_version")),
         extracted_at=_as_str(header.get("extracted_at")),
-        schema_version=header.get("schema_version") or 0,
+        schema_version=version,
         summarize_model=_as_str(header.get("summarize_model")),
     )
     return StoredExtraction(provenance=provenance, extraction=extraction)

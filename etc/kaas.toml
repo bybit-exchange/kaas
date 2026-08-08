@@ -48,6 +48,14 @@ base_url = "https://api.openai.com/v1"
 model = "gpt-4o-mini"
 # summarize_model 默认与 model 一致；需要使用不同的轻量模型进行摘要时显式设置
 # summarize_model = ""
+# How extraction reads a document. "chunked" (default) sends the document text to
+# the structured extractor, splitting only when it exceeds the model window;
+# "summarize" summarizes each chunk first and extracts from the joined summaries,
+# which is cheaper on long documents and loses detail the summariser drops;
+# "auto" picks summarize once a document splits into three or more chunks.
+# Both ingestion routes read this one value, so changing it re-extracts every
+# document once, at full cost. Override with LLM_EXTRACT_STRATEGY.
+extract_strategy = "chunked"
 
 # --- Logging ---
 [log]

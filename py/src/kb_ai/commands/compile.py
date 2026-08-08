@@ -16,8 +16,12 @@ from kb_ai.core.classify import (
     resolve_categories,
 )
 from kb_ai.core.extract import (
+    STRATEGY_AUTO,
+    STRATEGY_CHUNKED,
     ExtractionResult,
-    extract_knowledge_chunked,
+    plan_extraction,
+    run_planned_extraction,
+    validate_strategy,
     _combine_extractions,
 )
 from kb_ai.prompts import PromptError
@@ -30,8 +34,13 @@ from kb_ai.storage.index import (
 )
 from kb_ai.core.people import update_people_stubs
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
-from kb_ai.core.merge import create_new_article, merge_into_article
-from kb_ai.storage.store import ArticleMeta, KBStore
+from kb_ai.core.merge import (
+    create_new_article,
+    merge_into_article,
+    write_prompt_version,
+)
+from kb_ai.storage.lag import wiki_lag
+from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
 
@@ -87,21 +96,41 @@ def compile_kb(
     people_cfg: list | None = None,
     workers: int = 0,
     extract_only: bool = False,
+    extract_strategy: str = STRATEGY_CHUNKED,
+    summarize_model: str = "",
 ) -> dict:
     compile_t0 = time.monotonic()
+
+    # Checked before anything else: a typo here would otherwise be discovered
+    # after the scan, or -- if it fell back to chunked, as the daemon used to --
+    # never. The strategy is a per-KB contract, so both routes read one value and
+    # the gate compares against what a run would actually produce (C4's shape,
+    # one field over).
+    validate_strategy(extract_strategy)
+    # The summarize path drives a second model once per chunk, so an empty name
+    # would reach the API. auto counts too: it resolves to summarize per document,
+    # which would fail partway through a run that had already paid for the chunked
+    # documents ahead of it.
+    if extract_strategy != STRATEGY_CHUNKED and not summarize_model:
+        raise ValueError(f"extract_strategy={extract_strategy!r} needs a "
+                         "summarize_model; the summarize path calls one per chunk")
 
     people_cfg = people_cfg or []
 
     store = KBStore(data_dir)
     categories = resolve_categories(store, categories)
     state = store.load_compile_state()
-    # TODO(2026-06-03): list_raw_files() preloads all raw content into memory.
-    # The estimate path was migrated to iter_raw_file_meta() in
-    # docs/kaas/plans/2026-06-03-cost-estimate-memory-optimization.md.
-    # Now that the write phase reads extraction/ off disk, only the documents the
-    # extraction gate selects need content, so iter_raw_file_meta() plus a lazy
-    # read_raw() would finish this migration; revisit when memory pressure shows up.
-    raw_files = store.list_raw_files()
+    # Metadata only: both gates need rel_path and checksum, and nothing else here
+    # needs a document's text until the extraction gate has selected it. Holding
+    # every document's content cost ~62 KB retained per document (6.79 MB over the
+    # 108-document reference KB), which scales linearly with the corpus.
+    # Materialised as a list because the two gates and the lag report each iterate
+    # it; RawFileMeta carries no content, so that costs 0.05 MB at 108 documents.
+    #
+    # Byte-equivalence with the previous checksum is what makes this migration
+    # free rather than a re-extraction of every document: verified over all 108
+    # files of data/kb-2026-06, 0 differences.
+    raw_files = list(store.iter_raw_file_meta())
 
     # One per-process constant, computed once before the gate so a broken prompt
     # file is reported once rather than 108 times -- and never silently treated as
@@ -113,11 +142,37 @@ def compile_kb(
                 "errors": [{"file": "", "error": f"prompt_version unavailable: {e}"}],
                 "message": "extraction prompts are unreadable; nothing was compiled"}
 
+    # The write phase's own version, recorded per document and reported, never
+    # gated -- see storage/lag.py for why re-composing on a prompt edit would be
+    # worse than the lag. Its own try because the write prompts are not this run's
+    # inputs: an --extract-only run must not be refused over a prompt it never
+    # reaches, least of all after paying for the extraction. Empty means "cannot
+    # tell", which the lag report distinguishes from "nothing is behind".
+    try:
+        write_version = write_prompt_version()
+    except PromptError as e:
+        write_version = ""
+        print(f"[compile] write prompt version unavailable: {e}", file=sys.stderr)
+
     # ── Gate 1: extraction, gated by the extraction file's own provenance ──
     # Independent of gate 2 by design: a prompt edit re-extracts and stops there.
     # Re-running the write phase would not rewrite articles from the new
     # extraction -- both merge paths can only add -- it would layer new content on
     # top of the old extraction's content (spec G1, G4).
+    def _expected_strategy(rel_path: str) -> str:
+        """The strategy a run would record for this document.
+
+        chunked and summarize are honoured as configured, so the common case
+        compares a constant and reads nothing. Only auto resolves per document,
+        which costs a full read and a chunk count per document -- no LLM call, and
+        nothing retained past the comparison. Comparing against a literal instead
+        is what made every summarize extraction read as stale, forever, once per
+        document.
+        """
+        if extract_strategy != STRATEGY_AUTO:
+            return extract_strategy
+        return plan_extraction(store.read_raw(rel_path), STRATEGY_AUTO).strategy
+
     to_extract = []
     extract_reasons: dict[str, str] = {}
     for rf in raw_files:
@@ -129,8 +184,9 @@ def compile_kb(
                 stored.provenance,
                 source_checksum=rf.checksum,
                 extract_model=extract_model,
-                extract_strategy=extraction_layer.STRATEGY_CHUNKED,
+                extract_strategy=_expected_strategy(rf.rel_path),
                 prompt_version=prompt_version,
+                summarize_model=summarize_model,
             )
         if why:
             extract_reasons[rf.rel_path] = why
@@ -149,14 +205,13 @@ def compile_kb(
     if not to_extract and not to_write:
         return {"compiled": 0, "extracted": 0, "message": "nothing to compile"}
 
-    # The wiki can lag extraction/ under two independent gates, and that lag is
-    # reported rather than left silent (G5). No pre-existing state entry carries a
-    # prompt_version, so the first run after this change reports every article --
-    # true, but it reads as a defect without the reason.
-    lagging = sorted(rel for rel, fs in state.items()
-                     if fs.get("compiled_at")
-                     and fs.get("prompt_version") != prompt_version)
-    lag_is_first_run = any("prompt_version" not in state[rel] for rel in lagging)
+    # The wiki can lag its prompts under two independent gates, and that lag is
+    # reported rather than left silent (G5). No pre-existing state entry carries
+    # either version, so the first run after each one landed reports every
+    # article -- true, but it reads as a defect without the reason.
+    lag = wiki_lag(state, present={rf.rel_path for rf in raw_files},
+                   extract_prompt_version=prompt_version,
+                   write_prompt_version=write_version)
 
     compiled = 0
     extracted = 0
@@ -181,15 +236,24 @@ def compile_kb(
 
         log(f"Starting compile: {len(to_extract)} to extract, "
             f"{len(to_write)} to compose (workers={workers})")
-        if lagging:
-            if lag_is_first_run:
-                log(f"  (wiki lag: {len(lagging)} articles were written from an older "
-                    "extraction — expected on the first run after the extraction "
-                    "layer landed, since no existing compile-state entry records a "
-                    "prompt_version)")
+        if lag.behind_extract:
+            if lag.extract_first_run:
+                log(f"  (wiki lag: {len(lag.behind_extract)} articles were written "
+                    "from an older extraction — expected on the first run after the "
+                    "extraction layer landed, since no existing compile-state entry "
+                    "records a prompt_version)")
             else:
-                log(f"  (wiki lag: {len(lagging)} articles were written from an older "
-                    "extraction; they are rewritten when their source text changes)")
+                log(f"  (wiki lag: {len(lag.behind_extract)} articles were written "
+                    "from an older extraction; they are rewritten when their source "
+                    "text changes)")
+        if lag.behind_write:
+            because = (" — expected on the first run after write_prompt_version "
+                       "landed, since no existing compile-state entry records one"
+                       if lag.write_first_run else "")
+            log(f"  (wiki lag: {len(lag.behind_write)} articles were composed by an "
+                f"older write prompt{because}; that is reported, never re-composed "
+                f"— both merge paths only add. Run `kb-ai check --kb {data_dir}` to "
+                "list them.)")
 
         # ── Phase 1: Parallel extraction ──────────────────────────
         extract_snap = tracker.snapshot()
@@ -197,12 +261,28 @@ def compile_kb(
 
         def _extract_one(rf):
             set_request_tracker(_compile_req_tracker)
-            result = extract_knowledge_chunked(rf.content, model=extract_model)
+            # Read here rather than during the scan: this is the one place a
+            # document's text is needed, and only for what the gate selected.
+            content = store.read_raw(rf.rel_path)
+            plan = plan_extraction(content, extract_strategy)
+            result = run_planned_extraction(
+                plan, content, extract_model=extract_model,
+                summarize_model=summarize_model)
             _path, existed = extraction_layer.persist(
                 store, rf.rel_path, result,
-                source_checksum=rf.checksum,
+                # Hashed from the text this extraction was actually made from, not
+                # from the scan: the two are separate reads now, and both ingestion
+                # routes write into raw/. A document rewritten in between and then
+                # reverted would otherwise leave a file whose recorded checksum
+                # matches the document while its payload describes text that is no
+                # longer there -- and the gate would call it fresh forever.
+                source_checksum=_compute_checksum(content),
                 extract_model=extract_model,
-                extract_strategy=extraction_layer.STRATEGY_CHUNKED,
+                # plan.strategy, never the configured value: under auto the router
+                # decides on chunk count, and recording "auto" would make the field
+                # useless to the gate that compares it.
+                extract_strategy=plan.strategy,
+                summarize_model=summarize_model,
             )
             return rf.rel_path, existed
 
@@ -359,6 +439,7 @@ def compile_kb(
                     "checksum": rf.checksum,
                     "compiled_at": datetime.now().isoformat(),
                     "prompt_version": used_prompt_version[rf.rel_path],
+                    "write_prompt_version": write_version,
                 }
                 compiled += 1
 
@@ -506,12 +587,14 @@ def compile_kb(
                 if _file_done_ops.get(rel, 0) >= pending:
                     state[rel] = {"checksum": file_checksums[rel],
                                   "compiled_at": datetime.now().isoformat(),
-                                  "prompt_version": used_prompt_version[rel]}
+                                  "prompt_version": used_prompt_version[rel],
+                                  "write_prompt_version": write_version}
                     compiled += 1
                 elif done_now:
                     state[rel] = {"checksum": file_checksums[rel],
                                   "completed_ops": sorted(all_done),
-                                  "prompt_version": used_prompt_version[rel]}
+                                  "prompt_version": used_prompt_version[rel],
+                                  "write_prompt_version": write_version}
             store.save_compile_state(state)
 
         write_d = tracker.delta(write_snap)
@@ -563,10 +646,16 @@ def compile_kb(
         # Documents whose extraction overwrote an existing one, mapped to the
         # articles they were merged into (C11). Empty on a first compile.
         "revised": revised_articles,
-        # How far the wiki is behind extraction/ (G5). first_run is true when no
-        # compile-state entry records a prompt_version at all, which is what makes
-        # the count on the first run after this change expected rather than a bug.
-        "wiki_lag": {"articles": len(lagging), "first_run": lag_is_first_run},
+        # How far the wiki is behind each gate's prompts (G5). Counts only, since
+        # `kb-ai check` names the documents for free. The first_run flags are per
+        # gate: each says "no entry records a version for THIS gate", which is what
+        # makes a large count on the run after that version landed expected rather
+        # than a bug -- and keeps one gate's landing from excusing the other's
+        # genuine lag.
+        "wiki_lag": {"behind_extract_prompt": len(lag.behind_extract),
+                     "behind_write_prompt": len(lag.behind_write),
+                     "extract_first_run": lag.extract_first_run,
+                     "write_first_run": lag.write_first_run},
         "errors": errors,
         "total_raw": len(raw_files),
         "cost": tracker.summary(),
@@ -597,5 +686,15 @@ def run_compile():
         people_cfg=input_data.get("people") or [],
         workers=input_data.get("workers", 0) or 0,
         extract_only=bool(input_data.get("extract_only")),
+        extract_strategy=(input_data.get("extract_strategy")
+                          or os.environ.get("LLM_EXTRACT_STRATEGY")
+                          or STRATEGY_CHUNKED),
+        # Same fallback chain as the daemon's extract handler and the distill CLI:
+        # a summarize run reaching the API with an empty model name is refused by
+        # compile_kb, and falling back here is what keeps that from happening
+        # merely because the request omitted a field the environment already has.
+        summarize_model=(input_data.get("summarize_model")
+                         or os.environ.get("LLM_SUMMARIZE_MODEL")
+                         or os.environ.get("LLM_MODEL", "")),
     )
     respond_ok(data=result)

@@ -12,6 +12,7 @@ import sys
 from collections.abc import Callable
 
 from kb_ai._errors import KBError
+from kb_ai.core.extract import STRATEGY_CHUNKED
 from kb_ai.derive import DeriveReport, derive_kb
 
 _DEFAULT_MODEL = "claude-sonnet-4-6"
@@ -88,6 +89,12 @@ def run_derive(argv: list[str]) -> None:
             args.kb, args.topic,
             slug=args.slug, force=args.force, prune=args.prune,
             select_from=args.select_from, model=model,
+            # From the environment, like model: the strategy is the deployment's,
+            # and the derived compile has to compare against the same value the
+            # copied extractions were produced under or it re-extracts all of them.
+            extract_strategy=(os.environ.get("LLM_EXTRACT_STRATEGY")
+                              or STRATEGY_CHUNKED),
+            summarize_model=(os.environ.get("LLM_SUMMARIZE_MODEL") or model),
             approve=_make_approve(args),
         )
     except KBError as e:

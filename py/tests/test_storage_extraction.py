@@ -294,6 +294,42 @@ def test_a_section_that_is_not_a_list_is_a_parse_error():
         exl.parse(text + "## Claims\n\nclaim: not a list\n")
 
 
+def test_a_future_schema_version_is_not_read_as_the_current_one():
+    """staleness() never compares schema_version, so parse() has to reject one.
+
+    Left to parse, a v2 file read by v1 code yields a v1 result and B10 calls it
+    fresh: the write phase then composes an article out of a payload this code
+    does not understand, and nothing anywhere reports it.
+    """
+    text = exl.serialize(_provenance(schema_version=exl.SCHEMA_VERSION + 1), _full())
+    with pytest.raises(ExtractionFileError, match="unsupported schema_version"):
+        exl.parse(text)
+
+
+def test_a_file_with_no_schema_version_is_a_parse_error():
+    """Absent is unknown too. Every file this package writes records the field."""
+    text = exl.serialize(_provenance(), _full()).replace(
+        f"schema_version: {exl.SCHEMA_VERSION}\n", "")
+    with pytest.raises(ExtractionFileError, match="unsupported schema_version"):
+        exl.parse(text)
+
+
+def test_an_unknown_schema_version_reaches_the_gate_as_absent(store):
+    """Rejecting the parse is what routes a format bump into B9's re-extract."""
+    exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
+                extract_model="m")
+    path = store.extraction_path("raw/a.md")
+    path.write_text(
+        path.read_text(encoding="utf-8").replace(
+            f"schema_version: {exl.SCHEMA_VERSION}", "schema_version: 99"),
+        encoding="utf-8")
+
+    stored, reason = exl.load(store, "raw/a.md")
+
+    assert stored is None
+    assert "unsupported schema_version" in reason
+
+
 def test_extracted_at_is_utc_with_an_offset_and_seconds(store, monkeypatch):
     exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
                 extract_model="m")

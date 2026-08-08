@@ -385,3 +385,25 @@ func TestBuildResultUnmarshalableFallsBackToEmptyObject(t *testing.T) {
 		t.Errorf("buildResult() = %s, want {}", got)
 	}
 }
+
+// The configured strategy has to reach the engine, or the engine falls back to
+// its own default and records an extract_strategy the CLI never expects -- which
+// marked every UI-ingested extraction stale on the next CLI compile, forever,
+// once per document. Same shape as Model, one field over.
+func TestProcessForwardsTheConfiguredStrategy(t *testing.T) {
+	var extReq bridge.ExtractRequest
+	eng := &recordingEngine{
+		onExtract:  func(r bridge.ExtractRequest) { extReq = r },
+		onPipeline: func(bridge.PipelineRequest) {},
+	}
+	kbDir := t.TempDir()
+	cfg := Config{KBDir: kbDir, HeartbeatInterval: time.Hour,
+		Model: "extract-model", ExtractStrategy: "summarize"}
+	task := taskWithRawUnder(t, kbDir, "raw body text")
+
+	NewWorker(&stubQueue{}, eng, newBrk(), "w1", cfg).Process(context.Background(), task)
+
+	if extReq.Strategy != "summarize" {
+		t.Errorf("extract strategy = %q, want %q", extReq.Strategy, "summarize")
+	}
+}

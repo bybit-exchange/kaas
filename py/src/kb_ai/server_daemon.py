@@ -106,6 +106,13 @@ def _handle_init(request_id: str, payload: dict) -> None:
     if summarize_model:
         os.environ["LLM_SUMMARIZE_MODEL"] = summarize_model
 
+    # The extraction strategy is a per-deployment contract, not a per-request
+    # choice: the derive handler compiles a copied extraction layer and has to
+    # compare against the same value the copies were produced under.
+    extract_strategy = llm_cfg.get("extract_strategy", "")
+    if extract_strategy:
+        os.environ["LLM_EXTRACT_STRATEGY"] = extract_strategy
+
     _respond_ok(request_id, {"initialized": True})
 
 
@@ -136,13 +143,9 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     two implementations reproducing PyYAML's escaping decisions.
     """
     from kb_ai.core.extract import (
-        _is_transcript,
-        _parse_frontmatter,
-        chunk_content,
-        chunk_transcript,
-        extract_knowledge_chunked,
-        extract_knowledge_summarized,
         extraction_to_dict,
+        plan_extraction,
+        run_planned_extraction,
     )
     from kb_ai.llm import CostTracker, set_phase_context, set_request_tracker
     from kb_ai.prompts import PromptError
@@ -183,17 +186,19 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     # one requested -- "auto" would make the field useless. Chunking costs no LLM
     # call, so resolving it up front also lets the freshness check below compare
     # the strategy the request would actually produce.
-    meta: dict = {}
-    chunks: list[str] = []
-    if strategy in ("summarize", "auto"):
-        meta, body = _parse_frontmatter(content)
-        chunks = chunk_transcript(body, meta) if _is_transcript(meta) else chunk_content(content)
-    if strategy == "summarize" or (strategy == "auto" and len(chunks) >= 3):
-        resolved = extraction_layer.STRATEGY_SUMMARIZE
-    else:
-        resolved = extraction_layer.STRATEGY_CHUNKED
+    #
+    # Through the shared router, not a second copy of it: the CLI's gate compares
+    # against the same function, so the two routes cannot disagree about what a
+    # given configuration produces.
+    try:
+        plan = plan_extraction(content, strategy)
+    except ValueError as e:
+        _respond_error(request_id, "INVALID_STRATEGY", str(e))
+        return
+    resolved = plan.strategy
     print(f"[daemon:extract] routed={resolved} (requested={strategy}, "
-          f"chunks={len(chunks) if chunks else 'n/a'})", file=sys.stderr, flush=True)
+          f"chunks={len(plan.chunks) if plan.chunks else 'n/a'})",
+          file=sys.stderr, flush=True)
 
     # Read before calling the model: a pipeline failure with an attempt left
     # replays the whole task, so without this every retry pays for extraction a
@@ -216,10 +221,8 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)
     try:
-        if resolved == extraction_layer.STRATEGY_SUMMARIZE:
-            result = extract_knowledge_summarized(chunks, meta, summarize_model, model)
-        else:
-            result = extract_knowledge_chunked(content, model=model)
+        result = run_planned_extraction(plan, content, extract_model=model,
+                                        summarize_model=summarize_model)
     finally:
         set_request_tracker(None)
 
@@ -336,6 +339,16 @@ def _handle_derive(request_id: str, payload: dict) -> None:
             force=bool(inner.get("force")),
             select_from=select_from,
             model=inner.get("model") or "claude-sonnet-4-6",
+            # The deployment's strategy, put in the environment by the init
+            # command. The derived compile must compare against the value the
+            # copied extractions were produced under, or it re-extracts every one
+            # of them and records a strategy the parent then finds stale in turn.
+            extract_strategy=(inner.get("extract_strategy")
+                              or os.environ.get("LLM_EXTRACT_STRATEGY")
+                              or "chunked"),
+            summarize_model=(inner.get("summarize_model")
+                             or os.environ.get("LLM_SUMMARIZE_MODEL")
+                             or os.environ.get("LLM_MODEL", "")),
             approve=None,
         )
     except KBError as e:

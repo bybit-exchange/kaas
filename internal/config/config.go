@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/zeromicro/go-zero/core/conf"
 )
@@ -100,12 +102,27 @@ type DaemonConf struct {
 }
 
 // LLMConf holds OpenAI-compatible LLM credentials forwarded to the AI engine.
+//
+// ExtractStrategy is a per-knowledge-base contract rather than a tuning knob:
+// "chunked" sends the document text to the structured extractor, "summarize"
+// summarizes each chunk first and extracts from the joined summaries, so the
+// structured pass never sees the original words. Both ingestion routes read this
+// one value -- the CLI compares it in its freshness gate and the worker forwards
+// it -- because when the CLI assumed "chunked" instead, every extraction the
+// engine recorded as summarize read as stale and was re-extracted once per
+// document, silently downgraded.
 type LLMConf struct {
-	APIKey         string `json:"api_key,optional"`
-	BaseURL        string `json:"base_url,default=https://api.openai.com/v1"`
-	Model          string `json:"model,default=gpt-4o-mini"`
-	SummarizeModel string `json:"summarize_model,optional"`
+	APIKey          string `json:"api_key,optional"`
+	BaseURL         string `json:"base_url,default=https://api.openai.com/v1"`
+	Model           string `json:"model,default=gpt-4o-mini"`
+	SummarizeModel  string `json:"summarize_model,optional"`
+	ExtractStrategy string `json:"extract_strategy,default=chunked"`
 }
+
+// The strategies the AI engine's router accepts. Mirrors EXTRACT_STRATEGIES in
+// py/src/kb_ai/core/extract.py; validated here so a typo fails at startup rather
+// than once per document after the scan.
+var extractStrategies = []string{"chunked", "summarize", "auto"}
 
 // Load reads and validates the configuration at path (TOML/YAML/JSON by ext).
 func Load(path string) (*Config, error) {
@@ -156,6 +173,9 @@ func applyEnvOverrides(c *Config) {
 	if v := os.Getenv("LLM_SUMMARIZE_MODEL"); v != "" {
 		c.LLM.SummarizeModel = v
 	}
+	if v := os.Getenv("LLM_EXTRACT_STRATEGY"); v != "" {
+		c.LLM.ExtractStrategy = v
+	}
 }
 
 func applyDefaults(c *Config) {
@@ -182,6 +202,10 @@ func (c *Config) validate() error {
 	}
 	if c.Worker.LeaseTimeoutSec <= 0 {
 		return fmt.Errorf("worker.lease_timeout_sec must be > 0")
+	}
+	if !slices.Contains(extractStrategies, c.LLM.ExtractStrategy) {
+		return fmt.Errorf("llm.extract_strategy must be one of %s, got %q",
+			strings.Join(extractStrategies, ", "), c.LLM.ExtractStrategy)
 	}
 	return nil
 }

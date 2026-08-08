@@ -251,6 +251,19 @@ def test_handle_extract_requires_the_fields_it_persists_with(capsys, missing, co
     assert resp["error"]["code"] == code
 
 
+def test_handle_extract_refuses_an_unknown_strategy(capsys, stub_extract, kb):
+    """It used to fall back to chunked for anything it did not recognise, so a
+    typo in a deployment's configuration extracted every document under a strategy
+    nobody chose and the recorded provenance agreed with itself."""
+    sd._handle_extract("1", extract_request(kb, content="text",
+                                            strategy="Chunked"))
+
+    resp = one_response(capsys)
+    assert resp["ok"] is False
+    assert resp["error"]["code"] == "INVALID_STRATEGY"
+    assert "unknown extract strategy" in resp["error"]["message"]
+
+
 def test_handle_extract_defaults_to_chunked(capsys, stub_extract, kb):
     sd._handle_extract("1", extract_request(kb, content="some text"))
 
@@ -1174,9 +1187,11 @@ def test_both_routes_write_a_byte_identical_extraction_file(capsys, kb, tmp_path
     monkeypatch.setattr(exl, "_now_iso", lambda: "2026-08-07T11:22:33+00:00")
     result = ExtractionResult(summary="同一份摘要", concepts=[{"title": "t"}],
                              topics=["b", "a"])
+    # One patch for both routes: they dispatch through the same router, which
+    # resolves this in core.extract's namespace. Two were needed when each route
+    # called the extractor itself -- the same duplication that let their recorded
+    # strategies diverge.
     monkeypatch.setattr(ex, "extract_knowledge_chunked",
-                        lambda content, model=None: result)
-    monkeypatch.setattr(cm, "extract_knowledge_chunked",
                         lambda content, model=None: result)
     monkeypatch.setattr(cm, "classify_article",
                         lambda *a, **kw: {"merge_into": [], "create_new": []})

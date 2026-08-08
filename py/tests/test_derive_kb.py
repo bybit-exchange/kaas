@@ -667,3 +667,39 @@ def test_documents_mode_records_dropped_lines_as_documents(tmp_path: Path):
     assert report.skipped_articles == []
     assert ("raw/infra-notes.md", "line_over_budget") in [
         (s.ref, s.reason) for s in report.skipped_documents]
+
+
+def test_the_derived_compile_inherits_the_configured_extract_strategy(tmp_path: Path):
+    """Same shape as extract_model: without it the derived compile runs on
+    compile_kb's own default, so every extraction the copy inherited from a
+    summarize deployment reads as stale and is re-extracted at full price -- and
+    re-recorded as chunked, which the next parent compile then finds stale too."""
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select,
+              extract_strategy="summarize", summarize_model="sm",
+              compile_fn=capturing_compile)
+
+    assert seen["extract_strategy"] == "summarize"
+    assert seen["summarize_model"] == "sm"
+
+
+def test_the_derived_compile_defaults_to_chunked(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select,
+              compile_fn=capturing_compile)
+
+    assert seen["extract_strategy"] == "chunked"
