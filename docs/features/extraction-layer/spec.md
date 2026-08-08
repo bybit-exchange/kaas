@@ -122,7 +122,10 @@ Everything not on that diagram stays exactly as it is: `.classify-cache/`
   classify already hashes its rendered prompt (`core/classify.py:88-100`), but
   editing `merge-rewrite.md` or `merge-diff.md` still invalidates nothing,
   because the write phase is gated only by `.compile-state.json`. Named as a
-  known gap so it is not read as an oversight.
+  known gap so it is not read as an oversight. [Superseded 2026-08-08: a
+  `write_prompt_version` is now recorded per document and reported by `kb-ai
+  check`, still without gating composition — see gap 6 in
+  [notes.md](notes.md).]
 
 ## User stories / scenarios
 

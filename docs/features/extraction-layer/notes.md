@@ -1,21 +1,23 @@
 # Extraction layer — implementation notes
 
-Date: 2026-08-07, Stage 4 run 2026-08-08
+Date: 2026-08-07, Stage 4 run 2026-08-08, gap follow-up 2026-08-08
 Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md) · Alignment:
 [alignment-questions.md](alignment-questions.md)
 
 Stages 1–3 are implemented and verified offline. Stage 4 — the real extraction run
 over `data/kb-2026-06` — was approved and ran on 2026-08-08; its outcome is
-recorded at the end of this file.
+recorded further down. The seven gaps this file recorded afterwards were then
+worked through one at a time; what happened to each is in "The seven recorded
+gaps" below.
 
 ## Verification
 
 | Suite | Result |
 |---|---|
-| `cd py && uv run pytest tests/ -q` | 1407 passed, 1 skipped, 1 xfailed |
+| `cd py && uv run pytest tests/ -q` | 1477 passed, 1 skipped, 1 xfailed |
 | `go test ./... -count=1` | all packages ok, `go vet ./...` clean |
 | `cd web && pnpm test` | 454 passed (38 files) |
-| Python coverage | 99% overall; `storage/extraction.py` 100%, `derive/_status.py` 100%, `commands/compile.py` 99% |
+| Python coverage | 99% overall; `storage/extraction.py`, `storage/lag.py`, `commands/check.py`, `core/merge.py` and `derive/_status.py` all 100%, `commands/compile.py` 99% |
 
 No test calls a real LLM.
 
@@ -75,43 +77,153 @@ and the write phase would then refuse it, forever. Scales linearly, so budget
    with a test rather than assumed, because the rejected alternative — folding
    over `extraction/` — would not have inherited it.
 
-## Known gaps, recorded so they are not read as oversights
+## The seven recorded gaps
 
-1. **`extract_strategy` can diverge between the two routes the way `extract_model`
-   used to.** C4 added `model` to `ExtractRequest` because otherwise the daemon
-   recorded its own literal default and every UI-ingested extraction was stale on
-   the next CLI compile. The same shape exists for the strategy: the CLI always
-   extracts `chunked`, while `_handle_extract` accepts `chunked`, `summarize` and
-   `auto`. Today they agree, because the Go worker never sets `Strategy` and the
-   daemon defaults to `chunked` — verified in `internal/worker/worker.go`. The
-   moment a deployment sends a non-chunked strategy, each UI-ingested document is
-   re-extracted once as `chunked` by the next CLI compile. Fix when it matters:
-   either carry the strategy on `ExtractRequest` from config, symmetrically with
-   `model`, or let the CLI honour a KB-configured strategy.
-2. **`schema_version` is recorded but never compared.** B10's comparison set does
-   not include it, so a future v2 file read by v1 code would parse as v1 and be
-   judged fresh. Harmless at one version. The cheap fix when the format changes is
-   for `parse()` to reject an unknown `schema_version`, which makes a bump behave
-   like B9's "absent" and re-extract.
-3. **The F3 and F5 checks have no operator entry point.** `derive/_status.py`
-   exposes them as pure functions, which is what F5 asks for, but nothing in the
-   CLI or the HTTP API calls them — they are reachable only from tests and from a
-   `python -c`. A check nobody can run will rot; worth a `kb-ai derive --check`
-   or folding the F3 result into the derive response.
-4. **`bridge.ExtractResponse.Extraction` is now unused on the Go side.** The
-   engine still returns the extraction and the field documents the response, but
-   the worker no longer forwards it (D1 dropped `PipelineItem.Extraction`). Kept
-   as a protocol mirror rather than deleted.
-5. **The wiki-lag count folds over `.compile-state.json`, which is never
-   garbage-collected**, so a document deleted from `raw/` still contributes to it.
-   Report-only, and orphan cleanup is a stated non-goal.
-6. **The write phase still has no provenance of its own** — spec's own known gap.
-   Editing `merge-rewrite.md` or `merge-diff.md` invalidates nothing.
-7. **`compile_kb` still calls `list_raw_files()`**, so all raw content is loaded
-   into memory. G2 notes the two-gate split unblocks the migration to
-   `iter_raw_file_meta()` plus a lazy `read_raw()`, since only the documents the
-   extraction gate selects need content now. Left out as beyond this spec; the
-   TODO at `commands/compile.py` records it.
+Each one was reproduced before it was touched — six turned out to be real and were
+fixed; one did not survive its own verification and the code was left alone. The
+numbering is the original.
+
+**1. `extract_strategy` diverged between the two routes the way `extract_model`
+used to. Fixed.** Confirmed by reading the two sides: the CLI gate passed a literal
+`STRATEGY_CHUNKED`, while `_handle_extract` recorded whichever strategy it routed
+to. So a deployment configured for `summarize` had every UI-ingested extraction
+read as stale on the next CLI compile — re-extracted once per document and
+silently downgraded. Latent only because the Go worker never set `Strategy`.
+
+The two strategies are not coarse and fine settings of one thing, which is what
+made a silent downgrade worse than a wasted call. `chunked` sends the document
+text to the structured extractor, splitting only past a 16,000-character window
+(`core/extract.py`); `summarize` summarizes each chunk first and extracts from the
+joined summaries, so the structured pass never sees the original words. Measured
+over the reference corpus: 31 of 108 documents are a single chunk and are
+extracted whole, the median is 24,534 characters, and the largest splits into 9
+chunks — so `auto`, which switches at three chunks, would route 42 of them through
+summaries.
+
+The fix is one configured value both routes read. `plan_extraction` and
+`run_planned_extraction` in `core/extract.py` are now the only router; the daemon
+and `compile_kb` both call them, so the strategy the gate compares against and the
+one that runs cannot disagree. `compile_kb` takes `extract_strategy` and
+`summarize_model`; `llm.extract_strategy` (env `LLM_EXTRACT_STRATEGY`) reaches the
+worker and `ExtractRequest.Strategy`, symmetrically with `model`; `kb-ai distill`
+takes `--extract-strategy`. Under `chunked` or `summarize` the gate compares a
+constant and reads nothing, so the gate stays as cheap as it was; only `auto`
+resolves per document, at one streaming read and a chunk count and no LLM call.
+
+There is a third route, and a review pass caught that the first fix had missed it:
+`derive` compiles the KB it just built, and `derive_kb` was calling `compile_fn`
+without a strategy, so that compile ran on the default. Since derive copies
+extraction files byte-for-byte precisely so the derived compile pays nothing, a
+`summarize` deployment would have had every copied extraction re-extracted — about
+8.5 USD for a 53-document derive at the measured 0.16 USD per document — and
+re-recorded as `chunked`, which the next compile of the source would then find
+stale in turn, ping-ponging between the two. `derive_kb` now takes the strategy;
+both entry points supply it (`commands/derive.py` from the environment,
+`_handle_derive` from what `init` put there), and `extract_strategy` was added to
+`bridge.LLMConfig` and `sendInit` so the daemon route has a value to pass at all.
+
+An unrecognised strategy is now refused rather than treated as `chunked`, at four
+points: `validate_strategy` for the CLI, argparse's `type=` so an environment
+value cannot slip past `choices`, `INVALID_STRATEGY` from the daemon, and `Load`
+on the Go side so a typo fails at startup instead of once per document. Falling
+back silently is what made this class of bug invisible — the recorded provenance
+would have agreed with itself. A non-chunked strategy with no `summarize_model` is
+refused the same way, before the run starts, since that path calls a second model
+once per chunk.
+
+**2. `schema_version` was recorded but never compared. Fixed.** Reproduced first:
+a file whose header said `schema_version: 99` parsed into a fully populated v1
+`StoredExtraction`, and `staleness()` called it fresh. `parse()` now refuses any
+value but `SCHEMA_VERSION`, which routes a format bump into `load()`'s absent
+branch and re-extracts (B9) instead of composing an article from a payload the
+code does not understand. Absent counts as unknown too; every file this package
+writes records the field.
+
+**3. F3 and F5 had no operator entry point. Fixed.** Confirmed by search: both are
+exported from `derive/__init__.py` and have no non-test caller. `kb-ai check --kb
+<dir>` is the entry point. One command rather than two: F3 applies to any KB, and
+F5 already degrades to `unknown` with a reason when there is no derive manifest,
+so a parent KB gets an honest "not derived from anything" instead of a special
+case in the CLI.
+
+Run against the reference KB it reproduces the Stage 4 figures through a new code
+path — 108 match / 0 missing / 0 mismatched on the parent, and 53 in sync / 0
+changed / 0 gone with all 53 reported missing under F3 on
+`ai-coding-cost-governance`, exactly as recorded below.
+
+**4. `bridge.ExtractResponse.Extraction` is unused on the Go side. Verified as not
+a defect; code unchanged.** The unused part is real: `buildResult` reads only
+`ext.Cost`, and no non-test code reads `.Extraction`. It is not a problem, on the
+evidence. The payload is ~19 KB per document (2.05 MB over 108 files) against the
+8 MB response buffer at `internal/bridge/daemon.go`, three orders of magnitude of
+headroom, so it cannot push a response past the framing limit. Deleting the Go
+field would not stop the daemon sending the payload either — it would only remove
+the type-level record that the response carries it. Left as the protocol mirror it
+was documented to be.
+
+**5. The wiki-lag count folded over never-collected state entries. Fixed.**
+Reproduced: with one of two documents deleted from `raw/`, the log still read
+`wiki lag: 2 articles`. The fold is now restricted to documents still present. The
+orphan entry itself stays — cleanup remains a stated non-goal — and a test asserts
+it is still there, so the fix is not read as garbage collection.
+
+**6. The write phase had no provenance of its own. Fixed, report-only.** Confirmed
+by reading `extract_prompt_version()`: it hashes `extract`, `merge-summaries`,
+`summarize` and `extract-types` only, and that is the value compile-state records,
+so editing `merge-rewrite.md` or `merge-diff.md` invalidated nothing.
+
+`write_prompt_version()` in `core/merge.py` is the counterpart, recorded per
+document in compile-state. It covers three *system*-prompt surfaces, not two: the
+article creator's was an f-string inside `create_new_article` and therefore
+unhashable, so it was factored out into `_create_system(article_type)` and a test
+pins the production call to the text that gets hashed. A version that silently
+omitted a third of the write prompts would have been worse than none. The user
+messages are out, deliberately and on the record: `extract_prompt_version` draws
+the same line, hashing the extract prompts rather than the `<document>` wrapper
+around them, so editing either side's scaffolding moves no hash.
+
+Reported, never gated, which was the explicit decision. Both merge paths are
+additive — `merge-diff.md` offers only `append_to_section` and `new_section`, and
+`merge-rewrite.md` says nothing about supersession — so feeding this into the
+composition gate would layer new content on top of old rather than replace it,
+inflating every article and paying the full write phase (~10 USD on this corpus)
+to do it. A supersession path would have to exist first.
+
+The count is surfaced by `kb-ai check`, not only by compile. Compile can report a
+lag only on a run that had other work, and a write-prompt edit changes no document
+and no extraction — so the next compile returns "nothing to compile" before any
+report, which is precisely the moment an operator wants the number. Compile still
+logs it when it does have work.
+
+`storage/lag.py` holds the comparison for both callers rather than a copy in each,
+and reports "cannot tell" rather than "everything is behind" when a prompt set is
+unreadable. The "first run" caption is per gate, not shared — a review pass caught
+that a single flag would have captioned a *real* extract lag as expected noise for
+every KB compiled between the extraction layer landing and this change, which is
+exactly the state that describes: `prompt_version` recorded,
+`write_prompt_version` absent.
+
+**7. `compile_kb` preloaded every document's content. Fixed.** Measured before
+changing anything: `list_raw_files()` retained 6.79 MB over the 108-document
+reference KB (peak 7.11 MB) against 0.05 MB for `iter_raw_file_meta()` — about
+62 KB retained per document, which is noise at 108 and roughly 63 MB at 1,000. The
+scan is now metadata-only and `store.read_raw()` is called for the documents the
+extraction gate selected, finishing the migration the TODO recorded.
+
+The risk in this one was the checksum, not the memory: a byte-different hash would
+have marked all 108 documents stale and re-extracted the corpus at ~17 USD. The two
+methods were compared over every file of `data/kb-2026-06` first — 0 differences —
+and afterwards a real `--extract-only` run over that KB reported `nothing to
+compile` at zero cost, with the gate's own footprint down to 0.11 MB retained.
+
+The split does cost one property the single read had for free, which a review pass
+named: the scan's checksum and the extracted text are now two reads of the same
+file, and both ingestion routes write into `raw/`. A document rewritten between
+them and then reverted would have left an extraction whose recorded checksum
+matches the document while its payload describes text that is no longer there —
+fresh forever, which the previous code could not produce. `persist` is now handed
+the hash of the text the extraction was actually made from, so the provenance is
+true by construction rather than by timing.
 
 ## Stage 4 — run on 2026-08-08
 
@@ -245,5 +357,19 @@ is re-derived or recompiled.
 
 - `data/kb-2026-06.bak-pre-extraction-layer/` — the pre-run state, kept.
 - `data/kb-2026-06/derived/stage4-extraction-check/` — the derive check above.
-  Not one of the seven documented derived KBs, so it will show up as an eighth in
-  any later F5 sweep. Costs 0.0438 USD to recreate; remove it if that is noise.
+  Kept, decided 2026-08-08: it is the only derived KB in the corpus that holds an
+  `extraction/` directory rather than an `.extract-cache/`, so it is the one place
+  the F5 path can be exercised against post-layer copies without paying to derive
+  again. 3.2 MB, gitignored, 0.0438 USD to recreate. The cost of keeping it is
+  that any F5 sweep reports eight derived KBs where the table above lists seven —
+  read the eighth as this artefact, not as an undocumented KB.
+
+## What a re-run should expect after the gap follow-up
+
+The reference KB was left extracted and its wiki untouched, so `kb-ai check --kb
+data/kb-2026-06` reports 108 match / 0 missing / 0 mismatched and
+`108 behind the extract prompt, 108 behind the write prompt (first run)`. Both lag
+counts are expected rather than a defect: the compile-state entries predate both
+version fields, which is what `first_run` says. They clear the next time each
+document is composed. The extraction files themselves are current — a
+`--extract-only` run costs nothing and extracts nothing.

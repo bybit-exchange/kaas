@@ -236,9 +236,12 @@ opened with a `KAAS_PROMPTS_DIR` override has every copied extraction marked
 stale (S1, consequence 2).
 
 **Known gap, out of scope, recorded so it is not read as an oversight.**
-Extraction gets provenance and classify already has its prompt hash, but the
-write phase has neither: editing `merge-rewrite.md` or `merge-diff.md` invalidates
-nothing, because the write phase is gated only by `.compile-state.json`.
+[Superseded 2026-08-08 — see gap 6 in [notes.md](notes.md): the write phase now
+records a `write_prompt_version`, reported by `kb-ai check` and still not gating
+composition, because both merge paths are additive.] Extraction gets provenance and
+classify already has its prompt hash, but the write phase has neither: editing
+`merge-rewrite.md` or `merge-diff.md` invalidates nothing, because the write phase
+is gated only by `.compile-state.json`.
 
 ---
 
