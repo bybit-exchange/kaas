@@ -1,0 +1,41 @@
+docs/features/extraction-layer/spec.md
+  c284796918b93b43 125-128
+docs/features/extraction-layer/alignment-questions.md
+  c284796918b93b43 239-244
+docs/features/extraction-layer/notes.md
+  c284796918b93b43 3,9-11,17,20,80-226,366-375
+  713e77380e014b34 360-365
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "083425a8ac174f48e2700d8139d1069049324e4a",
+  "prompts": {
+    "713e77380e014b34": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c39db921-2787-4a8a-a212-10f43c0a14a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 122,
+      "overriden_lines": 0
+    },
+    "c284796918b93b43": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b754f6f-500d-43b4-9f3b-506d60b730a9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 12308,
+      "total_deletions": 720,
+      "accepted_lines": 173,
+      "overriden_lines": 0
+    }
+  }
+}
