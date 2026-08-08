@@ -10,11 +10,11 @@ the mapping is readable off the filename, a provenance header that turns "is thi
 stale, and why" into a field comparison, and a file a maintainer can open in an
 editor while tuning the extract prompt.
 
-Format: YAML frontmatter carries the provenance plus the three flat payload
-fields (summary, topics, connections) and the per-section counts; the body
-carries the five object-list fields as ``## Heading`` sections whose content is
-``yaml.safe_dump`` of that field's list. Both halves go through safe_dump, so
-quoting and escaping are PyYAML's responsibility rather than hand-written.
+Format: YAML frontmatter carries the provenance plus the two flat payload fields
+(summary, topics) and the per-section counts; the body carries the five
+object-list fields as ``## Heading`` sections whose content is ``yaml.safe_dump``
+of that field's list. Both halves go through safe_dump, so quoting and escaping
+are PyYAML's responsibility rather than hand-written.
 
 Two line-oriented delimiters survive a value that contains a newline only because
 both are closed explicitly: a heading is recognised at column 0 only, and
@@ -51,7 +51,7 @@ BODY_FIELDS = ("concepts", "entities", "decisions", "action_items", "claims")
 
 # Flat payload fields that live in the frontmatter, so a reader doing catalog or
 # topic-filter work parses the frontmatter only and never the body (B7).
-FRONTMATTER_PAYLOAD_FIELDS = ("summary", "topics", "connections")
+FRONTMATTER_PAYLOAD_FIELDS = ("summary", "topics")
 
 # STRATEGY_CHUNKED and STRATEGY_SUMMARIZE are imported above rather than defined
 # here: the router in core/extract.py decides which one runs and this module
@@ -136,11 +136,11 @@ def field_for(heading: str) -> str:
 def serialize(provenance: Provenance, extraction: ExtractionResult) -> str:
     """Render one extraction file (B1-B5).
 
-    topics and connections are sorted here: both are built with list(set(...)),
-    and Python randomises string hashing per process, so the same content
-    otherwise yields a different element order on every run. Sorting is what
-    makes re-extracting an unchanged document produce the same two lines as
-    before, so a diff between two extraction files shows only what changed.
+    topics is sorted here: it is built with list(set(...)), and Python randomises
+    string hashing per process, so the same content otherwise yields a different
+    element order on every run. Sorting is what makes re-extracting an unchanged
+    document produce the same lines as before, so a diff between two extraction
+    files shows only what changed.
     """
     header: dict = {
         "source": provenance.source,
@@ -152,7 +152,6 @@ def serialize(provenance: Provenance, extraction: ExtractionResult) -> str:
         "schema_version": provenance.schema_version,
         "summary": extraction.summary,
         "topics": _sorted(extraction.topics),
-        "connections": _sorted(extraction.connections),
         "counts": {name: len(getattr(extraction, name)) for name in BODY_FIELDS},
     }
     if provenance.summarize_model:
@@ -221,7 +220,6 @@ def parse(text: str) -> StoredExtraction:
     extraction = ExtractionResult(
         summary=_as_str(header.get("summary")),
         topics=list(header.get("topics") or []),
-        connections=list(header.get("connections") or []),
         # The CLI assigns source_path after extraction and the worker path from
         # source_ref; the parser populates it from the file's own `source`, so a
         # round-trip compares against an original whose source_path was set the
@@ -374,9 +372,9 @@ def _read(store: KBStore, raw_rel: str) -> tuple[str | None, str]:
 def load_header(store: KBStore, raw_rel: str) -> tuple[dict | None, str]:
     """Read only an extraction file's frontmatter (B7).
 
-    Everything selection needs -- the summary, topics, connections and the whole
-    provenance header -- lives there, and the body holds the object lists a
-    catalog never looks at. Worth its own function rather than load(): the
+    Everything selection needs -- the summary, topics and the whole provenance
+    header -- lives there, and the body holds the object lists a catalog never
+    looks at. Worth its own function rather than load(): the
     document catalog is rebuilt over every document in the KB on every compile,
     and the counts guard load() applies protects the write phase's payload, which
     is not what a catalog line reads.

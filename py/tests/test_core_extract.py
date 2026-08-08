@@ -25,13 +25,11 @@ def test_parse_extraction_result_full():
         "action_items": [{"task": "a"}],
         "claims": [{"claim": "cl"}],
         "topics": ["t"],
-        "connections": ["conn"],
     }
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == "s"
     assert out.topics == ["t"]
-    assert out.connections == ["conn"]
 
 
 def test_parse_extraction_result_defaults_missing_fields():
@@ -39,7 +37,7 @@ def test_parse_extraction_result_defaults_missing_fields():
 
     assert out.summary == ""
     for fname in ("concepts", "entities", "decisions", "action_items",
-                  "claims", "topics", "connections"):
+                  "claims", "topics"):
         assert getattr(out, fname) == []
 
 
@@ -47,7 +45,7 @@ def test_parse_extraction_result_coerces_none_to_empty():
     """A model returning explicit nulls must not produce None fields, or every
     downstream .extend() would crash."""
     raw = {f: None for f in ("summary", "concepts", "entities", "decisions",
-                             "action_items", "claims", "topics", "connections")}
+                             "action_items", "claims", "topics")}
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == ""
@@ -115,7 +113,7 @@ def test_render_type_split_prompt_k2_groups(stub_prompts):
     b = ex._render_type_split_prompt("B", 2)
 
     assert "concepts, entities, topics, summary" in a
-    assert "claims, decisions, action_items, connections" in b
+    assert "claims, decisions, action_items" in b
     # Each group's schema must contain only its own fields.
     assert '"concepts"' in a and '"claims"' not in a
     assert '"claims"' in b and '"concepts"' not in b
@@ -442,7 +440,7 @@ def _group_response(fields: tuple[str, ...], marker: str) -> dict:
     for f in fields:
         if f == "summary":
             out[f] = marker
-        elif f in ("topics", "connections"):
+        elif f == "topics":
             out[f] = [f"{marker}-{f}"]
         else:
             out[f] = [{"marker": marker, "field": f}]
@@ -476,7 +474,7 @@ def test_extract_knowledge_type_split_merges_by_field_ownership(
             value = getattr(out, fname)
             if fname == "summary":
                 assert value == name
-            elif fname in ("topics", "connections"):
+            elif fname == "topics":
                 assert value == [f"{name}-{fname}"]
             else:
                 assert value[0]["marker"] == name
@@ -712,7 +710,6 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
             summary=f"sum-{tag}",
             concepts=[{"c": tag}],
             topics=["shared", f"t-{tag}"],
-            connections=["shared-conn"],
         )
 
     monkeypatch.setattr(ex, "extract_knowledge", fake_extract)
@@ -722,9 +719,8 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
 
     assert "sum-aaaa" in out.summary and "sum-bbbb" in out.summary
     assert len(out.concepts) == 2
-    # Topics and connections are de-duplicated across chunks.
+    # Topics are de-duplicated across chunks.
     assert sorted(out.topics) == ["shared", "t-aaaa", "t-bbbb"]
-    assert out.connections == ["shared-conn"]
 
 
 def test_chunked_routes_transcripts_through_the_turn_chunker(monkeypatch):

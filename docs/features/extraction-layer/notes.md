@@ -1,6 +1,7 @@
 # Extraction layer — implementation notes
 
-Date: 2026-08-07, Stage 4 run 2026-08-08, gap follow-up 2026-08-08
+Date: 2026-08-07, Stage 4 run 2026-08-08, gap follow-up 2026-08-08,
+`connections` dropped 2026-08-08
 Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md) · Alignment:
 [alignment-questions.md](alignment-questions.md)
 
@@ -373,3 +374,50 @@ counts are expected rather than a defect: the compile-state entries predate both
 version fields, which is what `first_run` says. They clear the next time each
 document is composed. The extraction files themselves are current — a
 `--extract-only` run costs nothing and extracts nothing.
+
+## `connections` dropped on 2026-08-08
+
+The eighth payload field is gone. `connections` held LLM-suggested wiki article
+titles this document "should link to", and Question 5 of the extract prompt asked
+for them, but nothing ever turned one into a link: the single consumer was one
+line of the classify user message (`- Connections (suggested links): ...`), a free
+text hint next to `Topics` that no code validated against the article set. Compare
+`topics`, which drives four real paths — the `Tags:` line of a new article, the
+relevance sort that decides which existing articles reach the classify prompt, the
+section scoring that decides what survives merge truncation, and the union-find
+clustering in `_phase_classify`. If suggested links turn out to be worth having,
+they come back as a field that actually emits links.
+
+Removing it costs classify one hint and buys back a field in every extraction
+file, a question in two prompts, a slot in two type-split groups
+(`TYPE_SPLIT_GROUPS_K2["B"]` and `TYPE_SPLIT_GROUPS_K3["C"]`), and two dedup
+passes — one in the chunk merge, one in `_combine_extractions`, which combines
+across documents rather than chunks.
+
+Removed from: both extract prompts, `ExtractionResult` (and the dead duplicate in
+`_types.py`), `parse_extraction_result`, `extraction_to_dict`,
+`_FIELD_JSON_SCHEMAS`, `TYPE_SPLIT_GROUPS_K2["B"]`, `TYPE_SPLIT_GROUPS_K3["C"]`,
+both merge helpers, `classify_article`'s user message, merge's `_FIELD_PRIORITY`,
+and the extraction file's frontmatter.
+
+`SCHEMA_VERSION` stays at 1. Dropping a field is readable in both directions —
+`parse()` ignores the `connections:` key old files still carry, and code that
+still asked for it would read an absent key as the empty list it already tolerates
+— so the version records no incompatibility. The re-extraction this forces comes
+from `prompt_version` instead, which is the honest reason: editing `extract.md`
+changes the hash, so every extraction in the reference KB is stale and the next
+`compile` re-extracts all 108 of them. That holds for every deployment, not just
+the default prompts — `_extract_stage_renderings` hashes the rendered type-split
+variants too, so the `TYPE_SPLIT_GROUPS_K2/K3` and `_FIELD_JSON_SCHEMAS` edits move
+the hash on their own, and a deployment overriding `extract.md` through
+`KAAS_PROMPTS_DIR` cannot miss this change.
+
+The 2026-08-07 record still describes the eight-field format wherever it was
+specified, marked `[Superseded 2026-08-08: ...]` in place rather than rewritten:
+[spec.md](spec.md) background item 2 and B1 (the frontmatter field list), B17 (the
+sort, whose `serialize()` docstring *was* corrected, so the two now disagree by
+design), the `spec.zh-CN.md` mirrors of all three, and
+[alignment-questions.md](alignment-questions.md) C3. The four-layer diagram
+(`assets/kb-four-layers.svg` and its `.zh` twin) still renders
+`summary, topics, connections, counts` and was left as drawn — an SVG cannot carry
+a bracketed marker, so the note sits in the caption line that embeds it.

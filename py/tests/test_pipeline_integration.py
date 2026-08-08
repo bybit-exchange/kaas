@@ -110,7 +110,6 @@ def test_pipeline_end_to_end_creates_article(kb_dir):
                     "action_items": [],
                     "claims": [],
                     "topics": ["testing", "patterns"],
-                    "connections": [],
                 },
             }
         ],
@@ -184,7 +183,6 @@ def test_pipeline_writes_a_cross_group_collision_once(kb_dir, monkeypatch):
                     "action_items": [],
                     "claims": [],
                     "topics": ["retrieval"],
-                    "connections": [],
                 },
             },
             {
@@ -198,7 +196,6 @@ def test_pipeline_writes_a_cross_group_collision_once(kb_dir, monkeypatch):
                     "action_items": [],
                     "claims": [],
                     "topics": ["embeddings"],
-                    "connections": [],
                 },
             },
         ],
@@ -250,7 +247,6 @@ def test_pipeline_emits_classify_phase_event(kb_dir):
                     "action_items": [],
                     "claims": [],
                     "topics": ["misc"],
-                    "connections": [],
                 },
             }
         ],
@@ -288,7 +284,6 @@ def test_pipeline_multiple_items_all_processed(kb_dir):
                     "action_items": [],
                     "claims": [],
                     "topics": [f"topic{i}"],
-                    "connections": [],
                 },
             }
             for i in range(3)

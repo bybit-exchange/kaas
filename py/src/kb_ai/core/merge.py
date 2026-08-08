@@ -16,7 +16,6 @@ _FIELD_PRIORITY = [
     ("concepts",     "list"),
     ("entities",     "list"),
     ("decisions",    "list"),
-    ("connections",  "list"),
     ("topics",       "list"),
     ("claims",       "list"),
     ("action_items", "list"),

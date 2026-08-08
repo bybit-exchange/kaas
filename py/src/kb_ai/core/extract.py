@@ -59,7 +59,6 @@ class ExtractionResult:
     action_items: list = field(default_factory=list)
     claims: list = field(default_factory=list)
     topics: list = field(default_factory=list)
-    connections: list = field(default_factory=list)
     source_path: str = ""
 
 
@@ -72,7 +71,6 @@ def parse_extraction_result(raw: dict) -> ExtractionResult:
         action_items=raw.get("action_items") or [],
         claims=raw.get("claims") or [],
         topics=raw.get("topics") or [],
-        connections=raw.get("connections") or [],
     )
 
 
@@ -80,7 +78,7 @@ def extraction_to_dict(e: ExtractionResult) -> dict:
     return {
         "summary": e.summary, "concepts": e.concepts, "entities": e.entities,
         "decisions": e.decisions, "action_items": e.action_items,
-        "claims": e.claims, "topics": e.topics, "connections": e.connections,
+        "claims": e.claims, "topics": e.topics,
     }
 
 
@@ -160,18 +158,17 @@ _FIELD_JSON_SCHEMAS: dict[str, str] = {
     "action_items": '"action_items": [{"task": "description", "owner": "person name if known"}]',
     "claims": '"claims": [{"claim": "the assertion", "source": "who/what said this", "surprising": false}]',
     "topics": '"topics": ["topic-tag-1", "topic-tag-2"]',
-    "connections": '"connections": ["suggested-wiki-article-title-1", "suggested-wiki-article-title-2"]',
 }
 
 TYPE_SPLIT_GROUPS_K2: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities", "topics", "summary"),
-    "B": ("claims", "decisions", "action_items", "connections"),
+    "B": ("claims", "decisions", "action_items"),
 }
 
 TYPE_SPLIT_GROUPS_K3: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities"),
     "B": ("claims", "summary", "topics"),
-    "C": ("decisions", "action_items", "connections"),
+    "C": ("decisions", "action_items"),
 }
 
 
@@ -791,11 +788,9 @@ def extract_knowledge_chunked(
         merged.action_items.extend(r.action_items)
         merged.claims.extend(r.claims)
         merged.topics.extend(r.topics)
-        merged.connections.extend(r.connections)
 
     merged.summary = " ".join(summaries)
     merged.topics = list(set(merged.topics))
-    merged.connections = list(set(merged.connections))
     return merged
 
 
@@ -812,11 +807,9 @@ def _combine_extractions(items: list[tuple[str, ExtractionResult]]) -> tuple[Ext
         combined.action_items.extend(extraction.action_items)
         combined.claims.extend(extraction.claims)
         combined.topics.extend(extraction.topics)
-        combined.connections.extend(extraction.connections)
         rels.append(rel)
     combined.summary = "\n".join(summaries)
     combined.topics = list(set(combined.topics))
-    combined.connections = list(set(combined.connections))
     return combined, rels
 
 

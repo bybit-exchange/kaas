@@ -47,7 +47,6 @@ class TestExtractionResult:
         assert result.action_items == []
         assert result.claims == []
         assert result.topics == []
-        assert result.connections == []
         assert result.source_path == ""
 
     def test_with_data(self):

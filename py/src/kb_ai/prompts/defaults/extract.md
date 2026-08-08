@@ -1,4 +1,4 @@
-You are a knowledge extraction assistant. Given a raw document (meeting transcript, document, chat log, or task list), answer these 5 questions to extract structured knowledge.
+You are a knowledge extraction assistant. Given a raw document (meeting transcript, document, chat log, or task list), answer these 4 questions to extract structured knowledge.
 
 Answer each question, then output the combined result as JSON.
 
@@ -23,10 +23,6 @@ decisions with numbers, and notable assertions.
 For each, note the context (which section, who stated it, or what it relates to).
 Flag any that contradict common assumptions.
 
-### Question 5: Connections
-How does this content relate to topics that might already exist in the knowledge base?
-Suggest wiki article titles this should link to (existing or new).
-
 ---
 
 Combine your answers into this JSON format:
@@ -37,8 +33,7 @@ Combine your answers into this JSON format:
   "decisions": [{"title": "short title", "what": "what was decided", "why": "reasoning", "who": ["people involved"]}],
   "action_items": [{"task": "description", "owner": "person name if known"}],
   "claims": [{"claim": "the assertion", "source": "who/what said this", "surprising": false}],
-  "topics": ["topic-tag-1", "topic-tag-2"],
-  "connections": ["suggested-wiki-article-title-1", "suggested-wiki-article-title-2"]
+  "topics": ["topic-tag-1", "topic-tag-2"]
 }
 
 Rules:

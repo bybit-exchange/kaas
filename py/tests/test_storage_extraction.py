@@ -46,7 +46,6 @@ def _full(**overrides) -> ExtractionResult:
         claims=[{"claim": "现有客户中 80% 更偏好席位制", "source": "问卷",
                  "surprising": False}],
         topics=["pricing", "billing"],
-        connections=["pricing-model", "billing-migration"],
         source_path="raw/notes.md",
     )
     base.update(overrides)
@@ -72,13 +71,12 @@ def _round_trip(result: ExtractionResult, provenance=None) -> ExtractionResult:
 
 
 def _assert_round_trips(result: ExtractionResult) -> None:
-    """Field-for-field equality, with topics/connections sorted per B17."""
+    """Field-for-field equality, with topics sorted per B17."""
     parsed = _round_trip(result)
     assert parsed.summary == result.summary
     for name in exl.BODY_FIELDS:
         assert getattr(parsed, name) == getattr(result, name), name
     assert parsed.topics == sorted(result.topics, key=str)
-    assert parsed.connections == sorted(result.connections, key=str)
     assert parsed.source_path == "raw/notes.md"
 
 
@@ -145,6 +143,14 @@ def test_file_shape_is_frontmatter_plus_five_pinned_sections(store):
                         "## Action Items", "## Claims"]
 
     header = yaml.safe_load(text.split("---\n")[1])
+    # The exact key set, not just the keys this test names: without it a payload
+    # field can appear or vanish from the frontmatter and every assertion below
+    # still passes. summarize_model is the one conditional key (B15).
+    assert set(header) == {
+        "source", "source_checksum", "extract_model", "extract_strategy",
+        "prompt_version", "extracted_at", "schema_version",
+        "summary", "topics", "counts",
+    }
     assert header["source"] == "raw/notes.md"
     assert header["source_checksum"] == "0123456789abcdef"
     assert header["extract_model"] == "claude-sonnet-4-6"
@@ -197,7 +203,7 @@ def test_round_trip_empty_lists_for_every_field():
     parsed = _round_trip(result)
     for name in exl.BODY_FIELDS:
         assert getattr(parsed, name) == []
-    assert parsed.topics == [] and parsed.connections == []
+    assert parsed.topics == []
 
 
 def test_round_trip_empty_who_on_a_decision():
@@ -470,8 +476,7 @@ def test_prompt_version_changes_when_a_type_split_group_changes(monkeypatch):
     """B11: the renderings are hashed, so a code constant is not a blind spot."""
     before = ex.extract_prompt_version()
     moved = {"A": ("concepts",), "B": ("entities", "claims", "decisions",
-                                       "action_items", "topics", "summary",
-                                       "connections")}
+                                       "action_items", "topics", "summary")}
     monkeypatch.setattr(ex, "TYPE_SPLIT_GROUPS_K2", moved)
     ex.extract_prompt_version.cache_clear()
     assert ex.extract_prompt_version() != before

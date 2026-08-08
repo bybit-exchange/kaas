@@ -28,7 +28,6 @@ class ExtractionResult:
     action_items: list = field(default_factory=list)
     claims: list = field(default_factory=list)
     topics: list = field(default_factory=list)
-    connections: list = field(default_factory=list)
     source_path: str = ""
 
 
