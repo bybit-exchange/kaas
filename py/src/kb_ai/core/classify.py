@@ -183,14 +183,12 @@ def classify_article(
     user_budget = MAX_PROMPT_CHARS // 2
     summary = extraction.summary[:user_budget // 4]
     topics_str = str(extraction.topics)[:user_budget // 8]
-    connections_str = str(extraction.connections)[:user_budget // 8]
     decisions_json = json.dumps(extraction.decisions, ensure_ascii=False)
 
     prefix = (
         f"Extracted knowledge:\n"
         f"- Summary: {summary}\n"
         f"- Topics: {topics_str}\n"
-        f"- Connections (suggested links): {connections_str}\n"
         f"- Decisions: "
     )
     decisions_budget = user_budget - len(prefix)

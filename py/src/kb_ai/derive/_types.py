@@ -62,8 +62,8 @@ class DocumentRef:
     """A source document to copy into the derived KB.
 
     size_bytes feeds the CLI volume gate (F5); checksum is the 16-hex-char
-    SHA-256 prefix storage.store._compute_checksum produces, so it also keys the
-    extract-cache entry copied alongside the document (C7, E4).
+    SHA-256 prefix storage.store._compute_checksum produces, so it is also what
+    the copied extraction's source_checksum is verified against (C7, E4).
     """
 
     rel_path: str

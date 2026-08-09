@@ -9,29 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 
-@dataclass
-class ArticleMeta:
-    title: str
-    path: str
-    summary: str = ""
-    type: str = ""
-    tags: list[str] = field(default_factory=list)
-    status: str = ""
-
-
-@dataclass
-class ExtractionResult:
-    summary: str = ""
-    concepts: list = field(default_factory=list)
-    entities: list = field(default_factory=list)
-    decisions: list = field(default_factory=list)
-    action_items: list = field(default_factory=list)
-    claims: list = field(default_factory=list)
-    topics: list = field(default_factory=list)
-    connections: list = field(default_factory=list)
-    source_path: str = ""
-
-
 # ── Classification result types ───────────────────────────────────────
 
 

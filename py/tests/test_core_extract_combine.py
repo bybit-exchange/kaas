@@ -17,14 +17,12 @@ def test_combine_extractions_merges_fields():
         concepts=[{"title": "A"}],
         entities=[{"name": "X"}],
         topics=["topic-a", "topic-b"],
-        connections=["conn-1"],
     )
     e2 = ExtractionResult(
         summary="Second summary",
         concepts=[{"title": "B"}],
         entities=[{"name": "Y"}],
         topics=["topic-b", "topic-c"],
-        connections=["conn-1", "conn-2"],
     )
 
     combined, rels = _combine_extractions([("raw/a.md", e1), ("raw/b.md", e2)])
@@ -36,8 +34,6 @@ def test_combine_extractions_merges_fields():
     assert len(combined.entities) == 2
     # Topics are deduplicated
     assert set(combined.topics) == {"topic-a", "topic-b", "topic-c"}
-    # Connections are deduplicated
-    assert set(combined.connections) == {"conn-1", "conn-2"}
 
 
 def test_combine_extractions_empty_list():

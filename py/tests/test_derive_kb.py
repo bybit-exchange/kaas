@@ -342,18 +342,42 @@ def test_nested_derive_is_refused(tmp_path: Path):
                   select=select, compile_fn=_fake_compile)
 
 
-def test_extract_cache_entries_travel_with_their_documents(tmp_path: Path):
+def test_extractions_travel_with_their_documents(tmp_path: Path):
+    """A derived KB gets the same four layers as its parent (spec F1, F4)."""
     kb = _fixture_kb(tmp_path)
-    from kb_ai.storage.store import _compute_checksum
+    from kb_ai.core.extract import ExtractionResult
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore, _compute_checksum
     checksum = _compute_checksum("Fee schedule and tiers.")
-    (kb / ".extract-cache").mkdir()
-    (kb / ".extract-cache" / f"{checksum}.json").write_text('{"summary": "cached"}')
+    exl.persist(KBStore(str(kb)), "raw/pricing-notes.md",
+                ExtractionResult(summary="extracted pricing"),
+                source_checksum=checksum, extract_model="m")
 
     select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
-    derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=_fake_compile)
+    report = derive_kb(str(kb), "pricing", model="m", select=select,
+                       compile_fn=_fake_compile)
 
-    copied = kb / "derived" / "pricing" / ".extract-cache" / f"{checksum}.json"
-    assert copied.read_text() == '{"summary": "cached"}'
+    copied = kb / "derived" / "pricing" / "extraction" / "pricing-notes.md"
+    assert "summary: extracted pricing" in copied.read_text()
+    assert report.warnings == []
+
+
+def test_a_mismatched_extraction_is_reported_as_a_warning(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    from kb_ai.core.extract import ExtractionResult
+    from kb_ai.storage import extraction as exl
+    from kb_ai.storage.store import KBStore
+    exl.persist(KBStore(str(kb)), "raw/pricing-notes.md",
+                ExtractionResult(summary="describes different text"),
+                source_checksum="0" * 16, extract_model="m")
+
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+    report = derive_kb(str(kb), "pricing", model="m", select=select,
+                       compile_fn=_fake_compile)
+
+    assert not (kb / "derived" / "pricing" / "extraction").exists()
+    assert len(report.warnings) == 1
+    assert "does not match the document" in report.warnings[0]
 
 
 def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
@@ -643,3 +667,39 @@ def test_documents_mode_records_dropped_lines_as_documents(tmp_path: Path):
     assert report.skipped_articles == []
     assert ("raw/infra-notes.md", "line_over_budget") in [
         (s.ref, s.reason) for s in report.skipped_documents]
+
+
+def test_the_derived_compile_inherits_the_configured_extract_strategy(tmp_path: Path):
+    """Same shape as extract_model: without it the derived compile runs on
+    compile_kb's own default, so every extraction the copy inherited from a
+    summarize deployment reads as stale and is re-extracted at full price -- and
+    re-recorded as chunked, which the next parent compile then finds stale too."""
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select,
+              extract_strategy="summarize", summarize_model="sm",
+              compile_fn=capturing_compile)
+
+    assert seen["extract_strategy"] == "summarize"
+    assert seen["summarize_model"] == "sm"
+
+
+def test_the_derived_compile_defaults_to_chunked(tmp_path: Path):
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"])
+    seen: dict = {}
+
+    def capturing_compile(derived_dir: str, **kwargs) -> dict:
+        seen.update(kwargs)
+        return _fake_compile(derived_dir, **kwargs)
+
+    derive_kb(str(kb), "pricing", model="m", select=select,
+              compile_fn=capturing_compile)
+
+    assert seen["extract_strategy"] == "chunked"

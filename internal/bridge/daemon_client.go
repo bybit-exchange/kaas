@@ -12,10 +12,11 @@ import (
 // LLMConfig holds the OpenAI-compatible LLM credentials forwarded to the daemon
 // on init. Defined here to avoid circular imports with the config package.
 type LLMConfig struct {
-	APIKey         string
-	BaseURL        string
-	Model          string
-	SummarizeModel string
+	APIKey          string
+	BaseURL         string
+	Model           string
+	SummarizeModel  string
+	ExtractStrategy string
 }
 
 // DaemonClient talks to the Python AI engine via a long-running daemon process
@@ -67,6 +68,10 @@ func (c *DaemonClient) sendInit(ctx context.Context, llm LLMConfig) error {
 		"base_url":        llm.BaseURL,
 		"model":           llm.Model,
 		"summarize_model": llm.SummarizeModel,
+		// Forwarded even though ExtractRequest carries it per call: the derive
+		// command compiles a copied extraction layer, and that compile has to
+		// compare against the strategy the copies were produced under.
+		"extract_strategy": llm.ExtractStrategy,
 	}})
 	resp, err := c.daemon.call(ctx, daemonRequest{Cmd: "init", Payload: initPayload})
 	if err != nil {

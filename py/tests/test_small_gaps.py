@@ -50,9 +50,12 @@ def test_load_prompt_returns_the_packaged_prompt_text(packaged_prompts):
     )
 
 
-def test_load_prompt_raises_for_an_unknown_prompt(packaged_prompts):
+def test_load_prompt_raises_when_a_listed_prompt_has_no_file(packaged_prompts, tmp_path,
+                                                             monkeypatch):
+    monkeypatch.setenv("KAAS_PROMPTS_DIR", str(tmp_path))
+    monkeypatch.setattr(prompts_mod, "_registry", None)
     with pytest.raises(NoActivePromptError, match="prompt file not found"):
-        ex.load_prompt("no-such-prompt")
+        ex.load_prompt("summarize")
 
 
 # ── extract: _merge_one_group ───────────────────────────────────────

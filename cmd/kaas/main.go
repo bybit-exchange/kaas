@@ -228,7 +228,9 @@ func run(configFile string) error {
 		KBDir:             cfg.Storage.KBDir,
 		PipelineWorkers:   cfg.Worker.PipelineConcurrency,
 		HeartbeatInterval: heartbeatInterval(leaseTTL),
+		Model:             cfg.LLM.Model,
 		SummarizeModel:    cfg.LLM.SummarizeModel,
+		ExtractStrategy:   cfg.LLM.ExtractStrategy,
 	})
 	d := worker.NewDispatcher(q, w, brk, owner,
 		time.Duration(cfg.Worker.PollIntervalMS)*time.Millisecond,
@@ -349,10 +351,11 @@ func createEngine(ctx context.Context, cfg *config.Config) (worker.Engine, api.C
 		MaxRestarts:      cfg.AI.Daemon.MaxRestarts,
 	}
 	llmCfg := bridge.LLMConfig{
-		APIKey:         cfg.LLM.APIKey,
-		BaseURL:        cfg.LLM.BaseURL,
-		Model:          cfg.LLM.Model,
-		SummarizeModel: cfg.LLM.SummarizeModel,
+		APIKey:          cfg.LLM.APIKey,
+		BaseURL:         cfg.LLM.BaseURL,
+		Model:           cfg.LLM.Model,
+		SummarizeModel:  cfg.LLM.SummarizeModel,
+		ExtractStrategy: cfg.LLM.ExtractStrategy,
 	}
 
 	warmupTimeout := time.Duration(daemonCfg.WarmupTimeoutSec) * time.Second

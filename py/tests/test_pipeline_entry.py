@@ -15,6 +15,8 @@ import pytest
 
 from kb_ai._context import get_context
 from kb_ai.commands.pipeline import _entry
+from kb_ai.core.extract import ExtractionResult
+from kb_ai.storage import extraction as exl
 from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.storage.store import KBStore
 
@@ -173,12 +175,36 @@ def test_pipeline_input_honours_an_explicit_configuration(
     assert ctx.workers == 3
 
 
-def test_pipeline_input_passes_the_items_through(kb_dir, fresh_context, orchestrator, indexers):
-    items = [{"content_hash": "h1", "source_ref": "raw/a.md", "extraction": {}}]
+def test_pipeline_input_loads_each_items_extraction_from_disk(
+        kb_dir, fresh_context, orchestrator, indexers):
+    """D1: the item names a document; the extraction comes off disk."""
+    store = KBStore(kb_dir)
+    exl.persist(store, "raw/a.md", ExtractionResult(summary="from disk"),
+                source_checksum="0" * 16, extract_model="m")
+    items = [{"content_hash": "h1", "source_ref": "raw/a.md"}]
 
     _entry.run_server_pipeline_with_input(payload(kb_dir, items=items))
 
-    assert orchestrator["calls"][0]["items"] == items
+    forwarded = orchestrator["calls"][0]["items"]
+    assert len(forwarded) == 1
+    assert forwarded[0]["content_hash"] == "h1"
+    assert forwarded[0]["source_ref"] == "raw/a.md"
+    assert forwarded[0]["extraction"]["summary"] == "from disk"
+
+
+def test_pipeline_input_reports_an_item_with_no_extraction_and_drops_it(
+        kb_dir, fresh_context, orchestrator, indexers):
+    items = [{"content_hash": "h1", "source_ref": "raw/gone.md"}]
+    events: list[dict] = []
+
+    results = _entry.run_server_pipeline_with_input(
+        payload(kb_dir, items=items), emit=events.append)
+
+    assert orchestrator["calls"][0]["items"] == []
+    assert results[0]["status"] == "error"
+    assert "no usable extraction" in results[0]["error"]
+    assert results[0]["phase"] == "extract"
+    assert events == [results[0]]
 
 
 def test_pipeline_input_returns_the_orchestrator_results(

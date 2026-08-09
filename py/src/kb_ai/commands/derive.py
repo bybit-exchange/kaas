@@ -12,6 +12,7 @@ import sys
 from collections.abc import Callable
 
 from kb_ai._errors import KBError
+from kb_ai.core.extract import STRATEGY_CHUNKED
 from kb_ai.derive import DeriveReport, derive_kb
 
 _DEFAULT_MODEL = "claude-sonnet-4-6"
@@ -88,6 +89,12 @@ def run_derive(argv: list[str]) -> None:
             args.kb, args.topic,
             slug=args.slug, force=args.force, prune=args.prune,
             select_from=args.select_from, model=model,
+            # From the environment, like model: the strategy is the deployment's,
+            # and the derived compile has to compare against the same value the
+            # copied extractions were produced under or it re-extracts all of them.
+            extract_strategy=(os.environ.get("LLM_EXTRACT_STRATEGY")
+                              or STRATEGY_CHUNKED),
+            summarize_model=(os.environ.get("LLM_SUMMARIZE_MODEL") or model),
             approve=_make_approve(args),
         )
     except KBError as e:
@@ -99,12 +106,12 @@ def run_derive(argv: list[str]) -> None:
     else:
         # No resume path exists: --force calls create(), which deletes the
         # directory and starts over -- the topic filter runs again at full cost and
-        # the documents are resolved and copied again. The source KB's extract
-        # cache is the one thing genuinely reused, and it was never lost.
+        # the documents are resolved and copied again. The source KB's extraction
+        # layer is the one thing genuinely reused, and it was never lost.
         next_step = (f"Declined before compiling. Re-run with --force --yes to "
                      f"replace {report.derived_kb}: the topic filter runs again "
                      f"and the documents are re-copied, but the source knowledge "
-                     f"base's extract cache is reused.")
+                     f"base's extraction layer is reused.")
 
     respond(True, data={
         "derived_kb": report.derived_kb,

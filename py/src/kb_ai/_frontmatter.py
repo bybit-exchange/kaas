@@ -17,11 +17,21 @@ def split_frontmatter(content: str) -> tuple[str, str] | None:
 
     None covers both shapes the callers treat as "no frontmatter": content that
     does not open with a delimiter line, and a block that is never closed.
+
+    The closing delimiter is matched on ``rstrip()``, not ``strip()``, so an
+    *indented* ``---`` does not close the block. PyYAML renders a string value
+    containing a line that is exactly ``---`` as a multi-line quoted scalar whose
+    continuation lines are indented by at least two spaces, and ``strip()`` read
+    that continuation as the end of the frontmatter: the block was truncated
+    mid-scalar, ``safe_load`` raised ScannerError, and every key after the
+    truncation point was lost. ``rstrip()`` still tolerates trailing whitespace
+    on a real delimiter -- the only case ``strip()`` was buying -- while rejecting
+    an indented one, which is never a legitimate delimiter.
     """
     lines = content.splitlines(keepends=True)
     if not lines or lines[0].strip() != _DELIM:
         return None
     for i in range(1, len(lines)):
-        if lines[i].strip() == _DELIM:
+        if lines[i].rstrip() == _DELIM:
             return "".join(lines[1:i]), "".join(lines[i + 1:])
     return None

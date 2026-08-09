@@ -6,6 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kb_ai.commands.compile import compile_kb
+from kb_ai.core.extract import (
+    EXTRACT_STRATEGIES,
+    STRATEGY_CHUNKED,
+    validate_strategy,
+)
 from kb_ai.storage.store import KBStore
 
 TEXT_SUFFIXES = {
@@ -90,6 +95,28 @@ def run_distill(argv: list[str]) -> None:
         help="comma-separated article categories, frozen into the KB on first use "
              "(default: the KB's frozen set, or the built-in defaults for a new KB)",
     )
+    parser.add_argument(
+        "--extract-only",
+        action="store_true",
+        help="run the extraction phase and stop, leaving wiki/ untouched — for "
+             "reading the new extraction/ files after editing an extract prompt "
+             "before paying for the write phase",
+    )
+    parser.add_argument(
+        # type= as well as choices=: argparse does not validate a default against
+        # choices, so LLM_EXTRACT_STRATEGY=Chunked would otherwise slip past the
+        # flag's own check and surface as an INTERNAL_ERROR from __main__ instead
+        # of the message the other two entry points give.
+        "--extract-strategy", choices=list(EXTRACT_STRATEGIES),
+        type=validate_strategy,
+        default=os.environ.get("LLM_EXTRACT_STRATEGY") or STRATEGY_CHUNKED,
+        dest="extract_strategy",
+        help="how extraction reads a document: 'chunked' (default) extracts from "
+             "the text itself, 'summarize' extracts from per-chunk summaries, "
+             "'auto' summarizes once a document splits into three or more chunks. "
+             "Must match the deployment's llm.extract_strategy: the freshness gate "
+             "compares it, so a mismatch re-extracts every document once",
+    )
     args = parser.parse_args(argv)
 
     # Omitting the flag must stay None rather than becoming the defaults, so an
@@ -128,7 +155,11 @@ def run_distill(argv: list[str]) -> None:
 
     model = os.environ.get("LLM_MODEL") or "gpt-4o-mini"
     result = compile_kb(args.kb, extract_model=model, compile_model=model,
-                        write_model=model, categories=categories)
+                        write_model=model, categories=categories,
+                        extract_only=args.extract_only,
+                        extract_strategy=args.extract_strategy,
+                        summarize_model=(os.environ.get("LLM_SUMMARIZE_MODEL")
+                                         or model))
     respond(True, data={
         "kb": args.kb,
         "ingested": len(report.ingested),

@@ -226,3 +226,78 @@ driver = "mysql"
 		t.Fatalf("expected error for mysql without dsn")
 	}
 }
+
+func TestExtractStrategyDefaultsToChunked(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+model = "gpt-4o"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.LLM.ExtractStrategy != "chunked" {
+		t.Errorf("extract_strategy = %q, want %q", c.LLM.ExtractStrategy, "chunked")
+	}
+}
+
+func TestExtractStrategyFromFile(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+model = "gpt-4o"
+extract_strategy = "auto"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.LLM.ExtractStrategy != "auto" {
+		t.Errorf("extract_strategy = %q, want %q", c.LLM.ExtractStrategy, "auto")
+	}
+}
+
+func TestExtractStrategyEnvOverride(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+model = "gpt-4o"
+extract_strategy = "chunked"
+`)
+	t.Setenv("LLM_EXTRACT_STRATEGY", "summarize")
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.LLM.ExtractStrategy != "summarize" {
+		t.Errorf("extract_strategy = %q, want %q", c.LLM.ExtractStrategy, "summarize")
+	}
+}
+
+// An unknown strategy fails at load rather than at extract time: the engine would
+// refuse it once per document, after the scan, and a typo in a deployment's
+// configuration is worth catching before the process starts serving.
+func TestUnknownExtractStrategyIsRejected(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+model = "gpt-4o"
+extract_strategy = "Chunked"
+`)
+	if _, err := Load(p); err == nil {
+		t.Fatal("expected Load to reject an unknown extract_strategy")
+	}
+}

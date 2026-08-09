@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import re
+import sys
 from datetime import datetime
 
 import yaml
 
 from kb_ai._frontmatter import split_frontmatter
-from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore, _compute_checksum
+from kb_ai.storage import extraction
+from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore
 
 DOCUMENT_INDEX_NAME = "document-index.md"
 
@@ -137,38 +139,44 @@ def _document_frontmatter(content: str) -> tuple[dict, str]:
     return (fm if isinstance(fm, dict) else {}), split[1]
 
 
-def _document_summary(store: KBStore, fm: dict, body: str, content: str,
-                      max_chars: int) -> str:
+def _document_summary(store: KBStore, rel_path: str, fm: dict, body: str,
+                      max_chars: int) -> tuple[str, bool]:
     """The catalog summary for one raw document, cheapest source first.
 
     1. a ``summary`` declared in the document's own frontmatter
-    2. the ``summary`` of its extract-cache entry -- the document-level summary
-       the compile pipeline already paid for and wrote to disk
+    2. the ``summary`` in the document's extraction frontmatter -- the
+       document-level summary the compile pipeline already paid for
     3. the first prose paragraph, via the same _derive_summary the article
        catalog uses
 
-    Layer 2 is what makes this catalog nearly free on a compiled KB (980 of 994
-    documents hit it in this repository's reference KB); layer 3 is what keeps it
-    working for a KB that has been fetched into but never compiled -- exactly the
-    case where an article catalog does not exist at all.
+    Returns (summary, used_body_fallback). Layer 3 is only reached by a document
+    with no extraction yet -- fetched but never compiled -- and the caller reports
+    how often that happened rather than leaving a materially worse catalog line
+    silent.
 
-    Note the cached summary is written for extraction, not for a catalog line:
+    A lookup keyed by the raw path, not an iteration of extraction/: the title and
+    the date/source context prefix come from the raw document's own frontmatter,
+    which the extraction file does not carry, and an orphan extraction left by a
+    deleted or renamed document would otherwise appear in the catalog as a
+    document that no longer exists.
+
+    Note the extraction summary is written for extraction, not for a catalog line:
     its median length is 361 chars against this budget's 200, so most entries are
     clipped by _flatten. Whether that clipping costs selection recall is open --
     it is measured before any second summarisation pass is worth paying for.
     """
     declared = fm.get("summary")
     if isinstance(declared, str) and declared.strip():
-        return _flatten(declared, max_chars)
+        return _flatten(declared, max_chars), False
 
-    cached = store.load_extract_cache(_compute_checksum(content))
-    if cached:
-        summary = cached.get("summary")
+    header, _reason = extraction.load_header(store, rel_path)
+    if header:
+        summary = header.get("summary")
         if isinstance(summary, str) and summary.strip():
-            return _flatten(summary, max_chars)
+            return _flatten(summary, max_chars), False
 
     # Empty frontmatter, so _derive_summary goes straight to the body.
-    return _derive_summary({}, body.strip(), max_chars)
+    return _derive_summary({}, body.strip(), max_chars), True
 
 
 def build_document_catalog(store: KBStore, *,
@@ -197,23 +205,35 @@ def build_document_catalog(store: KBStore, *,
         summary_max_chars = SUMMARY_MAX_CHARS
 
     catalog: list[ArticleMeta] = []
+    without_extraction = 0
     for path in store._iter_raw_paths():
         content = path.read_text()
         fm, body = _document_frontmatter(content)
+        rel_path = str(path.relative_to(store.base_dir))
 
         context = _DOC_FIELD_SEP.join(
             str(fm[k]) for k in _DOC_CONTEXT_KEYS if fm.get(k))
         # The context prefix is paid for out of the same budget, not added on
         # top of it, so one line cannot exceed what the caller allowed.
         spent = len(context) + len(_DOC_FIELD_SEP) if context else 0
-        summary = _document_summary(store, fm, body, content,
-                                    max(summary_max_chars - spent, 0))
+        summary, from_body = _document_summary(store, rel_path, fm, body,
+                                               max(summary_max_chars - spent, 0))
+        without_extraction += from_body
 
         catalog.append(ArticleMeta(
             title=str(fm.get("title") or path.stem),
-            path=str(path.relative_to(store.base_dir)),
+            path=rel_path,
             summary=_DOC_FIELD_SEP.join(p for p in (context, summary) if p),
         ))
+
+    # Reported rather than silent: a document with no extraction gets a
+    # first-paragraph summary, which is materially worse for selection than the
+    # one the compile pipeline would have paid for. One line, not one per
+    # document -- a never-compiled KB is the legitimate case and hits every one.
+    if without_extraction:
+        print(f"[document-index] {without_extraction} of {len(catalog)} documents "
+              "have no extraction yet; using their first paragraph as the summary",
+              file=sys.stderr, flush=True)
     return catalog
 
 
