@@ -1,0 +1,31 @@
+web/src/features/wiki/DeriveDialog.tsx
+  65853739f3629c59 221
+web/src/i18n/strings.ts
+  65853739f3629c59 41,183
+web/src/features/wiki/DeriveDialog.test.tsx
+  65853739f3629c59 24-25,30,149,155-165
+docs/features/derive-topic-kb-from-catalog/spec.md
+  65853739f3629c59 165,168-172,202-204,252-254
+web/src/api/derived.ts
+  65853739f3629c59 26-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e127627aca34e61788f2237a66ec41a3bf8e1e1e",
+  "prompts": {
+    "65853739f3629c59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4fc79a25-c739-4819-ba6d-ade4629027b2",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1614,
+      "total_deletions": 887,
+      "accepted_lines": 1342,
+      "overriden_lines": 0
+    }
+  }
+}
