@@ -218,10 +218,7 @@ export function DeriveDialog({ onDerived }: DeriveDialogProps) {
             <div role="status" className="space-y-1">
               <p className="text-sm font-medium">{t('derive.doneTitle')}</p>
               <p className="text-sm text-muted-foreground">
-                {t('derive.summary', {
-                  documents: job.result.documents,
-                  offtopic: job.result.offtopic,
-                })}
+                {t('derive.summary', { documents: job.result.documents })}
               </p>
               <p className="text-sm text-muted-foreground">
                 {t('derive.cost', {
