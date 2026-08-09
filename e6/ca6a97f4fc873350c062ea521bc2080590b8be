@@ -1,0 +1,40 @@
+py/tests/test_context_propagation.py
+  d5c8753514754b3f 12,147-167,170-171,175,181-184
+py/src/kb_ai/core/extract.py
+  d5c8753514754b3f 15,295,298,353,356,636,639,747,750
+py/tests/test_core_extract.py
+  d5c8753514754b3f 10-12,15-16,848-1002
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e6ca6a97f4fc873350c062ea521bc2080590b8be",
+  "prompts": {
+    "9534fb8f13b48bfb": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "59f095c7-2232-4c3b-afc7-872cf5398a66",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 824,
+      "total_deletions": 58,
+      "accepted_lines": 447,
+      "overriden_lines": 0
+    },
+    "d5c8753514754b3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3f996edb-ba90-4528-9abe-8a6b653c7afd",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 763,
+      "total_deletions": 3187,
+      "accepted_lines": 756,
+      "overriden_lines": 0
+    }
+  }
+}
