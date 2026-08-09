@@ -1,0 +1,23 @@
+py/tests/test_server_daemon.py
+  65853739f3629c59 1059-1103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "2fe8356cc37a333bb30f5e5a032f337bc1324530",
+  "prompts": {
+    "65853739f3629c59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4fc79a25-c739-4819-ba6d-ade4629027b2",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1302,
+      "total_deletions": 1851,
+      "accepted_lines": 1349,
+      "overriden_lines": 0
+    }
+  }
+}
