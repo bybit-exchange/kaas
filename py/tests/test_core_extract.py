@@ -7,8 +7,13 @@ containment around both.
 """
 from __future__ import annotations
 
+import threading
+from dataclasses import fields
+
 import pytest
 
+from kb_ai._context import ThreadContext, get_context
+from kb_ai._cost import CostTracker
 from kb_ai._errors import ExtractionFailedError
 from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult
@@ -838,6 +843,161 @@ def test_with_extract_timeout_preserves_metadata():
 
     assert documented.__name__ == "documented"
     assert documented.__doc__ == "A docstring."
+
+
+# ── worker context adoption ─────────────────────────────────────────
+#
+# Every fan-out here submits with a bare pool.submit, so a worker starts on a
+# default ThreadContext and has to be handed the parent's explicitly. That used
+# to be three assignments naming three fields, which made every field added
+# afterwards a silent drop: alert_sink was dropped, so an LLM warning raised
+# inside a chunk worker never reached the .compile.log of the compile that
+# raised it -- the file the timeout fix had just started writing warnings to.
+#
+# Each test asserts the whole container arrived, not one field, because naming
+# fields is what failed the first time.
+
+def _ctx_probe(seen: list):
+    """Record the calling thread's context, for a worker-side seam to call."""
+    def probe():
+        seen.append(get_context())
+    return probe
+
+
+@pytest.fixture
+def parent_ctx(fresh_context):
+    """A parent context with every field set to something recognisable."""
+    ctx = get_context()
+    ctx.deadline_abs = 99999.0
+    ctx.cancel_event = threading.Event()
+    ctx.call_timeout = 30.0
+    ctx.call_emit = lambda event: None
+    ctx.phase = "extract:raw/only.md"
+    ctx.content_hash = "abc123"
+    ctx.request_tracker = CostTracker()
+    ctx.alert_sink = lambda msg: None
+    return ctx
+
+
+def assert_adopted(worker_ctx, parent: ThreadContext, **expected) -> None:
+    """The worker's context carries every field of the parent's.
+
+    Enumerated from the dataclass rather than listed, so a field added to
+    ThreadContext later cannot be forgotten here the way alert_sink was in the
+    hand-rolled forwarding this replaced.
+
+    `expected` names the fields the entry point itself changes before fanning out
+    -- the two decorated with _with_extract_timeout raise call_timeout, which is
+    the point of the decorator. Passing it here pins that the raised value is what
+    the workers get, without letting the loop stop covering the other fields.
+    """
+    for f in fields(ThreadContext):
+        got = getattr(worker_ctx, f.name)
+        want = expected[f.name] if f.name in expected else getattr(parent, f.name)
+        assert got == want, f"worker did not adopt {f.name}: {got!r} != {want!r}"
+        if not isinstance(want, (int, float, str, bool, type(None))):
+            # cancel_event, request_tracker, call_emit and alert_sink are useful to
+            # a worker only if they are the parent's own object, not a copy.
+            assert got is want, f"worker adopted a copy of {f.name}, not the parent's"
+
+
+def test_chunk_worker_adopts_the_parents_context(parent_ctx, monkeypatch):
+    seen: list = []
+    probe = _ctx_probe(seen)
+
+    def fake_extract(content, model, prompt_name="extract", max_tokens=16384):
+        probe()
+        return ExtractionResult(summary="s")
+
+    monkeypatch.setattr(ex, "extract_knowledge", fake_extract)
+    monkeypatch.setattr(ex, "chunk_content", lambda content: ["aaaa", "bbbb"])
+
+    ex.extract_knowledge_chunked("long content")
+
+    assert len(seen) == 2
+    for worker_ctx in seen:
+        assert_adopted(worker_ctx, parent_ctx,
+                       call_timeout=ex._EXTRACT_CALL_TIMEOUT_S)
+
+
+def test_summarize_worker_adopts_the_parents_context(parent_ctx, monkeypatch):
+    seen: list = []
+    probe = _ctx_probe(seen)
+
+    def fake_summarize(chunk, frontmatter, model):
+        probe()
+        return f"summary of {chunk}"
+
+    monkeypatch.setattr(ex, "summarize_chunk", fake_summarize)
+    monkeypatch.setattr(ex, "extract_knowledge",
+                        lambda content, model, prompt_name="extract", max_tokens=16384:
+                        ExtractionResult(summary="phase2"))
+
+    ex.extract_knowledge_summarized(["aaaa", "bbbb"], {}, "haiku", "sonnet")
+
+    assert len(seen) == 2
+    for worker_ctx in seen:
+        assert_adopted(worker_ctx, parent_ctx,
+                       call_timeout=ex._EXTRACT_CALL_TIMEOUT_S)
+
+
+def test_l2_merge_worker_adopts_the_parents_context(parent_ctx, monkeypatch):
+    seen: list = []
+    probe = _ctx_probe(seen)
+
+    def fake_merge_one(summaries, model="claude-haiku-4-5"):
+        probe()
+        return "super"
+
+    monkeypatch.setattr(ex, "_merge_one_group", fake_merge_one)
+
+    # 3 summaries at fanout 1 -> 3 groups, so the pool is actually used.
+    ex.merge_summaries_l2(["a", "b", "c"], fanout=1)
+
+    assert len(seen) == 3
+    for worker_ctx in seen:
+        assert_adopted(worker_ctx, parent_ctx)
+
+
+def test_type_split_worker_adopts_the_parents_context(parent_ctx, monkeypatch, stub_prompts):
+    seen: list = []
+    probe = _ctx_probe(seen)
+
+    def fake_completion_json(**kwargs):
+        probe()
+        return {}
+
+    monkeypatch.setattr(ex, "completion_json", fake_completion_json)
+
+    ex.extract_knowledge_type_split("content", k=2)
+
+    assert len(seen) == 2
+    for worker_ctx in seen:
+        assert_adopted(worker_ctx, parent_ctx)
+
+
+def test_a_warning_from_a_chunk_worker_reaches_the_parents_alert_sink(fresh_context, monkeypatch):
+    """The end-to-end shape of the bug, through emit_alert rather than the field.
+
+    A multi-chunk document is the common case in a compile, so a sink that only
+    the single-chunk path reaches is a sink that misses most of the run.
+    """
+    from kb_ai.llm._infra import emit_alert
+
+    lines: list[str] = []
+    get_context().alert_sink = lines.append
+
+    def warning_extract(content, model, prompt_name="extract", max_tokens=16384):
+        emit_alert("timeout after 300s", model, 1, "timeout")
+        return ExtractionResult(summary="s")
+
+    monkeypatch.setattr(ex, "extract_knowledge", warning_extract)
+    monkeypatch.setattr(ex, "chunk_content", lambda content: ["aaaa", "bbbb"])
+
+    ex.extract_knowledge_chunked("long content")
+
+    assert len(lines) == 2, f"expected one warning per chunk worker, got {lines}"
+    assert all("[LLM-WARN] timeout" in line for line in lines)
 
 
 # ── one strategy router for both ingestion routes ───────────────────

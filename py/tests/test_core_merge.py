@@ -808,3 +808,117 @@ def test_the_two_prompt_versions_are_independent(monkeypatch):
 
     assert mg.write_prompt_version() != write_before
     assert ex.extract_prompt_version() == extract_before
+
+
+# ── write-phase call timeout ────────────────────────────────────────
+
+def test_with_write_timeout_sets_and_restores(fresh_context):
+    from kb_ai.llm import get_call_timeout, set_call_timeout
+
+    observed = {}
+
+    @mg._with_write_timeout
+    def probe():
+        observed["inside"] = get_call_timeout()
+
+    set_call_timeout(42.0)
+    probe()
+
+    assert observed["inside"] == mg._WRITE_CALL_TIMEOUT_S
+    # Restoring to the previous value (not None) keeps nesting safe.
+    assert get_call_timeout() == 42.0
+
+
+def test_with_write_timeout_restores_on_exception(fresh_context):
+    from kb_ai.llm import get_call_timeout, set_call_timeout
+
+    @mg._with_write_timeout
+    def boom():
+        raise RuntimeError("x")
+
+    set_call_timeout(7.0)
+    with pytest.raises(RuntimeError):
+        boom()
+
+    assert get_call_timeout() == 7.0
+
+
+def test_with_write_timeout_preserves_metadata():
+    @mg._with_write_timeout
+    def documented():
+        """A docstring."""
+
+    assert documented.__name__ == "documented"
+    assert documented.__doc__ == "A docstring."
+
+
+def test_write_timeout_sits_between_extract_and_the_client_default():
+    """The point of the override: discover a hung write in minutes, not 15.
+
+    Above extract's, because a merge prompt carries the whole existing article
+    where an extract prompt carries one document's chunk; below the client
+    default, because that is the number this override exists to replace.
+    """
+    from kb_ai.core.extract import _EXTRACT_CALL_TIMEOUT_S
+    from kb_ai.llm._infra import DEFAULT_CLIENT_TIMEOUT_S
+
+    assert _EXTRACT_CALL_TIMEOUT_S < mg._WRITE_CALL_TIMEOUT_S < DEFAULT_CLIENT_TIMEOUT_S
+
+
+def test_create_new_article_applies_the_write_timeout(fresh_context, monkeypatch):
+    from kb_ai.llm import get_call_timeout
+
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen["timeout"] = get_call_timeout()
+        return "article"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg.create_new_article("concept", "T", _extraction(), "raw/a.md")
+
+    assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
+    assert get_call_timeout() is None, "the override must not leak past the call"
+
+
+def test_merge_into_article_applies_the_write_timeout_on_the_rewrite_path(
+    fresh_context, monkeypatch
+):
+    from kb_ai.llm import get_call_timeout
+
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen["timeout"] = get_call_timeout()
+        return "merged"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg.merge_into_article("wiki/a.md", "short body", _extraction(), "raw/a.md")
+
+    assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
+    assert get_call_timeout() is None
+
+
+def test_merge_into_article_applies_the_write_timeout_on_the_diff_path(
+    fresh_context, monkeypatch
+):
+    """The diff path calls completion_json, not completion, so it needs its own
+    check -- the decorator sits on the public entry point that reaches both."""
+    from kb_ai.llm import get_call_timeout
+
+    seen = {}
+
+    def fake_completion_json(**kwargs):
+        seen["timeout"] = get_call_timeout()
+        return {"patches": []}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    big = "\n".join(f"## S{i}\n" + "x" * 2000 for i in range(20))
+    assert len(big.encode("utf-8")) >= mg._LARGE_ARTICLE_THRESHOLD
+    mg.merge_into_article("wiki/a.md", big, _extraction(topics=["s1"]), "raw/a.md")
+
+    assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
+    assert get_call_timeout() is None

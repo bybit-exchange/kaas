@@ -9,6 +9,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import fields
 
 import pytest
 
@@ -143,40 +144,41 @@ class TestCallEmitPropagation:
 
 class TestFullPipelineContextPropagation:
     def test_all_fields_propagated(self, fresh_context):
-        """All ThreadContext fields are visible in worker thread."""
-        ev = threading.Event()
-        tracker = CostTracker()
-        emit_fn = lambda e: None
+        """Every ThreadContext field is visible in the worker thread.
+
+        The values are keyed by field name and checked against the dataclass, so a
+        field added to ThreadContext without a value here fails this test instead
+        of leaving it quietly claiming more coverage than it has -- which is what
+        happened when alert_sink was added.
+        """
+        values = {
+            "deadline_abs": 99999.0,
+            "cancel_event": threading.Event(),
+            "call_timeout": 30.0,
+            "call_emit": lambda e: None,
+            "phase": "write",
+            "content_hash": "abc123",
+            "request_tracker": CostTracker(),
+            "alert_sink": lambda msg: None,
+        }
+        assert set(values) == {f.name for f in fields(ThreadContext)}, (
+            "a ThreadContext field has no value here, so this test is no longer "
+            "checking every field"
+        )
 
         parent_ctx = get_context()
-        parent_ctx.deadline_abs = 99999.0
-        parent_ctx.cancel_event = ev
-        parent_ctx.call_timeout = 30.0
-        parent_ctx.call_emit = emit_fn
-        parent_ctx.phase = "write"
-        parent_ctx.content_hash = "abc123"
-        parent_ctx.request_tracker = tracker
+        for name, value in values.items():
+            setattr(parent_ctx, name, value)
 
         def worker():
             ctx = get_context()
-            return {
-                "deadline_abs": ctx.deadline_abs,
-                "cancel_event_is_same": ctx.cancel_event is ev,
-                "call_timeout": ctx.call_timeout,
-                "call_emit_is_same": ctx.call_emit is emit_fn,
-                "phase": ctx.phase,
-                "content_hash": ctx.content_hash,
-                "tracker_is_same": ctx.request_tracker is tracker,
-            }
+            return {name: getattr(ctx, name) for name in values}
 
         with ThreadPoolExecutor(max_workers=1) as pool:
             future = contextual_submit(pool, worker)
             result = future.result(timeout=5)
 
-        assert result["deadline_abs"] == 99999.0
-        assert result["cancel_event_is_same"] is True
-        assert result["call_timeout"] == 30.0
-        assert result["call_emit_is_same"] is True
-        assert result["phase"] == "write"
-        assert result["content_hash"] == "abc123"
-        assert result["tracker_is_same"] is True
+        for name, value in values.items():
+            # Identity, not equality: contextual_submit hands over the parent's own
+            # object, and every mutable field here is useful only if it is that one.
+            assert result[name] is value, f"{name} was not propagated to the worker"

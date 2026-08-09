@@ -17,7 +17,7 @@ import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
@@ -41,6 +41,10 @@ class ThreadContext:
     phase: str = "unknown"
     content_hash: str = ""
     request_tracker: "CostTracker | None" = None
+    # Where LLM-failure warnings go in addition to stderr. compile_kb points this
+    # at the KB's .compile.log so a stall is visible in the log of the run that
+    # stalled, not only in the process stderr the HTTP caller never sees.
+    alert_sink: Callable[[str], None] | None = None
 
 
 _current_context: contextvars.ContextVar[ThreadContext] = contextvars.ContextVar(
@@ -82,6 +86,28 @@ def cancellable(cancel_event: threading.Event | None):
         yield
     finally:
         ctx.cancel_event = None
+
+
+def adopt_context(parent: ThreadContext, **overrides) -> ThreadContext:
+    """Install a copy of parent's context in the calling (worker) thread.
+
+    Two reasons a pool worker needs this:
+
+    - A worker submitted with a bare pool.submit inherits nothing, because
+      contextvars are not carried across threads. It starts on a default
+      ThreadContext -- phase "unknown", no call_timeout -- which is what made a
+      901s write stall report op=unknown (issue #26).
+    - A worker submitted with contextual_submit shares the parent's *object*, so
+      any field it sets for itself is set for every sibling too. Anything
+      per-worker (a phase label naming the item, a set/restore of call_timeout)
+      has to happen on a copy.
+
+    Only the container is copied: cancel_event, request_tracker and alert_sink stay
+    shared by reference, which is what ThreadContext documents as intentional.
+    """
+    ctx = replace(parent, **overrides)
+    _current_context.set(ctx)
+    return ctx
 
 
 def contextual_submit(executor: ThreadPoolExecutor, fn: Callable, *args, **kwargs) -> Future:

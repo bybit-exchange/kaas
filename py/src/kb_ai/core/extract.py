@@ -12,17 +12,14 @@ from pathlib import Path
 
 import yaml
 
+from kb_ai._context import adopt_context, get_context
 from kb_ai._errors import ExtractionFailedError
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
     completion,
     completion_json,
     get_call_timeout,
-    get_phase_context,
-    get_request_tracker,
     set_call_timeout,
-    set_phase_context,
-    set_request_tracker,
 )
 
 _DEFAULT_WORKERS = 16
@@ -295,14 +292,10 @@ def merge_summaries_l2(
         len(groups),
         int(os.environ.get("KB_WORKERS", _DEFAULT_WORKERS)),
     )
-    phase = get_phase_context()
-    timeout = get_call_timeout()
-    req_tracker = get_request_tracker()
+    parent_ctx = get_context()
 
     def _merge_in_worker(group: list[str]) -> str:
-        set_phase_context(phase)
-        set_call_timeout(timeout)
-        set_request_tracker(req_tracker)
+        adopt_context(parent_ctx)
         return _merge_one_group(group, model=model)
 
     results: list[str | None] = [None] * len(groups)
@@ -357,14 +350,10 @@ def extract_knowledge_type_split(
     else:
         raise ValueError(f"unsupported K for type-split: {k} (expected 2 or 3)")
 
-    phase = get_phase_context()
-    timeout = get_call_timeout()
-    req_tracker = get_request_tracker()
+    parent_ctx = get_context()
 
     def _extract_one_group(group: str) -> dict:
-        set_phase_context(phase)
-        set_call_timeout(timeout)
-        set_request_tracker(req_tracker)
+        adopt_context(parent_ctx)
         prompt = _render_type_split_prompt(group, k)
         return completion_json(
             model=model,
@@ -644,14 +633,10 @@ def extract_knowledge_summarized(
 
     # Phase 1: parallel summarization
     workers = min(len(chunks), int(os.environ.get("KB_WORKERS", _DEFAULT_WORKERS)))
-    phase = get_phase_context()
-    timeout = get_call_timeout()
-    req_tracker = get_request_tracker()
+    parent_ctx = get_context()
 
     def _summarize_in_worker(chunk: str) -> str:
-        set_phase_context(phase)
-        set_call_timeout(timeout)
-        set_request_tracker(req_tracker)
+        adopt_context(parent_ctx)
         return summarize_chunk(chunk, frontmatter, summarize_model)
 
     summaries: list[str | None] = [None] * len(chunks)
@@ -759,14 +744,10 @@ def extract_knowledge_chunked(
         return extract_knowledge(chunks[0], model=model, prompt_name=prompt_name, max_tokens=max_tokens)
 
     workers = min(len(chunks), int(os.environ.get("KB_WORKERS", _DEFAULT_WORKERS)))
-    phase = get_phase_context()
-    timeout = get_call_timeout()
-    req_tracker = get_request_tracker()
+    parent_ctx = get_context()
 
     def _extract_in_worker(chunk: str) -> ExtractionResult:
-        set_phase_context(phase)
-        set_call_timeout(timeout)
-        set_request_tracker(req_tracker)
+        adopt_context(parent_ctx)
         return extract_knowledge(chunk, model, prompt_name=prompt_name, max_tokens=max_tokens)
 
     all_results: list[ExtractionResult] = [None] * len(chunks)  # type: ignore
