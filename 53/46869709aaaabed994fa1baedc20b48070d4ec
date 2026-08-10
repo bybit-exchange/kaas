@@ -1,0 +1,27 @@
+py/tests/test_commands_derive.py
+  f254c927448e133a 174-188
+py/src/kb_ai/commands/derive.py
+  f254c927448e133a 120-123
+docs/features/derive-topic-kb-from-catalog/spec.md
+  f254c927448e133a 210-213
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "5346869709aaaabed994fa1baedc20b48070d4ec",
+  "prompts": {
+    "f254c927448e133a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac3a04c8-798d-40fd-8aca-f740337a0671",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 2,
+      "accepted_lines": 36,
+      "overriden_lines": 0
+    }
+  }
+}
