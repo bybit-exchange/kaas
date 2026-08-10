@@ -1063,12 +1063,15 @@ def test_derive_command_ignores_a_prune_request(monkeypatch):
     the count could only ever be 0 here, the response publishes no off-topic key
     at all (issue #35).
 
-    Making prune reachable is therefore a two-part change, and only the first part
-    is guarded: nothing fails when the key stays missing. Plumb the count back the
-    whole way -- the daemon response, bridge.DeriveResponse (internal/bridge/api.go),
-    DeriveResult (web/src/api/derived.ts) and derive.summary in
-    web/src/i18n/strings.ts for both locales, read out in DeriveDialog -- or the
-    number the engine now produces reaches nobody.
+    Making prune reachable is therefore a two-part change, and the two assertions
+    catch the two parts in order: forwarding the flag trips the first, and then
+    restoring the count trips the second, which lands whoever did it back here with
+    this docstring in front of them. Plumb the count the whole way -- the daemon
+    response, bridge.DeriveResponse (internal/bridge/api.go), DeriveResult
+    (web/src/api/derived.ts) and derive.summary in web/src/i18n/strings.ts for both
+    locales, read out in DeriveDialog -- or the number the engine now produces
+    reaches nobody. What no test can catch is deleting both assertions without
+    restoring the count; that is why this note is long.
     """
     from kb_ai import server_daemon
 
