@@ -1,0 +1,40 @@
+py/src/kb_ai/storage/index.py
+  b6a2e2c488758283 51-61,136-146,153-173,175-179
+py/tests/test_storage_index.py
+  b6a2e2c488758283 766-845
+py/tests/test_distill.py
+  b6a2e2c488758283 300-321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d4661c4579069fcbf08fcf4be7aeb44b7bb141b0",
+  "prompts": {
+    "b6a2e2c488758283": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fc25f392-2921-40dd-9f7a-f341121392ec",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1589,
+      "total_deletions": 91,
+      "accepted_lines": 378,
+      "overriden_lines": 0
+    },
+    "ec131e9a73f20a39": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5da38307-0d0c-4944-902f-0c42767c44a2",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1134,
+      "total_deletions": 27,
+      "accepted_lines": 745,
+      "overriden_lines": 0
+    }
+  }
+}
