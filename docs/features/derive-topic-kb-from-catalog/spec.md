@@ -200,8 +200,11 @@ article tree and chatting queries that KB's catalog.
 ### F. Python CLI
 
 - F1. `kb-ai derive <topic> --kb <dir> [--slug s] [--force] [--model m] [--yes]
-  [--prune]` registered in `__main__.COMMANDS` alongside `distill`. `--prune` is
-  the only way to reach the D2 pass.
+  [--prune] [--select-from articles|documents]` registered in
+  `__main__.COMMANDS` alongside `distill`. `--prune` is the only way to reach the
+  D2 pass. `--select-from` picks the catalog to filter and defaults to
+  `articles`; `documents` filters `raw/` directly, which is the only mode that
+  works on a knowledge base that was never compiled.
 - F2. On success responds `ok:true` with `{derived_kb, slug, topic, selected,
   skipped, documents, offtopic, filter_batches, compile, next}`, where `next` is
   the command to register the derived KB over MCP.
@@ -231,8 +234,11 @@ and the operator-facing HTTP surface. (Was G1/G2 — dropped by decision O2.)
 
 ### H. HTTP API and web UI
 
-- H1. `POST /api/derive` `{topic, slug?, model?}` records the job in a dedicated
-  `derived_jobs` table and returns a job id; it does not block on the compile.
+- H1. `POST /api/derive` `{topic, slug?, model?, select_from?}` records the job
+  in a dedicated `derived_jobs` table and returns a job id; it does not block on
+  the compile. An unknown `select_from` is rejected with 400; omitting it is
+  accepted, and the Python side supplies the default rather than the Go handler
+  restating it.
   Not the existing `Task` queue: `Task` is document-shaped (`RawPath`, uniquely
   indexed `ContentHash`) and `Worker.Process` runs one document through
   extract → pipeline, so re-deriving a topic would collide with `ErrDuplicate`.
