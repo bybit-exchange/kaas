@@ -90,7 +90,7 @@ describe('getDeriveJob', () => {
       id: 'j1', slug: 'pricing', topic: 'pricing',
       status: 'succeeded', stage: 'done', created_at: 1, updated_at: 2,
       result: {
-        selected: 12, documents: 30, bytes: 40960, offtopic: 3,
+        selected: 12, documents: 30, bytes: 40960,
         filter_batches: 2, compiled: true, cost: { total_cost_usd: 1.5 },
       },
     }))

@@ -156,7 +156,7 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		result = []byte("{}")
 	}
 	r.logger.Info("derive: done", "id", job.ID, "slug", job.Slug,
-		"documents", resp.Documents, "offtopic", resp.Offtopic)
+		"documents", resp.Documents)
 	r.finish(job.ID, store.DerivedStatusSucceeded, "", string(result))
 }
 

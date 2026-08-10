@@ -175,7 +175,6 @@ type DeriveResponse struct {
 	Selected      int             `json:"selected"`
 	Documents     int             `json:"documents"`
 	Bytes         int64           `json:"bytes"`
-	Offtopic      int             `json:"offtopic"`
 	FilterBatches int             `json:"filter_batches"`
 	Compiled      bool            `json:"compiled"`
 	Compile       json.RawMessage `json:"compile"`

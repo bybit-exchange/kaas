@@ -251,7 +251,9 @@ and the operator-facing HTTP surface. (Was G1/G2 — dropped by decision O2.)
   path has no volume gate — it is async, so there is no prompt to answer; F5's
   gate is a CLI affordance only. It also exposes no `--prune` equivalent, so the
   D2 pass never runs behind the API and the completion summary does not report an
-  off-topic count: it could only ever be 0.
+  off-topic count: it could only ever be 0. The response carries no such key
+  either, dropped rather than published as a constant (issue #35) — restoring the
+  count means restoring the field along with it.
 - H6. i18n: every new UI string has both `en` and `zh` entries in
   `web/src/i18n/strings.ts`.
 
