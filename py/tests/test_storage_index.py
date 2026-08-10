@@ -763,3 +763,83 @@ def test_document_index_reads_a_nested_documents_extraction(tmp_path: Path):
     update_document_index(store)
 
     assert "nested summary" in _documents(store)
+
+
+# ── a provenance comment ahead of the frontmatter (#37) ─────────────
+
+def test_document_index_reads_frontmatter_behind_a_provenance_comment(tmp_path: Path):
+    """#37: distill prepends "<!-- source: ... -->" to every file it ingests, which
+    pushed the document's own frontmatter off line 0. The catalog then carried no
+    date, no source and the filename as the title on every distill-built KB.
+    """
+    store = _store(tmp_path)
+    _write(store, "raw/a.md",
+           "<!-- source: /tmp/docs/2026-06-01-capacity.md -->\n\n"
+           "---\ntitle: Capacity Standard\ndate: 2026-06-01\nsource: docs\n---\n\nbody")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "[Capacity Standard]" in line
+    assert "2026-06-01 · docs" in line
+    assert "<!-- source:" not in line
+
+
+def test_document_frontmatter_keeps_content_whole_when_the_comment_hides_no_mapping():
+    """The retry adopts a mapping only. A comment followed by a horizontal rule would
+    otherwise parse the first paragraph as frontmatter and return a body missing
+    everything above the second rule -- content loss, where the status quo costs
+    only labels.
+    """
+    content = "<!-- source: /tmp/a.md -->\n\n---\n\nThe only paragraph.\n\n---\n\ntail\n"
+    assert index_mod._document_frontmatter(content) == ({}, content)
+
+
+def test_document_frontmatter_keeps_content_whole_on_broken_frontmatter_behind_a_comment():
+    content = '<!-- source: /tmp/a.md -->\n\n---\ntitle: "unclosed\n---\n\nbody\n'
+    assert index_mod._document_frontmatter(content) == ({}, content)
+
+
+def test_document_index_keeps_a_commented_document_without_frontmatter_selectable(tmp_path: Path):
+    """A distill-ingested file that never had frontmatter stays as it was: listed
+    and unlabelled, not skipped.
+
+    The provenance comment is still what the body fallback summarises, which is a
+    local absolute path in a git-tracked catalog. Asserted rather than left implied:
+    it predates the comment skip, it is masked as soon as the document has an
+    extraction, and fixing it means dropping the comment from the returned body --
+    a separate change from making the frontmatter reachable.
+    """
+    store = _store(tmp_path)
+    _write(store, "raw/plain.md", "<!-- source: /tmp/plain.txt -->\n\njust prose\n")
+
+    update_document_index(store)
+
+    line = _documents(store)
+    assert "raw/plain.md" in line
+    assert "— <!-- source: /tmp/plain.txt -->" in line
+
+
+def test_document_frontmatter_still_needs_a_closing_delimiter_behind_a_comment():
+    """The comment skip consumes blank lines and nothing else, so an indented `---`
+    still fails to close a block -- the case split_frontmatter's rstrip() exists for.
+    Note the *opening* delimiter is matched on strip(), so indenting that one has
+    never mattered."""
+    content = "<!-- source: /tmp/a.md -->\n\n---\ntitle: Sneaky\n  ---\n\nbody\n"
+    assert index_mod._document_frontmatter(content) == ({}, content)
+
+
+@pytest.mark.parametrize("content, expected_title", [
+    # A POSIX filename may contain a newline, so distill's comment can span lines.
+    ("<!-- source: /tmp/two\nlines.md -->\n\n---\ntitle: Wrapped\n---\n\nbody\n", "Wrapped"),
+    # No blank line between the comment and the delimiter.
+    ("<!-- source: /tmp/a.md -->\n---\ntitle: Tight\n---\n\nbody\n", "Tight"),
+    # CRLF throughout, as a document exported from Windows arrives.
+    ("<!-- source: /tmp/a.md -->\r\n\r\n---\r\ntitle: Crlf\r\n---\r\n\r\nbody\r\n", "Crlf"),
+    # Re-ingesting a file distill already ingested stacks a second comment.
+    ("<!-- source: /kb/raw/a.md -->\n\n<!-- source: /tmp/a.md -->\n\n"
+     "---\ntitle: Stacked\n---\n\nbody\n", "Stacked"),
+])
+def test_document_frontmatter_reads_frontmatter_behind_comment_shapes(content, expected_title):
+    fm, _body = index_mod._document_frontmatter(content)
+    assert fm == {"title": expected_title}
