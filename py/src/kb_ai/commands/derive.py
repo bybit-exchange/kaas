@@ -117,7 +117,10 @@ def run_derive(argv: list[str]) -> None:
         "derived_kb": report.derived_kb,
         "slug": report.slug,
         "topic": report.topic,
-        "selected": len(report.selected_articles),
+        # Whichever unit the filter selected, matching the gate above and the
+        # daemon's own response: selected_articles is empty by design under
+        # --select-from documents, so reporting it would always say 0 there.
+        "selected": len(report.selected_documents or report.selected_articles),
         "skipped": [{"ref": s.ref, "reason": s.reason}
                     for s in report.skipped_articles + report.skipped_documents],
         "documents": len(report.documents),

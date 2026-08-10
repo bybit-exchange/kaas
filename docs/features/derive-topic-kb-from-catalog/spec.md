@@ -207,7 +207,10 @@ article tree and chatting queries that KB's catalog.
   works on a knowledge base that was never compiled.
 - F2. On success responds `ok:true` with `{derived_kb, slug, topic, selected,
   skipped, documents, offtopic, filter_batches, compile, next}`, where `next` is
-  the command to register the derived KB over MCP.
+  the command to register the derived KB over MCP. `selected` counts whichever
+  unit the filter ran over, so under `--select-from documents` it counts
+  documents — the article list is empty by design in that mode, and reporting it
+  there would always say 0.
 - F3. On every failure above responds `ok:false` with the named error code and a
   message naming what to fix.
 - F4. `--kb` defaults to `./.kaas`, matching `distill`.

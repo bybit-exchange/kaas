@@ -171,6 +171,21 @@ def test_select_from_rejects_an_unknown_value():
         derive_cmd.build_parser().parse_args(["pricing", "--select-from", "everything"])
 
 
+def test_success_payload_counts_documents_in_documents_mode(monkeypatch):
+    """The volume gate reports the unit it filtered (below); the JSON response has
+    to agree. Reporting selected_articles unconditionally makes a run that matched
+    two documents respond selected: 0, which a scripted caller reads as a topic
+    that matched nothing -- while the gate it just passed said otherwise.
+    """
+    def fake_derive(source_kb, topic, **kw):
+        return _report(selected_articles=[],
+                       selected_documents=["raw/a.md", "raw/b.md"])
+
+    resp = _run(monkeypatch, ["pricing", "--kb", "/kb", "--yes",
+                              "--select-from", "documents"], derive=fake_derive)
+    assert resp["data"]["selected"] == 2
+
+
 def test_gate_counts_documents_in_documents_mode(monkeypatch, capsys):
     """selected_articles is empty by design under --select-from documents, so a
     gate that only reports articles would tell the user nothing matched."""
