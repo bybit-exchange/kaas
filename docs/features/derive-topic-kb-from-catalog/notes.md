@@ -423,6 +423,9 @@ count. Nothing sat at "pending".
 The new default holds over HTTP. `offtopic: 0` with no `_offtopic/` directory —
 and this time because pruning is off, not because the PRECISION pass selected
 nothing. The daemon takes no `prune` switch, so the API cannot reach the pass.
+(That invariant is why the key itself was later dropped from the HTTP response
+rather than published as a constant — issue #35. Anyone reproducing this run
+today will find no `offtopic` key to read; the `_offtopic/` check still holds.)
 
 The category set was inherited: the derived `kaas.json` carries the source's six
 rather than re-freezing the default. That is the #25 fix on the path that

@@ -833,7 +833,6 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 		"selected": 4,
 		"documents": 3,
 		"bytes": 2048,
-		"offtopic": 1,
 		"filter_batches": 2,
 		"compiled": true,
 		"cost": {"total_cost_usd": 1.5}

@@ -21,13 +21,10 @@ function job(over: Partial<DeriveJob>): DeriveJob {
   }
 }
 
-// offtopic is 0 because that is the only value this path can report: the daemon
-// takes no prune switch, so the PRECISION pass never runs behind the HTTP API.
 const RESULT: DeriveResult = {
   selected: 9,
   documents: 6,
   bytes: 4096,
-  offtopic: 0,
   filter_batches: 1,
   compiled: true,
   cost: { total_cost_usd: 1.2345 },

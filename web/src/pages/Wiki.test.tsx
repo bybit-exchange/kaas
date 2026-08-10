@@ -131,7 +131,7 @@ describe('Wiki page', () => {
       status: 'succeeded',
       stage: 'done',
       result: {
-        selected: 3, documents: 2, bytes: 10, offtopic: 0, filter_batches: 1, compiled: true,
+        selected: 3, documents: 2, bytes: 10, filter_batches: 1, compiled: true,
       },
       created_at: 1,
       updated_at: 2,

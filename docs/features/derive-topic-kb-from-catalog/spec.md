@@ -200,11 +200,19 @@ article tree and chatting queries that KB's catalog.
 ### F. Python CLI
 
 - F1. `kb-ai derive <topic> --kb <dir> [--slug s] [--force] [--model m] [--yes]
-  [--prune]` registered in `__main__.COMMANDS` alongside `distill`. `--prune` is
-  the only way to reach the D2 pass.
+  [--prune] [--select-from articles|documents]` registered in
+  `__main__.COMMANDS` alongside `distill`. `--prune` is the only way to reach the
+  D2 pass. `--select-from` picks the catalog to filter and defaults to
+  `articles`; `documents` filters `raw/` directly, which is the only mode that
+  works on a knowledge base that was never compiled.
 - F2. On success responds `ok:true` with `{derived_kb, slug, topic, selected,
-  skipped, documents, offtopic, filter_batches, compile, next}`, where `next` is
-  the command to register the derived KB over MCP.
+  skipped, documents, bytes, offtopic, filter_batches, dropped_invented_paths,
+  compiled, compile, cost, warnings, next}`, where `next` is the command to
+  register the derived KB over MCP. `selected` counts whichever unit the filter
+  ran over, so under `--select-from documents` it counts documents — the article
+  list is empty by design in that mode, and reporting it there would always say
+  0. Unlike the HTTP path (H5), `offtopic` is live here: `--prune` can make it
+  non-zero.
 - F3. On every failure above responds `ok:false` with the named error code and a
   message naming what to fix.
 - F4. `--kb` defaults to `./.kaas`, matching `distill`.
@@ -231,8 +239,11 @@ and the operator-facing HTTP surface. (Was G1/G2 — dropped by decision O2.)
 
 ### H. HTTP API and web UI
 
-- H1. `POST /api/derive` `{topic, slug?, model?}` records the job in a dedicated
-  `derived_jobs` table and returns a job id; it does not block on the compile.
+- H1. `POST /api/derive` `{topic, slug?, model?, select_from?}` records the job
+  in a dedicated `derived_jobs` table and returns a job id; it does not block on
+  the compile. An unknown `select_from` is rejected with 400; omitting it is
+  accepted, and the Python side supplies the default rather than the Go handler
+  restating it.
   Not the existing `Task` queue: `Task` is document-shaped (`RawPath`, uniquely
   indexed `ContentHash`) and `Worker.Process` runs one document through
   extract → pipeline, so re-deriving a topic would collide with `ErrDuplicate`.
@@ -251,7 +262,9 @@ and the operator-facing HTTP surface. (Was G1/G2 — dropped by decision O2.)
   path has no volume gate — it is async, so there is no prompt to answer; F5's
   gate is a CLI affordance only. It also exposes no `--prune` equivalent, so the
   D2 pass never runs behind the API and the completion summary does not report an
-  off-topic count: it could only ever be 0.
+  off-topic count: it could only ever be 0. The response carries no such key
+  either, dropped rather than published as a constant (issue #35) — restoring the
+  count means restoring the field along with it.
 - H6. i18n: every new UI string has both `en` and `zh` entries in
   `web/src/i18n/strings.ts`.
 

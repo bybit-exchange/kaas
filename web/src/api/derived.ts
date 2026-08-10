@@ -23,13 +23,6 @@ export interface DeriveResult {
   selected: number
   documents: number
   bytes: number
-  /**
-   * Articles the PRECISION pass moved out of the derived wiki. Always 0 here:
-   * that pass is off by default and the daemon takes no `prune` switch, so
-   * nothing behind this API can run it. Kept because the engine still sends the
-   * field — don't surface it until the pass has a working regime (issue #24).
-   */
-  offtopic: number
   filter_batches: number
   compiled: boolean
   cost?: { total_cost_usd: number }

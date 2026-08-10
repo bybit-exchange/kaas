@@ -368,7 +368,6 @@ def _handle_derive(request_id: str, payload: dict) -> None:
         "selected": len(report.selected_documents or report.selected_articles),
         "documents": len(report.documents),
         "bytes": sum(d.size_bytes for d in report.documents),
-        "offtopic": len(report.offtopic_articles),
         "filter_batches": report.filter_batches,
         "compiled": report.compiled,
         "compile": report.compile,

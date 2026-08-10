@@ -1058,12 +1058,20 @@ def test_derive_command_passes_select_from(monkeypatch):
 
 def test_derive_command_ignores_a_prune_request(monkeypatch):
     """The daemon exposes no prune switch, so the PRECISION pass never runs behind
-    the API and "offtopic" is 0 on every job (spec H5, issue #24).
+    the API (spec H5). The prune assertion is the load-bearing one -- it is what
+    fails if someone forwards the flag. The second pins the consequence: because
+    the count could only ever be 0 here, the response publishes no off-topic key
+    at all (issue #35).
 
-    The web dialog omits the off-topic count on the strength of that invariant. If
-    this test fails because prune became reachable here, restore the count in
-    derive.summary (web/src/i18n/strings.ts, both locales) and pass it back in
-    DeriveDialog -- otherwise the UI silently drops a number it is now being sent.
+    Making prune reachable is therefore a two-part change, and the two assertions
+    catch the two parts in order: forwarding the flag trips the first, and then
+    restoring the count trips the second, which lands whoever did it back here with
+    this docstring in front of them. Plumb the count the whole way -- the daemon
+    response, bridge.DeriveResponse (internal/bridge/api.go), DeriveResult
+    (web/src/api/derived.ts) and derive.summary in web/src/i18n/strings.ts for both
+    locales, read out in DeriveDialog -- or the number the engine now produces
+    reaches nobody. What no test can catch is deleting both assertions without
+    restoring the count; that is why this note is long.
     """
     from kb_ai import server_daemon
 
@@ -1098,7 +1106,7 @@ def test_derive_command_ignores_a_prune_request(monkeypatch):
 
     # Not forwarded, so derive_kb falls back to its own prune=False default.
     assert "prune" not in seen
-    assert responses[0]["offtopic"] == 0
+    assert "offtopic" not in responses[0]
 
 
 # ── extract: persistence, parity and reuse (spec C2-C9, H3, H6) ─────
