@@ -1,0 +1,36 @@
+docs/features/derive-topic-kb-from-catalog/spec.md
+  f254c927448e133a 203-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f0cb5ac6b6506216f3ef52639d017501c18dc3d6",
+  "prompts": {
+    "f254c927448e133a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ac3a04c8-798d-40fd-8aca-f740337a0671",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 2,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    },
+    "f7aa0d8113b44b61": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "eaf0e655-b999-4c7d-9f72-170aa91ffb21",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 27479,
+      "total_deletions": 25,
+      "accepted_lines": 27479,
+      "overriden_lines": 0
+    }
+  }
+}
