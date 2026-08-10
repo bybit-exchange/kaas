@@ -21,11 +21,13 @@ function job(over: Partial<DeriveJob>): DeriveJob {
   }
 }
 
+// offtopic is 0 because that is the only value this path can report: the daemon
+// takes no prune switch, so the PRECISION pass never runs behind the HTTP API.
 const RESULT: DeriveResult = {
   selected: 9,
   documents: 6,
   bytes: 4096,
-  offtopic: 2,
+  offtopic: 0,
   filter_batches: 1,
   compiled: true,
   cost: { total_cost_usd: 1.2345 },
@@ -144,12 +146,23 @@ describe('DeriveDialog', () => {
     await start()
 
     expect(await screen.findByText('Derived knowledge base ready')).toBeInTheDocument()
-    expect(
-      screen.getByText('6 documents compiled, 2 articles moved off-topic'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('6 documents compiled')).toBeInTheDocument()
     expect(screen.getByText('Cost: 1.2345 USD')).toBeInTheDocument()
     // A live region, so an operator who tabbed away still hears it finish.
     expect(screen.getByRole('status')).toHaveTextContent('Derived knowledge base ready')
+  })
+
+  it('does not report an off-topic count the API cannot produce', async () => {
+    // The summary used to end in "0 articles moved off-topic" on every run,
+    // asserting a PRECISION pass that is off by default and unreachable from
+    // here (issue #24).
+    vi.mocked(derivedApi.getDeriveJob).mockResolvedValue(
+      job({ status: 'succeeded', stage: 'done', result: RESULT }),
+    )
+    await start()
+
+    expect(await screen.findByText('Derived knowledge base ready')).toBeInTheDocument()
+    expect(screen.queryByText(/off-topic/)).not.toBeInTheDocument()
   })
 
   it('forgets a finished run when the dialog is reopened', async () => {

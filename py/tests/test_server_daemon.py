@@ -1056,6 +1056,51 @@ def test_derive_command_passes_select_from(monkeypatch):
     assert responses[0]["selected"] == 2
 
 
+def test_derive_command_ignores_a_prune_request(monkeypatch):
+    """The daemon exposes no prune switch, so the PRECISION pass never runs behind
+    the API and "offtopic" is 0 on every job (spec H5, issue #24).
+
+    The web dialog omits the off-topic count on the strength of that invariant. If
+    this test fails because prune became reachable here, restore the count in
+    derive.summary (web/src/i18n/strings.ts, both locales) and pass it back in
+    DeriveDialog -- otherwise the UI silently drops a number it is now being sent.
+    """
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing", "prune": True,
+    }})
+
+    # Not forwarded, so derive_kb falls back to its own prune=False default.
+    assert "prune" not in seen
+    assert responses[0]["offtopic"] == 0
+
+
 # ── extract: persistence, parity and reuse (spec C2-C9, H3, H6) ─────
 
 def test_handle_extract_persists_the_extraction(capsys, stub_extract, kb):

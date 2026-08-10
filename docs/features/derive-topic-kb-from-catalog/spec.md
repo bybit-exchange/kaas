@@ -162,9 +162,14 @@ article tree and chatting queries that KB's catalog.
 
 - D1. The derived KB is compiled by the existing `compile_kb(derived_dir, …)`
   with no change to the pipeline or its prompts.
-- D2. After compiling, the same topic filter runs over the *derived* catalog.
+- D2. After compiling, the same topic filter can run over the *derived* catalog.
   Articles it does not select are moved (not deleted) to
   `derived/<slug>/_offtopic/`, preserving their relative path under `wiki/`.
+  **Opt-in, off by default** (`--prune`). The two runs that have measured this
+  pass moved 0.83 and then 0.00 of the derived catalog — too strict, then
+  selecting nothing at all — so it has no demonstrated working regime and does
+  not earn a place in the default output. It stays available as an instrument.
+  See issue #24.
 - D3. `update_markdown_index` is re-run after the move, so the derived catalog
   lists only on-topic articles.
 - D4. `_offtopic/` is excluded from the derived KB's own indexing and retrieval
@@ -194,8 +199,9 @@ article tree and chatting queries that KB's catalog.
 
 ### F. Python CLI
 
-- F1. `kb-ai derive <topic> --kb <dir> [--slug s] [--force] [--model m] [--yes]`
-  registered in `__main__.COMMANDS` alongside `distill`.
+- F1. `kb-ai derive <topic> --kb <dir> [--slug s] [--force] [--model m] [--yes]
+  [--prune]` registered in `__main__.COMMANDS` alongside `distill`. `--prune` is
+  the only way to reach the D2 pass.
 - F2. On success responds `ok:true` with `{derived_kb, slug, topic, selected,
   skipped, documents, offtopic, filter_batches, compile, next}`, where `next` is
   the command to register the derived KB over MCP.
@@ -243,7 +249,9 @@ and the operator-facing HTTP surface. (Was G1/G2 — dropped by decision O2.)
 - H5. The derive action in the UI surfaces progress through the existing task
   status mechanism, and reports the run's actual cost on completion. The HTTP
   path has no volume gate — it is async, so there is no prompt to answer; F5's
-  gate is a CLI affordance only.
+  gate is a CLI affordance only. It also exposes no `--prune` equivalent, so the
+  D2 pass never runs behind the API and the completion summary does not report an
+  off-topic count: it could only ever be 0.
 - H6. i18n: every new UI string has both `en` and `zh` entries in
   `web/src/i18n/strings.ts`.
 
