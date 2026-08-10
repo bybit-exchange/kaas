@@ -297,3 +297,25 @@ def test_run_distill_rejects_a_bad_extract_strategy_from_the_environment(
 
     with pytest.raises(SystemExit):
         distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
+
+
+def test_ingested_document_date_reaches_the_document_index(tmp_path):
+    """#37: nothing asserted that an ingested document's own frontmatter reaches its
+    catalog line, which is how the provenance comment hid it for four knowledge
+    bases at once.
+    """
+    from kb_ai.storage.index import DOCUMENT_INDEX_NAME, update_document_index
+
+    src = tmp_path / "docs"
+    src.mkdir()
+    (src / "note.md").write_text(
+        "---\ntitle: Capacity Standard\ndate: 2026-06-01\nsource: docs\n---\n\nbody\n")
+    kb = tmp_path / "kb"
+
+    ingest_paths([str(src)], str(kb))
+    store = KBStore(str(kb))
+    update_document_index(store)
+
+    line = (store.index_dir / DOCUMENT_INDEX_NAME).read_text(encoding="utf-8")
+    assert "[Capacity Standard]" in line
+    assert "2026-06-01 · docs" in line
