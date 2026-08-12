@@ -1,0 +1,25 @@
+README.zh-CN.md
+  1111ce6eb1cb5f9b 1
+README.md
+  1111ce6eb1cb5f9b 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "737ffa2975e30b34721138aeb97fbecfbafb4f1f",
+  "prompts": {
+    "1111ce6eb1cb5f9b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "654d26ce-73a2-4317-9050-b724857799c9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 280,
+      "overriden_lines": 0
+    }
+  }
+}
