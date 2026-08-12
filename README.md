@@ -1,4 +1,4 @@
-![KaaS — Knowledge-as-a-Service](docs/assets/logo.svg)
+<img src="docs/assets/logo.svg" align="right" width="200" alt="KaaS — Knowledge-as-a-Service">
 
 # KaaS — Knowledge as a Service
 
