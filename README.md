@@ -14,7 +14,23 @@ Turn scattered notes, documents, and transcripts into a searchable, queryable pe
 
 **[Documentation](https://bybit-exchange.github.io/kaas-doc/)** · [Quick Start](#quick-start) · [MCP access](#mcp-access)
 
+![Asking the compiled wiki a question and getting an answer with citations back to the articles it came from](docs/assets/screenshot-chat.en.png)
+
+## What Makes This Different
+
+Unlike typical RAG systems that chunk and embed raw text, KaaS **compiles** your content through a 4-phase LLM pipeline:
+
+![KaaS vs. naive RAG: compile-then-retrieve instead of chunk-and-embed](docs/assets/kaas-vs-rag.en.svg)
+
+```
+Raw Content → Extract → Classify → Write → Index → Structured Wiki
+```
+
 ![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
+
+The result is human-readable Markdown articles — not a black-box vector store. You can read, edit, and git-manage your knowledge base.
+
+![The compiled wiki: an article tree on the left, a rendered Markdown article on the right](docs/assets/screenshot-wiki.en.png)
 
 ## Why We Built This
 
@@ -30,18 +46,6 @@ fills the seat next.
 
 The payoff is the same either way: the organization stops re-answering the same
 questions. That's what convinced us it was worth open-sourcing.
-
-## What Makes This Different
-
-Unlike typical RAG systems that chunk and embed raw text, KaaS **compiles** your content through a 4-phase LLM pipeline:
-
-```
-Raw Content → Extract → Classify → Write → Index → Structured Wiki
-```
-
-The result is human-readable Markdown articles — not a black-box vector store. You can read, edit, and git-manage your knowledge base.
-
-![KaaS vs. naive RAG: compile-then-retrieve instead of chunk-and-embed](docs/assets/kaas-vs-rag.en.svg)
 
 ## Quick Start
 
@@ -148,13 +152,13 @@ The Go backend spawns the Python AI engine as a long-running daemon process, com
 
 ## Features
 
-- **4-Phase Compile Pipeline**: Extract concepts/entities/decisions → Classify into articles → Write/merge Markdown → Update markdown indexes
-- **Worker Acceleration**: Concurrent extract/pipeline workers, circuit breaker, lease recovery
-- **Streaming Chat**: SSE streaming with source citations pointing back to wiki articles
-- **Multiple Input Sources**: Paste text, upload files, or provide URLs
-- **Incremental Compilation**: Only recompiles new/changed content
-- **Git-Friendly Output**: All wiki articles are plain Markdown
-- **MCP Access**: Query the compiled wiki from any MCP-capable coding agent via an `ask` tool
+- **Readable articles**: concepts, entities and decisions are extracted, classified into articles, written or merged into Markdown, then indexed. What you query is pages, not ranked fragments
+- **Answers you can check**: every chat reply cites the wiki articles behind it, so you can open the source and disagree with it (streamed over SSE)
+- **A knowledge base you own**: articles are plain Markdown on disk — read them, hand-edit them, commit them, review a diff
+- **Adding one document costs one document**: compiles are incremental against a content checksum, so a new note doesn't re-pay for the corpus you already compiled
+- **A long run survives its own failures**: extract and pipeline work runs concurrently; tasks are leased, so a worker that dies mid-compile has its work reclaimed rather than lost, and repeated LLM failures trip a breaker instead of burning spend
+- **Text, a file, or a URL**: paste it, upload it, or point KaaS at a page
+- **Reachable from your editor**: any MCP-capable coding agent queries the compiled wiki through a single `ask` tool
 
 ## MCP Access
 
