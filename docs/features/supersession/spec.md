@@ -25,26 +25,35 @@ build path A ships first — a replace primitive, the document date carried to t
 writer, and per-source blocks instead of one flat bag (D2).
 
 Reading the write path against those decisions splits path A in two, and that
-split is why this spec exists. `compile.py` has three write paths, not two:
+split is why this spec exists. `compile.py` writes through four call shapes, not
+two — three off the merge ops and one more off the create ops:
 
 ```python
 # py/src/kb_ai/commands/compile.py:533   article does not exist
 combined, merge_rels = _combine_extractions([(rel, ext) for rel, _cs, ext, _det in merges])
 new_content = create_new_article(article_type, title, combined, ", ".join(merge_rels), ...)
 
-# py/src/kb_ai/commands/compile.py:553   one source, article exists
+# py/src/kb_ai/commands/compile.py:558   one source, article exists
 new_content = merge_into_article(art_path, old_content, extraction, rel, ...)
 
 # py/src/kb_ai/commands/compile.py:570   many sources, article exists
 combined, merge_rels = _combine_extractions([(rel, ext) for rel, _cs, ext, _det in merges])
 new_content = merge_into_article(art_path, old_content, combined, ", ".join(merge_rels), ...)
+
+# py/src/kb_ai/commands/compile.py:492   the create ops, one source per call,
+# flipping to a merge once the file is on disk
+new_content = merge_into_article(details["path"], old_content, extraction, rel, ...)
+new_content = create_new_article(details["type"], details["title"], extraction, rel, ...)
 ```
 
 `merge→create` composes from scratch, so given the document dates and one block
-per source it can simply state v2 — nothing in the article constrains it. The two
+per source it can simply state v2 — nothing in the article constrains it. The
 merge paths run against existing `old_content` through prompts whose only actions
 are `append_to_section` and `new_section`. Better ordering information does not
-help them: there is no action that retracts.
+help them: there is no action that retracts. The create-op pair at `:492`
+straddles the two — a single-source create while the file is absent, an additive
+merge once an earlier version has written it — which is what a version chain hits
+when its members arrive as separate create ops.
 
 So the ordering signal and the replace primitive fix different paths, and only the
 second can destroy correct content. This spec covers the first — **A1** — which is
@@ -128,14 +137,24 @@ path and report it as a general result.
   `distill` already set that precedent by prepending `<!-- source: … -->`.
 - **RT3.** When `date` is absent the handler stamps the current time. When it is
   present but unparseable it returns 400 — the caller can fix that one.
-- **RT4.** `ContentHash` (`internal/store/store.go:53`) is computed over what RT2
-  actually wrote, so dedup and the composition gate see one consistent document.
+- **RT4.** `ContentHash` (`internal/store/store.go:53`) stays computed over the
+  resolved content *as submitted*, before RT2 prepends anything. Hashing the
+  written bytes would break deduplication outright: `tasks.content_hash` carries a
+  unique index (`internal/store/sqlite/sqlite.go:83`), that index is what produces
+  the 409 at `internal/api/submit.go:85`, and RT3's stamp time would make every
+  resubmission of identical content unique — leaving the duplicate path
+  unreachable. The compile gate is unaffected, because it checksums the file it
+  reads (`storage/store.py:56`) rather than the task record.
+- **RT8.** `task.FileTitle` (`internal/api/submit.go:79`) is computed from the
+  original content, before RT2 prepends anything. `ExtractTitle` reads a leading
+  `title:` (`internal/frontmatter/frontmatter.go:23-44`), so computing it after the
+  prepend would return the title RT2 just wrote instead of the document's own.
 - **RT5.** `store.Task.CreatedAt` (`internal/store/store.go:63`) stays a task
   record field and is never read by the write phase. The durable date lives in
   `raw/`, which is what `derive` copies (`derive/_layout.py:193`).
 - **RT6.** The leading-HTML-comment skip currently private to
   `_document_frontmatter` (`py/src/kb_ai/storage/index.py:147`) is promoted to a
-  shared helper, and both readers use it. `design-options.md:57-60` calls for this
+  shared helper, and both readers use it. `design-options.md:60-63` calls for this
   the moment a second reader appears; A1 adds one.
 - **RT7.** No re-ingest and no re-extraction is required for any existing KB. A1
   reads a field already on disk for the fetch and `distill` routes.
@@ -143,7 +162,11 @@ path and report it as a general result.
 ### WP. Writer payload
 
 - **WP1.** The merge user message carries a per-source `- Date: <value>` line
-  beside the existing `- Source:` line (`core/merge.py:95`).
+  beside the existing `- Source:` line (`core/merge.py:95`). One renderer serves
+  both writers (`core/merge.py:320`, `:596`), so no path is missed — but
+  `_estimate_full_extraction_size` (`core/merge.py:72`) spells the same prefix out
+  a second time to size the untruncated text, and BG3's notice fires on those two
+  disagreeing. Both sites gain the line together.
 - **WP2.** The date is read from the source's raw frontmatter at write time (D4).
   This is a deliberate exception to the extraction layer's rule that the write
   phase reads only from `extraction/`
@@ -153,10 +176,13 @@ path and report it as a general result.
   existing file on a bump, re-extracting the whole KB at 0.0551 USD per document.
 - **WP3.** `_combine_extractions` (`core/extract.py:778`) stops flattening. The
   user message emits one labelled block per source.
-- **WP4.** All four call sites move to the new shape: `compile.py:533`, `:570`,
-  `pipeline/_phase_write.py:66`, `:84`. The `create_new_article` and
-  `merge_into_article` signatures that today take `combined, ", ".join(merge_rels)`
-  change with them.
+- **WP4.** Seven call sites move to the new shape, not four. `create_new_article`
+  and `merge_into_article` take `extraction: ExtractionResult, source_path: str`
+  (`core/merge.py:247-252`, `:574-579`), so changing that signature reaches the
+  single-source callers as well: `compile.py:492`, `:495` and `:558` each pass one
+  block. The four combined callers — `compile.py:533`, `:570`,
+  `pipeline/_phase_write.py:66`, `:84` — stop flattening into
+  `combined, ", ".join(merge_rels)`.
 - **WP5.** Blocks render oldest to newest. Undated sources come last, in path
   order, so the rendering is deterministic across runs — `compile.py` writes
   article groups on 16 workers and raw-scan order is not stable across ingests.
@@ -252,7 +278,9 @@ path and report it as a general result.
 - **VF4.** Unit tests for the lineage rule (RP4), including both exclusion cases.
 - **VF5.** Go tests for submit with a valid `date`, without one, and with an
   unparseable one, asserting the frontmatter written and the resulting
-  `ContentHash` (RT1–RT4).
+  `ContentHash` (RT1–RT4). Two of them are regressions rather than new behaviour:
+  submitting identical content twice still returns 409, and `FileTitle` still comes
+  from the document's own title rather than the one RT2 wrote (RT8).
 - **VF6.** A both-routes parity test — CLI and worker producing identical blocks
   for the same documents in one process — mirroring the extraction layer's T14.
 - **VF7.** A real staged run on the fixture, with spend recorded.
@@ -277,12 +305,13 @@ and whether A2 needs raw text at write time in order to act on dropped claims
 
 ## Implementation sequencing
 
-1. **Shared reader and the submit route.** RT6, then RT1–RT5 with VF1 and VF5.
-   Independently useful: it dates the UI route's documents whether or not the rest
-   lands.
-2. **Per-source blocks.** WP3, WP4, WP1, WP2, WP5, WP7 with VF2 and VF6. The four
-   call sites move together, and the signature change means grepping for every
-   caller of `create_new_article` and `merge_into_article`.
+1. **Shared reader and the submit route.** RT6, then RT1–RT5 and RT8 with VF1 and
+   VF5. Independently useful: it dates the UI route's documents whether or not the
+   rest lands.
+2. **Per-source blocks.** WP3, WP4, WP1, WP2, WP5, WP7 with VF2 and VF6. All seven
+   call sites move together; WP4 enumerates the ones that exist today, and the grep
+   for callers of `create_new_article` and `merge_into_article` is worth re-running
+   at implementation time in case another has landed.
 3. **Budget.** BG1–BG4 with VF3.
 4. **Prompt and version.** WP6, PV1, PV2.
 5. **Reports.** RP2 verified, then RP3–RP5 with VF4.
