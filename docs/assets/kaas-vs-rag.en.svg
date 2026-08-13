@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1120 705" width="1120" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 0 1120 653" width="1120" xmlns="http://www.w3.org/2000/svg">
   <style>
     text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
   </style>
@@ -116,8 +116,4 @@
   <text x="620" y="580" font-size="10" fill="#166534">&#xB7; Output is human-readable, git-editable</text>
   <text x="620" y="598" font-size="10" fill="#166534">&#xB7; Answers with citations, traceable per item</text>
   <text x="620" y="616" font-size="10" fill="#166534">&#xB7; No vector store dependency</text>
-
-  <!-- ================= Bottom conclusion ================= -->
-  <rect x="240" y="650" width="640" height="34" rx="17" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5"/>
-  <text x="560" y="672" font-size="13" fill="#1e293b" text-anchor="middle" font-weight="bold">Don&#x27;t chunk into a vector store &#x2014; distill the knowledge first, then retrieve. Not another RAG.</text>
 </svg>
