@@ -45,7 +45,7 @@ def _full(**overrides) -> ExtractionResult:
         action_items=[{"task": "更新价格页", "owner": "lucas"}],
         claims=[{"claim": "现有客户中 80% 更偏好席位制", "source": "问卷",
                  "surprising": False}],
-        enumerations=[{"name": "席位定价档位", "kind": "option-list",
+        enumerations=[{"name": "席位定价档位", "kind": "option list",
                        "ordered": True, "items": ["入门", "标准", "企业"]}],
         topics=["pricing", "billing"],
         source_path="raw/notes.md",
@@ -136,7 +136,7 @@ def test_persist_refuses_a_read_only_store(tmp_path):
 
 # ── B: file contents and provenance ─────────────────────────────────
 
-def test_file_shape_is_frontmatter_plus_five_pinned_sections(store):
+def test_file_shape_is_frontmatter_plus_six_pinned_sections(store):
     text = exl.serialize(_provenance(), _full())
     assert text.startswith("---\n")
 
@@ -350,15 +350,16 @@ def test_an_unknown_schema_version_reaches_the_gate_as_absent(store):
     assert "unsupported schema_version" in reason
 
 
-def test_a_v1_file_without_the_enumerations_section_reaches_the_gate_as_absent(store):
-    """Why SCHEMA_VERSION moved to 2 for a field addition, unlike `connections`.
+def test_a_pre_enumerations_v1_file_reaches_the_gate_as_absent(store):
+    """Every extraction written before #41 is a v1 file with no Enumerations
+    section. It must reach B9 as absent and re-extract, rather than compose an
+    article out of a payload with no enumerations in it.
 
-    Dropping a field was readable in both directions, so that change left the
-    version alone. A *required* body section is not: a v1 file has no
-    ``## Enumerations`` and this code refuses it, while v1 code reading a v2 file
-    fails its own counts check over the extra key. Bumping makes the one message
-    a reader gets say which side is which, and routes every pre-#41 extraction
-    into B9's re-extract instead of into an article with no enumerations.
+    The version check runs before the section loop, so this file is refused on the
+    version and the missing section is never reached — which is the whole point of
+    bumping: the reader is told the format differs, not that the payload is
+    corrupt. The missing-section branch itself is covered by
+    test_a_mistyped_heading_is_a_parse_error_not_an_empty_field.
     """
     exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
                 extract_model="m")
@@ -382,7 +383,7 @@ def test_an_eleven_item_enumeration_round_trips_complete_and_in_order():
     items = ["Trace", "Log", "Prometheus", "MaxConns", "Breaker", "Shedding",
              "Timeout", "Recover", "Metrics", "MaxBytes", "Gunzip"]
     parsed = _round_trip(_full(enumerations=[
-        {"name": "MiddlewaresConf fields", "kind": "struct-fields",
+        {"name": "MiddlewaresConf fields", "kind": "struct fields",
          "ordered": False, "items": items}]))
 
     assert parsed.enumerations[0]["items"] == items

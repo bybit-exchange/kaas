@@ -45,9 +45,11 @@ from kb_ai.storage.store import KBStore
 #
 # 2 (issue #41) added the enumerations section. Dropping `connections` in
 # 2026-08-08 left this at 1 because a removal reads in both directions; a
-# *required* new section does not. A v1 file has no ``## Enumerations`` and
-# parse() refuses it, and v1 code reading a v2 file fails its own counts check
-# over the extra key, so the bump is what makes the message name the right side.
+# *required* new section does not. Left unbumped, both directions would still have
+# refused -- a v1 file on the missing ``## Enumerations``, a v2 file read by v1
+# code on its own counts check over the extra key -- so what the bump buys is the
+# message: the version check runs first (see parse()), so a reader of either file
+# is told the format differs rather than that the payload is corrupt.
 SCHEMA_VERSION = 2
 
 # The object-list payload fields, in the order their sections are written.

@@ -74,7 +74,7 @@ def test_extraction_to_dict_round_trips():
 def test_extraction_to_dict_carries_enumerations():
     """The field has to reach the wire, or the Go worker route would drop every
     enumeration between the daemon's response and the pipeline (issue #41)."""
-    enums = [{"name": "MiddlewaresConf fields", "kind": "struct-fields",
+    enums = [{"name": "MiddlewaresConf fields", "kind": "struct fields",
               "ordered": False, "items": ["Trace", "Log", "Prometheus"]}]
 
     d = ex.extraction_to_dict(ExtractionResult(enumerations=enums))
@@ -161,15 +161,13 @@ def test_type_split_groups_partition_fields_without_overlap():
         assert seen == set(ex._FIELD_JSON_SCHEMAS)
 
 
-def test_enumerations_is_a_payload_field_with_a_group_slot():
-    """A field the type-split tables do not own is never asked for on the K>=2
-    paths, which is the whole document's enumerations missing for any input over
-    three chunks (issue #41)."""
-    assert "enumerations" in {f.name for f in fields(ExtractionResult)}
+def test_enumerations_is_one_of_the_schema_fields():
+    """The partition test above pins ownership against `_FIELD_JSON_SCHEMAS`, so
+    dropping enumerations from the schema *and* both tables together would keep it
+    passing while nothing on the K>=2 paths ever asks for the field again — the
+    whole document's enumerations missing for any input over three chunks, which is
+    issue #41 restored. This asserts the schema side that test compares to."""
     assert "enumerations" in ex._FIELD_JSON_SCHEMAS
-    for groups in (ex.TYPE_SPLIT_GROUPS_K2, ex.TYPE_SPLIT_GROUPS_K3):
-        owners = [g for g, names in groups.items() if "enumerations" in names]
-        assert len(owners) == 1, f"enumerations owned by {owners}"
 
 
 def test_the_single_shot_prompt_asks_for_every_payload_field():

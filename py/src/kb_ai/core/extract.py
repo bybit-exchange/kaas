@@ -57,7 +57,7 @@ class ExtractionResult:
     claims: list = field(default_factory=list)
     # A set the document enumerates completely, kept as its members rather than
     # as prose about them: {"name", "kind", "ordered", "items"}. Its own field
-    # because the other six all reward compression, and an enumeration is the one
+    # because the other seven all reward compression, and an enumeration is the one
     # shape where compression is the loss -- a model asked for prose about a
     # struct wrote about its timeout handling and dropped eight of eleven field
     # names, unrecoverably, since the write phase never re-reads raw (issue #41).
@@ -169,7 +169,7 @@ _FIELD_JSON_SCHEMAS: dict[str, str] = {
 # enumerations joins the group that is lightest on document-shaped input, where it
 # is heaviest: a source file yields long field lists and almost no decisions or
 # action items. The pairing is per-K, not one rule, because the two tables split
-# the same seven fields differently.
+# the same eight fields differently.
 TYPE_SPLIT_GROUPS_K2: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities", "topics", "summary"),
     "B": ("claims", "decisions", "action_items", "enumerations"),

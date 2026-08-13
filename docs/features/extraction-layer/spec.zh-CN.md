@@ -41,11 +41,11 @@ CLI 摄入的文档。derive 的 `copy_documents` 找不到东西可拷（`deriv
 最终筛选质量取决于走了哪条摄入路径。
 
 **2. 文件里没有 provenance，所以过期无法检测。** `extraction_to_dict`
-（`core/extract.py:77`）恰好输出八个 payload 字段——`summary`、`concepts`、`entities`、
+（`core/extract.py:82`）恰好输出八个 payload 字段——`summary`、`concepts`、`entities`、
 `decisions`、`action_items`、`claims`、`topics`、`connections`——关于「它们从哪来」
 一个字都没有。[Superseded 2026-08-08：七个——`connections` 已删除，见
 [notes.md](notes.md) 的「`connections` dropped on 2026-08-08」。2026-08-13 再次
-Superseded：八个——新增了 `enumerations`，见同一文件的「`enumerations` added on
+superseded：八个——新增了 `enumerations`，见同一文件的「`enumerations` added on
 2026-08-13」。]文件名是源文档的内容
 校验和，这让**文本**过期不可能发生，但对模型和 prompt 一无所知。换掉抽取模型，或者编辑 `prompts/defaults/extract.md`（可通过
 `KAAS_PROMPTS_DIR` 按部署覆盖，`core/extract.py:85`），所有已有条目都会被静默复用。
@@ -583,7 +583,7 @@ UI，然后派生一个主题库。这份文档按它的抽取摘要被评判，
   O1 里「0 个内嵌换行」的实测正是它们必须手写的原因：参考库里没有任何文档能产出这两种形状。
 
   `ExtractionResult` 在 `extraction_to_dict` 的八个字段之外还有第九个字段——
-  `source_path`（`core/extract.py:61`）——CLI 在抽取之后赋值
+  `source_path`（`core/extract.py:66`）——CLI 在抽取之后赋值
   （`commands/compile.py:183`），worker 路径从 `source_ref` 赋值
   （`_phase_classify.py:133`）。解析器从文件的 `source` frontmatter 填它，
   所以「逐字段相等」比的是一个 `source_path` 也按同样方式设过的原始对象，

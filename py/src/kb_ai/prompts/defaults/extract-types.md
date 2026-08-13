@@ -46,6 +46,7 @@ Rules:
 - topic tags: lowercase, hyphenated (e.g. "api-gateway")
 - Empty array for fields with no relevant data
 - An enumeration you record is complete: every member, in document order, never abridged
+- Of the emphases below, apply only the ones covering a field assigned to you
 - For meeting transcripts: focus on Q3 (decisions) and Q2 (entities)
 - For documents: focus on Q1 (concepts), Q4 (claims) and Q5 (enumerations)
 - Output ONLY the assigned fields above. Do not include any unassigned fields.

@@ -46,7 +46,7 @@ extract (`derive/_layout.py:195`). Re-running the pipeline re-pays extract where
 the CLI would not. Selection quality ends up depending on the ingestion route.
 
 **2. There is no provenance in the file, so staleness is undetectable.**
-`extraction_to_dict` (`core/extract.py:77`) emits exactly eight payload fields —
+`extraction_to_dict` (`core/extract.py:82`) emits exactly eight payload fields —
 `summary`, `concepts`, `entities`, `decisions`, `action_items`, `claims`,
 `topics`, `connections` — and nothing about where they came from.
 [Superseded 2026-08-08: seven — `connections` was dropped, see
@@ -728,7 +728,7 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   reference KB produces either shape.
 
   `ExtractionResult` has a ninth field beyond `extraction_to_dict`'s eight —
-  `source_path` (`core/extract.py:61`) — which the CLI assigns after extraction
+  `source_path` (`core/extract.py:66`) — which the CLI assigns after extraction
   (`commands/compile.py:183`) and the worker path assigns from `source_ref`
   (`_phase_classify.py:133`). The parser populates it from the file's `source`
   frontmatter, so "equals the original field for field" compares against an

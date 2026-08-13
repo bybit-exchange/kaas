@@ -456,14 +456,35 @@ Not added to `classify_article`'s user message. Classification picks target
 articles; which members a set has does not change which article it belongs in, and
 `connections` is the precedent for a field that only ever fed that prompt.
 
+Not added to `merge-rewrite.md` or `merge-diff.md` either, and that one is a scope
+line rather than a judgement that they don't need it. Both write prompts say
+"integrate new information naturally" and neither forbids abridging a list, so a
+writer handed a complete eleven-item payload can still emit "several middlewares
+including timeout and recovery" — the reader-visible half of #41 survives this
+change. That behaviour is what #42 is about; this change is what gives #42
+something to work from, since no write-prompt wording can recover a list the
+extraction never carried.
+
 **`SCHEMA_VERSION` moves to 2**, unlike the `connections` removal above. A removal
-was readable in both directions; a *required* new section is not. `parse()` refuses
-a v1 file for a missing `## Enumerations`, and v1 code reading a v2 file fails its
-own `counts` check over the extra key — both re-extract, and the bump is what makes
-the message name which side is which. The re-extraction was already forced by
-`prompt_version` regardless, exactly as the `connections` note describes, and for
-the same reason it also reaches deployments overriding `extract.md` through
-`KAAS_PROMPTS_DIR`.
+was readable in both directions; a *required* new section is not. Left unbumped,
+both directions would still have refused — a v1 file on the missing
+`## Enumerations`, a v2 file read by v1 code on its own `counts` check over the
+extra key — so both would have re-extracted either way. What the bump buys is the
+message: the version check runs before the section loop, so a reader of either file
+is told the format differs rather than that the payload is corrupt. The
+re-extraction itself was already forced by `prompt_version`, exactly as the
+`connections` note describes.
+
+**A deployment overriding `extract.md` through `KAAS_PROMPTS_DIR` re-extracts but
+gains nothing until it edits its own copy.** `_FIELD_JSON_SCHEMAS` and both group
+tables are code constants that `_extract_stage_renderings` hashes, so
+`extract_prompt_version` moves for every deployment and the whole KB re-extracts —
+but an override's own `extract.md` never asks Question 5, so every K=1 extraction it
+produces records `enumerations: []`, `counts` agrees, and nothing reports it. That
+is this issue's silent loss relocated, and it is not detectable here for the same
+reason the arity check was left out. The new
+`test_the_single_shot_prompt_asks_for_every_payload_field` guards the bundled
+default only; an override is the operator's copy and no test can reach it.
 
 ### Verified against the reproduction, not only offline
 
@@ -492,22 +513,26 @@ grew 7,705 → 9,509 bytes.
 The summarize path was measured separately, because the pair above is one chunk
 each and never reaches it: `core/stores/redis/redis.go` (82 KB) at
 `--extract-strategy summarize` split into 6 chunks, so 6 `summarize.md` calls fed
-the K=2 `extract-types` groups — 8 calls, 0.3036 USD, 76.5 s. Its 25 enumerations
-include both `const` blocks and six struct field lists, so sets do survive Phase 1
-compression into the field.
+the K=2 `extract-types` groups — 8 calls, 0.3061 USD, 254.7 s. It recorded 22
+enumerations, including six struct field lists and the timeout `const` group, so
+sets do survive Phase 1 compression into the field.
 
-Not perfectly, and the mechanism does not promise it will: the model split
-redis.go's single seven-name `const` block into two enumerations by theme and left
-`Nil = red.Nil` out of both. So this makes an enumeration *representable* and asks
-for it in four prompts; it does not make the model's reading of a set's boundaries
-exact, and a model that under-reads still records the short list as if it were
-complete. Recording the arity the document declares, so `check` could flag a
-shortfall, was considered and left out: it only catches a model that contradicts
-itself.
+**Two runs of that same file disagree about which sets are sets, which is the
+honest limit of this change.** The first (25 enumerations, before the final
+`extract-types.md` wording) split redis.go's single seven-name `const` block into
+two enumerations by theme and dropped `Nil = red.Nil`; the second kept the four
+timeout constants as a block and left `ClusterType` / `NodeType` in prose with no
+enumeration of their own at all. So this makes an enumeration *representable* and
+asks for it in four prompts; it does not make the model's reading of a set's
+boundaries exact or repeatable, and a model that under-reads still records the
+short list as if it were complete. Recording the arity the document declares, so
+`check` could flag a shortfall, was considered and left out: it only catches a
+model that contradicts itself. What the change does buy is a floor — the eleven
+names of the enumeration in the issue are now present where before they were not.
 
 **The `_FIELD_PRIORITY` promotion costs the other fields nothing at real sizes.**
 Worst case measured is redis.go, the API-surface shape where this field is
-heaviest: 7,076 chars of items, taking the write prompt from 11,034 to 18,131
+heaviest: 6,525 chars of items, taking the write prompt from 11,333 to 17,879
 chars against a budget of ~78,000. All four populated fields still fit in every
 case, so ranking enumerations second buys truncation safety without spending
 anything today. Only `action_items` is absent from these prompts, because a source
