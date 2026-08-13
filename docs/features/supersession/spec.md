@@ -129,33 +129,154 @@ path and report it as a general result.
 
 ### RT. Date acquisition across routes
 
-- **RT1.** `submitRequest` (`internal/api/submit.go:25`) gains an optional `date`
-  field, `json:"date"`.
+- **RT1.** `submitRequest` (`internal/api/submit.go:30`) gains an optional `date`
+  field, `json:"date"`. The UI does not send one yet (`web/src/api/submit.ts`
+  carries no `date`), so until it does the field serves API callers and RT3's stamp
+  serves the UI. S2 — backfilling v1 after v2 — is the story that needs the input,
+  and it is not reachable from the browser until one exists.
 - **RT2.** The submit handler writes YAML frontmatter ahead of the content at
-  `internal/api/submit.go:65`, carrying at least `date`, plus `source` and `title`
-  where already known. `raw/<uuid>.md` stops being byte-verbatim on this route;
-  `distill` already set that precedent by prepending `<!-- source: … -->`.
-- **RT3.** When `date` is absent the handler stamps the current time. When it is
-  present but unparseable it returns 400 — the caller can fix that one.
+  `internal/api/submit.go:70`, carrying at least `date`. `source` and `title` ride
+  along **only in a block the route creates itself**, which is either a document
+  that had no frontmatter or one whose frontmatter the writer could not edit (RT10)
+  and so sits below a stacked block. A document whose own block *is* edited receives
+  `date` and nothing else, because the alternative is writing keys over ones the
+  document chose. The cost is real and accepted — the catalog's context line reads
+  `date` and `source` (`storage/index.py:24`), so such a document contributes a date
+  without a source. `raw/<uuid>.md` stops being
+  byte-verbatim on this route; `distill` already set that precedent by prepending
+  `<!-- source: … -->`. One visible consequence to expect rather than discover:
+  `GET /api/tasks/{id}/content` (`internal/api/tasks.go:140`) streams the raw file,
+  so the UI's preview of a pasted document now opens with the block.
+- **RT3.** When `date` is absent the handler stamps the current time, *unless* the
+  document may already carry one of its own — see RT9's four-way precedence, of
+  which this is the last branch. When `date` is present but unparseable it returns
+  400 — the caller can fix that one.
 - **RT4.** `ContentHash` (`internal/store/store.go:53`) stays computed over the
   resolved content *as submitted*, before RT2 prepends anything. Hashing the
   written bytes would break deduplication outright: `tasks.content_hash` carries a
   unique index (`internal/store/sqlite/sqlite.go:83`), that index is what produces
-  the 409 at `internal/api/submit.go:85`, and RT3's stamp time would make every
+  the 409 at `internal/api/submit.go:109`, and RT3's stamp time would make every
   resubmission of identical content unique — leaving the duplicate path
   unreachable. The compile gate is unaffected, because it checksums the file it
   reads (`storage/store.py:56`) rather than the task record.
-- **RT8.** `task.FileTitle` (`internal/api/submit.go:79`) is computed from the
+- **RT8.** `task.FileTitle` (`internal/api/submit.go:103`) is computed from the
   original content, before RT2 prepends anything. `ExtractTitle` reads a leading
-  `title:` (`internal/frontmatter/frontmatter.go:23-44`), so computing it after the
+  `title:` (`internal/frontmatter/frontmatter.go:56-64`), so computing it after the
   prepend would return the title RT2 just wrote instead of the document's own.
+- **RT9.** Precedence when the document already dates itself, in four branches:
+  an explicit request `date` wins; otherwise the document's own leading-frontmatter
+  `date` stands and the file is stored verbatim; otherwise — and this is the branch
+  the textual scan forces — frontmatter the writer *cannot read* also stands, and
+  the file is stored verbatim and undated, because it may be hiding a date the
+  reader can see (RT10); otherwise RT3's stamp. Forced by implementing RT2 —
+  a markdown file uploaded through the UI arrives on this route as `content`, so
+  prepending unconditionally would overwrite an authored date with the ingest
+  clock, which is the corpus defect A1 exists to fix. Two consequences of the same
+  reasoning: the date is written *into* an existing block rather than as a second
+  block above it, because a stacked block leaves the document's own keys in the
+  body where the catalog reads them as prose; and where the document has a `date`
+  the caller overrides, the *last* such key's value is replaced rather than a
+  second key inserted, because PyYAML resolves duplicate keys to the last one —
+  so rewriting the first leaves the document's date standing and drops the
+  caller's, which is the same silent loss by a different route.
+- **RT10.** The Go writer decides "does this document have a date" textually, with
+  no YAML parser. Not for want of a dependency — `gopkg.in/yaml.v2` is already in
+  `go.mod` indirectly — but because neither available parser answers the question
+  asked: `yaml.v2` does not reproduce PyYAML's resolver, so it would disagree with
+  the reader about what counts as a date, and editing one key while preserving the
+  document's own comments, key order and quoting needs node-level round-tripping
+  rather than unmarshal-and-remarshal. A textual scan that is honest about its
+  limits is the smaller risk. So the criterion is: a `date` key at the block's own
+  indentation, its key unquoted before comparison, its colon followed by a space
+  as YAML requires, behind the same leading-comment skip RT6 shares on the Python
+  side, and taking the last such key rather than the first.
+  Because the scan is an approximation, it is asymmetric on purpose: the question
+  it answers is not "is this dated" but "may this be dated", and it errs towards
+  yes so the clock is never stamped over something unread. Seven boundaries, each
+  measured against the real reader rather than assumed:
+  - A `date` nested under another key, or one appearing inside a literal scalar,
+    is not the document's date and is left untouched. The block gets its own
+    `date` at the top level instead.
+  - A `date` value that YAML resolves to something other than a date — a quoted
+    `"2020-01-01"`, or prose — counts as *dated* here, so it is preserved rather
+    than overwritten. Making sense of it is the write phase's job (WP8).
+  - The block's indentation is the level its **keys** sit at, not its first
+    non-blank line's. A YAML comment carries indentation of its own and none of
+    the block's, and taking the level from one put the inserted `date` two columns
+    in above a key at column 0 — which PyYAML rejects outright, so a document that
+    arrived dated and titled came back with neither.
+  - A complete block whose first meaningful line is not a plain `key: value` —
+    flow syntax (`{date: …}`), a sequence, a tab for indentation, a colon without
+    the following space — is *unreadable*, not absent, and the two are handled
+    differently. PyYAML may well read a date out of it, so it counts as possibly
+    dated: with no explicit caller date the document is stored verbatim and reaches
+    the writer undated (the S5 path). Only an explicit caller date, which outranks
+    the document's own, is written — and then as a block stacked above, because
+    inserting a block key above a flow mapping is invalid YAML and would cost the
+    document every label it had, while a stacked block keeps all of its bytes and
+    still parses.
+  - A leading BOM is stepped over on both sides rather than shadowing the block.
+    It is an encoding artefact, not content, so it stays at the head of the file
+    while `date` is written into the block behind it, and the shared reader strips
+    it before splitting. Left alone it made a BOM'd document read as having no
+    frontmatter at all, which on this route is not merely unlabelled: the clock
+    would have been stamped over the date such a document declared.
+  - A top-level entry whose **value the reader cannot parse** makes the whole block
+    unreadable, and the one shape checked is a plain scalar holding `": "` or ending
+    in `":"` — `title: Q3: the plan`, which PyYAML refuses outright. Quoted and flow
+    values are exempt because both parse, and only the block's own level is examined,
+    because the prose inside a literal scalar is indented deeper and its colons are
+    not YAML's. This is the one place the scan *gains* something rather than merely
+    avoiding harm: such a document never had readable frontmatter, so stacking a
+    block above it makes it datable for the first time. It is not a YAML validator
+    and does not try to be; what it misses leaves a document undated, which is what
+    it already was.
+  - A `date` key whose **value is on the lines below it** — a nested mapping, a
+    sequence, a literal scalar — is not replaceable, because rewriting the key
+    orphans the value: the block stops parsing and the document loses every label
+    it had, or the caller's date is folded together with the document's into one
+    string. Such a block is unreadable, handled as above. This is the same class as
+    the comment-indent case: a line-at-a-time scan believing it has seen the whole
+    of a value.
+  The delimiter cutset is the other place the two ends have to agree exactly, and
+  it is two sets rather than one. The reader closes a block with `str.rstrip()`,
+  which removes all 29 characters `str.isspace()` accepts, so the writer spells
+  that set out rather than using `unicode.IsSpace` — which omits `U+001C`–`U+001F`
+  and tracks a table that can shift under a Go release. But 10 of those 29 are also
+  characters `str.splitlines()` breaks on, so the reader's *line* ends at one where
+  this scan's does not: trimming them would make a line look like a delimiter while
+  the reader was looking at something else entirely. A block containing one is
+  therefore reported unreadable rather than guessed at — the answer that is safe in
+  both directions, since reporting "no block" would have the clock stamped on top of
+  a date the document does declare.
+- **RT11.** A `date` the caller supplies must name a year of 1 or later. Go's
+  `time.Parse` accepts year zero and PyYAML's timestamp constructor then raises
+  `ValueError`, which is not a `yaml.YAMLError`: one such file under `raw/` aborted
+  `build_document_catalog` for every document beside it, with nothing in the
+  product able to remove it. Rejected on submit (400), and the shared reader also
+  widens its own guard, because a hand-authored file can still carry one. The
+  reader's guard takes `OverflowError` with it: PyYAML 6.0 subtracted a timestamp's
+  UTC offset instead of attaching it as `tzinfo`, so `0001-01-01T00:00:00+02:00` —
+  a date the year guard accepts — overflowed `datetime.min`. `uv.lock` pins 6.0.3,
+  where it does not, but `pyproject.toml` allows `>=6.0`.
+- **RT12.** `POST /api/submit/files` (`internal/api/submit_files.go:153-186`,
+  `:362`) is a fourth ingest route — the multipart and ZIP upload behind the UI's
+  drag-and-drop — and A1 leaves it undated. It is out of step 1 deliberately:
+  those documents degrade to S5 rather than being wrong, and the route already
+  computes its hash and `FileTitle` before writing, so it is a small change when
+  taken. Recorded because G1 says "all three ingest routes" and this is the
+  likeliest way an operator ingests a folder of plans, so the gap has to be
+  visible rather than implied by RT7's silence.
 - **RT5.** `store.Task.CreatedAt` (`internal/store/store.go:63`) stays a task
   record field and is never read by the write phase. The durable date lives in
   `raw/`, which is what `derive` copies (`derive/_layout.py:193`).
 - **RT6.** The leading-HTML-comment skip currently private to
   `_document_frontmatter` (`py/src/kb_ai/storage/index.py:147`) is promoted to a
-  shared helper, and both readers use it. `design-options.md:60-63` calls for this
-  the moment a second reader appears; A1 adds one.
+  shared helper, `read_document_frontmatter` in `py/src/kb_ai/_frontmatter.py`, and
+  both readers use it. `design-options.md:60-63` calls for this the moment a second
+  reader appears; A1 adds one. Promoting it is also what makes the Go writer's
+  agreement checkable: the skip rules, the delimiter cutset and the BOM are now
+  stated once per language instead of once per call site.
 - **RT7.** No re-ingest and no re-extraction is required for any existing KB. A1
   reads a field already on disk for the fetch and `distill` routes.
 
@@ -192,6 +313,13 @@ path and report it as a general result.
   reliably.
 - **WP7.** Identical-checksum duplicates contribute one block, not two. The U1–U4
   controls exist because 55 lineage groups are the same bytes ingested twice.
+- **WP8.** A `date` the reader hands back as something other than a date object —
+  a quoted `"2020-01-01"`, `last Tuesday`, anything YAML resolved to a string — is
+  parsed here if it parses, and otherwise treated as absent: no date line, and the
+  block sorts with the undated ones under WP5. RT10 explains why the submit route
+  cannot make this call instead: it has no YAML parser, so it cannot tell a date
+  from a string that looks like one, and preserving the value is the only safe
+  thing it can do.
 
 ### BG. Budget and truncation
 
@@ -269,8 +397,10 @@ path and report it as a general result.
 ### VF. Verification
 
 - **VF1.** Unit tests for the shared frontmatter reader (RT6): leading HTML
-  comments, no frontmatter at all, malformed `date`, and a `date` present but
-  empty.
+  comments, no frontmatter at all, malformed `date`, a `date` present but empty,
+  and a `date` no calendar accepts (RT11). Each shape the submit route writes is
+  also pinned as a fixture the reader parses, from both sides: the two ends share
+  no definition of the format, so each holds the same bytes.
 - **VF2.** Unit tests for block ordering (WP5, WP7): all dated, none dated, mixed,
   and identical checksums.
 - **VF3.** Unit tests for newest-first budget allocation (BG1–BG4) under a budget
@@ -278,9 +408,24 @@ path and report it as a general result.
 - **VF4.** Unit tests for the lineage rule (RP4), including both exclusion cases.
 - **VF5.** Go tests for submit with a valid `date`, without one, and with an
   unparseable one, asserting the frontmatter written and the resulting
-  `ContentHash` (RT1–RT4). Two of them are regressions rather than new behaviour:
-  submitting identical content twice still returns 409, and `FileTitle` still comes
-  from the document's own title rather than the one RT2 wrote (RT8).
+  `ContentHash` (RT1–RT4), plus each RT9 branch: a document that dates itself
+  stored verbatim, a caller date overriding one, and a date inserted into an
+  existing block. Two are regressions rather than new behaviour: identical content
+  submitted twice still hashes the same, so the 409 path still fires, and
+  `FileTitle` still comes from the document's own title rather than the one RT2
+  wrote (RT8). RT10's boundaries get one case each — an indented block, a nested
+  `date`, a `date` inside a literal scalar, a quoted `date` key, a block behind a
+  provenance comment, a block whose keys sit behind a YAML comment, a duplicate
+  `date`, a colon without its following space, a delimiter closed with `U+00A0`, a
+  character the reader breaks a line on, a BOM on both the insert and the prepend
+  path, an empty key, a `date` whose value is a mapping, a sequence or a literal
+  block, an unquoted value holding a colon (with its quoted, flow and
+  literal-scalar counterparts, so the rule cannot over-reach), and each unreadable
+  shape (flow mapping, sequence, sequence of mappings,
+  tab indentation) in both its verbatim and its stacked form — because every one of them was a live defect
+  before it was a test. The clock itself is asserted exactly by calling
+  `rawDocument` with a fixed time rather than through the handler, which can only
+  check that the stamp is close to now.
 - **VF6.** A both-routes parity test — CLI and worker producing identical blocks
   for the same documents in one process — mirroring the extraction layer's T14.
 - **VF7.** A real staged run on the fixture, with spend recorded.
@@ -305,9 +450,9 @@ and whether A2 needs raw text at write time in order to act on dropped claims
 
 ## Implementation sequencing
 
-1. **Shared reader and the submit route.** RT6, then RT1–RT5 and RT8 with VF1 and
-   VF5. Independently useful: it dates the UI route's documents whether or not the
-   rest lands.
+1. **Shared reader and the submit route.** RT6, then RT1–RT5 and RT8–RT11 with VF1
+   and VF5. Independently useful: it dates the UI route's documents whether or not
+   the rest lands. RT12's route is deliberately not part of it.
 2. **Per-source blocks.** WP3, WP4, WP1, WP2, WP5, WP7 with VF2 and VF6. All seven
    call sites move together; WP4 enumerates the ones that exist today, and the grep
    for callers of `create_new_article` and `merge_into_article` is worth re-running

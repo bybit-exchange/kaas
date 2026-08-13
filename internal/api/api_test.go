@@ -242,12 +242,13 @@ func TestSubmitPaste(t *testing.T) {
 	if q.submitted.ContentHash == "" {
 		t.Error("ContentHash empty")
 	}
-	// Raw file written with the content.
+	// Raw file written with the content, behind the stamped frontmatter block the
+	// write phase orders documents by (see submit_date_test.go).
 	b, err := os.ReadFile(q.submitted.RawPath)
 	if err != nil {
 		t.Fatalf("read raw file: %v", err)
 	}
-	if string(b) != "hello world" {
+	if !strings.HasSuffix(string(b), "\n\nhello world") {
 		t.Errorf("raw content = %q", string(b))
 	}
 	if filepath.Dir(q.submitted.RawPath) != filepath.Join(kb, "raw") {
@@ -305,7 +306,7 @@ func TestSubmitURLFetches(t *testing.T) {
 		t.Errorf("title = %q, want fetched title", q.submitted.Title)
 	}
 	b, _ := os.ReadFile(q.submitted.RawPath)
-	if string(b) != "page body" {
+	if !strings.HasSuffix(string(b), "\n\npage body") {
 		t.Errorf("raw content = %q, want fetched body", string(b))
 	}
 }

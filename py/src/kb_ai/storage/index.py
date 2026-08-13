@@ -7,7 +7,7 @@ from datetime import datetime
 import yaml
 
 from kb_ai._fadvise import read_text_and_evict
-from kb_ai._frontmatter import split_frontmatter
+from kb_ai._frontmatter import read_document_frontmatter, split_frontmatter
 from kb_ai.storage import extraction
 from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore
 
@@ -48,17 +48,6 @@ _HEADING_RE = re.compile(r"^#{1,6}\s")
 # table names the thing each row documents. Prose cells and the header/separator
 # rows don't match, so a narrative article yields nothing.
 _KEY_CELL_RE = re.compile(r"^\|\s*`([^\s`|]+)`\s*\|")
-
-# HTML comments occupying the start of a raw document, blank lines included, so
-# what follows them starts at line 0 for split_frontmatter. Repeated, because
-# re-ingesting a file that distill already ingested stacks a second comment above
-# the first. DOTALL because one comment may span lines: it holds a path, and a
-# POSIX filename is allowed to contain a newline.
-#
-# Blank lines are consumed, a non-blank line's own indentation is not, so what
-# reaches split_frontmatter is byte-for-byte what follows the comments.
-_LEADING_COMMENTS_RE = re.compile(
-    r"\A(?:<!--.*?-->[ \t]*\r?\n(?:[ \t]*\r?\n)*)+", re.DOTALL)
 
 
 def _flatten(text: str, max_chars: int) -> str:
@@ -134,60 +123,6 @@ def _derive_keys(body: str) -> str:
     return out
 
 
-def _opens_with_a_frontmatter_mapping(content: str) -> bool:
-    """True when content opens with a complete frontmatter block holding a mapping."""
-    split = split_frontmatter(content)
-    if split is None:
-        return False
-    try:
-        return isinstance(yaml.safe_load(split[0]), dict)
-    except yaml.YAMLError:
-        return False
-
-
-def _document_frontmatter(content: str) -> tuple[dict, str]:
-    """Split a raw document into (frontmatter, body), tolerating both absences.
-
-    Unlike a wiki article, a raw document is not required to carry frontmatter --
-    and a malformed one must not make the document unselectable, only unlabelled.
-    So where update_markdown_index skips, this degrades to ({}, whole content).
-
-    Leading HTML comments are skipped before parsing: ``distill`` prepends
-    ``<!-- source: ... -->`` to every file it ingests (``distill.py:82``), which
-    pushed each document's own frontmatter off line 0 and left the whole catalog
-    without a date, without a source and titled by filename -- 0 of 108 lines
-    carried a date on the reference KB. Skipped here rather than widened into
-    split_frontmatter so only raw documents get the looser contract: extraction
-    files and articles are written by this package and are always
-    frontmatter-first, and a phantom delimiter on that path truncates a payload
-    (see storage/extraction.py's B3a/B6a).
-
-    The skip is adopted only when it reveals a mapping, because a comment above a
-    horizontal rule would otherwise read the first paragraph as frontmatter and
-    return a body missing everything above the second rule. Losing content is
-    worse than the labels this recovers. Two bounds on that guard, both inherited
-    from what a raw document already means here rather than introduced by the skip:
-    a rule-delimited block whose own lines parse as a mapping (``From:``/``Date:``
-    export headers) is consumed like frontmatter, exactly as it already is in a
-    document that has no comment; and when no mapping is found the comments stay in
-    the returned body, so a document with neither frontmatter nor an extraction can
-    still show one as its first-paragraph summary.
-    """
-    if not _opens_with_a_frontmatter_mapping(content):
-        uncommented = _LEADING_COMMENTS_RE.sub("", content, count=1)
-        if uncommented != content and _opens_with_a_frontmatter_mapping(uncommented):
-            content = uncommented
-
-    split = split_frontmatter(content)
-    if split is None:
-        return {}, content
-    try:
-        fm = yaml.safe_load(split[0])
-    except yaml.YAMLError:
-        return {}, split[1]
-    return (fm if isinstance(fm, dict) else {}), split[1]
-
-
 def _document_summary(store: KBStore, rel_path: str, fm: dict, body: str,
                       max_chars: int) -> tuple[str, bool]:
     """The catalog summary for one raw document, cheapest source first.
@@ -257,7 +192,7 @@ def build_document_catalog(store: KBStore, *,
     without_extraction = 0
     for path in store._iter_raw_paths():
         content = read_text_and_evict(path)
-        fm, body = _document_frontmatter(content)
+        fm, body = read_document_frontmatter(content)
         rel_path = str(path.relative_to(store.base_dir))
 
         context = _DOC_FIELD_SEP.join(
