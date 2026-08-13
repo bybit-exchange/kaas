@@ -1,6 +1,6 @@
-# KaaS — Knowledge as a Service
+<img src="docs/assets/logo.svg" align="right" width="110" alt="KaaS — Knowledge-as-a-Service">
 
-<img src="docs/assets/logo.svg" align="right" width="200" alt="KaaS — Knowledge-as-a-Service">
+# KaaS — Knowledge as a Service
 
 [English](README.md) · **中文**
 
