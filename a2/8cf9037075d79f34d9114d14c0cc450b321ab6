@@ -1,0 +1,49 @@
+docs/features/extraction-layer/notes.md
+  2e2386da3f31ea94 424-499
+docs/features/extraction-layer/spec.zh-CN.md
+  2e2386da3f31ea94 47-49,172-175,203-204
+py/src/kb_ai/core/merge.py
+  2e2386da3f31ea94 59-66,69
+py/tests/test_core_extract_combine.py
+  2e2386da3f31ea94 39-53
+py/src/kb_ai/prompts/defaults/extract.md
+  2e2386da3f31ea94 1,26-38,49,57,59
+py/src/kb_ai/prompts/defaults/summarize.md
+  2e2386da3f31ea94 15
+py/src/kb_ai/prompts/defaults/extract-types.md
+  2e2386da3f31ea94 1,3,26-38,48,50
+docs/features/extraction-layer/spec.md
+  2e2386da3f31ea94 53-55,206-209,238-239
+py/src/kb_ai/core/extract.py
+  2e2386da3f31ea94 58-64,77,86,165,169-172,175,181,784,804
+py/src/kb_ai/prompts/defaults/merge-summaries.md
+  2e2386da3f31ea94 11
+py/tests/test_core_extract.py
+  2e2386da3f31ea94 32,39,47,55,60,74-84,164-184,752,763-764
+py/tests/test_core_merge.py
+  2e2386da3f31ea94 119-135
+py/src/kb_ai/storage/extraction.py
+  2e2386da3f31ea94 14,45-51,56-57
+py/tests/test_storage_extraction.py
+  2e2386da3f31ea94 48-49,145,167-168,251-263,270,301,303,307-308,312,314,353-390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "a28cf9037075d79f34d9114d14c0cc450b321ab6",
+  "prompts": {
+    "2e2386da3f31ea94": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "50d5c4cb-3e95-4131-9349-43fef4296c48",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3823,
+      "total_deletions": 4931,
+      "accepted_lines": 1038,
+      "overriden_lines": 0
+    }
+  }
+}
