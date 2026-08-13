@@ -56,8 +56,17 @@ def _with_write_timeout(fn):
     return wrapper
 
 
+# Order is survival order under a tight budget: _fit_extraction_to_budget adds
+# fields from the top and halves a list that does not fit.
+#
+# enumerations sits second because it is the one field truncation cannot degrade
+# gracefully. A writer given six of eleven middleware names does not produce a
+# shorter list, it produces a confident wrong one (issue #41, and #42 is what that
+# looks like in a compiled article), while a halved concepts list reads as a
+# thinner article and nothing more.
 _FIELD_PRIORITY = [
     ("summary",      "str"),
+    ("enumerations", "list"),
     ("concepts",     "list"),
     ("entities",     "list"),
     ("decisions",    "list"),

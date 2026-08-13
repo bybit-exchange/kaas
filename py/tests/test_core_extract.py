@@ -29,12 +29,14 @@ def test_parse_extraction_result_full():
         "decisions": [{"title": "d"}],
         "action_items": [{"task": "a"}],
         "claims": [{"claim": "cl"}],
+        "enumerations": [{"name": "n", "items": ["i"]}],
         "topics": ["t"],
     }
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == "s"
     assert out.topics == ["t"]
+    assert out.enumerations == [{"name": "n", "items": ["i"]}]
 
 
 def test_parse_extraction_result_defaults_missing_fields():
@@ -42,7 +44,7 @@ def test_parse_extraction_result_defaults_missing_fields():
 
     assert out.summary == ""
     for fname in ("concepts", "entities", "decisions", "action_items",
-                  "claims", "topics"):
+                  "claims", "enumerations", "topics"):
         assert getattr(out, fname) == []
 
 
@@ -50,11 +52,12 @@ def test_parse_extraction_result_coerces_none_to_empty():
     """A model returning explicit nulls must not produce None fields, or every
     downstream .extend() would crash."""
     raw = {f: None for f in ("summary", "concepts", "entities", "decisions",
-                             "action_items", "claims", "topics")}
+                             "action_items", "claims", "enumerations", "topics")}
     out = ex.parse_extraction_result(raw)
 
     assert out.summary == ""
     assert out.concepts == []
+    assert out.enumerations == []
     assert out.topics == []
 
 
@@ -66,6 +69,17 @@ def test_extraction_to_dict_round_trips():
     assert round_tripped.summary == "s"
     assert round_tripped.topics == ["t"]
     assert round_tripped.concepts == [{"title": "c"}]
+
+
+def test_extraction_to_dict_carries_enumerations():
+    """The field has to reach the wire, or the Go worker route would drop every
+    enumeration between the daemon's response and the pipeline (issue #41)."""
+    enums = [{"name": "MiddlewaresConf fields", "kind": "struct-fields",
+              "ordered": False, "items": ["Trace", "Log", "Prometheus"]}]
+
+    d = ex.extraction_to_dict(ExtractionResult(enumerations=enums))
+
+    assert d["enumerations"] == enums
 
 
 def test_extraction_to_dict_omits_source_path():
@@ -145,6 +159,27 @@ def test_type_split_groups_partition_fields_without_overlap():
             assert not (seen & set(fields)), f"overlapping fields: {seen & set(fields)}"
             seen.update(fields)
         assert seen == set(ex._FIELD_JSON_SCHEMAS)
+
+
+def test_enumerations_is_a_payload_field_with_a_group_slot():
+    """A field the type-split tables do not own is never asked for on the K>=2
+    paths, which is the whole document's enumerations missing for any input over
+    three chunks (issue #41)."""
+    assert "enumerations" in {f.name for f in fields(ExtractionResult)}
+    assert "enumerations" in ex._FIELD_JSON_SCHEMAS
+    for groups in (ex.TYPE_SPLIT_GROUPS_K2, ex.TYPE_SPLIT_GROUPS_K3):
+        owners = [g for g, names in groups.items() if "enumerations" in names]
+        assert len(owners) == 1, f"enumerations owned by {owners}"
+
+
+def test_the_single_shot_prompt_asks_for_every_payload_field():
+    """The JSON schema in extract.md and _FIELD_JSON_SCHEMAS describe the same
+    payload, and only the type-split paths render the latter. A field present in
+    code but absent from extract.md is silently always empty on the K=1 path."""
+    text = ex.load_prompt("extract")
+
+    for fname in ex._FIELD_JSON_SCHEMAS:
+        assert f'"{fname}"' in text, f"extract.md never asks for {fname}"
 
 
 @pytest.mark.parametrize("k", [0, 1, 4, 5, -1])
@@ -714,6 +749,7 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
         return ExtractionResult(
             summary=f"sum-{tag}",
             concepts=[{"c": tag}],
+            enumerations=[{"name": f"list-{tag}", "items": [tag]}],
             topics=["shared", f"t-{tag}"],
         )
 
@@ -724,6 +760,8 @@ def test_chunked_merges_multiple_chunks(monkeypatch):
 
     assert "sum-aaaa" in out.summary and "sum-bbbb" in out.summary
     assert len(out.concepts) == 2
+    # An enumeration found in one chunk is kept, never merged into another's.
+    assert [e["name"] for e in out.enumerations] == ["list-aaaa", "list-bbbb"]
     # Topics are de-duplicated across chunks.
     assert sorted(out.topics) == ["shared", "t-aaaa", "t-bbbb"]
 

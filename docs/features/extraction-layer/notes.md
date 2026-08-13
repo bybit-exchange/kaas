@@ -421,3 +421,79 @@ design), the `spec.zh-CN.md` mirrors of all three, and
 (`assets/kb-four-layers.svg` and its `.zh` twin) still renders
 `summary, topics, connections, counts` and was left as drawn — an SVG cannot carry
 a bracketed marker, so the note sits in the caption line that embeds it.
+
+## `enumerations` added on 2026-08-13
+
+An eighth payload field, and the first new body section. `enumerations` holds a set
+the document enumerates completely — a struct's field list, the order a chain
+appends its members, a `const` block, a sequence of steps — as
+`{name, kind, ordered, items}`, where `items` is every member verbatim in document
+order.
+
+It exists because the other seven fields all reward compression and an enumeration
+is the one shape where compression is the loss. Compiling go-zero (issue #41)
+produced an extraction for `rest/engine.go` that spent most of its length on
+timeout handling and did not mention `buildChainWithNativeMiddlewares` at all;
+`rest/config.go` kept 5 of `MiddlewaresConf`'s 11 field names. Across all 359
+extractions, no file contained `Breaker` and `Recover` and `MaxBytes` together, so
+the complete chain existed nowhere in the layer. Nothing downstream could notice:
+the write phase composes from `_combine_extractions` and never re-reads raw
+(`_phase_write.py:66,84`), `check` compares an extraction against its document's
+checksum and not its content, and the article that results reads as confident
+prose (issue #42 is what the invention looks like).
+
+Added to: both extract prompts (Question 5, the JSON schema line and a completeness
+rule), `summarize.md` and `merge-summaries.md` (the summarize path never shows the
+structured extractor the original words, so a set collapsed in Phase 1 is gone
+before `enumerations` can hold it), `ExtractionResult`, `parse_extraction_result`,
+`extraction_to_dict`, `_FIELD_JSON_SCHEMAS`, `TYPE_SPLIT_GROUPS_K2["B"]`,
+`TYPE_SPLIT_GROUPS_K3["C"]`, both merge helpers (`extract_knowledge_chunked` and
+`_combine_extractions`), `BODY_FIELDS`, and merge's `_FIELD_PRIORITY` — second,
+directly after `summary`, because a halved concepts list reads as a thinner
+article while a halved enumeration reads as a wrong one.
+
+Not added to `classify_article`'s user message. Classification picks target
+articles; which members a set has does not change which article it belongs in, and
+`connections` is the precedent for a field that only ever fed that prompt.
+
+**`SCHEMA_VERSION` moves to 2**, unlike the `connections` removal above. A removal
+was readable in both directions; a *required* new section is not. `parse()` refuses
+a v1 file for a missing `## Enumerations`, and v1 code reading a v2 file fails its
+own `counts` check over the extra key — both re-extract, and the bump is what makes
+the message name which side is which. The re-extraction was already forced by
+`prompt_version` regardless, exactly as the `connections` note describes, and for
+the same reason it also reaches deployments overriding `extract.md` through
+`KAAS_PROMPTS_DIR`.
+
+### Verified against the reproduction, not only offline
+
+`cd py && uv run pytest tests/ -q`: 1518 passed, 1 skipped, 1 xfailed.
+`storage/extraction.py` and `core/merge.py` 100%, `core/extract.py` 99%.
+
+The live half re-ran issue #41's own material — go-zero at `ebe46e1`,
+`rest/engine.go` and `rest/config.go`, `us.claude-sonnet-4-6`, default (chunked)
+strategy, so the K=1 single-shot path — and counted the eleven native middleware
+names in each layer:
+
+| layer | `rest/engine.go` | `rest/config.go` |
+|---|---|---|
+| raw | 11/11 | 11/11 |
+| extraction, before (`kaas@94e8f23`) | 4/11 | 6/11 |
+| extraction, after | **11/11** | **11/11** |
+
+`config.go`'s new `## Enumerations` carries `MiddlewaresConf fields` with all
+eleven names in declaration order; `engine.go`'s carries
+`native middleware chain append order in buildChainWithNativeMiddlewares`,
+`ordered: true`, all eleven handlers in append order — the enumeration the issue
+reports as absent. `kb-ai check` reads both files back: 2 match, 0 mismatched.
+Cost: 0.0927 USD for the two documents, 46.2 s, and the extraction for `engine.go`
+grew 7,705 → 9,509 bytes.
+
+Two limits of that run, since it is one document pair on one path. The
+`extract-types` group tables and the two summarize prompts are covered by unit
+tests and by reasoning, not by a measured run — no material here splits into
+enough chunks to route through them. And a model that under-reads a set still
+records the short list as if it were complete: this change makes the enumeration
+*present* and does not make a shortfall *detectable*. Recording the arity the
+document declares, so `check` could flag the gap, was considered and left out —
+it only catches a model that contradicts itself.

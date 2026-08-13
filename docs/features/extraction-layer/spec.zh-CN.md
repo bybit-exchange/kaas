@@ -44,7 +44,9 @@ CLI 摄入的文档。derive 的 `copy_documents` 找不到东西可拷（`deriv
 （`core/extract.py:77`）恰好输出八个 payload 字段——`summary`、`concepts`、`entities`、
 `decisions`、`action_items`、`claims`、`topics`、`connections`——关于「它们从哪来」
 一个字都没有。[Superseded 2026-08-08：七个——`connections` 已删除，见
-[notes.md](notes.md) 的「`connections` dropped on 2026-08-08」。]文件名是源文档的内容
+[notes.md](notes.md) 的「`connections` dropped on 2026-08-08」。2026-08-13 再次
+Superseded：八个——新增了 `enumerations`，见同一文件的「`enumerations` added on
+2026-08-13」。]文件名是源文档的内容
 校验和，这让**文本**过期不可能发生，但对模型和 prompt 一无所知。换掉抽取模型，或者编辑 `prompts/defaults/extract.md`（可通过
 `KAAS_PROMPTS_DIR` 按部署覆盖，`core/extract.py:85`），所有已有条目都会被静默复用。
 代码自己已经承认了这一点，在 `derive/_layout.py:168-170`：*「the cache key carries no
@@ -167,6 +169,10 @@ UI，然后派生一个主题库。这份文档按它的抽取摘要被评判，
   [Superseded 2026-08-08：下面示例里的 `connections: [...]` 那一行已删除，见
   [notes.md](notes.md)。]
 
+  [Superseded 2026-08-13：六个 section，`enumerations` 追加在最后，示例里的
+  `schema_version` 是 2，见 [notes.md](notes.md) 的「`enumerations` added on
+  2026-08-13」。]
+
   ```markdown
   ---
   source: raw/window-2026-06__meetings__2026-06-04-video-meetingcc.md
@@ -194,7 +200,8 @@ UI，然后派生一个主题库。这份文档按它的抽取摘要被评判，
 - B3. section 的标题是字段名的纯函数——`action_items` →
   `.replace("_", " ").title()` → `Action Items`，反向为
   `.lower().replace(" ", "_")`。五个字段名全是小写加下划线，所以往返精确，
-  没有映射表需要维持同步。
+  没有映射表需要维持同步。[Superseded 2026-08-13：六个，且 `enumerations` 是单个词，
+  往返依然精确，见 [notes.md](notes.md)。]
 - B3a. 标题**只在第 0 列**才算标题——`line.startswith("## ")`，绝不是
   `line.strip().startswith("## ")`。这是承重的，不是风格问题。`safe_dump` 把含换行的
   字符串渲染成**多行**单引号标量，它的续行是真实的物理行、缩进至少两个空格：

@@ -11,7 +11,7 @@ stale, and why" into a field comparison, and a file a maintainer can open in an
 editor while tuning the extract prompt.
 
 Format: YAML frontmatter carries the provenance plus the two flat payload fields
-(summary, topics) and the per-section counts; the body carries the five
+(summary, topics) and the per-section counts; the body carries the six
 object-list fields as ``## Heading`` sections whose content is ``yaml.safe_dump``
 of that field's list. Both halves go through safe_dump, so quoting and escaping
 are PyYAML's responsibility rather than hand-written.
@@ -42,12 +42,19 @@ from kb_ai.storage.store import KBStore
 # Bumped when the file shape changes incompatibly. Recorded in every file so a
 # future reader can tell what it is looking at, and enforced by parse(): any other
 # value is refused rather than read as this one.
-SCHEMA_VERSION = 1
+#
+# 2 (issue #41) added the enumerations section. Dropping `connections` in
+# 2026-08-08 left this at 1 because a removal reads in both directions; a
+# *required* new section does not. A v1 file has no ``## Enumerations`` and
+# parse() refuses it, and v1 code reading a v2 file fails its own counts check
+# over the extra key, so the bump is what makes the message name the right side.
+SCHEMA_VERSION = 2
 
 # The object-list payload fields, in the order their sections are written.
 # Pinned rather than derived from dict iteration, because section order is part
 # of the byte-identity the two ingestion routes have to agree on (C2).
-BODY_FIELDS = ("concepts", "entities", "decisions", "action_items", "claims")
+BODY_FIELDS = ("concepts", "entities", "decisions", "action_items", "claims",
+               "enumerations")
 
 # Flat payload fields that live in the frontmatter, so a reader doing catalog or
 # topic-filter work parses the frontmatter only and never the body (B7).
