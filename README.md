@@ -18,19 +18,29 @@ Turn scattered notes, documents, and transcripts into a searchable, queryable pe
 
 ## What Makes This Different
 
-Unlike typical RAG systems that chunk and embed raw text, KaaS **compiles** your content through a 4-phase LLM pipeline:
+Unlike typical RAG systems that chunk and embed raw text, KaaS **compiles** your
+content through a 4-phase LLM pipeline. What comes out is human-readable Markdown
+articles — not a black-box vector store.
 
 ![KaaS vs. naive RAG: compile-then-retrieve instead of chunk-and-embed](docs/assets/kaas-vs-rag.en.svg)
 
-```
-Raw Content → Extract → Classify → Write → Index → Structured Wiki
-```
+## The Compiled Wiki
 
-![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
-
-The result is human-readable Markdown articles — not a black-box vector store. You can read, edit, and git-manage your knowledge base.
+What you get is a tree of Markdown articles: categories on the left, the rendered
+article in the middle, its headings down the right. Chat answers cite these
+articles by name, so an answer and the page it came from are one click apart.
 
 ![The compiled wiki: an article tree on the left, a rendered Markdown article on the right](docs/assets/screenshot-wiki.en.png)
+
+## How It Works
+
+Raw content passes through four LLM phases: extract concepts, entities and
+decisions; classify them into articles; write or merge the Markdown; update the
+indexes. Retrieval then reads whole pages rather than embedded fragments — the
+LLM walks the master index, picks the articles it needs, and answers from their
+full text.
+
+![KaaS: distill your notes into a structured, readable wiki, then retrieve](docs/assets/distill-flow.en.svg)
 
 ## Why We Built This
 
@@ -152,7 +162,7 @@ The Go backend spawns the Python AI engine as a long-running daemon process, com
 
 ## Features
 
-- **Readable articles**: concepts, entities and decisions are extracted, classified into articles, written or merged into Markdown, then indexed. What you query is pages, not ranked fragments
+- **Readable articles**: what you query is pages, not ranked fragments — see [How It Works](#how-it-works) for the four phases that produce them
 - **Answers you can check**: every chat reply cites the wiki articles behind it, so you can open the source and disagree with it (streamed over SSE)
 - **A knowledge base you own**: articles are plain Markdown on disk — read them, hand-edit them, commit them, review a diff
 - **Adding one document costs one document**: compiles are incremental against a content checksum, so a new note doesn't re-pay for the corpus you already compiled
