@@ -252,6 +252,64 @@ def _truncate_article_by_sections(article_content: str, topics: list[str], budge
 _LARGE_ARTICLE_THRESHOLD = 30_000
 
 
+# Appended to all three write-stage system prompts (issue #42).
+#
+# #41 fixed the supply: extraction now carries enumerations verbatim. This is the
+# other half. Compiling go-zero produced a MiddlewaresConf table with an `Auth`
+# field that does not exist in the framework and a numbered middleware chain that
+# appeared in no extraction -- 9 of 11 correct, which is the tell. Nothing in the
+# three prompts said the article was bounded by its input, so with a thin
+# enumeration in hand, completing it from what the model already knew about a
+# popular open-source framework was the *fluent* thing to do, and fluency was the
+# only thing being asked for.
+#
+# A code constant rather than a fourth prompt file, for two reasons. It has to
+# reach all three system prompts and one of them (_create_system) is already code,
+# so a file would leave the rule written in two places to drift apart. And a
+# registry lookup would make an operator's existing KAAS_PROMPTS_DIR raise
+# NoActivePromptError on the first write after upgrade.
+#
+# The last bullet is the one that does the work. Told only "do not invent", a
+# writer with a six-member list still produces six members and no sign that the
+# set was larger; it needs an action it is allowed to take instead.
+_GROUNDING = """
+Grounding — this article is a compilation of the material you were given, not a
+composition about its subject:
+- Every named thing you write — a field, function, parameter, option, step, person
+  — must appear in the material. If you recognise the subject and know more about
+  it than the material states, that knowledge does not belong in this article.
+- A set given under Enumerations is closed. Carry every member, in the order
+  given, under the names given; add nothing to it and rename nothing in it.
+- Never complete a partial set. When the material names some members of a set that
+  evidently has more, write the ones you were given and say plainly that the list
+  is what the material records. An incomplete list labelled as such is useful; a
+  completed one is a fabrication, and it reads exactly like the real thing.
+- Prefer saying the material does not cover something over supplying it. A gap a
+  reader can see is a gap someone can fill; a gap you filled is one nobody finds.
+"""
+
+
+def _merge_rewrite_system() -> str:
+    """The rewrite path's system prompt, file plus grounding constraint.
+
+    One function for the three callers that need it -- the budget calculation in
+    merge_into_article, the send in _merge_full_rewrite, and the hash in
+    _write_stage_renderings. Composed rather than sent verbatim, so a budget
+    computed from the file alone would under-reserve by the grounding block and a
+    hash over the file alone would not move when that block is edited.
+    """
+    return default_registry().get("merge-rewrite").render() + "\n" + _GROUNDING
+
+
+def _merge_diff_system() -> str:
+    """The diff path's system prompt, file plus grounding constraint.
+
+    .content, not .render(): merge-diff.md holds literal `{...}` JSON example
+    braces, which str.format would read as placeholders.
+    """
+    return default_registry().get("merge-diff").content + "\n" + _GROUNDING
+
+
 @_with_write_timeout
 def merge_into_article(
     article_path: str,
@@ -266,7 +324,7 @@ def merge_into_article(
     # Budget-aware: check if full rewrite fits.
     # Registry caches per-process, so this call here + same call inside
     # _merge_full_rewrite both hit the cache after the first lookup.
-    full_rewrite_system = default_registry().get("merge-rewrite").render()
+    full_rewrite_system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(full_rewrite_system) - _SAFETY_MARGIN
     min_extraction_chars = len(source_path) + 50
     if len(article_content) + min_extraction_chars > budget:
@@ -279,7 +337,7 @@ def _merge_full_rewrite(
     article_path: str, article_content: str,
     extraction: ExtractionResult, source_path: str, model: str,
 ) -> str:
-    system = default_registry().get("merge-rewrite").render()
+    system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
     user = _merge_user_message(article_content, extraction, source_path, budget)
 
@@ -297,9 +355,7 @@ def _merge_diff(
     from datetime import date
     today = date.today().isoformat()
 
-    # merge-diff contains literal `{...}` JSON example braces, so use .content
-    # rather than .render() (which would treat them as str.format placeholders).
-    system = default_registry().get("merge-diff").content
+    system = _merge_diff_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
 
     # If article exceeds 70% of budget, apply section-based truncation
@@ -501,10 +557,8 @@ def _write_stage_renderings() -> list[tuple[str, str]]:
     DEFAULT_CATEGORIES entries with no template of their own (reference, guide)
     are actually sent.
     """
-    out = [("merge-rewrite", default_registry().get("merge-rewrite").render()),
-           # .content, not .render(): merge-diff holds literal JSON example
-           # braces, exactly as _merge_diff reads it.
-           ("merge-diff", default_registry().get("merge-diff").content)]
+    out = [("merge-rewrite", _merge_rewrite_system()),
+           ("merge-diff", _merge_diff_system())]
     for article_type in sorted(_SECTION_TEMPLATES) + [_UNTEMPLATED_TYPE]:
         out.append((f"create-new#{article_type}", _create_system(article_type)))
     return out
@@ -569,6 +623,7 @@ updated: {{date}}
 {_section_guidance(article_type)}
 
 Write a well-structured article following the section guidance above.
+{_GROUNDING}
 
 The `summary` line is the article's entry in the knowledge-base catalog, which is
 the only surface a reader searches before opening anything. Write one sentence
