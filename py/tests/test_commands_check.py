@@ -1,7 +1,7 @@
-"""Tests for the kb-ai check CLI: the operator entry point to F3 and F5.
+"""Tests for the kb-ai check CLI: the operator entry point to F3, F5 and grounding.
 
-The two checks were reachable only from tests and from a python -c, which is how
-a check rots. This command is the surface that makes them runnable; it spends
+The checks were reachable only from tests and from a python -c, which is how a
+check rots. This command is the surface that makes them runnable; it spends
 nothing and rewrites nothing, so it is safe to point at someone else's KB.
 """
 from __future__ import annotations
@@ -211,6 +211,82 @@ def test_an_unreadable_prompt_set_still_reports_the_checks_that_do_not_need_it(
     assert resp["data"]["wiki"]["behind_write_prompt"] == []
     assert "write prompt version unavailable" in resp["data"]["wiki"]["summary"]
     assert "merge-diff" in captured.err
+
+
+# ── grounding (issue #42) ───────────────────────────────────────────
+#
+# The third check on the same surface: it spends nothing, so it belongs beside F3
+# and F5 rather than behind a compile that only runs when there is other work.
+
+def _article(store: KBStore, rel: str, body: str, sources: list[str]) -> None:
+    lines = "\n".join(f"  - {s}" for s in sources)
+    store.write_article(rel, f"---\ntitle: \"A\"\ntype: concept\n"
+                             f"sources:\n{lines}\n---\n\n{body}\n")
+
+
+def test_check_names_the_unsourced_items_and_the_line_they_are_on(monkeypatch,
+                                                                 tmp_path):
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _extract(store, "raw/a.md")
+    _article(store, "wiki/c.md", "| `Auth` | bool |\n", ["raw/a.md"])
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path)])
+
+    found = resp["data"]["grounding"]
+    assert found["checked"] == ["wiki/c.md"]
+    assert found["unsourced"] == [
+        {"article": "wiki/c.md", "name": "Auth", "line": "| `Auth` | bool |"}]
+    assert "1 unsourced" in found["summary"]
+
+
+def test_check_reports_a_clean_wiki_as_clean(monkeypatch, tmp_path):
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _extract(store, "raw/a.md")
+    # _extract stores "summary of raw/a.md", so this name is in the material.
+    _article(store, "wiki/c.md", "| `summary` | text |\n", ["raw/a.md"])
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path)])
+
+    assert resp["data"]["grounding"]["unsourced"] == []
+    assert resp["data"]["grounding"]["skipped"] == []
+
+
+def test_check_carries_the_reason_an_article_could_not_be_checked(monkeypatch,
+                                                                 tmp_path):
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _article(store, "wiki/c.md", "| `Auth` | bool |\n", ["raw/a.md"])
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path)])
+
+    skipped = resp["data"]["grounding"]["skipped"]
+    assert len(skipped) == 1
+    assert skipped[0]["article"] == "wiki/c.md"
+    assert "missing" in skipped[0]["reason"]
+    # Not counted as a clean article, and not counted as a finding either.
+    assert resp["data"]["grounding"]["checked"] == []
+    assert resp["data"]["grounding"]["unsourced"] == []
+
+
+def test_a_kb_with_no_wiki_yet_reports_an_empty_grounding_check(monkeypatch,
+                                                               tmp_path):
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _extract(store, "raw/a.md")
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path)])
+
+    assert resp["data"]["grounding"] == {
+        "checked": [], "unsourced": [], "skipped": [],
+        "summary": resp["data"]["grounding"]["summary"]}
+
+
+def test_the_grounding_summary_is_printed_for_an_operator_to_read(tmp_path, capsys):
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _extract(store, "raw/a.md")
+    _article(store, "wiki/c.md", "| `Auth` | bool |\n", ["raw/a.md"])
+
+    check_cmd.run_check(["--kb", str(tmp_path)])
+
+    assert "[check] grounding: 1 unsourced" in capsys.readouterr().err
 
 
 def test_the_command_neither_spends_nor_rewrites(monkeypatch, tmp_path):

@@ -1,9 +1,10 @@
-"""kb-ai check -- run the two read-only checks over a knowledge base (F3, F5).
+"""kb-ai check -- run the read-only checks over a knowledge base (F3, F5, #42).
 
-The checks themselves live in derive/_status.py as pure functions, which is what
-F5 asks for. This is the surface that makes them runnable: without it they are
-reachable only from the test suite and from a python -c, and a check nobody can
-run is a check that rots.
+The checks themselves live as pure functions elsewhere -- F3 and F5 in
+derive/_status.py, which is what F5 asks for, and the grounding check in
+core/grounding.py. This is the surface that makes them runnable: without it they
+are reachable only from the test suite and from a python -c, and a check nobody
+can run is a check that rots.
 
 One command covers both kinds of knowledge base rather than two. F3 applies to
 any KB, parent or derived, and F5 already degrades to "unknown" with a reason
@@ -16,6 +17,20 @@ editing merge-rewrite.md changes no document and no extraction, so the next
 compile finds nothing to do and returns before any report. Here it costs nothing
 and is available whenever an operator asks.
 
+The grounding check is here for the same reason and one more: the fabrication it
+looks for (#42) is already on disk in knowledge bases compiled before the
+grounding constraint existed, and a check that only ran during a write could not
+revisit any of it.
+
+One caveat worth knowing before reading its output. It needs each article's
+extraction, and extraction files written before #41 record schema_version 1, which
+parse() refuses -- so on a knowledge base that has not been re-extracted since,
+every article lands in `skipped` and the check has seen nothing. The extraction
+report above says "N match" for those same files, because F3 reads the
+frontmatter only and never reaches the version gate. The two lines are consistent;
+the summary here says "no articles could be checked" rather than counting zero
+findings, so the pair cannot be read as a clean bill.
+
 Spends nothing and rewrites nothing, so it is safe to point at a read-only KB or
 at someone else's.
 """
@@ -26,9 +41,10 @@ import sys
 from pathlib import Path
 
 from kb_ai._protocol import respond_error, respond_ok
-from kb_ai.derive._layout import MANIFEST_NAME
+from kb_ai.core.grounding import check_grounding
 from kb_ai.core.merge import write_prompt_version
 from kb_ai.derive import check_extractions, check_parent
+from kb_ai.derive._layout import MANIFEST_NAME
 from kb_ai.prompts import PromptError
 from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.lag import wiki_lag
@@ -78,6 +94,7 @@ def run_check(argv: list[str]) -> None:
 
     extractions = check_extractions(args.kb)
     parent = check_parent(args.kb)
+    grounding = check_grounding(args.kb)
 
     lag = wiki_lag(
         store.load_compile_state(),
@@ -90,6 +107,7 @@ def run_check(argv: list[str]) -> None:
     print(f"[check] extractions: {extractions.summary()}", file=sys.stderr)
     print(f"[check] parent: {parent.summary()}", file=sys.stderr)
     print(f"[check] wiki: {lag.summary()}", file=sys.stderr)
+    print(f"[check] grounding: {grounding.summary()}", file=sys.stderr)
 
     respond_ok(data={
         "kb": args.kb,
@@ -120,5 +138,19 @@ def run_check(argv: list[str]) -> None:
             "extract_first_run": lag.extract_first_run,
             "write_first_run": lag.write_first_run,
             "summary": lag.summary(),
+        },
+        # Each finding carries the line it sits on, not just the name: the
+        # operator's next move is deciding whether the article really claims the
+        # thing, and a bare name sends them opening files to find out.
+        "grounding": {
+            "checked": grounding.checked,
+            "unsourced": [{"article": f.article, "name": f.name, "line": f.line}
+                          for f in grounding.unsourced],
+            # An article that could not be checked is neither clean nor flagged.
+            # Its reason usually points at the extraction layer, which is the
+            # check above.
+            "skipped": [{"article": rel, "reason": why}
+                        for rel, why in grounding.skipped],
+            "summary": grounding.summary(),
         },
     })
