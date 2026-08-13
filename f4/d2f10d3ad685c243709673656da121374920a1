@@ -1,0 +1,23 @@
+docs/features/extraction-layer/notes.md
+  2e2386da3f31ea94 492-514
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f4d2f10d3ad685c243709673656da121374920a1",
+  "prompts": {
+    "2e2386da3f31ea94": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "50d5c4cb-3e95-4131-9349-43fef4296c48",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 23,
+      "total_deletions": 8,
+      "accepted_lines": 759,
+      "overriden_lines": 0
+    }
+  }
+}
