@@ -1,4 +1,4 @@
-![KaaS — Knowledge-as-a-Service](docs/assets/logo.svg)
+<img src="docs/assets/logo.svg" align="right" width="110" alt="KaaS — Knowledge-as-a-Service">
 
 # KaaS — Knowledge as a Service
 
@@ -14,7 +14,23 @@
 
 **[文档站](https://bybit-exchange.github.io/kaas-doc/)** · [快速开始](#快速开始) · [MCP 接入](#mcp-接入)
 
+![向编译好的 wiki 提问，得到一段带引用、可回溯到具体文章的回答](docs/assets/screenshot-chat.zh.png)
+
+## 有何不同
+
+一般的 RAG 系统是把原始文本切块、向量化；KaaS 不一样，它通过一条 4 阶段的 LLM 流水线把内容**编译**成知识：
+
+![KaaS 对比传统 RAG：先编译再检索，而非切块加向量](docs/assets/kaas-vs-rag.zh.svg)
+
+```
+原始内容 → 提取 → 分类 → 写入 → 索引 → 结构化 Wiki
+```
+
 ![KaaS：把笔记蒸馏成结构化、可读的 wiki，再检索问答](docs/assets/distill-flow.zh.svg)
+
+产物是人类可读的 Markdown 文章，而不是一个黑箱向量库。你可以直接阅读、编辑、用 git 管理自己的知识库。
+
+![编译好的 wiki：左侧是文章树，右侧是渲染后的 Markdown 文章](docs/assets/screenshot-wiki.zh.png)
 
 ## 为什么做这个
 
@@ -25,18 +41,6 @@ KaaS 最早是我们内部的工具。知识散落在文档、会议、邮件里
 个人——人走了，原始数据删除，沉淀下来的判断却留给接手这个岗位的下一个人。
 
 两条路的回报是一样的：组织不必反复回答同一个问题。这也是我们决定把它开源的原因。
-
-## 有何不同
-
-一般的 RAG 系统是把原始文本切块、向量化；KaaS 不一样，它通过一条 4 阶段的 LLM 流水线把内容**编译**成知识：
-
-```
-原始内容 → 提取 → 分类 → 写入 → 索引 → 结构化 Wiki
-```
-
-产物是人类可读的 Markdown 文章，而不是一个黑箱向量库。你可以直接阅读、编辑、用 git 管理自己的知识库。
-
-![KaaS 对比传统 RAG：先编译再检索，而非切块加向量](docs/assets/kaas-vs-rag.zh.svg)
 
 ## 快速开始
 
@@ -135,13 +139,13 @@ Go 后端启动时会 spawn Python AI 引擎作为长驻 daemon 进程，通过 
 
 ## 特性
 
-- **4 阶段编译流水线**：提取概念/实体/决策 → 分类归入文章 → 写入/合并 Markdown → 更新 markdown 索引
-- **Worker 加速**：并发的 extract/pipeline worker、熔断器、租约恢复
-- **流式 Chat**：SSE 流式输出，附带指回 wiki 文章的来源引用
-- **多种输入源**：粘贴文本、上传文件，或提供 URL
-- **增量编译**：只重新编译新增/变更的内容
-- **git 友好产物**：所有 wiki 文章都是纯 Markdown
-- **MCP 接入**：任何支持 MCP 的 coding agent 都能通过一个 `ask` 工具查询编译好的 wiki
+- **产物是文章**：提取概念、实体、决策，分类归入文章，写入或合并进 Markdown，再建索引。你查询的是成篇的内容，不是按相似度排序的碎片
+- **回答可以核对**：每条 chat 回复都标出它依据的 wiki 文章，你可以点开原文，也可以据此反驳它（SSE 流式输出）
+- **知识库归你自己**：文章就是硬盘上的纯 Markdown，直接读、手动改、提交进 git、像看代码一样看 diff
+- **加一篇文档只花一篇文档的钱**：编译按内容校验和增量进行，新增一条笔记不会为已经编译过的语料重复付费
+- **长时间任务扛得住自己出错**：extract 与 pipeline 并发执行；任务带租约，某个 worker 中途挂掉，它手上的活会被重新领取，不会丢失；LLM 连续失败会触发熔断，不会一直烧钱
+- **文本、文件，或者一个 URL**：粘贴、上传，或者把 KaaS 指向某个网页
+- **在编辑器里就能用**：任何支持 MCP 的 coding agent 都能通过一个 `ask` 工具查询编译好的 wiki
 
 ## MCP 接入
 
