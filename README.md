@@ -1,8 +1,6 @@
-<table>
-<tr>
-<td>
-
 # KaaS — Knowledge as a Service
+
+<img src="docs/assets/logo.svg" align="right" width="200" alt="KaaS — Knowledge-as-a-Service">
 
 **English** · [中文](README.zh-CN.md)
 
@@ -11,13 +9,6 @@
 [![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
 [![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
 [![MCP](https://img.shields.io/badge/MCP-ask%20tool-black)](#mcp-access)
-
-</td>
-<td width="220" valign="middle">
-<img src="docs/assets/logo.svg" width="200" alt="KaaS — Knowledge-as-a-Service">
-</td>
-</tr>
-</table>
 
 Turn scattered notes, documents, and transcripts into a searchable, queryable personal Wiki — powered by LLM-driven knowledge compilation.
 

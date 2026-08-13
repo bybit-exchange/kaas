@@ -1,8 +1,6 @@
-<table>
-<tr>
-<td>
-
 # KaaS — Knowledge as a Service
+
+<img src="docs/assets/logo.svg" align="right" width="200" alt="KaaS — Knowledge-as-a-Service">
 
 [English](README.md) · **中文**
 
@@ -11,13 +9,6 @@
 [![Latest release](https://img.shields.io/github/v/release/bybit-exchange/kaas?include_prereleases)](https://github.com/bybit-exchange/kaas/releases)
 [![Documentation](https://img.shields.io/badge/docs-kaas--doc-blue)](https://bybit-exchange.github.io/kaas-doc/)
 [![MCP](https://img.shields.io/badge/MCP-ask%20tool-black)](#mcp-接入)
-
-</td>
-<td width="220" valign="middle">
-<img src="docs/assets/logo.svg" width="200" alt="KaaS — Knowledge-as-a-Service">
-</td>
-</tr>
-</table>
 
 把散乱的笔记、文档和会议转写，变成一个可搜索、可问答的个人 Wiki —— 由 LLM 驱动的知识编译。
 
