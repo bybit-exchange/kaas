@@ -55,6 +55,13 @@ class ExtractionResult:
     decisions: list = field(default_factory=list)
     action_items: list = field(default_factory=list)
     claims: list = field(default_factory=list)
+    # A set the document enumerates completely, kept as its members rather than
+    # as prose about them: {"name", "kind", "ordered", "items"}. Its own field
+    # because the other seven all reward compression, and an enumeration is the one
+    # shape where compression is the loss -- a model asked for prose about a
+    # struct wrote about its timeout handling and dropped eight of eleven field
+    # names, unrecoverably, since the write phase never re-reads raw (issue #41).
+    enumerations: list = field(default_factory=list)
     topics: list = field(default_factory=list)
     source_path: str = ""
 
@@ -67,6 +74,7 @@ def parse_extraction_result(raw: dict) -> ExtractionResult:
         decisions=raw.get("decisions") or [],
         action_items=raw.get("action_items") or [],
         claims=raw.get("claims") or [],
+        enumerations=raw.get("enumerations") or [],
         topics=raw.get("topics") or [],
     )
 
@@ -75,7 +83,7 @@ def extraction_to_dict(e: ExtractionResult) -> dict:
     return {
         "summary": e.summary, "concepts": e.concepts, "entities": e.entities,
         "decisions": e.decisions, "action_items": e.action_items,
-        "claims": e.claims, "topics": e.topics,
+        "claims": e.claims, "enumerations": e.enumerations, "topics": e.topics,
     }
 
 
@@ -154,18 +162,23 @@ _FIELD_JSON_SCHEMAS: dict[str, str] = {
     "decisions": '"decisions": [{"title": "short title", "what": "what was decided", "why": "reasoning", "who": ["people involved"]}]',
     "action_items": '"action_items": [{"task": "description", "owner": "person name if known"}]',
     "claims": '"claims": [{"claim": "the assertion", "source": "who/what said this", "surprising": false}]',
+    "enumerations": '"enumerations": [{"name": "what the set is", "kind": "struct fields|call order|const block|option list|steps|participants", "ordered": true, "items": ["every member, verbatim, in document order"]}]',
     "topics": '"topics": ["topic-tag-1", "topic-tag-2"]',
 }
 
+# enumerations joins the group that is lightest on document-shaped input, where it
+# is heaviest: a source file yields long field lists and almost no decisions or
+# action items. The pairing is per-K, not one rule, because the two tables split
+# the same eight fields differently.
 TYPE_SPLIT_GROUPS_K2: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities", "topics", "summary"),
-    "B": ("claims", "decisions", "action_items"),
+    "B": ("claims", "decisions", "action_items", "enumerations"),
 }
 
 TYPE_SPLIT_GROUPS_K3: dict[str, tuple[str, ...]] = {
     "A": ("concepts", "entities"),
     "B": ("claims", "summary", "topics"),
-    "C": ("decisions", "action_items"),
+    "C": ("decisions", "action_items", "enumerations"),
 }
 
 
@@ -768,6 +781,7 @@ def extract_knowledge_chunked(
         merged.decisions.extend(r.decisions)
         merged.action_items.extend(r.action_items)
         merged.claims.extend(r.claims)
+        merged.enumerations.extend(r.enumerations)
         merged.topics.extend(r.topics)
 
     merged.summary = " ".join(summaries)
@@ -787,6 +801,7 @@ def _combine_extractions(items: list[tuple[str, ExtractionResult]]) -> tuple[Ext
         combined.decisions.extend(extraction.decisions)
         combined.action_items.extend(extraction.action_items)
         combined.claims.extend(extraction.claims)
+        combined.enumerations.extend(extraction.enumerations)
         combined.topics.extend(extraction.topics)
         rels.append(rel)
     combined.summary = "\n".join(summaries)

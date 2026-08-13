@@ -36,6 +36,21 @@ def test_combine_extractions_merges_fields():
     assert set(combined.topics) == {"topic-a", "topic-b", "topic-c"}
 
 
+def test_combine_extractions_keeps_every_enumeration():
+    """Enumerations are concatenated like every other object list. The write
+    phase composes from this result and never re-reads raw, so one dropped here
+    is unrecoverable (issue #41)."""
+    e1 = ExtractionResult(enumerations=[{"name": "MiddlewaresConf fields",
+                                         "items": ["Trace", "Log"]}])
+    e2 = ExtractionResult(enumerations=[{"name": "chain order",
+                                         "items": ["Recover", "Gunzip"]}])
+
+    combined, _rels = _combine_extractions([("raw/a.md", e1), ("raw/b.md", e2)])
+
+    assert [e["name"] for e in combined.enumerations] == [
+        "MiddlewaresConf fields", "chain order"]
+
+
 def test_combine_extractions_empty_list():
     """_combine_extractions with empty input returns empty result."""
     combined, rels = _combine_extractions([])

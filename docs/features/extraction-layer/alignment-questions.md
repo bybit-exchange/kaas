@@ -341,6 +341,10 @@ collide under a premise the spec never states — that the body is also written 
 [Superseded 2026-08-08: the `connections: [...]` line below is gone — see
 [notes.md](notes.md).]
 
+[Superseded 2026-08-13: `schema_version` reads 2 and an `## Enumerations` section
+follows `## Claims` — see "`enumerations` added on 2026-08-13" in
+[notes.md](notes.md).]
+
 ```markdown
 ---
 source: raw/window-2026-06__meetings__2026-06-04-video-meetingcc.md

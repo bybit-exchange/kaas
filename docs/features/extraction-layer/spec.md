@@ -46,11 +46,13 @@ extract (`derive/_layout.py:195`). Re-running the pipeline re-pays extract where
 the CLI would not. Selection quality ends up depending on the ingestion route.
 
 **2. There is no provenance in the file, so staleness is undetectable.**
-`extraction_to_dict` (`core/extract.py:77`) emits exactly eight payload fields —
+`extraction_to_dict` (`core/extract.py:82`) emits exactly eight payload fields —
 `summary`, `concepts`, `entities`, `decisions`, `action_items`, `claims`,
 `topics`, `connections` — and nothing about where they came from.
 [Superseded 2026-08-08: seven — `connections` was dropped, see
-"`connections` dropped on 2026-08-08" in [notes.md](notes.md).] The filename is
+"`connections` dropped on 2026-08-08" in [notes.md](notes.md). Superseded again
+2026-08-13: eight — `enumerations` was added, see "`enumerations` added on
+2026-08-13" in the same file.] The filename is
 a content checksum of the source, which makes *text* staleness impossible but
 says nothing about model or prompt. Change the extract model, or edit
 `prompts/defaults/extract.md` (overridable per-deployment via `KAAS_PROMPTS_DIR`,
@@ -201,6 +203,10 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   [Superseded 2026-08-08: the `connections: [...]` line of the example below is
   gone — see [notes.md](notes.md).]
 
+  [Superseded 2026-08-13: six sections, `enumerations` appended last, and the
+  example's `schema_version` reads 2 — see "`enumerations` added on 2026-08-13"
+  in [notes.md](notes.md).]
+
   ```markdown
   ---
   source: raw/window-2026-06__meetings__2026-06-04-video-meetingcc.md
@@ -229,7 +235,8 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   `action_items` → `.replace("_", " ").title()` → `Action Items`, reversed by
   `.lower().replace(" ", "_")`. All five field names are lowercase with
   underscores, so the round-trip is exact and there is no mapping table to keep
-  in sync.
+  in sync. [Superseded 2026-08-13: six, and `enumerations` is one word, so the
+  round-trip still holds — see [notes.md](notes.md).]
 - B3a. A heading is recognised **only at column 0** — `line.startswith("## ")`,
   never `line.strip().startswith("## ")`. This is load-bearing rather than stylistic.
   `safe_dump` renders a string that contains a newline as a *multi-line*
@@ -721,7 +728,7 @@ file to force a re-extract — without guessing at a checksum-named cache entry.
   reference KB produces either shape.
 
   `ExtractionResult` has a ninth field beyond `extraction_to_dict`'s eight —
-  `source_path` (`core/extract.py:61`) — which the CLI assigns after extraction
+  `source_path` (`core/extract.py:66`) — which the CLI assigns after extraction
   (`commands/compile.py:183`) and the worker path assigns from `source_ref`
   (`_phase_classify.py:133`). The parser populates it from the file's `source`
   frontmatter, so "equals the original field for field" compares against an

@@ -116,6 +116,23 @@ def test_fit_extraction_respects_field_priority():
     assert "Action Items" not in out
 
 
+def test_fit_extraction_ranks_enumerations_above_the_prose_fields():
+    """An enumeration is the one field a truncated prompt cannot paraphrase back:
+    the writer either receives all eleven members or invents a plausible list
+    (issue #41, and issue #42 is what that invention looks like). So it outranks
+    concepts and claims, which degrade gracefully.
+    """
+    e = _extraction(
+        enumerations=[{"name": "chain order", "items": ["Trace", "Log", "Recover"]}],
+        concepts=[{"title": "c" * 200} for _ in range(5)],
+        claims=[{"claim": "c" * 200} for _ in range(5)],
+    )
+    out = mg._fit_extraction_to_budget(e, "raw/a.md", 150)
+
+    assert "Recover" in out
+    assert "Concepts" not in out and "Claims" not in out
+
+
 def test_fit_extraction_skips_empty_fields():
     out = mg._fit_extraction_to_budget(_extraction(summary="s", topics=[]), "raw/a.md", 1000)
     assert "Topics" not in out

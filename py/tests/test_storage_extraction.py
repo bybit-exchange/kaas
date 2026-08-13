@@ -45,6 +45,8 @@ def _full(**overrides) -> ExtractionResult:
         action_items=[{"task": "更新价格页", "owner": "lucas"}],
         claims=[{"claim": "现有客户中 80% 更偏好席位制", "source": "问卷",
                  "surprising": False}],
+        enumerations=[{"name": "席位定价档位", "kind": "option list",
+                       "ordered": True, "items": ["入门", "标准", "企业"]}],
         topics=["pricing", "billing"],
         source_path="raw/notes.md",
     )
@@ -134,13 +136,13 @@ def test_persist_refuses_a_read_only_store(tmp_path):
 
 # ── B: file contents and provenance ─────────────────────────────────
 
-def test_file_shape_is_frontmatter_plus_five_pinned_sections(store):
+def test_file_shape_is_frontmatter_plus_six_pinned_sections(store):
     text = exl.serialize(_provenance(), _full())
     assert text.startswith("---\n")
 
     headings = [ln for ln in text.splitlines() if ln.startswith("## ")]
     assert headings == ["## Concepts", "## Entities", "## Decisions",
-                        "## Action Items", "## Claims"]
+                        "## Action Items", "## Claims", "## Enumerations"]
 
     header = yaml.safe_load(text.split("---\n")[1])
     # The exact key set, not just the keys this test names: without it a payload
@@ -162,7 +164,8 @@ def test_file_shape_is_frontmatter_plus_five_pinned_sections(store):
     assert header["summary"].startswith("季度评审")
     assert header["topics"] == ["billing", "pricing"]
     assert header["counts"] == {"concepts": 1, "entities": 1, "decisions": 1,
-                                "action_items": 1, "claims": 1}
+                                "action_items": 1, "claims": 1,
+                                "enumerations": 1}
     # summarize_model is absent on the chunked path (B15).
     assert "summarize_model" not in header
 
@@ -245,13 +248,26 @@ def test_round_trip_frontmatter_summary_containing_a_bare_delimiter_line():
     assert stored.extraction.claims == result.claims
 
 
+def _with_claims_body(text: str, body: str) -> str:
+    """Rebuild the file with the claims section's items replaced by `body`.
+
+    Claims is not the last section any more — Enumerations follows it — so the
+    surgery has to put the tail back. A plain split would delete that section too,
+    and every test below would be asserting against a missing-section error
+    instead of the failure it names.
+    """
+    head, _, rest = text.partition("## Claims\n")
+    return head + "## Claims\n" + body + "## Enumerations" + rest.split(
+        "## Enumerations", 1)[1]
+
+
 def _emptied_claims(text: str) -> str:
     """Drop the claims items, leaving a well-formed but empty section.
 
     This is the failure markdown has without `counts`: the file still parses, and
     the article it composes is just thinner.
     """
-    return text.split("## Claims")[0] + "## Claims\n\n[]\n"
+    return _with_claims_body(text, "\n[]\n")
 
 
 def test_a_corrupted_section_count_is_a_parse_error():
@@ -282,22 +298,20 @@ def test_parse_rejects_malformed_files(text, match):
 
 
 def test_a_section_holding_invalid_yaml_is_a_parse_error():
-    text = exl.serialize(_provenance(), _full()).split("## Claims")[0]
+    text = exl.serialize(_provenance(), _full())
     with pytest.raises(ExtractionFileError, match="invalid YAML in section claims"):
-        exl.parse(text + "## Claims\n\n- claim: 'unterminated\n")
+        exl.parse(_with_claims_body(text, "\n- claim: 'unterminated\n"))
 
 
 def test_an_empty_section_whose_count_says_zero_parses():
-    result = _full(claims=[])
-    text = exl.serialize(_provenance(), result)
-    blanked = text.split("## Claims")[0] + "## Claims\n\n"
-    assert exl.parse(blanked).extraction.claims == []
+    text = exl.serialize(_provenance(), _full(claims=[]))
+    assert exl.parse(_with_claims_body(text, "\n")).extraction.claims == []
 
 
 def test_a_section_that_is_not_a_list_is_a_parse_error():
-    text = exl.serialize(_provenance(), _full()).split("## Claims")[0]
+    text = exl.serialize(_provenance(), _full())
     with pytest.raises(ExtractionFileError, match="section claims is dict"):
-        exl.parse(text + "## Claims\n\nclaim: not a list\n")
+        exl.parse(_with_claims_body(text, "\nclaim: not a list\n"))
 
 
 def test_a_future_schema_version_is_not_read_as_the_current_one():
@@ -334,6 +348,45 @@ def test_an_unknown_schema_version_reaches_the_gate_as_absent(store):
 
     assert stored is None
     assert "unsupported schema_version" in reason
+
+
+def test_a_pre_enumerations_v1_file_reaches_the_gate_as_absent(store):
+    """Every extraction written before #41 is a v1 file with no Enumerations
+    section. It must reach B9 as absent and re-extract, rather than compose an
+    article out of a payload with no enumerations in it.
+
+    The version check runs before the section loop, so this file is refused on the
+    version and the missing section is never reached — which is the whole point of
+    bumping: the reader is told the format differs, not that the payload is
+    corrupt. The missing-section branch itself is covered by
+    test_a_mistyped_heading_is_a_parse_error_not_an_empty_field.
+    """
+    exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
+                extract_model="m")
+    path = store.extraction_path("raw/a.md")
+    v1_text = path.read_text(encoding="utf-8").split("## Enumerations")[0].replace(
+        f"schema_version: {exl.SCHEMA_VERSION}", "schema_version: 1")
+    path.write_text(v1_text, encoding="utf-8")
+
+    stored, reason = exl.load(store, "raw/a.md")
+
+    assert stored is None
+    assert "unsupported schema_version" in reason
+
+
+def test_an_eleven_item_enumeration_round_trips_complete_and_in_order():
+    """The shape issue #41 is about: a struct's whole field list, in declaration
+    order. Covered by the BODY_FIELDS loop too, but named here because a
+    serializer that reordered or dropped members would be invisible downstream —
+    the write phase never re-reads raw.
+    """
+    items = ["Trace", "Log", "Prometheus", "MaxConns", "Breaker", "Shedding",
+             "Timeout", "Recover", "Metrics", "MaxBytes", "Gunzip"]
+    parsed = _round_trip(_full(enumerations=[
+        {"name": "MiddlewaresConf fields", "kind": "struct fields",
+         "ordered": False, "items": items}]))
+
+    assert parsed.enumerations[0]["items"] == items
 
 
 def test_extracted_at_is_utc_with_an_offset_and_seconds(store, monkeypatch):
