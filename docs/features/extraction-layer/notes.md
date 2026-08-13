@@ -489,11 +489,26 @@ reports as absent. `kb-ai check` reads both files back: 2 match, 0 mismatched.
 Cost: 0.0927 USD for the two documents, 46.2 s, and the extraction for `engine.go`
 grew 7,705 → 9,509 bytes.
 
-Two limits of that run, since it is one document pair on one path. The
-`extract-types` group tables and the two summarize prompts are covered by unit
-tests and by reasoning, not by a measured run — no material here splits into
-enough chunks to route through them. And a model that under-reads a set still
-records the short list as if it were complete: this change makes the enumeration
-*present* and does not make a shortfall *detectable*. Recording the arity the
-document declares, so `check` could flag the gap, was considered and left out —
-it only catches a model that contradicts itself.
+The summarize path was measured separately, because the pair above is one chunk
+each and never reaches it: `core/stores/redis/redis.go` (82 KB) at
+`--extract-strategy summarize` split into 6 chunks, so 6 `summarize.md` calls fed
+the K=2 `extract-types` groups — 8 calls, 0.3036 USD, 76.5 s. Its 25 enumerations
+include both `const` blocks and six struct field lists, so sets do survive Phase 1
+compression into the field.
+
+Not perfectly, and the mechanism does not promise it will: the model split
+redis.go's single seven-name `const` block into two enumerations by theme and left
+`Nil = red.Nil` out of both. So this makes an enumeration *representable* and asks
+for it in four prompts; it does not make the model's reading of a set's boundaries
+exact, and a model that under-reads still records the short list as if it were
+complete. Recording the arity the document declares, so `check` could flag a
+shortfall, was considered and left out: it only catches a model that contradicts
+itself.
+
+**The `_FIELD_PRIORITY` promotion costs the other fields nothing at real sizes.**
+Worst case measured is redis.go, the API-surface shape where this field is
+heaviest: 7,076 chars of items, taking the write prompt from 11,034 to 18,131
+chars against a budget of ~78,000. All four populated fields still fit in every
+case, so ranking enumerations second buys truncation safety without spending
+anything today. Only `action_items` is absent from these prompts, because a source
+file has none — not because it was cut.
