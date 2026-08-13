@@ -68,13 +68,15 @@ def fakes(monkeypatch):
         result = state["classification"]
         return json.loads(json.dumps(result))   # deep copy per call
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if title in state["fail_write"]:
             raise RuntimeError(f"write failed for {title}")
         state["created"].append((article_type, title, source_path))
         return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
 
-    def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+    def fake_merge(article_path, article_content, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if article_path in state["fail_write"]:
             raise RuntimeError(f"merge failed for {article_path}")
         state["merged"].append((article_path, source_path))
@@ -227,7 +229,8 @@ def test_write_phase_attributes_cost_to_the_article_that_spent_it(kb, fakes, mon
                 "create_new": [{"path": f"wiki/concept/{stem}.md",
                                 "title": stem, "type": "concept"}]}
 
-    def create_costing_three_dollars(article_type, title, extraction, source_path, model="m"):
+    def create_costing_three_dollars(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         # Hold every worker inside its own measurement window, so a global delta
         # cannot help but see all four charges.
         holding.wait()
@@ -284,7 +287,8 @@ def test_compile_passes_models_through(kb, fakes, monkeypatch):
         seen["categories"] = categories
         return creates("wiki/concept/a.md")
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         seen["write_model"] = model
         return "article"
 
@@ -726,8 +730,8 @@ def test_the_write_phase_composes_from_the_file_on_disk(kb, fakes, monkeypatch):
     """D1: the extraction is handed over through extraction/, not in memory."""
     seen: list[str] = []
 
-    def capture(article_type, title, extraction, source_path, model="m"):
-        seen.append(extraction.summary)
+    def capture(article_type, title, sources, model="m"):
+        seen.extend(block.extraction.summary for block in sources)
         return "article"
 
     fakes["classification"] = creates("wiki/concept/a.md")

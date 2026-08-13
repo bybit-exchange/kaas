@@ -22,7 +22,6 @@ from kb_ai.core.extract import (
     plan_extraction,
     run_planned_extraction,
     validate_strategy,
-    _combine_extractions,
 )
 from kb_ai.prompts import PromptError
 from kb_ai.storage import extraction as extraction_layer
@@ -36,6 +35,7 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    build_source_blocks,
     create_new_article,
     merge_into_article,
     write_prompt_version,
@@ -482,18 +482,19 @@ def compile_kb(
             merges = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "merge"]
             create_failed = False
 
-            for rel, _cs, extraction, details in creates:
+            for rel, cs, extraction, details in creates:
                 try:
                     with _measure_op_cost() as op_cost:
                         full = store.base_dir / details["path"]
                         full.parent.mkdir(parents=True, exist_ok=True)
+                        sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         if full.exists():
                             old_content = full.read_text()
                             new_content = merge_into_article(
-                                details["path"], old_content, extraction, rel, model=write_model)
+                                details["path"], old_content, sources, model=write_model)
                         else:
                             new_content = create_new_article(
-                                details["type"], details["title"], extraction, rel, model=write_model)
+                                details["type"], details["title"], sources, model=write_model)
                         store.write_article(details["path"], new_content)
                     log(f"  [create] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
@@ -530,12 +531,17 @@ def compile_kb(
                 path_parts = art_path.split("/")
                 article_type = path_parts[1] if len(path_parts) > 2 else "concept"
                 title = Path(art_path).stem.replace("-", " ").title()
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
+                sources = build_source_blocks(
+                    store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
+                # Every merge's rel, not one per surviving block: WP7 collapses two
+                # ingests of the same bytes into one block, and both documents' ops
+                # are still completed by the call that carries it. Dropping one from
+                # the bookkeeping would leave it uncompiled and retried forever.
+                merge_rels = [rel for rel, _cs, _ext, _det in merges]
                 try:
                     with _measure_op_cost() as op_cost:
                         new_content = create_new_article(
-                            article_type, title, combined, ", ".join(merge_rels), model=write_model)
+                            article_type, title, sources, model=write_model)
                         store.write_article(art_path, new_content)
                     log(f"  [merge→create] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")
@@ -551,12 +557,13 @@ def compile_kb(
                 return
 
             if len(merges) == 1:
-                rel, _cs, extraction, details = merges[0]
+                rel, cs, extraction, details = merges[0]
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
+                        sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         new_content = merge_into_article(
-                            art_path, old_content, extraction, rel, model=write_model)
+                            art_path, old_content, sources, model=write_model)
                         store.write_article(art_path, new_content)
                     log(f"  [merge] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
@@ -567,13 +574,14 @@ def compile_kb(
                         errors.append({"file": rel, "error": str(e), "article": art_path})
                     log(f"  [merge-error] {art_path} ← {rel}: {e}")
             else:
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
+                sources = build_source_blocks(
+                    store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
+                merge_rels = [rel for rel, _cs, _ext, _det in merges]
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         new_content = merge_into_article(
-                            art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
+                            art_path, old_content, sources, model=write_model)
                         store.write_article(art_path, new_content)
                     log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")

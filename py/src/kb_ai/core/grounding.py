@@ -329,9 +329,11 @@ def check_grounding(kb_dir: str) -> GroundingCheck:
 def _sources(frontmatter_text: str) -> tuple[list[str], str]:
     """The raw documents an article names, or ([], reason).
 
-    Each item is split on commas: create_new_article is handed ", ".join(rels) as
-    its source_path, and the merge-diff path appends that string to sources:
-    verbatim, so one item can name several documents.
+    Each item is split on commas, because one item can still name several
+    documents. Every current write path emits one item per source, but the
+    rewrite path's frontmatter is written by the model rather than by us, and an
+    article compiled before per-source blocks existed was handed ", ".join(rels)
+    as a single source string.
     """
     try:
         header = yaml.safe_load(frontmatter_text)
