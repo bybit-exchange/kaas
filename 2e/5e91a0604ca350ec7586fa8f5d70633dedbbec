@@ -1,0 +1,39 @@
+docs/features/supersession/design-options.zh-CN.md
+  d8052054a9b1e145 24-25
+py/src/kb_ai/_frontmatter.py
+  d8052054a9b1e145 18,143-178
+docs/features/supersession/test-set.md
+  d8052054a9b1e145 54-59,138-154,177-179,183-189
+py/src/kb_ai/storage/lineage.py
+  d8052054a9b1e145 1-213
+py/tests/test_commands_compile.py
+  d8052054a9b1e145 892-1082
+py/src/kb_ai/commands/compile.py
+  d8052054a9b1e145 2,44,46-52,124-200,736-740,771-774
+docs/features/supersession/spec.md
+  d8052054a9b1e145 28-33,99,304-306,359-360,362-409,412-415,427,467-472
+py/tests/test_storage_lineage.py
+  d8052054a9b1e145 1-333
+docs/features/supersession/design-options.md
+  d8052054a9b1e145 27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "2e5e91a0604ca350ec7586fa8f5d70633dedbbec",
+  "prompts": {
+    "d8052054a9b1e145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4942c902-5115-4eab-865a-1a2235de2f01",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2049,
+      "total_deletions": 3896,
+      "accepted_lines": 979,
+      "overriden_lines": 0
+    }
+  }
+}
