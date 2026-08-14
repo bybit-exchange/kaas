@@ -1030,6 +1030,118 @@ def test_the_two_prompt_versions_are_independent(monkeypatch):
     assert ex.extract_prompt_version() == extract_before
 
 
+# ── the source-order statement (supersession WP6) ───────────────────
+#
+# The payload now carries one dated block per source, oldest to newest, with the
+# undated ones last (WP5). Nothing told the writer that, and a sequence whose
+# meaning is never stated is a sequence the model is free to read backwards -- or
+# to read an undated block's trailing position as recency, which is a claim the
+# corpus cannot support.
+
+def test_source_order_statement_reaches_every_write_stage_prompt():
+    renderings = mg._write_stage_renderings()
+    assert renderings, "no write-stage prompts to check"
+    for name, text in renderings:
+        assert mg._SOURCE_ORDER in text, f"{name} carries no source-order statement"
+
+
+def test_source_order_statement_reaches_the_three_paths_as_sent(monkeypatch):
+    """It goes in the system prompt, not the user message (WP6), and
+    _write_stage_renderings agreeing with itself is not evidence the production
+    calls send it."""
+    sent: list[str] = []
+
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or "a")
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or {"patches": []})
+
+    mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
+    mg.create_new_article("concept", "C", [_block()])
+
+    assert len(sent) == 3
+    for system in sent:
+        assert mg._SOURCE_ORDER in system
+
+
+def test_source_order_statement_gives_the_direction_and_disclaims_the_undated():
+    """Wording is load-bearing, as it is for the grounding constraint. Both halves
+    of WP6 have to be there: which way the blocks run, and that an undated block's
+    position is not an ordering claim (S5). Half of it is worse than neither --
+    "blocks are ordered" with no disclaimer invites reading the undated tail,
+    which sorts last for determinism alone, as the newest material."""
+    text = mg._SOURCE_ORDER.lower()
+    assert "oldest to newest" in text
+    assert "undated" in text
+    assert "unknown" in text or "no ordering claim" in text
+
+
+def test_source_order_statement_names_the_label_the_renderer_emits():
+    """The statement quotes a literal line label. Renaming it in _block_header
+    would leave the prompt describing a line no payload contains, and the
+    renderer's own tests would move in the same edit without noticing."""
+    from datetime import date as _d
+
+    assert "`- Date:`" in mg._SOURCE_ORDER
+    assert "- Date:" in mg._block_header(_block(day=_d(2020, 1, 1)))
+
+
+def test_source_order_statement_grants_no_retraction():
+    """A1 adds a signal and no action (NG1, G4). The rewrite path returns a whole
+    article and could therefore drop text if asked to, so the statement must not
+    ask: the replace primitive and the [Superseded ...] trail are A2's, and a
+    prompt that pre-empts them would also contaminate the fixture arm that decides
+    whether A2 is needed at all (FX7)."""
+    text = mg._SOURCE_ORDER.lower()
+    for word in ("supersede", "superseded", "replace", "remove", "delete", "retract"):
+        assert word not in text, f"the source-order statement asks the writer to {word}"
+
+
+def test_write_prompt_version_moves_when_the_source_order_statement_changes(monkeypatch):
+    """PV1: WP6 edits every write-stage system prompt, so the hash has to move --
+    otherwise the lag report calls articles composed under the old prompts current."""
+    before = mg.write_prompt_version()
+
+    monkeypatch.setattr(mg, "_SOURCE_ORDER", mg._SOURCE_ORDER + "\n- one more rule")
+    mg.write_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != before
+
+
+def test_merge_rewrite_asks_for_every_source_in_the_frontmatter():
+    """The rule was written for a payload that handed the writer one flattened
+    source string to copy into `sources:`. It now gets N of them (WP3, WP4), and a
+    source missing from that list is a document `derive` will not copy into a
+    derived KB (derive/_sources.py reads exactly that key)."""
+    from kb_ai.prompts import default_registry
+
+    text = default_registry().get("merge-rewrite").render()
+
+    assert "add source to" not in text
+    # Asserted on the one rule that governs `sources:`, not on the whole prompt:
+    # "already" appears in an unrelated rule about not duplicating content, so a
+    # whole-text search would pass on a prompt that never says it here.
+    rule = next(line for line in text.splitlines() if "'sources'" in line)
+    assert "add every source" in rule
+    # Without an "unless it is already there", a revised document re-merging into
+    # an article that already names it adds a second identical item -- and a
+    # duplicate in an article's frontmatter is written once and read forever
+    # (the same reasoning _apply_diff's dedupe carries).
+    assert "already" in rule
+
+
+def test_create_prompt_asks_for_every_source_in_the_frontmatter():
+    """The same defect merge-rewrite.md carried, in the sibling path: the
+    frontmatter template shows one `sources:` item because the flattened payload
+    sent one path. `compile.py` is what writes a multi-source article's *initial*
+    list through here, and neither create nor rewrite repairs frontmatter in code
+    -- only _apply_diff does -- so completeness on this path is prompt-only."""
+    text = mg._create_system("concept")
+
+    assert "one item per path" in text
+
+
 # ── write-phase call timeout ────────────────────────────────────────
 
 def test_with_write_timeout_sets_and_restores(fresh_context):

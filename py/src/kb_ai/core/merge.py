@@ -299,9 +299,13 @@ def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
 
 
 def _render_blocks(blocks: Sequence[SourceBlock], budget_chars: int) -> str:
-    """Render blocks oldest to newest, allocating the budget newest first (BG1).
+    """Render blocks in the order given, allocating the budget newest first (BG1).
 
-    The rendered order is WP5's and does not change; only the order in which
+    Oldest to newest is the caller's guarantee, not this function's: every
+    production payload comes from ``build_source_blocks``, which sorts (WP5), and
+    the system prompt states that order to the model (_SOURCE_ORDER).
+
+    The rendered order is therefore WP5's and does not change; only the order in which
     blocks claim the budget does, which is ``_budget_priority``'s. Allocating in
     render order would spend the budget on the oldest source and cut the newest,
     which is backwards for the thing this increment exists to fix: whether a claim
@@ -589,25 +593,69 @@ composition about its subject:
 """
 
 
+# Appended to all three write-stage system prompts, after the grounding block
+# (supersession spec WP6).
+#
+# The payload changed shape under this increment: one block per source, dated
+# where the document dates itself, rendered oldest to newest with the undated ones
+# last (WP1, WP3, WP5). A sequence whose meaning is never stated is one the writer
+# is free to read either way -- and the undated tail is the trap, because it sorts
+# last for determinism and not for recency, so an unexplained order invites reading
+# the sources that make no recency claim as the newest material.
+#
+# In the system prompt rather than the user message because that is where an
+# instruction is applied reliably, and a code constant rather than a fourth prompt
+# file for _GROUNDING's reasons above: it has to reach all three system prompts,
+# one of which (_create_system) is already code, and a registry lookup would make
+# an operator's existing KAAS_PROMPTS_DIR raise NoActivePromptError on the first
+# write after upgrade.
+#
+# It states facts and asks for nothing. A1 carries the ordering signal and adds no
+# action: the merge paths cannot retract (merge-diff.md offers append_to_section
+# and new_section) and the rewrite path must not start, since it returns a whole
+# article and would be the one place A1 could destroy correct content (NG1, G4).
+# Telling the writer what to *do* about a contradiction is A2's replace primitive
+# and its [Superseded ...] trail — and saying it here would also spend the fixture
+# arm that exists to decide whether A2 is needed (FX7).
+#
+# Two known approximations in what it asserts, both narrower than the statement and
+# neither worth A1's scope to close. "One block per source" is one block per source
+# the budget kept: BG2 drops whole blocks the `Sources:` list still names. And
+# `_fit_block_to_budget`'s bare-source-line branch can emit a dated block's header
+# without its `- Date:` line, which reads here as a source making no ordering claim
+# -- the inverse of what that document says. It needs a source path longer than the
+# 200-character floor both callers apply, and the corpus maximum is 148.
+_SOURCE_ORDER = """
+Source order — the material you were given is one block per source document:
+- The blocks run oldest to newest. A block's `- Date:` line is the day that source
+  document is dated, which is not the day it was ingested or compiled.
+- A block with no `- Date:` line is undated. Undated blocks come last for
+  reproducibility, not because they are recent: where such a source sits among the
+  others is unknown, and its position carries no ordering claim to read.
+"""
+
+
 def _merge_rewrite_system() -> str:
-    """The rewrite path's system prompt, file plus grounding constraint.
+    """The rewrite path's system prompt: file, grounding constraint, source order.
 
     One function for the three callers that need it -- the budget calculation in
     merge_into_article, the send in _merge_full_rewrite, and the hash in
     _write_stage_renderings. Composed rather than sent verbatim, so a budget
-    computed from the file alone would under-reserve by the grounding block and a
-    hash over the file alone would not move when that block is edited.
+    computed from the file alone would under-reserve by the appended blocks and a
+    hash over the file alone would not move when one of them is edited.
     """
-    return default_registry().get("merge-rewrite").render() + "\n" + _GROUNDING
+    return (default_registry().get("merge-rewrite").render()
+            + "\n" + _GROUNDING + _SOURCE_ORDER)
 
 
 def _merge_diff_system() -> str:
-    """The diff path's system prompt, file plus grounding constraint.
+    """The diff path's system prompt: file, grounding constraint, source order.
 
     .content, not .render(): merge-diff.md holds literal `{...}` JSON example
     braces, which str.format would read as placeholders.
     """
-    return default_registry().get("merge-diff").content + "\n" + _GROUNDING
+    return (default_registry().get("merge-diff").content
+            + "\n" + _GROUNDING + _SOURCE_ORDER)
 
 
 @_with_write_timeout
@@ -617,6 +665,13 @@ def merge_into_article(
     sources: Sequence[SourceBlock],
     model: str = "claude-sonnet-4-6",
 ) -> str:
+    """Merge ``sources`` into an existing article, by rewrite or by diff.
+
+    ``sources`` is expected oldest to newest with the undated last -- what
+    ``build_source_blocks`` returns (WP5). The system prompt tells the model the
+    blocks arrive in that order (_SOURCE_ORDER), so a caller that sorts differently
+    makes the payload say something untrue rather than merely unordered.
+    """
     if len(article_content.encode("utf-8")) >= _LARGE_ARTICLE_THRESHOLD:
         return _merge_diff(article_path, article_content, sources, model)
 
@@ -887,13 +942,21 @@ def write_prompt_version() -> str:
     a write-prompt edit must not move the extraction's version, or every document
     would re-extract at full cost over a prompt extraction never used.
 
-    Reported, never gated. Both merge paths are additive -- merge-diff.md offers
-    only append_to_section and new_section, and merge-rewrite.md says nothing
-    about supersession -- so re-composing an article layers new content on top of
-    the old rather than replacing it. Feeding this into the composition gate would
-    inflate every article on a prompt edit and pay the full write phase to do it.
-    Until a supersession path exists, an operator reading the count is the useful
-    thing.
+    Reported, never gated (spec D5, PV1). Both merge paths are additive --
+    merge-diff.md offers only append_to_section and new_section, and merge-rewrite.md
+    says nothing about supersession -- so re-composing an article layers new content
+    on top of the old rather than replacing it. Feeding this into the composition
+    gate would inflate every article on a prompt edit and pay the full write phase
+    to do it.
+
+    The write prompts now state how the payload's source blocks are ordered
+    (_SOURCE_ORDER, WP6), which is what makes this value move for every existing
+    KB, so the first report after the upgrade names every article. That is noise
+    rather than spend, because nothing acts on it -- and it does not make gating any
+    more attractive: an article that exists is re-composed through the merge paths,
+    which are still the additive ones. A re-composition that could act on the
+    ordering, rather than merely be told it, needs the replace primitive and the
+    trail that A2 specifies.
 
     Memoized for the same reason as its extraction counterpart (B12): the registry
     caches lazily per name, so a long-lived daemon could otherwise hold
@@ -938,12 +1001,17 @@ updated: {{date}}
 {_section_guidance(article_type)}
 
 Write a well-structured article following the section guidance above.
-{_GROUNDING}
+{_GROUNDING}{_SOURCE_ORDER}
 
 The `summary` line is the article's entry in the knowledge-base catalog, which is
 the only surface a reader searches before opening anything. Write one sentence
 under 150 characters naming the specific things covered here — subsystems, key
 parameters, decisions — not a restatement of the title.
+
+The `sources:` list carries every path given under `- Sources:` above,
+one item per path — the template shows a single item because that is the shape of
+an item, not the count. A source left out of that list is a document no derived
+knowledge base will copy.
 
 Use [[wikilinks]] for references to related concepts.
 Return the complete article including frontmatter."""
@@ -956,6 +1024,12 @@ def create_new_article(
     sources: Sequence[SourceBlock],
     model: str = "claude-sonnet-4-6",
 ) -> str:
+    """Compose a new article from ``sources``.
+
+    Same ordering expectation as ``merge_into_article``: oldest to newest, undated
+    last, as ``build_source_blocks`` returns them (WP5), because the system prompt
+    states that order to the model (_SOURCE_ORDER).
+    """
     today = _date.today().isoformat()
 
     system = _create_system(article_type)

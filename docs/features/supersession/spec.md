@@ -369,13 +369,16 @@ path and report it as a general result.
 
 ### PV. Prompt version and rollout
 
-- **PV1.** `write_prompt_version` (`core/merge.py:504-533`) moves, because WP6
-  edits a system prompt and the hash covers the system prompt renderings
-  (`core/merge.py:528`). Per D5 it gates nothing, so the cost is a report saying
-  every article is behind — noise, not spend.
-- **PV2.** The `write_prompt_version` docstring at `core/merge.py:512-518` is
+- **PV1.** `write_prompt_version` (`core/merge.py:937-966`) moves, because WP6
+  edits all three system prompts and the hash covers the system prompt renderings
+  (`_write_stage_renderings`). Per D5 it gates nothing, so the cost is a report
+  saying every article is behind — noise, not spend.
+- **PV2.** The `write_prompt_version` docstring (`core/merge.py:939-966`) is
   updated. "Until a supersession path exists, an operator reading the count is the
-  useful thing" describes the world before A1.
+  useful thing" describes the world before A1. The same sentence is duplicated in
+  `storage/lag.py`'s module docstring, which is updated with it; `commands/check.py`
+  and `compile.py:635-638` carry the additive-merge claim only, which A1 leaves
+  true (NG1).
 - **PV3.** Existing articles are not revisited. A1 applies to future write ops.
 
 ### FX. Fixture and scoring
