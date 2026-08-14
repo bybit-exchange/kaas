@@ -808,6 +808,87 @@ def test_create_new_article_sends_exactly_the_prompt_that_was_hashed(monkeypatch
     assert captured["system"] == mg._create_system("project")
 
 
+def test_merge_full_rewrite_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
+    """The rewrite path composes its system prompt rather than sending the file
+    verbatim, so the hash and the send have to read the same helper."""
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured["system"] = kwargs["messages"][0]["content"]
+        return "article"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+
+    assert captured["system"] == mg._merge_rewrite_system()
+
+
+def test_merge_diff_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
+    captured = {}
+
+    def fake_completion_json(**kwargs):
+        captured["system"] = kwargs["messages"][0]["content"]
+        return {"patches": []}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+
+    assert captured["system"] == mg._merge_diff_system()
+
+
+# ── the grounding constraint (issue #42) ────────────────────────────
+#
+# The write phase emitted a `MiddlewaresConf` field that does not exist in go-zero
+# and an ordered middleware chain that appeared in no extraction. #41 fixed the
+# supply of enumerations; these cover the other half, which is that none of the
+# three system prompts told the writer to stay inside its input.
+
+def test_grounding_constraint_reaches_every_write_stage_prompt():
+    renderings = mg._write_stage_renderings()
+    assert renderings, "no write-stage prompts to check"
+    for name, text in renderings:
+        assert mg._GROUNDING in text, f"{name} carries no grounding constraint"
+
+
+def test_grounding_constraint_reaches_the_two_merge_paths_as_sent(monkeypatch):
+    """_write_stage_renderings could agree with itself and still hash text the
+    production call never sends, so assert on the sent messages too."""
+    sent: list[str] = []
+
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or "a")
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or {"patches": []})
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    mg.create_new_article("concept", "C", _extraction(), "raw/a.md")
+
+    assert len(sent) == 3
+    for system in sent:
+        assert mg._GROUNDING in system
+
+
+def test_grounding_constraint_names_enumerations_and_partial_sets():
+    """Wording is load-bearing here: a generic "be accurate" line is what the
+    prompts effectively already said. The two behaviours #42 needs are declining
+    to complete a set, and treating a given enumeration as closed."""
+    text = mg._GROUNDING.lower()
+    assert "enumerat" in text
+    assert "partial" in text or "incomplete" in text
+
+
+def test_write_prompt_version_moves_when_the_grounding_constraint_changes(monkeypatch):
+    before = mg.write_prompt_version()
+
+    monkeypatch.setattr(mg, "_GROUNDING", mg._GROUNDING + "\n- one more rule")
+    mg.write_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != before
+
+
 def test_the_two_prompt_versions_are_independent(monkeypatch):
     """A write-prompt edit must not move the extraction's version, or every
     document would re-extract at full cost over a prompt extraction never used."""

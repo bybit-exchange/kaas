@@ -103,16 +103,30 @@ because the result is a KB with two taxonomies in it.
 kb-ai check --kb ./.kaas
 ```
 
-Reads three things and writes nothing: whether every document's extraction still
+Reads four things and writes nothing: whether every document's extraction still
 matches the document beside it, whether the parent has moved since a derived KB
-was built (`unknown` for a KB that was not derived), and how far the wiki is
-behind the prompts that produced it. Safe to point at a read-only KB or someone
-else's.
+was built (`unknown` for a KB that was not derived), how far the wiki is behind
+the prompts that produced it, and whether any article names something that
+appears in none of its sources. Safe to point at a read-only KB or someone else's.
 
 The lag half is what a `compile` cannot tell you: editing a write prompt changes
 no document, so the next compile finds nothing to do and reports nothing. The
 counts are report-only — re-composing an article adds to it rather than replacing
 it, so a prompt edit is never a reason to pay the write phase again on its own.
+
+The grounding half looks for the failure in issue #42: an article stating a config
+field that no extraction behind it mentions. Each finding names the article, the
+name, and the line it sits on, so you can judge it in place. It reads only table
+rows and list items, and only names written as code spans or shaped like
+identifiers — so a name is worth looking at, but a quiet report is weak evidence
+rather than a clean bill.
+
+Expect findings on a knowledge base compiled before the extract prompt learned to
+carry enumerations: an identifier the extraction dropped is reported the same way
+as one the write phase invented, and the fix for both is a re-extract. Articles
+appear under `skipped` when an extraction they name is missing or was written
+before `schema_version: 2` — a KB that has not been re-extracted since skips every
+article, and the summary says so instead of reporting zero findings.
 
 ### 5. Wire up MCP so later sessions can query
 
