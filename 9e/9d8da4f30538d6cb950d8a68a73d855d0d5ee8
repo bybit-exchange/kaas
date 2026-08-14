@@ -1,0 +1,33 @@
+py/tests/test_scripts_stage_fixture.py
+  d8052054a9b1e145 1-185
+py/scripts/select_cases.py
+  d8052054a9b1e145 1-225
+docs/features/supersession/test-set.md
+  d8052054a9b1e145 157-158,162-164,166-178,182,185-195,363,366-371,374-387
+docs/features/supersession/spec.md
+  d8052054a9b1e145 433-446,457-462
+py/scripts/stage_fixture.py
+  d8052054a9b1e145 1-142
+py/tests/test_scripts_select_cases.py
+  d8052054a9b1e145 1-265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "9e9d8da4f30538d6cb950d8a68a73d855d0d5ee8",
+  "prompts": {
+    "d8052054a9b1e145": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4942c902-5115-4eab-865a-1a2235de2f01",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 978,
+      "total_deletions": 846,
+      "accepted_lines": 890,
+      "overriden_lines": 0
+    }
+  }
+}
