@@ -1,4 +1,5 @@
 import os
+import posixpath
 import sys
 import threading
 import time
@@ -40,7 +41,15 @@ from kb_ai.core.merge import (
     merge_into_article,
     write_prompt_version,
 )
+from kb_ai.derive import parse_sources
 from kb_ai.storage.lag import wiki_lag
+from kb_ai.storage.lineage import (
+    DocumentFacts,
+    LineageGroup,
+    known_person_names,
+    lineage_groups,
+    read_document_facts,
+)
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
@@ -110,6 +119,83 @@ def _under_wiki(store: KBStore, art_path: str) -> bool:
         return False
     wiki_root = store.wiki_dir.resolve()
     return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
+
+
+def _lineage_report(store: KBStore, done_articles: dict[str, set],
+                    people_cfg: list, log) -> dict[str, list[dict]]:
+    """Name the articles that received two versions of one document (spec RP3).
+
+    Runs after the last write op and returns a report. It is not consulted by
+    anything and reaches no prompt (RP5): the rule is a heuristic over titles, and
+    letting a heuristic decide what an article says is what D2's gate on build path
+    B refuses. What the operator gets is where to look.
+
+    "Share an article" spans both this run's ops and the paths already under the
+    article's ``sources:``, because the case that matters most has them in different
+    runs: the staged fixture compiles version N into the wiki version N-1 produced
+    (FX2), so the earlier member is on disk rather than in hand, and a report built
+    from this run alone would be silent on exactly the merge paths A1 is measured on.
+
+    Marked groups are listed first. A recurring meeting series has one fixed title
+    and a new ``id`` per occurrence, so it is a lineage group by any title rule --
+    37 of the 41 (article, group) pairs on the reference corpus are one, against 4
+    real version chains. The marker is what separates them, and it is a sort key rather
+    than a filter because three of the six shape-B fixture positives carry no marker
+    either. Both counts are stated so the ratio is visible rather than implied.
+    """
+    articles: dict[str, set[str]] = {}
+    for rel, arts in done_articles.items():
+        for art in arts:
+            articles.setdefault(art, set()).add(rel)
+    if not articles:
+        return {}
+
+    person_names = known_person_names(store.wiki_dir, people_cfg)
+    facts: dict[str, DocumentFacts] = {}
+    found: list[tuple[str, LineageGroup]] = []
+
+    for art, run_sources in articles.items():
+        entries, _reason = parse_sources(store, art)
+        # `sources:` is LLM-written (derive/_sources.py says so at more length), so
+        # an entry naming something outside raw/ is discarded rather than read: a
+        # compiled article joining a lineage group would report a document chain
+        # nobody ingested.
+        members = set(run_sources) | {e for e in (entries or [])
+                                      if posixpath.normpath(e).startswith("raw/")}
+        for rel in sorted(members):
+            if rel not in facts:
+                facts[rel] = read_document_facts(store.read_raw, rel)
+        for group in lineage_groups((facts[rel] for rel in sorted(members)),
+                                   person_names):
+            found.append((art, group))
+
+    if not found:
+        return {}
+
+    found.sort(key=lambda item: (not item[1].versioned, item[1].title.casefold(),
+                                 item[0]))
+    report: dict[str, list[dict]] = {}
+    for art, group in found:
+        report.setdefault(art, []).append({
+            "title": group.title,
+            "source": group.source,
+            "members": list(group.members),
+            "versioned": group.versioned,
+        })
+
+    marked = sum(1 for _art, group in found if group.versioned)
+    log(f"Lineage: {len(found)} lineage group(s) across {len(report)} article(s) "
+        f"({marked} with a version marker, {len(found) - marked} without — an "
+        "unmarked group is as likely to be a recurring series as a version chain); "
+        "merge cannot retract, so the earlier version's content is still there:")
+    for art, group in found:
+        members = ", ".join(
+            rel + (f" ({facts[rel].date.isoformat()})" if facts[rel].date else "")
+            for rel in group.members)
+        log(f"  [lineage] {art} ← {group.title!r} "
+            f"({group.source or 'no source'}"
+            f"{', version-marked' if group.versioned else ''}): {members}")
+    return report
 
 
 def compile_kb(
@@ -647,6 +733,11 @@ def compile_kb(
             for rel, arts in sorted(revised_articles.items()):
                 log(f"  [revised] {rel} → {', '.join(arts)}")
 
+        # The other half of the same report. Shape A above is a document re-fetched
+        # after an edit; shape B is v1 and v2 ingested as two documents, which no
+        # `id` connects and only the title betrays (RP3).
+        lineage = _lineage_report(store, _file_done_articles, people_cfg, log)
+
         log(f"Compile done: {compiled} compiled, {extracted} extracted, "
             f"{len(errors)} errors, ${tracker.total_cost:.4f} total")
 
@@ -677,6 +768,10 @@ def compile_kb(
         # Documents whose extraction overwrote an existing one, mapped to the
         # articles they were merged into (C11). Empty on a first compile.
         "revised": revised_articles,
+        # Articles that received more than one version of the same document, by the
+        # title rule (RP3). Report only: nothing here reached a prompt, and nothing
+        # here changed what was written.
+        "lineage": lineage,
         # How far the wiki is behind each gate's prompts (G5). Counts only, since
         # `kb-ai check` names the documents for free. The first_run flags are per
         # gate: each says "no entry records a version for THIS gate", which is what

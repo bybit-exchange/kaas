@@ -24,7 +24,7 @@ the fix should look like, which is the gap this fills.
 checksum moves, extraction re-runs, and the write phase merges the new extraction
 into the article that the old text already contributed to. Detected: the compile
 records these as revised documents and names the articles a human should re-read
-(`py/src/kb_ai/commands/compile.py:329`, `:632-640`). Not fixed: the merge that
+(`py/src/kb_ai/commands/compile.py:415`, `:721-734`). Not fixed: the merge that
 follows can only add.
 
 **Shape B — v1 and v2 are two separate documents.** `raw/plan-v1.md` and

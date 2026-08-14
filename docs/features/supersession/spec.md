@@ -25,8 +25,12 @@ build path A ships first — a replace primitive, the document date carried to t
 writer, and per-source blocks instead of one flat bag (D2).
 
 Reading the write path against those decisions splits path A in two, and that
-split is why this spec exists. `compile.py` writes through four call shapes, not
-two — three off the merge ops and one more off the create ops:
+split is why this spec exists. `compile.py` wrote through four call shapes, not
+two — three off the merge ops and one more off the create ops. The code below is
+the write path **as it stood before A1**, quoted because that is the inventory the
+split was reasoned from; steps 2–4 have since moved all seven call sites onto
+`build_source_blocks` (WP4) and retired `_combine_extractions`, so the line
+anchors resolve in this spec's history rather than in the file today:
 
 ```python
 # py/src/kb_ai/commands/compile.py:533   article does not exist
@@ -92,7 +96,7 @@ path and report it as a general result.
 ## Non-goals
 
 - **NG1. The replace primitive (A2).** No new action in `merge-diff.md` or
-  `merge-rewrite.md`. The comment at `compile.py:628` — "merge paths are additive
+  `merge-rewrite.md`. The comment at `compile.py:722` — "merge paths are additive
   -- merge-diff.md offers only append_to_section and new_section" — stays true
   after A1 and changes only with A2.
 - **NG2. The `[Superseded …]` trail (A2).** A1 emits no markers. On `merge→create`
@@ -297,8 +301,9 @@ path and report it as a general result.
   existing file on a bump, re-extracting the whole KB at 0.0551 USD per document.
 - **WP3.** `_combine_extractions` (`core/extract.py:778`) stops flattening. The
   user message emits one labelled block per source.
-- **WP4.** Seven call sites move to the new shape, not four. `create_new_article`
-  and `merge_into_article` take `extraction: ExtractionResult, source_path: str`
+- **WP4.** Seven call sites move to the new shape, not four. Anchors here are
+  pre-A1, like the Background inventory they came from. `create_new_article` and
+  `merge_into_article` took `extraction: ExtractionResult, source_path: str`
   (`core/merge.py:247-252`, `:574-579`), so changing that signature reaches the
   single-source callers as well: `compile.py:492`, `:495` and `:558` each pass one
   block. The four combined callers — `compile.py:533`, `:570`,
@@ -351,21 +356,63 @@ path and report it as a general result.
   evidence of retraction: extraction is lossy summarization, and under A1 the
   writer never sees raw text, so absence and "not extracted" are
   indistinguishable at the point of decision.
-- **RP2.** Shape A dropped claims are already reported. `compile.py:329` marks a
-  re-extracted document as revised and `:632-640` names the articles still
+- **RP2.** Shape A dropped claims are already reported. `compile.py:415` marks a
+  re-extracted document as revised and `:721-734` names the articles still
   carrying the previous version. A1 verifies this still fires; it does not rebuild
-  it.
-- **RP3.** Shape B dropped claims get a new report line: a lineage group whose
-  members share an article, where the earlier member asserts something the later
-  one does not. Report only.
-- **RP4.** The lineage rule for RP3 is the one [test-set.md](test-set.md) already
-  validated on the corpus — same title after stripping a trailing version marker,
-  different `id` — including both exclusion rules the data forced out:
-  cross-source title collisions (a document and the recording of the meeting about
-  it) and person-name collisions.
+  it. The one place A1 could have broken it is WP7: two paths holding identical
+  bytes now contribute one block, and a revised document on the collapsed path must
+  still name its article. It does — the ops bookkeeping reads the merge list rather
+  than the surviving blocks — and that is pinned by a test rather than left to the
+  comment that says so.
+- **RP3.** Shape B gets a new report line: a lineage group whose members share an
+  article. Report only. **The "where the earlier member asserts something the later
+  one does not" condition is dropped**, because it selects nothing: measured over
+  the corpus's stored extractions, a claim-text comparison fires on 35 of the 35
+  checkable (article, group) pairs at every threshold from 0.55 up (331 claims
+  flagged at 0.55, 385 at 0.80), and the best-match similarity distributions do not
+  separate — median 0.47 on real version pairs against 0.36 on recurring series.
+  Claims are restated in new words between versions, so "not present in the later
+  member" is the normal case rather than the exceptional one. The cheap proxy fails
+  in the other direction: "the later member asserts fewer claims" holds for 14 of
+  those 35 pairs and *excludes* P6, the one adjudicated shape-B success, whose claim
+  count grows 26 → 33. An LLM judge would decide it, and RP5 forbids one. So the
+  report names the group and leaves the reading to the operator, which is what G3
+  asks for.
+- **RP4.** The lineage rule for RP3 is the one [test-set.md](test-set.md) validated
+  on the corpus — same title after stripping a trailing version marker, different
+  `id` — including both exclusion rules the data forced out: cross-source title
+  collisions (a document and the recording of the meeting about it) and person-name
+  collisions. Three details the reconstruction had to settle, because the script
+  that produced test-set.md's counts was thrown away and only its output survived:
+  - The marker requires a `v`. A bare trailing number would collapse `Cost Report
+    2025` and `Cost Report 2026` into one chain, and an operator cannot tell that
+    error from a real group. Both bracket forms and any number of dotted components
+    count: the corpus holds `(v3)`, which the original script matched, and `v1.0.0`,
+    which it did not — so it reported one group fewer than the data has. Titles are
+    compared case-insensitively for the same reason, which the original was not.
+  - The cross-source exclusion is implemented as `source` being part of the grouping
+    key, so it excludes the *pairing* rather than the title: two recordings of one
+    meeting share a source and stay a group, while the design document under the
+    same title is not joined to them.
+  - Person names come from the KB's person pages *and* from the configured people
+    allowlist, since the pages are stubs a later phase generates and a one-to-one
+    ingested on a first compile would otherwise read as a version chain.
+
+  What the rule cannot do, recorded because RP3's usefulness rests on it: a
+  recurring meeting series has one fixed title and a new `id` per occurrence, so it
+  is a lineage group by any title rule. Of the 41 (article, group) pairs on the
+  reference corpus, 4 are real version chains and 37 are recurring series — one
+  daily standup series contributes 11 members to a single article. The version
+  marker is reported as a triage key and marked groups are listed first, but it is
+  not a filter: P7, P8 and P9 are shape-B positives whose two versions share a title
+  verbatim, so filtering on the marker would silence three of the six cases A1 is
+  scored on.
 - **RP5.** Nothing from RP3 or RP4 is fed to the model. It informs an operator; it
   does not enter a prompt. That is what keeps the lineage heuristic clear of D2's
-  gate on build path B.
+  gate on build path B. Held structurally rather than by inspection: the rule lives
+  in `storage/lineage.py`, `core/merge.py` does not import it (asserted over the
+  module's imports), the writer's entry points take source blocks and nothing else,
+  and the report is built after the last write op.
 
 ### PV. Prompt version and rollout
 
@@ -377,7 +424,7 @@ path and report it as a general result.
   updated. "Until a supersession path exists, an operator reading the count is the
   useful thing" describes the world before A1. The same sentence is duplicated in
   `storage/lag.py`'s module docstring, which is updated with it; `commands/check.py`
-  and `compile.py:635-638` carry the additive-merge claim only, which A1 leaves
+  and `compile.py:721-725` carry the additive-merge claim only, which A1 leaves
   true (NG1).
 - **PV3.** Existing articles are not revisited. A1 applies to future write ops.
 
@@ -417,7 +464,12 @@ path and report it as a general result.
   and identical checksums.
 - **VF3.** Unit tests for newest-first budget allocation (BG1–BG4) under a budget
   too small for all blocks, asserting which block survives.
-- **VF4.** Unit tests for the lineage rule (RP4), including both exclusion cases.
+- **VF4.** Unit tests for the lineage rule (RP4), including both exclusion cases —
+  the cross-source one in both its forms, dropped and split — every version-marker
+  shape the corpus holds and the bare trailing number that must not count as one,
+  and member ordering matching WP5's. Plus RP5 held structurally: the write phase's
+  imports are asserted to name nothing from the rule, and a compile that fires the
+  report is asserted to hand the writer source blocks carrying no judgement.
 - **VF5.** Go tests for submit with a valid `date`, without one, and with an
   unparseable one, asserting the frontmatter written and the resulting
   `ContentHash` (RT1–RT4), plus each RT9 branch: a document that dates itself

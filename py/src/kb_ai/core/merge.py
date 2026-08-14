@@ -6,10 +6,9 @@ import json
 import sys
 from dataclasses import dataclass
 from datetime import date as _date
-from datetime import datetime
 from typing import Callable, Sequence
 
-from kb_ai._frontmatter import read_document_frontmatter
+from kb_ai._frontmatter import as_day, read_document_frontmatter
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
@@ -104,37 +103,6 @@ class SourceBlock:
     date: _date | None = None
 
 
-def _as_day(value: object) -> _date | None:
-    """Narrow whatever YAML resolved a ``date`` key to into a day, or None.
-
-    Three shapes arrive from real documents, because the submit route has no YAML
-    parser and cannot tell a date from a string that looks like one (spec RT10),
-    so it preserves what it was given and this is where it is resolved (WP8):
-    ``datetime.date`` for a plain ISO day, ``datetime.datetime`` for a stamp, and
-    ``str`` for a quoted one.
-
-    Stamps are narrowed to their day rather than kept, because ``datetime`` is a
-    subclass of ``date`` that refuses to be compared with one: a corpus holding
-    both kinds -- which the reference KB does -- raises TypeError the moment the
-    two end up in one sort key. Sub-day ordering is the cost, and version chains
-    are days or weeks apart.
-
-    Anything else is None, which sorts the block with the undated ones instead of
-    inventing a day the document never claimed: ``date: 2020`` is an int to YAML,
-    and reading it as January 1st is a fabricated ordering signal.
-    """
-    if isinstance(value, datetime):
-        return value.date()
-    if isinstance(value, _date):
-        return value
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value.strip()).date()
-        except ValueError:
-            return None
-    return None
-
-
 def _document_date(read_raw: Callable[[str], str], source_path: str) -> _date | None:
     """The day a raw document dates itself, read at write time (spec WP2, D4).
 
@@ -158,7 +126,7 @@ def _document_date(read_raw: Callable[[str], str], source_path: str) -> _date | 
         print(f"[merge] no date read for {source_path}: {e}", file=sys.stderr, flush=True)
         return None
     frontmatter, _body = read_document_frontmatter(content)
-    return _as_day(frontmatter.get("date"))
+    return as_day(frontmatter.get("date"))
 
 
 def build_source_blocks(

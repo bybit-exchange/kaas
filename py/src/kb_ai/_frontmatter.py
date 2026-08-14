@@ -15,6 +15,7 @@ spec RT6, D4), and duplicating the skip rules is how the two would drift.
 from __future__ import annotations
 
 import re
+from datetime import date, datetime
 
 import yaml
 
@@ -139,3 +140,39 @@ def read_document_frontmatter(content: str) -> tuple[dict, str]:
     except _UNPARSEABLE:
         return {}, split[1]
     return (fm if isinstance(fm, dict) else {}), split[1]
+
+
+def as_day(value: object) -> date | None:
+    """Narrow whatever YAML resolved a ``date`` key to into a day, or None.
+
+    Three shapes arrive from real documents, because the submit route has no YAML
+    parser and cannot tell a date from a string that looks like one (spec RT10),
+    so it preserves what it was given and this is where it is resolved (WP8):
+    ``datetime.date`` for a plain ISO day, ``datetime.datetime`` for a stamp, and
+    ``str`` for a quoted one.
+
+    Stamps are narrowed to their day rather than kept, because ``datetime`` is a
+    subclass of ``date`` that refuses to be compared with one: a corpus holding
+    both kinds -- which the reference KB does -- raises TypeError the moment the
+    two end up in one sort key. Sub-day ordering is the cost, and version chains
+    are days or weeks apart.
+
+    Anything else is None, which sorts the block with the undated ones instead of
+    inventing a day the document never claimed: ``date: 2020`` is an int to YAML,
+    and reading it as January 1st is a fabricated ordering signal.
+
+    Beside the reader rather than in ``core.merge``, because the write phase is no
+    longer the only caller: the lineage report orders a group's members by the same
+    dates (RP3), and two narrowings that disagreed would order the members one way
+    and the writer's blocks the other.
+    """
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.strip()).date()
+        except ValueError:
+            return None
+    return None

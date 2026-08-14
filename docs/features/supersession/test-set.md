@@ -51,7 +51,12 @@ Provenance is recorded honestly: `prompt_version: legacy-extract-cache`, so
 by a prompt nobody can identify. Two consequences worth stating:
 
 - The migrated payloads are usable for label drafting at zero cost, but a compile
-  of any subset re-extracts it at 0.0551 USD per document.
+  of any subset re-extracts it at 0.0551 USD per document. **Not through the
+  loader, as of 2026-08-14**: they were serialized at `schema_version: 1` and
+  `storage/extraction.py` now reads 2, so `extraction.load` refuses all 982 with
+  `unsupported schema_version`. The files are still readable as text — the RP3
+  measurements above parsed them directly — but FX3's label drafting needs them
+  re-serialized through the current serializer first, which is still free.
 - The existing `wiki/` is a historical artifact, compiled by prompt versions that
   no longer exist. It is evidence that the failure mode occurs; it is not a
   baseline any run can reproduce. The baseline has to be re-measured.
@@ -130,7 +135,23 @@ all 996 documents. That gives lineage without any judgement call:
   Identical `checksum` means the same bytes were ingested twice under two
   filenames: 55 groups.
 - **Shape B** (v1 and v2 as separate documents): same title after stripping a
-  trailing version marker, different `id`. 40 groups.
+  trailing version marker, different `id`. 42 groups.
+
+**Corrected 2026-08-14, when the rule became code** (`storage/lineage.py`, spec
+RP4). The script that produced the counts above was thrown away and only its output
+survived, so the rule was reconstructed against that output. It reproduces all 40 of
+those shape-B groups and finds two more, both from limits of the original script
+rather than from a looser rule:
+
+- `Bybit Skill Testnet 测试报告` at `v1.0.0`. The original marker did not match a
+  three-part version, though it did match `(v3)`. A genuine group, so 41 by title.
+- A `raw/docs` and `raw/local` copy of one all-hands document whose titles differ
+  only in capitalisation, which the original compared case-sensitively. It is a
+  cross-source collision, so the exclusion below removes it either way — 42 titles
+  match, 41 of them are groups worth counting.
+
+Applying the two exclusions leaves **38** groups after the cross-source rule and
+**37** after the person-name rule.
 
 Line-level diffstat then separates the ones worth labelling from the ones that
 only look like revisions. Strata, over all 134 lineage groups:
@@ -153,9 +174,19 @@ Two exclusion rules were needed and both come from the data:
 - **Cross-source title collisions are not lineage.** `raw/docs/` and
   `raw/meetings/` can hold a document and the recording of the meeting that
   discussed it under the same title. Similarity near zero, and neither
-  supersedes the other. Two groups excluded.
+  supersedes the other. Two groups excluded — four titles collide across sources
+  once the marker forms above are matched, and the implemented rule splits rather
+  than drops them, so two members that do share a source stay a group.
 - **A person's name is not a document title.** Three meetings named `Cara`
   collide under the Shape B rule. Excluded.
+
+One more thing the corpus says, found when RP3 was wired up and load-bearing for
+the report's usefulness rather than for these counts: a recurring meeting series has
+one fixed title and a new `id` per occurrence, so it satisfies the Shape B rule
+exactly. Of the 41 (article, group) pairs the rule reports over `wiki/`, 4 are real
+version chains and 37 are recurring series — `AI团队日会` alone puts 11 members in one
+article. That is why the report carries a version-marker flag, and why the flag is
+not a filter: P7, P8 and P9 are positives whose two versions share a title verbatim.
 
 ## The cases
 
