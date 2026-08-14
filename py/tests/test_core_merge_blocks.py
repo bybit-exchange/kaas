@@ -7,10 +7,10 @@ date reached the writer on any route. These tests pin the replacement -- one
 labelled block per source, ordered oldest to newest, dated from the document's
 own frontmatter.
 
-Budget allocation across blocks is deliberately shallow here: step 2 splits the
-budget evenly with the unused share carried forward, and BG1-BG4 (newest-first
-priority, whole-block drops, a notice naming the dropped source) land in step 3
-with VF3.
+Budget allocation is here too (BG1-BG4 with VF3): newest dated block first and
+undated blocks last, whole blocks dropped from the bottom of that order rather
+than left broken, each dropped source named, and a budget too small for even the
+first block spent on truncating that one instead of emitting nothing.
 """
 from __future__ import annotations
 
@@ -274,28 +274,178 @@ def test_a_single_block_still_gets_the_whole_budget():
     assert mg._render_blocks([block], 100_000) == mg._fit_block_to_budget(block, 100_000)
 
 
-def test_the_budget_is_shared_so_no_block_is_starved():
-    """Step 2's interim allocation. Under a budget that fits neither block whole,
-    both still appear -- the newest is not squeezed out by the oldest getting
-    first call on the whole budget. BG1 replaces this with newest-first priority
-    and whole-block drops in step 3."""
+# ── budget allocation (BG1-BG4, VF3) ────────────────────────────────
+
+def test_the_newest_block_survives_a_budget_that_fits_only_one():
+    """BG1. Allocating in render order spends the budget on the oldest source and
+    cuts the newest, which is backwards: supersession is a question about what
+    the latest document says. Step 2's even split kept both and cut both."""
     blocks = _blocks(
         ("raw/old.md", date(2020, 1, 1), _extraction(summary="o" * 4000)),
         ("raw/new.md", date(2021, 1, 1), _extraction(summary="n" * 4000)),
     )
 
-    text = mg._render_blocks(blocks, 2000)
+    text = mg._render_blocks(blocks, 4200)
 
-    assert "- Source: raw/old.md" in text
     assert "- Source: raw/new.md" in text
-    assert len(text) <= 2000
+    assert "n" * 4000 in text, "the surviving block is whole"
+    assert "raw/old.md" not in text
+    assert len(text) <= 4200
+
+
+def test_an_undated_block_gives_way_before_any_dated_one():
+    """BG1 over WP5's order, not against it. Undated blocks sort last for
+    determinism and WP6 tells the model their position carries no ordering claim,
+    so taking the render order and reversing it would put them first in the queue
+    and drop the one source known to be newest -- BG1 inverted on a guess. Checked
+    against a dated block newer *and* older than the undated one, because the
+    undated one outranks neither."""
+    for day in (date(2021, 1, 1), date(2019, 1, 1)):
+        blocks = _blocks(
+            ("raw/dated.md", day, _extraction(summary="d" * 3000)),
+            ("raw/unknown.md", None, _extraction(summary="u" * 3000)),
+        )
+        budget = mg._estimate_block_size(blocks[0]) + 100
+
+        text = mg._render_blocks(blocks, budget)
+
+        assert "raw/dated.md" in text, f"dated {day} lost to an undated block"
+        assert "raw/unknown.md" not in text
+
+
+def test_sources_dated_the_same_day_claim_the_budget_in_path_order():
+    """The tiebreak among equal dates, in the same direction as the undated one.
+    Reversing the dated list instead of sorting it made same-day sources claim in
+    descending path order, which decides real drops: 160 of the 395 multi-source
+    articles in the reference KB have two sources sharing a day. Blocks are handed
+    over in a deliberately unsorted order, because the queue is not allowed to
+    inherit its tiebreak from however the caller built the list."""
+    blocks = _blocks(
+        ("raw/b.md", date(2021, 1, 1), _extraction(summary="b" * 2000)),
+        ("raw/a.md", date(2021, 1, 1), _extraction(summary="a" * 2000)),
+    )
+    budget = mg._estimate_block_size(blocks[0]) + 100
+
+    text = mg._render_blocks(blocks, budget)
+
+    assert "raw/a.md" in text and "raw/b.md" not in text
+
+
+def test_a_block_that_is_nothing_but_its_header_still_fits_whole():
+    """The boundary the fits-whole branch creates: an extraction with every
+    priority field empty estimates at exactly its header, and a budget of exactly
+    that much used to be refused -- so a block measured as fitting whole came back
+    without its date line, silently, with the rest of the budget unspent. Losing
+    the date is not cosmetic: WP6 reads an absent date as "makes no ordering
+    claim", which is the opposite of what this document says about itself."""
+    blocks = _blocks(
+        ("raw/old.md", date(2019, 2, 1), _extraction()),
+        ("raw/new.md", date(2021, 11, 1), _extraction()),
+    )
+    needed = sum(mg._estimate_block_size(b) for b in blocks) + 1
+
+    text = mg._render_blocks(blocks, needed)
+
+    assert text.count("- Date:") == 2
+    assert len(text) == needed
+
+
+def test_undated_blocks_claim_the_budget_in_path_order():
+    """The tiebreaker among sources that make no recency claim is the one WP5
+    already imposed, so two runs over one KB drop the same block. Handed over
+    out of path order, so the sort is doing the work and not the caller."""
+    blocks = _blocks(
+        ("raw/b.md", None, _extraction(summary="b" * 2000)),
+        ("raw/a.md", None, _extraction(summary="a" * 2000)),
+    )
+    budget = mg._estimate_block_size(blocks[0]) + 100
+
+    text = mg._render_blocks(blocks, budget)
+
+    assert "raw/a.md" in text and "raw/b.md" not in text
+
+
+def test_a_block_that_does_not_fit_is_dropped_whole():
+    """BG2. A block cut to its header and a halved enumeration is worse than no
+    block: the writer cannot tell a thin source from a truncated one, and #41's
+    partial-set failure is exactly what a broken block hands it."""
+    blocks = _blocks(
+        ("raw/old.md", date(2020, 1, 1), _extraction(summary="o" * 3000)),
+        ("raw/mid.md", date(2021, 1, 1), _extraction(summary="m" * 1000)),
+        ("raw/new.md", date(2022, 1, 1), _extraction(summary="n" * 1000)),
+    )
+    ample = 100_000
+    keepers = [mg._fit_block_to_budget(b, ample) for b in blocks[1:]]
+
+    text = mg._render_blocks(blocks, 2500)
+
+    assert "raw/old.md" not in text
+    assert text == "\n".join(keepers), "survivors are whole, in oldest-to-newest order"
+
+
+def test_survivors_are_always_the_newest_run_never_a_hole_in_the_middle():
+    """BG2 drops from the bottom of the priority order and stops there: dropping
+    whichever block happens not to fit and carrying on would keep an old source
+    over a newer one, so the payload would read as a set of sources with a gap the
+    writer cannot see. Every block here is dated, so the priority order is the
+    render order reversed and the survivors are a suffix of the newest end.
+
+    The middle block is the large one on purpose: with the oldest block largest,
+    skipping past a block that does not fit would leave nothing behind it small
+    enough to keep, and the two policies would be indistinguishable."""
+    sizes = {0: 200, 1: 2000, 2: 300}
+    blocks = _blocks(*[(f"raw/{i}.md", date(2020, i + 1, 1),
+                        _extraction(summary=str(i) * sizes[i])) for i in range(3)])
+
+    for budget in range(0, 3000, 97):
+        text = mg._render_blocks(blocks, budget)
+        present = [f"raw/{i}.md" in text for i in range(3)]
+        # A suffix of the newest end: once a block is present, every newer one is.
+        assert present == sorted(present), f"budget {budget} kept {present}"
+
+
+def test_the_dropped_source_is_named_on_stderr(capsys):
+    """BG3. The cut notice already names its source; a drop emitted nothing at
+    all, so the one source that contributed no content to the article was the one
+    the operator had no way to find."""
+    blocks = _blocks(
+        ("raw/old.md", date(2020, 1, 1), _extraction(summary="o" * 4000)),
+        ("raw/new.md", date(2021, 1, 1), _extraction(summary="n" * 4000)),
+    )
+
+    mg._render_blocks(blocks, 4200)
+
+    err = capsys.readouterr().err
+    assert "raw/old.md" in err
+    assert "raw/new.md" not in err, "the block that was kept whole was not cut"
+
+
+def test_a_budget_too_small_for_the_newest_block_truncates_it(capsys):
+    """BG4. Dropping every block because none fits whole would send the writer an
+    article and no new information at all, and it would do it silently -- the
+    merge would look successful and change nothing."""
+    blocks = _blocks(
+        ("raw/old.md", date(2020, 1, 1), _extraction(summary="o" * 4000)),
+        ("raw/new.md", date(2021, 1, 1), _extraction(summary="n" * 4000)),
+    )
+
+    text = mg._render_blocks(blocks, 600)
+
+    assert "- Source: raw/new.md" in text
+    assert "n" * 500 in text, "truncated by field priority, not emptied"
+    assert "raw/old.md" not in text
+    assert len(text) <= 600
+    err = capsys.readouterr().err
+    assert "raw/new.md" in err, "BG3: the cut source is named"
+    assert "raw/old.md" in err, "BG3: so is the dropped one"
 
 
 def test_every_block_is_rendered_whole_when_the_budget_can_hold_them_all():
-    """An even split of an *adequate* budget is loss for nothing: a block larger
-    than its share is truncated while the remainder goes unspent, because the
-    carry only flows forward. The flattened payload it replaces had one budget
-    for the whole bag and would not have cut anything here.
+    """An adequate budget cuts nothing, however unevenly the blocks are sized:
+    each one is measured against everything left rather than a share of it, so a
+    block twenty times its neighbour still comes out whole. The flattened payload
+    this replaces had one budget for the whole bag and would not have cut
+    anything here either.
 
     Measured on the shape that makes it worst: the first field to go is
     enumerations, the one field truncation cannot degrade gracefully (issue #41).
@@ -327,32 +477,37 @@ def test_a_budget_exactly_large_enough_still_renders_everything():
     assert len(mg._render_blocks(blocks, needed)) == needed
 
 
-def test_one_char_short_of_whole_still_respects_the_budget():
-    """The boundary just below "everything fits": the blocks would fit but the
-    separators between them would not, so the allocation has to share instead.
-    The budget holds either way -- the separators are deducted before any share is
-    computed -- and this pins that the switch does not lose the invariant."""
+def test_one_char_short_of_whole_drops_the_oldest_block():
+    """The boundary just below "everything fits": both blocks would fit but the
+    separator between them would not. One char is enough to cost the oldest source
+    its whole block -- the alternative is two blocks cut by a character each, which
+    is a broken block under BG2 for the sake of one character."""
     blocks = _blocks(
         ("raw/a.md", date(2020, 1, 1), _extraction(summary="a" * 900)),
         ("raw/b.md", date(2021, 1, 1), _extraction(summary="b" * 300)),
     )
     needed = sum(mg._estimate_block_size(b) for b in blocks) + 1
 
-    assert len(mg._render_blocks(blocks, needed - 1)) <= needed - 1
+    text = mg._render_blocks(blocks, needed - 1)
+
+    assert text == mg._fit_block_to_budget(blocks[1], needed - 1)
+    assert len(text) <= needed - 1
 
 
-def test_an_unused_share_carries_forward():
-    """A block that needs less than its share does not waste the remainder."""
+def test_the_block_after_the_newest_gets_everything_the_newest_left():
+    """Not a share of it. The newest block is allocated first and whole, and what
+    it leaves is the next block's entire budget -- so a block larger than half of
+    what remains still comes out intact, which step 2's even split could not do."""
     blocks = _blocks(
-        ("raw/small.md", date(2020, 1, 1), _extraction(summary="s")),
-        ("raw/big.md", date(2021, 1, 1), _extraction(summary="b" * 3000)),
+        ("raw/old.md", date(2020, 1, 1), _extraction(summary="o" * 1400)),
+        ("raw/new.md", date(2021, 1, 1), _extraction(summary="n" * 1000)),
     )
+    sizes = [mg._estimate_block_size(b) for b in blocks]
+    budget = sum(sizes) + 1
 
-    text = mg._render_blocks(blocks, 2000)
-    big_block = text.split("\n\n")[1]
-
-    assert len(big_block) > 1000
-    assert len(text) <= 2000
+    assert sizes[0] > budget // 2, "the case only discriminates if a split would cut"
+    assert mg._render_blocks(blocks, budget) == "\n".join(
+        mg._fit_block_to_budget(b, 100_000) for b in blocks)
 
 
 def test_rendering_never_exceeds_the_budget_it_was_given():
@@ -363,6 +518,39 @@ def test_rendering_never_exceeds_the_budget_it_was_given():
 
     for budget in (0, 1, 60, 200, 613, 1000):
         assert len(mg._render_blocks(blocks, budget)) <= budget
+
+
+def test_three_blocks_one_char_short_still_respect_the_budget():
+    """Every separator has to come out of the budget as it is spent, not just the
+    first: with three blocks and one char less than they all need, charging two
+    separators but deducting one overruns by exactly that char. The sweep above
+    lands either side of this boundary without hitting it."""
+    blocks = _blocks(*[(f"raw/{i}.md", date(2020, i + 1, 1),
+                        _extraction(summary="x" * 200)) for i in range(3)])
+    needed = sum(mg._estimate_block_size(b) for b in blocks) + 2
+
+    text = mg._render_blocks(blocks, needed - 1)
+
+    assert len(text) <= needed - 1
+    assert "raw/0.md" not in text, "the oldest block is what gives way"
+
+
+def test_a_budget_of_nothing_still_names_every_source(capsys):
+    """No production caller floors below 200 chars, so this is the empty-output
+    branch pinned directly: when not one block emitted a character, every source
+    is dropped and every source is named. A payload that silently contained no
+    new information is the failure the notice exists to make visible."""
+    blocks = _blocks(
+        ("raw/old.md", date(2020, 1, 1), _extraction(summary="o")),
+        ("raw/new.md", date(2021, 1, 1), _extraction(summary="n")),
+    )
+
+    assert mg._render_blocks(blocks, 0) == ""
+
+    err = capsys.readouterr().err
+    assert "raw/old.md" in err and "raw/new.md" in err
+    assert err.index("raw/old.md") < err.index("raw/new.md"), \
+        "the notices read in the order the payload would have"
 
 
 def test_rendering_no_blocks_at_all_is_empty():

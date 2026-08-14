@@ -327,13 +327,22 @@ path and report it as a general result.
   truncation (`core/merge.py:102-143`, field priority with exponential backoff on
   list fields) received one flat extraction; with per-source blocks, filling
   oldest-first would truncate or drop the newest source — precisely backwards for
-  supersession.
-- **BG2.** When the budget cannot fit every block, whole trailing (oldest) blocks
-  are dropped rather than a block being left structurally broken.
+  supersession. Precisely: dated blocks newest to oldest, then undated blocks in
+  path order. This is *not* the render order reversed, because WP5 sorts undated
+  blocks last: reversing would rank the blocks that make no recency claim above the
+  one source known to be newest, and WP6 says their position carries no such claim
+  to read. An undated source is the first to give way, including to a dated source
+  older than it may turn out to be — the guarantee BG1 buys is about the newest
+  *known* source.
+- **BG2.** When the budget cannot fit every block, whole blocks are dropped from
+  the bottom of BG1's priority order rather than a block being left structurally
+  broken. Not "trailing", which is the same thing only while every block is dated;
+  once one is not, the order that governs is BG1's and not WP5's.
 - **BG3.** The truncation notice (`core/merge.py:145-154`) names which source's
   block was cut or dropped.
-- **BG4.** A budget too small for even the newest block degrades to that block
-  truncated by the existing field priority, not to an empty message.
+- **BG4.** A budget too small for even the first block in BG1's order — the newest
+  dated source, or the first undated one when nothing is dated — degrades to that
+  block truncated by the existing field priority, not to an empty message.
 
 ### RP. Trigger and reports
 

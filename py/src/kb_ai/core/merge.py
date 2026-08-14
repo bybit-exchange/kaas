@@ -243,8 +243,10 @@ def _block_topics(blocks: Sequence[SourceBlock]) -> list[str]:
 def _min_blocks_chars(blocks: Sequence[SourceBlock]) -> int:
     """Floor for "can a full rewrite hold the new information at all".
 
-    Per block, because the question is whether every source can contribute
-    something, not whether one of them can.
+    Per block, so that the route chosen scales with how many sources are waiting
+    rather than with one of them. It is only a routing floor: clearing it does not
+    mean every source contributes, because BG2 drops whole blocks that do not fit
+    once the rewrite path has been chosen.
     """
     return sum(len(block.source_path) + 50 for block in blocks)
 
@@ -266,42 +268,115 @@ def _estimate_block_size(block: SourceBlock) -> int:
     return size
 
 
-def _render_blocks(blocks: Sequence[SourceBlock], budget_chars: int) -> str:
-    """Render blocks in order, sharing budget_chars between them.
+def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
+    """Indices into ``blocks``, in the order they may claim the budget (BG1).
 
-    When every block fits whole, each one is simply rendered whole: there is no
-    allocation to make, and splitting an adequate budget evenly is loss for
-    nothing -- a block over its share would be truncated against a remainder the
-    carry can never flow backwards to reach, and the first field truncation drops
-    is enumerations, the one field it cannot degrade gracefully (issue #41).
+    Dated blocks first, newest to oldest, then the undated ones in the path order
+    WP5 already put them in. Not simply the render order reversed: WP5 sorts
+    undated blocks *last* for determinism, so reversing would put the blocks that
+    make no recency claim at the front of the queue and drop the one source we
+    know to be the newest. Measured on two 3,000-char blocks against a budget for
+    one: the undated block survived and the 2021 document was dropped.
 
-    Only when they do not all fit is the budget divided: each block gets an equal
-    share of what is left, and whatever it does not use rolls on to the next -- so
-    one block cannot starve the others, and a single block still gets the whole
-    budget, which is what every single-source call site sends.
+    An undated source is therefore the first to give way, including to a dated
+    source older than it may turn out to be. Ranking it above older dated blocks
+    would be a recency claim WP6 tells the model not to read into its position,
+    made on nothing; what BG1 buys is that the newest *known* source is in the
+    payload, and this is the order that pays it.
 
-    An interim policy, and known to be the wrong one for supersession: BG1
-    allocates newest block first, because filling in render order truncates the
-    *newest* source when the budget runs out, which is precisely backwards. BG1's
-    priority, whole-block drops (BG2) and a notice naming the dropped source
-    (BG3) land together in the budget step.
-
-    Empty renderings contribute no separator, so a budget too small for any block
-    yields "" rather than a run of blank lines over budget.
+    Sources sharing a day break to path order, the same direction the undated ones
+    take, and both keys are read off the blocks rather than inherited from the
+    order they arrive in -- so the queue is a total order for any input, not only
+    for what ``build_source_blocks`` happens to emit. It decides real drops: 160 of
+    the 395 multi-source articles in the reference KB have two sources dated the
+    same day.
     """
-    # The separators are part of what the caller's budget has to cover: three
-    # blocks that each fit exactly would otherwise overrun it by two.
-    remaining = budget_chars - (len(blocks) - 1)
-    fits_whole = sum(_estimate_block_size(block) for block in blocks) <= remaining
-    parts: list[str] = []
-    left = len(blocks)
-    for block in blocks:
-        share = remaining if (fits_whole or left == 1) else max(remaining // left, 0)
-        text = _fit_block_to_budget(block, share)
-        parts.append(text)
-        remaining -= len(text)
-        left -= 1
-    return "\n".join(part for part in parts if part)
+    dated = sorted((i for i, b in enumerate(blocks) if b.date is not None),
+                   key=lambda i: (-blocks[i].date.toordinal(), blocks[i].source_path))
+    undated = sorted((i for i, b in enumerate(blocks) if b.date is None),
+                     key=lambda i: blocks[i].source_path)
+    return dated + undated
+
+
+def _render_blocks(blocks: Sequence[SourceBlock], budget_chars: int) -> str:
+    """Render blocks oldest to newest, allocating the budget newest first (BG1).
+
+    The rendered order is WP5's and does not change; only the order in which
+    blocks claim the budget does, which is ``_budget_priority``'s. Allocating in
+    render order would spend the budget on the oldest source and cut the newest,
+    which is backwards for the thing this increment exists to fix: whether a claim
+    has been superseded is a question about what the *latest* document says.
+
+    Each block is kept only if it fits whole in what is left, separator included,
+    and the first one that does not ends the walk -- so what survives is a prefix
+    of the priority order and what is dropped is whole blocks from the bottom of it
+    (BG2). A block cut down to its header and a halved list is worse than an absent
+    one: the writer cannot tell a thin source from a truncated one, and a partial
+    enumeration is what it turns into a confident wrong list (#41, #42). Stopping
+    rather than skipping to smaller blocks further down the queue is what keeps the
+    payload a run of the sources that rank highest, instead of whichever ones
+    happened to fit.
+
+    A budget too small for even the highest-priority block is spent truncating that
+    one block by field priority (BG4). The alternative is a merge that sends the
+    article and no new information, silently: it would look successful and change
+    nothing.
+
+    Every source that contributed nothing is named on stderr (BG3). The cut notice
+    in ``_fit_block_to_budget`` covers a block that was trimmed; a dropped block
+    emits no text at all, so the one source the operator most needs to know about
+    would otherwise be the only one that leaves no trace. Both callers
+    (``_merge_user_message``, ``create_new_article``) still name a dropped source
+    under ``sources:``, so ``derive`` still copies the document and compile state
+    still records it as compiled. That is deliberate -- the alternative is a
+    document no article names, which therefore never reaches a derived KB -- but it
+    does mean an article can name a source the writer was shown nothing from.
+    """
+    remaining = budget_chars
+    texts: dict[int, str] = {}
+    dropped: list[int] = []
+    priority = _budget_priority(blocks)
+
+    for position, index in enumerate(priority):
+        block = blocks[index]
+        # The separator between two blocks is part of what the caller's budget
+        # has to cover: three blocks that each fit exactly would overrun it by
+        # two. It is charged per kept block rather than deducted up front,
+        # because how many blocks survive is not known until the walk ends.
+        separator = 1 if texts else 0
+        if _estimate_block_size(block) + separator <= remaining:
+            # Clamped to the budget minus that separator rather than handed all of
+            # it, which renders the same text today: the block fits whole by the
+            # line above. It matters if the two ever disagree -- the estimator and
+            # the renderer spell the same lines out twice and could drift -- and
+            # then this cuts the block instead of overrunning the caller.
+            text = _fit_block_to_budget(block, remaining - separator)
+            texts[index] = text
+            remaining -= len(text) + separator
+            continue
+
+        if texts:
+            dropped = priority[position:]
+            break
+
+        # BG4: nothing has been kept, so this block gets what there is.
+        text = _fit_block_to_budget(block, remaining)
+        if text:
+            texts[index] = text
+            dropped = priority[position + 1:]
+        else:
+            # Too small even for a bare source line. Nothing was kept at all, so
+            # this block is named among the dropped like every other one.
+            dropped = priority[position:]
+        break
+
+    for index in sorted(dropped):  # render order, so the notices read as the payload does
+        block = blocks[index]
+        print(f"[merge] block dropped, over budget: "
+              f"{_estimate_block_size(block)} chars (source={block.source_path})",
+              file=sys.stderr, flush=True)
+
+    return "\n".join(texts[index] for index in sorted(texts))
 
 
 def _fit_block_to_budget(block: SourceBlock, budget_chars: int) -> str:
@@ -313,7 +388,14 @@ def _fit_block_to_budget(block: SourceBlock, budget_chars: int) -> str:
     extraction = block.extraction
     source_path = block.source_path
     prefix = _block_header(block)
-    if budget_chars <= len(prefix):
+    if budget_chars < len(prefix):
+        # Strictly under, not at: a budget of exactly the header renders the
+        # header, and `_render_blocks` hands that budget to a block it has
+        # measured as fitting whole -- an extraction with every priority field
+        # empty is nothing but its header. Rejecting it at equality dropped the
+        # date line from a block reported as kept, silently and with the rest of
+        # the budget unspent.
+        #
         # The date line is dropped whole rather than cut: `- Date: 2020-` is a
         # false ordering signal where a half-written source path is only
         # cosmetic, and a prefix cut mid-line loses the newline that separates it

@@ -372,6 +372,23 @@ def test_merge_user_message_lists_every_source_for_the_frontmatter():
     assert "Sources:\n  - raw/a.md\n  - raw/b.md\n" in user
 
 
+def test_a_source_whose_block_was_dropped_is_still_listed():
+    """The consequence BG2 accepts, pinned rather than only described: a block the
+    budget could not hold is absent from the payload, and the article is still
+    asked to name its source. `derive` reads that key to decide which raw
+    documents a derived KB gets (derive/_sources.py), so dropping the name too
+    would cost the document its only route into one -- at the price of an article
+    naming a source the writer was shown nothing from."""
+    user = mg._merge_user_message("article body", [
+        _block(_extraction(summary="o" * 4000), source_path="raw/a.md", day=date(2020, 1, 1)),
+        _block(_extraction(summary="n" * 4000), source_path="raw/b.md", day=date(2021, 1, 1)),
+    ], 4600)
+
+    assert "Sources:\n  - raw/a.md\n  - raw/b.md\n" in user
+    assert "- Source: raw/a.md\n" not in user, "its block did not fit"
+    assert "- Source: raw/b.md\n" in user
+
+
 def test_merge_user_message_keeps_the_source_list_inside_the_budget():
     """The list is part of the message, so the blocks' budget has to pay for it."""
     user = mg._merge_user_message("x" * 900, [
