@@ -430,7 +430,20 @@ path and report it as a general result.
 
 ### FX. Fixture and scoring
 
-- **FX1.** The `/tmp/supersession/` scripts move to `py/scripts/` with tests.
+- **FX1.** The `/tmp/supersession/` scripts move to `py/scripts/` with tests — but
+  only the two that will run again. What landed is `select_cases.py`, which finds the
+  chains and stratifies them, and `stage_fixture.py`, which builds FX2's stages.
+  The corpus conversion and the conformance pass are not ported: both ran once
+  against a gitignored KB with absolute paths, their output is on disk and verified
+  by `kb-ai check`, and the scripts themselves are gone. test-set.md's Regenerating
+  section records that instead of pretending they are reproducible.
+  The selector had to be rebuilt rather than moved, because the script that produced
+  test-set.md's counts was deleted and only its output survived. Reconstructed
+  against that output it reproduces every diffstat and every stratum on the corpus,
+  and it corrects three defects in the original: `sources:` entries holding a
+  comma-joined batch are split apart (which is what the shared-article column
+  undercounted), the append-only test runs before the similarity test, and shape B
+  carries RP4's exclusions rather than having them applied by hand afterwards.
 - **FX2.** The fixture runs staged, **one stage per version**. Stage N compiles
   version N into the wiki stage N−1 produced, so the merge paths are exercised at
   all, and P4's four-version chain merges repeatedly into an article that earlier
@@ -441,6 +454,12 @@ path and report it as a general result.
 - **FX4.** A pre-A1 baseline is measured on the staged fixture, before any code
   changes. The existing `wiki/` in `data/kb-knowledge` was written by prompt
   versions that no longer exist and is an existence proof, not a baseline.
+  **"Before any code changes" no longer describes the checkout**: steps 1–5 landed
+  first, because the fixture could not have scored them and the report in step 5 is
+  what says where to look. So the baseline arm runs from a worktree at `bd8252e`, the
+  last commit before A1, against its own copy of the staged fixture — the comparison
+  FX7 makes is between two runs of the same documents, and which working tree each
+  ran from does not enter it.
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
   every case; Staleness on the merge-path stages is the discriminating column.
   False positives stay at 0 on N1–N4 and no duplicate contributes twice on U1–U4.

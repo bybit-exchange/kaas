@@ -154,20 +154,44 @@ Applying the two exclusions leaves **38** groups after the cross-source rule and
 **37** after the person-name rule.
 
 Line-level diffstat then separates the ones worth labelling from the ones that
-only look like revisions. Strata, over all 134 lineage groups:
+only look like revisions. Strata, over all 131 lineage groups, as
+`py/scripts/select_cases.py` reports them:
 
 | Stratum | Rule | Groups | With a shared article | Role in the set |
 |---|---|---|---|---|
-| A1-rewrite | similarity < 0.55 | 37 | 10 | strongest positives |
-| A2-edit | removed > 3 lines, similarity ≥ 0.55 | 11 | 3 | positives |
-| B-append-only | removed ≤ 3 lines, added > 3 | 9 | 4 | negative controls |
+| A1-rewrite | similarity < 0.55 | 36 | 10 | strongest positives |
+| A2-edit | removed > 3 lines, similarity ≥ 0.55 | 10 | 3 | positives |
+| B-append-only | removed ≤ 3 lines, added > 3 | 8 | 6 | negative controls |
 | C-noise | added and removed both ≤ 3 lines | 22 | 18 | excluded |
-| D-duplicate | identical checksum | 55 | 34 | double-counting controls |
+| D-duplicate | identical checksum | 55 | 43 | double-counting controls |
+
+The rules are evaluated in a fixed order, and it is not the order of the table:
+identical checksum, then append-only, then noise, then similarity. A version that
+only appends is a negative control however much it appends, and a large enough
+append drives similarity below 0.55 on its own — two groups here add 134 and 182
+lines while removing 2 and 1, at similarity 0.056 and 0.367. Testing similarity
+first put both of those in the positive set.
+
+The diffstat runs over each document's **body**, never its frontmatter: every
+version differs in `date`, `id` and `checksum`, so a whole-file diff reports three
+changed lines between two files whose prose is identical — enough on its own to move
+a group out of the noise stratum.
 
 "With a shared article" means every member of the group appears in the `sources:`
 list of one article — the only groups where the pipeline was actually asked to
-reconcile the versions. 101 of 675 articles (15%) cite two or more members of one
+reconcile the versions. 123 of 682 articles (18%) cite two or more members of one
 lineage group.
+
+**Corrected 2026-08-14 together with the group counts above.** The numbers first
+recorded here were 134 groups with 37/11/9/22/55 per stratum and 10/3/4/18/34
+sharing an article, and 101 of 675 articles at 15%. Three things moved them: the
+shape-B exclusions are now applied by the selector rather than by hand afterwards
+(−3 groups, and the `v1.0.0` chain the original missed is +1); the append-before-
+similarity ordering moved two groups from A1-rewrite to B-append-only; and
+`sources:` entries holding a comma-joined batch are now split, which is what raised
+the shared-article column — 43 duplicate-stratum groups rather than 34, 6
+append-only rather than 4. 46 articles in this corpus carry such an entry, so
+reading each as a single path hid every group behind a batch-merged article.
 
 Two exclusion rules were needed and both come from the data:
 
@@ -336,13 +360,28 @@ precede it.
 
 ## Regenerating
 
-The corpus conversion and the case selection are mechanical and cost nothing:
+The case selection and the staging are mechanical and cost nothing:
 
 ```
-python3 /tmp/supersession/convert_kb.py     # ~/.knowledge -> data/kb-knowledge
-kb-ai check --kb data/kb-knowledge          # expect: 982 match, 14 missing, 0 mismatched
+cd py
+uv run python scripts/select_cases.py --kb ../data/kb-knowledge --out cases.json
+uv run python scripts/stage_fixture.py --kb ../data/kb-supersession-fixture \
+    --cases cases.json --out ../data/kb-supersession-staged        # plan only
+uv run python scripts/stage_fixture.py ... --stage 1               # writes stage 1
+kb-ai check --kb ../data/kb-supersession-staged                    # expect 0 missing
 ```
 
-The scripts under `/tmp/supersession/` are throwaway. They move into
-`py/scripts/` with tests when the harness is built, which is after D1 and D2 are
-answered — a harness that scores options nobody chose is the wrong thing to own.
+`select_cases.py` on this corpus prints `131 chains (94 shape A, 37 shape B)` and
+the strata table above; on `data/kb-supersession-fixture` it prints `18 chains`,
+which is the 10 positives, 4 negative controls and 4 duplicate controls. Staging
+that fixture plans four stages of 18, 18, 1 and 1 documents — the last two are P4's
+four-version chain, which is the case the single-run fixture never reached.
+
+**The conversion is not regenerable and does not need to be.** The two scripts that
+built `data/kb-knowledge` from `~/.knowledge` — a copy plus a re-serialization of
+the legacy extract cache, and a one-shot conformance pass — ran once against a
+gitignored KB with absolute paths baked in, and both have since been deleted. They
+are recorded here rather than kept as code: repeating them would mean re-doing a
+migration whose output is on disk and verified by `kb-ai check`. What the fixture
+needs going forward is selection and staging, and those are the two scripts that
+landed with tests.
