@@ -115,11 +115,11 @@ gate.
 
 | ID | What v1 asserts and v2 drops | Evidence | Status |
 |---|---|---|---|
-| P3-D1 | The platform is a large middle-platform team with 100+ repositories and multiple sub-teams | v1 L14 「在中台大团队（100+ 仓库、多个子团队）中」; absent from v2 | to confirm — see note 1, this may belong in C | to confirm |
+| P3-D1 | The platform has 100+ repositories | v1 L14 「在中台大团队（100+ 仓库、多个子团队）中」; `100+` and 「子团队」 both 0 hits in v2. **Narrowed on verification** — the original row also claimed "and multiple sub-teams", which v2 restates at L20 「中台有 30+ 微服务，跨团队协作时…」, so that half was not a drop | to confirm — see note 1, this may belong in C |
 | P3-D2 | Distillation extracts a minimum knowledge set rather than copying code: 50 Proto methods reduce to 5–10 selected external core interfaces | v1 L561 「**蒸馏不是照搬代码，而是提取 AI 对接时需要的最小知识。**」, L575/578 | to confirm |
 | P3-D3 | The transfer system's `Transfer` interface is idempotent on `request_id` with a 3000 ms timeout, `RATE_LIMITED`/`TIMEOUT` retryable and `INSUFFICIENT_BALANCE`/`ACCOUNT_FROZEN` fatal | v1 L635–638 | to confirm |
 | P3-D4 | The plugin offers `/cht-knowledge:search`, a keyword search over already-cached knowledge | v1 L355/361; v2's command reference (L461–543) has no analogue — `:match` debugs trigger words, it does not search content | to confirm |
-| P3-D5 | The first systems to distill are transfer, deposit, withdraw, risk and account | v1 L1114/1116 | to confirm |
+| P3-D5 | The first systems to distill are transfer, deposit, withdraw, risk and account | v1 L1113/1116 (L1114 as first drafted is `</lark-td>`) | to confirm |
 
 ### Controls (present in both; missing from the article means over-deletion)
 
@@ -127,7 +127,7 @@ gate.
 |---|---|---|---|
 | P3-K1 | Each system's knowledge lives in its own independent Git repository | v1 L1140 → v2 L151 | to confirm |
 | P3-K2 | `cht-context` is a Git submodule bound to a project, unlike `cht-knowledge` which is git-cloned | v1 L160 → v2 L72 | to confirm |
-| P3-K3 | Distillation is AI-driven: an agent scans source and generates structured documents | v1 L964 → v2 L28 | to confirm |
+| P3-K3 | Distillation is AI-driven: an agent scans source and generates structured documents | v1 L964 → v2 L97/L109 (L28 as first drafted asserts source→structured docs but not AI authorship) | to confirm |
 | P3-K4 | A knowledge base becomes platform-wide by registering in `registry.mjs` and merging an MR | v1 L994/997 → v2 L756 | to confirm |
 | P3-K5 | Distilled output must be human-reviewed before publication | v1 L972 → v2 L785 | to confirm |
 | P3-K6 | On-demand deep loading of full documents costs ~2000–4000 tokens | v1 L796 → v2 L237 | to confirm |
@@ -570,8 +570,8 @@ similarity of 0.079 suggests: 71 of 88 table rows are byte-identical and 212 of
 ~1,700 body lines differ. (That similarity figure is an artifact — see
 [the similarity note](#note-the-recorded-similarity-figures-are-distorted).) The
 real edit is a **re-attribution of infrastructure projects from named individuals
-to teams**: the infra tables' `Owner` column becomes `团队`, four rows move from
-`Lucas Wan` to `架构`, and Lucas's attribution relocates to the section heading as
+to teams**: the infra tables' `Owner` column becomes `团队`, four rows replace named
+individuals with team names, and Lucas's attribution relocates to the section heading as
 `@lucas.wan`. Secondarily, v2 deletes the whole `### 关键资源约束` headcount table
 and three milestone rows.
 
@@ -599,8 +599,10 @@ This is the case where A1's signal does all the work with no accidental help.
 | P8-D5 | Rockman formally joins as CTO on 4/14 | v1 L1629, L1632 | to confirm |
 | P8-D6 | Locking the AI Coding 20% metric definition is a Q2 milestone | v1 L1662, L1665 | to confirm |
 
-All six are stated as current in the article today (L16, L94, L161, L49–52, L185,
-L40, L194) — recorded because it sizes A2's RP1 arm, not because it gates A1.
+Five of the six are stated as current in the article today (L16, L94, L161, L49–52,
+L185, L40, L194) — recorded because it sizes A2's RP1 arm, not because it gates A1.
+D3 holds only in part: the article carries its 25%/≥2-month clause at L16 but never
+states the security team's headcount, and `5 people` returns no hits.
 
 ### Controls
 
@@ -623,7 +625,7 @@ L40, L194) — recorded because it sizes A2's RP1 arm, not because it gates A1.
 - Smart Router row 9 relocates (v1 L185 → v2 L146), content identical, still
   `Lucas Wan` — v2 did *not* teamify it.
 - MCP 能力建设 and AI Coding 采纳率提升 also keep `Lucas Wan` in v2's `团队` column
-  (v2 L283, L303).
+  (v2 L291, L311; L283/L303 as first drafted were off by eight lines).
 - The 88-scenario / 41-pending callout moves out from under the deleted
   `### 关键资源约束` (v1 L1598) to sit under `## 三、数据汇总` (v2 L1541), so the
   resource-shortage *framing* survives; only the headcounts drop.
