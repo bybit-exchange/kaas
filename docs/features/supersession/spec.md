@@ -466,8 +466,8 @@ path A.
   counter-case, because its frontmatter date inverts its content order and scoring
   it would credit A1 for asserting a wrong order; **P7's measurement-time reading
   is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
-  seven drafted cases plus P6, carrying 50 contradictions, 30 drops and 42
-  controls, of which 31 contradictions are stated as current today. Those 128 items
+  seven drafted cases plus P6, carrying — after V1, below — 46 contradictions, 30 drops
+  and 42 controls, of which 29 are stated as current today. Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [18 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
@@ -475,9 +475,14 @@ path A.
   decision is resolved: P5's article carries nothing that the undeclared hardening plan
   asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so its
   dropped rationales score as lost drops and the fixture has no provenance gap.
-  Three would move the totals: if P8's four contradictions collapse, P9's C1 is
-  struck and P10's C6 becomes a drop, the set is 44 contradictions with 27 stale, and
-  only six cases gate. Verification also established that the staleness column is
+  Three would move the totals, and the first is **ruled: V1 accepted 2026-08-15**, so
+  P8's four contradictions are struck as de-specifications of one column rename — v2
+  names Lucas both on the category heading and as `Lucas (架构)`, and the article writes
+  both sides — leaving 46 contradictions with 29 stale and **P8 out of the gating set,
+  six cases plus P6**. It stays in the set on its drops and controls, which matters
+  because it is the one case with no accidental ordering cue. If P9's C1 is also struck
+  and P10's C6 becomes a drop the set is 44 contradictions with 27 stale.
+  Verification also established that the staleness column is
   confounded where an article merges sources beyond the chain under test, so FX5 needs
   staleness defined against the newest source in the compile set rather than as "the
   earlier value appears"; FX7's gate is unaffected because it counts corrections

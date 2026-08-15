@@ -1,8 +1,8 @@
 # Supersession test set: measuring the failure before choosing a fix
 
 Status: test set built; staging landed under FX1; labels **drafted and awaiting
-item-by-item confirmation** in [labels.md](labels.md) — 50 contradictions, 30 drops
-and 42 controls across the seven scoring cases, of which 31 contradictions are
+item-by-item confirmation** in [labels.md](labels.md) — 46 contradictions, 30 drops
+and 42 controls across the seven scoring cases, of which 29 contradictions are
 still stated as current in today's articles. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
@@ -13,11 +13,13 @@ one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. Th
 confirm pass therefore starts from a queue of
 [18 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
 unchecked rows — a 19th asked whether a document outside P5's declared sources fed its
-article, and investigation settled that on the article's own content. Three of those rulings would move the totals above — most sharply
-P8, whose four contradictions may collapse entirely, taking the gating set from
-seven cases to six. Verification also found that these articles merge more sources
-than the chain under test, which confounds the staleness column; the 62% figure is
-motivation, not measurement. Written 2026-08-10, labels drafted 2026-08-14, rulings
+article, and investigation settled that on the article's own content. Three of those
+rulings move the totals above, and the sharpest is taken: **V1 struck P8's four
+contradictions** as de-specifications of one column rename, which is why the totals
+read 46 and not 50 and why the gating set is **six cases plus P6**, not seven. P8 stays
+in on its 6 drops and 6 controls. Verification also found that these articles merge more
+sources than the chain under test, which confounds the staleness column; the 63% figure
+is motivation, not measurement. Written 2026-08-10, labels drafted 2026-08-14, rulings
 and verification 2026-08-15.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
@@ -284,7 +286,7 @@ the same file is under the singular category directory, so
 | P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale, passes today** |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, framing call open |
-| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — 4C / 6D / 6K |
+| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
 | P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [drafted](labels.md#p9--bybit-ai-toc-project-initiation) — 7C / 5D / 6K |
 | P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [drafted](labels.md#p10--2025-engineering-efficiency-report) — 8C / 5D / 6K |
 

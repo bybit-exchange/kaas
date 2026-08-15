@@ -69,14 +69,14 @@ are into the fixture files named at the head of each case.
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
 | P5 | 5 | 5 | 6 | **0 of 5** | to confirm — passes today, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
-| P8 | 4 | 6 | 6 | 2 of 4 | to confirm |
+| P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 7 | 5 | 6 | 4 of 7 | to confirm |
 | P10 | 8 | 5 | 6 | 4 of 8 | to confirm |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the seven scoring cases: **50 contradictions, 30 drops, 42
-controls**, and 31 of the 50 contradictions are stated as current in the articles
-today — a 62% pre-A1 staleness rate on the gating column, measured over compiled
+Totals across the seven scoring cases: **46 contradictions, 30 drops, 42
+controls**, and 29 of the 46 contradictions are stated as current in the articles
+today — a 63% pre-A1 staleness rate on the gating column, measured over compiled
 output rather than argued from P1 alone. Plus one non-scored
 `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
 withdrawn label (8/6/6) retained below as counter-case evidence.
@@ -84,16 +84,20 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
 - **P5 already passes** (0 of 5 stale), and it leaks its ordering six ways
   inside the body, so it belongs with P6 as an accidental-signal case rather than
   as evidence about A1.
-- P4 is the sharpest probe at 9 of 10 stale. P8 is the weakest at 4
-  contradictions, all resting on one reading of a column rename.
-- Drops are not a rounding error: 30 of them, and on P8 all six are stated as
+- P4 is the sharpest probe at 9 of 10 stale. **P8 now contributes no
+  contradictions**: V1 ruled its four to be de-specifications of one column rename,
+  so it carries drops and controls only.
+- Drops are not a rounding error: 30 of them, and on P8 five of six are stated as
   current. That is the baseline A2's RP1 arm would be measured against.
-- The gating set is therefore **seven drafted cases plus P6**, which succeeds
-  today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
-  P2 because its date lies.
+- The gating set is therefore **six drafted cases plus P6**, which succeeds today.
+  P1, P2 and now P8 are evidence rather than tests: P1 because it is a drop, P2
+  because its date lies, P8 because what its later version changed was the grain of
+  an attribution rather than its content. P8 still exercises the signal — it is the
+  one case with no accidental ordering cue at all — but on the drop and control
+  columns, not on the gating one.
 
-**These totals are pre-verification.** Nine of the queued rulings below would
-move them; the arithmetic if all nine are accepted is in
+**These totals have V1 applied and the rest of the queue pending.** Eight of the
+remaining rulings would move them further; the arithmetic is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -163,7 +167,7 @@ call, because each either reclassifies a row or changes what a number means.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
-| **V1** | P8-C1–C4 | P8 → contradictions table | The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Strike all four; move to a re-attribution list | **P8 → 0 contradictions**, leaves the gating set. 7 cases → 6 |
+| **V1** | P8-C1–C4 | P8 → contradictions table | **RULED 2026-08-15: accepted.** The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. Two further findings decided it: the article itself writes both sides (「Lucas Wan / Architecture team」 at L188 and L192), so it is not asserting the superseded value under any staleness rule; and v2 keeps person names in the `团队` column (L154, L291, L311) and still names 「Victor / Lucas」 at L681, so nothing was actually re-attributed away. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Struck; moved to the [re-attribution list](#re-attribution-not-contradiction--the-four-rows-v1-struck) | Applied: **P8 → 0 contradictions**, out of the gating set. 7 gating cases → 6; totals 46/30/42 with 29 stale |
 | **V2** | P9-C1 | P9 → contradictions table | v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178, L182–184) — the second is already scored as control **K1**. The three pillars are a capability taxonomy on a different axis. The draft's own call 7 files that same material under "additive, not superseding" | Strike; record the substance as a control | P9 → 6 contradictions, **3 of 6 stale** |
 | **V3** | P10-C6 | P10 → contradictions table | Compares v1's **mean** dev-phase duration against v2's **median** dev+test cycle — different statistic over a different span. v2's same-scope figure (median 1–3 → 4–7 days, L49/L67) is compatible with a mean of 7.3→11.3. The justification concedes v2 "reports no mean anywhere", which is absence, not contradiction | Reclassify as `superseded-drop` | P10 → 7 contradictions, **3 stale**; drops → 6 |
 | **V4** | P7 case-level | P7 → preamble and headline | The article's fifth source is the 04-14 infra biweekly (P2's v1), which asserts v1's **entire** 0430 column verbatim (L898–L928). So 7 of 8 staleness observations have a second possible cause | Keep the rows; score only C8 as attributable to this pair until FX4 re-runs on the fixture | P7's staleness stops being quotable as-is |
@@ -185,12 +189,12 @@ call, because each either reclassifies a row or changes what a number means.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. If V1, V2
-and V3 are all accepted the set becomes **44 contradictions, 31 drops and 42
-controls, with 27 of 44 stale (61%)** — carried by seven cases still, but only **six
-of them gating**, because P8 keeps its 6 drops and 6 controls while contributing no
-contradictions. That is a smaller and more defensible set than the 50/30/42 above,
-and its headline no longer leans on P8's rename reading or P7's confounded column.
+the survivors. **V1 is ruled and applied**, so the Progress table now reads 46/30/42
+with 29 of 46 stale, and P8 no longer gates. If V2 and V3 are also accepted the set
+becomes **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
+carried by seven cases still, but only **six of them gating**. That is a smaller and
+more defensible set than the 50/30/42 it started from, and its headline no longer
+leans on P8's rename reading or P7's confounded column.
 
 #### V16 — resolved by investigation, no ruling needed
 
@@ -803,16 +807,42 @@ and three milestone rows.
 
 Both bodies carry the same internal date marker `2026-04-12` (v1 L15, v2 L14) and
 neither has a version number, so only the frontmatter `date` distinguishes them.
-This is the case where A1's signal does all the work with no accidental help.
+This is the case where A1's signal does all the work with no accidental help — which
+is why it is worth keeping after V1 struck its contradictions. It exercises the signal
+on the drop and control columns instead.
 
 ### Contradictions and their replacements
 
-| ID | v1 → v2 | Evidence | Article today | Status |
-|---|---|---|---|---|
-| P8-C1 / R1 | The AI unified governance (three-review) process is owned by Lucas Wan → by the architecture team | v1 L233, L236 → v2 L228, L231 | **stale** — L27 and L188 state v1's ownership, hedged alongside v2's | to confirm |
-| P8-C2 / R2 | AI Gateway integration is owned by Lucas Wan → by the architecture team | v1 L253, L256 → v2 L248, L251 | **stale** — L192 | to confirm |
-| P8-C3 / R3 | The AI Coding standards project is owned by Lucas Wan → by the architecture team | v1 L122, L125 → v2 L66, L69 | not stale — the article states no owner for it | to confirm |
-| P8-C4 / R4 | AI Trading Skills is owned by Lucas Wan and Victor → by the architecture and API teams | v1 L88, L91 → v2 L49, L52 | not stale — L144 names no owner; 「Victor」 occurs nowhere | to confirm |
+**None. P8 contributes no contradictions** — the four it was drafted with are struck by
+V1, ruled 2026-08-15, and kept below as a re-attribution list. P8 stays in the set as a
+case A1 must not break, carrying 6 drops and 6 controls; it does not gate under FX7.
+
+### Re-attribution, not contradiction — the four rows V1 struck
+
+Kept with their evidence because they are the set's clearest instance of a change that
+*reads* like supersession and is not one. Anyone tempted to score an owner change should
+read this list first. The IDs are retired: nothing may cite `P8-C1`–`C4` or `R1`–`R4` as
+gating items.
+
+| Was | v1 → v2 | Evidence | Article today |
+|---|---|---|---|
+| C1 / R1 | The AI unified governance (three-review) process is owned by Lucas Wan → by 架构 | v1 L233, L236 → v2 L228, L231 | states **both** — L188 「Lucas Wan / Architecture team」, and L27 names Lucas |
+| C2 / R2 | AI Gateway integration is owned by Lucas Wan → by 架构 | v1 L253, L256 → v2 L248, L251 | states **both** — L192 「Lucas Wan / Architecture team」 |
+| C3 / R3 | The AI Coding standards project is owned by Lucas Wan → by 架构 | v1 L122, L125 → v2 L66, L69 | states no owner for it |
+| C4 / R4 | AI Trading Skills is owned by Lucas Wan and Victor → by 架构 / api 团队 | v1 L88, L91 → v2 L49, L52 | L144 names no owner; 「Victor」 occurs nowhere |
+
+Three facts in v2 itself settled it:
+
+- v2 asserts the mapping these rows read as a substitution: L271 writes
+  「Lucas (架构) / Roger (知识库) / …」, and L19 hangs `@lucas.wan` on the whole
+  infrastructure category heading, which v1's L24 does not. `团队 = 架构` therefore names
+  Lucas at a coarser grain rather than replacing him.
+- The article writes both sides anyway (L188, L192), so under FX5's staleness rule — in
+  either the drafted or the V19 form — it is not asserting a superseded value.
+- v2 re-attributed nothing away: person names survive in its own `团队` column (L154
+  Smart Router, L291, L311) and 「Victor / Lucas」 still stands at L681. Selective enough
+  to be an unfinished editorial pass, which is the reading the draft could not exclude
+  and now does not have to.
 
 ### Drops (measured, not gating)
 
@@ -845,7 +875,8 @@ states the security team's headcount, and `5 people` returns no hits.
 
 - Lucas Wan's ownership of the infrastructure category is not deleted; it moves to
   the section heading (v2 L19 「## 一、基建类全局 AI 项目 @lucas.wan」, absent from
-  v1 L24). This is why C1–C4 are about specific rows.
+  v1 L24). Drafted as the reason C1–C4 were scoped to specific rows; under V1 it is
+  the reason they score nothing.
 - Completed-infra rows 1 and 2 move from the top of the table (v1 L49, L66) to the
   bottom (v2 L163, L180), byte-identical; v2's row order is 3, 5, 6, 4, 7, 8, 9, 1, 2.
 - Smart Router row 9 relocates (v1 L185 → v2 L146), content identical, still
@@ -860,14 +891,16 @@ states the security team's headcount, and `5 people` returns no hits.
 
 ### P8 open judgement calls
 
-1. **Is `Owner` → `团队` a real re-attribution or a column relabel?** Read as real,
-   because it is *selective*: rows 9, 12, 13 and 14 keep person names inside v2's
-   `团队` column while rows 3, 5, 10 and 11 change to `架构`, and the header change
-   is confined to the two infra tables (the 未开始 infra table and all four
-   business tables still say `Owner`, v2 L497, L561, L707, L1150). A mechanical
-   relabel would have converted all of them. The competing reading — an editor who
-   started and stopped halfway — cannot be excluded from the text. **If rejected,
-   all four contradictions collapse and P8 has none.**
+1. **Is `Owner` → `团队` a real re-attribution or a column relabel? — RULED, neither
+   scores.** The change is *selective*: rows 9, 12, 13 and 14 keep person names inside
+   v2's `团队` column while rows 3, 5, 10 and 11 change to `架构`, and the header change
+   is confined to the two infra tables (the 未开始 infra table and all four business
+   tables still say `Owner`, v2 L497, L561, L707, L1150). The draft read that as
+   deliberate re-attribution; a mechanical relabel would have converted all of them.
+   But the competing reading — an editor who started and stopped halfway — cannot be
+   excluded from the text, and v2 names Lucas at both the category heading (L19) and in
+   `Lucas (架构)` (L271), so even the deliberate reading does not make the two grains
+   incompatible. V1 accepted that, and all four contradictions collapsed: P8 has none.
 2. **The column-header change itself is deliberately not an entry.** It is the
    umbrella cause of C1–C4, but "the infra tables use an Owner column" is not
    scoreable in article prose.
@@ -1185,8 +1218,9 @@ this for one case; it generalises.
 
 Two consequences, and they are not the same size.
 
-**For the drafted `Article today` column and the 62% headline, the confound is
-severe.** Only P3 and P8 are compiled from the chain alone. P7 is the worst case:
+**For the drafted `Article today` column and the 63% headline, the confound is
+severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
+contradictions, so of the six cases that still gate, only P3 does. P7 is the worst case:
 its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
 observations have a second possible cause. P5's article merges 16 sources, which is
 the strongest reason not to read its 0-of-5 pass as evidence that the pipeline
@@ -1198,7 +1232,7 @@ the compile over the staged fixture. Only P5 and P7 carry a co-source into that 
 one each, and in both cases the co-source is another case's v1 — itself superseded
 within the fixture, so ordering applies to it too.
 
-So the 62% pre-A1 figure is motivation, not measurement, and should stop being
+So the 63% pre-A1 figure is motivation, not measurement, and should stop being
 quoted as though the two were interchangeable. Before FX5 scores a case, the
 staleness criterion needs stating as *the article asserts the superseded value where
 the newest source in the compile set asserts otherwise* — not merely *the earlier
