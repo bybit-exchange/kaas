@@ -1,6 +1,10 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **drafted, awaiting confirmation.** Every item below is `to confirm`.
+Status: **drafted, awaiting confirmation.** Every item below is `to confirm`. The
+two blocking rulings are **settled** (2026-08-15): P2 leaves the positives and is
+kept as the documented wrong-date counter-case, and P7's measurement-time reading
+is accepted. Neither is still a question; see [P2](#p2--infra-biweekly-review-withdrawn-counter-case)
+and [P7](#p7--2026-h1-cost-progress-tracking).
 
 These labels are what [test-set.md](test-set.md)'s scoring columns are measured
 against. A wrong entry does not fail loudly; it silently mis-scores A1 and feeds
@@ -25,8 +29,8 @@ Set each item's Status to one of:
 
 **Done means**: no item still reads `to confirm`; the two blocking rulings (P2's
 direction, P7's same-period reading) are recorded here as decisions rather than as
-questions; and test-set.md's Status block stops calling the labels
-awaiting-confirmation. Until then FX5's scoring cannot run, because there is
+questions — **done, 2026-08-15**; and test-set.md's Status block stops calling the
+labels awaiting-confirmation. Until then FX5's scoring cannot run, because there is
 nothing settled to score against.
 
 Confirming does not require reopening the fixture. Every row carries the file and
@@ -52,30 +56,32 @@ are into the fixture files named at the head of each case.
 
 | Case | Contradictions | Drops | Controls | Stale in article today | Status |
 |---|---|---|---|---|---|
-| P2 | 8 | 6 | 6 | 7 of 8 | **blocked** — chain direction is inverted, see [P2](#p2--infra-biweekly-review-blocked) |
 | P3 | 8 | 5 | 6 | 6 of 8 | to confirm |
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
 | P5 | 5 | 5 | 6 | **0 of 5** | to confirm — passes today, see [P5](#p5--bybit-trading-skill-api-inventory) |
-| P7 | 8 | 0 | 6 | 6 of 8 | to confirm — one framing call decides the whole case |
+| P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 4 | 6 | 6 | 2 of 4 | to confirm |
 | P9 | 7 | 5 | 6 | 4 of 7 | to confirm |
 | P10 | 8 | 5 | 6 | 4 of 8 | to confirm |
+| ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the eight: **58 contradictions, 36 drops, 48 controls**, and 38 of
-the 58 contradictions are stated as current in the articles today — a 66% pre-A1
-staleness rate on the gating column, measured over compiled output rather than
-argued from P1 alone. Plus one non-scored `chained-supersession` entry (P4) as
-evidence for NG3's trail format.
+Totals across the seven scoring cases: **50 contradictions, 31 drops, 42
+controls**, and 31 of the 50 contradictions are stated as current in the articles
+today — a 62% pre-A1 staleness rate on the gating column, measured over compiled
+output rather than argued from P1 alone. Plus one non-scored
+`chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
+withdrawn label (8/6/6) retained below as counter-case evidence.
 
-- Two cases need a ruling before they can score at all: P2's chain direction is
-  inverted, and P7 stands or falls on whether an as-of date makes a period.
 - **P5 already passes** (0 of 5 stale), and it leaks its ordering three ways
   inside the body, so it belongs with P6 as an accidental-signal case rather than
   as evidence about A1.
 - P4 is the sharpest probe at 9 of 10 stale. P8 is the weakest at 4
   contradictions, all resting on one reading of a column rename.
-- Drops are not a rounding error: 36 of them, and on P8 all six are stated as
+- Drops are not a rounding error: 31 of them, and on P8 all six are stated as
   current. That is the baseline A2's RP1 arm would be measured against.
+- The gating set is therefore **seven drafted cases plus P6**, which succeeds
+  today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
+  P2 because its date lies.
 
 ---
 
@@ -146,14 +152,22 @@ label: the v2 extraction records 「Each session costs approximately 1-2 USD」 
 
 ---
 
-## P2 — Infra biweekly review (BLOCKED)
+## P2 — Infra biweekly review (WITHDRAWN, counter-case)
 
 - `v1` = `.../raw/docs/2026-04-14-infra-双周会-2026_h1.md` (fixture calls this earlier)
 - `v2` = `.../raw/docs/2026-04-17-infra-双周会-2026_h1.md` (fixture calls this later)
 - `article` = `data/kb-knowledge/wiki/decision/infra-ai-devops-roadmap-decisions.md`
 
-**This case cannot score until Captain rules on its direction.** The chain runs
-backwards relative to its content, verified three independent ways:
+**Ruled 2026-08-15: P2 is withdrawn from the positives and kept as the documented
+wrong-date counter-case** — option (c) of the direction call below. It scores
+nothing under FX5 and gates nothing under FX7. Its drafted label is retained
+verbatim, in the fixture's stated direction, because P2 is the corpus's only
+instance of an inverted chain and deleting the label deletes the evidence. What it
+is evidence *for* is a limitation of A1's design, not a defect in A1's
+implementation: WP2 takes ordering from raw frontmatter `date`, and on this
+document that date is wrong rather than missing.
+
+The chain runs backwards relative to its content, verified three independent ways:
 
 | Evidence | v1 (dated 04-14) | v2 (dated 04-17) |
 |---|---|---|
@@ -223,14 +237,19 @@ transcripts are the main source — `2026-03-10-realclaw安全评估.md` is date
 
 ### P2 open judgement calls
 
-1. **Direction — blocking.** Either (a) accept the fixture's direction, in which
-   case A1 is being asked to prefer an older figure and P2 measures the wrong
-   thing; (b) invert the label, swapping contradiction and replacement and turning
-   the six drops into v2-only additions; or (c) withdraw P2 from the positives and
-   keep it as a **documented counter-case** for the wrong-date failure mode, which
-   is what its evidentiary value actually is. Recommendation: (c), with (b)'s
-   inverted label recorded alongside, because P2 is the only corpus instance of
-   the inversion and deleting it would delete the evidence.
+1. **Direction — RULED (c), 2026-08-15.** The three options were (a) accept the
+   fixture's direction, in which case A1 is being asked to prefer an older figure
+   and P2 measures the wrong thing; (b) invert the label, swapping contradiction
+   and replacement and turning the six drops into v2-only additions; or (c)
+   withdraw P2 from the positives and keep it as a **documented counter-case** for
+   the wrong-date failure mode, which is what its evidentiary value actually is.
+   (c) was taken. Under it the rows above keep the fixture's direction — so read
+   every `replacement` as the older figure and do not score any of it — and (b)'s
+   inversion is the reading to apply if the case is ever revived: swap each C with
+   its R, and reclassify D1–D6 as v2-only additions rather than drops. The reason
+   (a) was rejected is that it would have A1 graded as correct for asserting an
+   order that is wrong, which corrupts FX7 in the direction that flatters the
+   work.
 2. **Only C7 and C8 are unambiguous.** They sit inside the section both files date
    2026-04-17, so v1 asserts exactly one value. For C1–C6 the 04-14 file carries
    *both* values in different sections (87.5% at L1405 beside 90% at L435), so an
@@ -440,18 +459,21 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
 - `v2` = `.../raw/docs/2026-05-14-2026-h1成本进展跟进.md`
 - `article` = `data/kb-knowledge/wiki/project/cloud-infrastructure-cost-optimization-2026h1.md`
 
-**One framing decision governs this whole label, and it has to be made before
-scoring.** v2 contains v1 verbatim plus two new weekly columns, so no *dated*
-claim is ever textually contradicted — v2 asserts both 「as of 4/30: 24.57w」 and
-「as of 5/14: 57.11w」, which are compatible. The label below reads the measure as
-"cumulative Q2 progress / current status of item X", with the as-of date being a
-measurement time rather than a different period.
+**One framing decision governs this whole label. Ruled 2026-08-15: the
+measurement-time reading is accepted, so the label below stands and P7 scores its
+8 contradictions.** v2 contains v1 verbatim plus two new weekly columns, so no
+*dated* claim is ever textually contradicted — v2 asserts both 「as of 4/30:
+24.57w」 and 「as of 5/14: 57.11w」, which are compatible. The accepted reading
+takes the measure to be "cumulative Q2 progress / current status of item X", with
+the as-of date being a measurement time rather than a different period.
 
-Under the stricter reading (as-of date is part of the period) this case has
-**zero** contradictions and measures nothing. The article's own behaviour supports
-the drafted reading: it flattens the table into undated current-state
-prose (「significant remaining opportunity」, an open action to close a 3,000-core
-gap), which is exactly where v1's figures become wrong.
+The stricter reading (as-of date is part of the period) was rejected: under it this
+case has **zero** contradictions and measures nothing. What decided it is the
+article's own behaviour rather than a preference between two defensible readings —
+it flattens the table into undated current-state prose (「significant remaining
+opportunity」, an open action to close a 3,000-core gap), which is exactly where
+v1's figures become wrong. An article that had preserved the as-of qualifiers
+would have made the strict reading the right one; this one did not.
 
 `superseded-drop` is **empty by construction**: a body diff returns additions
 only. See call 2 for the three candidates under a different absence test.
@@ -486,9 +508,13 @@ are absent from the article entirely.
 
 ### P7 open judgement calls
 
-1. **The same-measure/same-period reading — blocking.** Accept it and the label
-   stands; reject it and P7 has zero contradictions and should leave the
-   positives. Recommendation: accept, on the article-behaviour evidence above.
+1. **The same-measure/same-period reading — RULED accepted, 2026-08-15**, on the
+   article-behaviour evidence above. The label stands and P7 keeps its 8
+   contradictions. Had it been rejected, P7 would have had zero contradictions and
+   left the positives. One consequence to carry into scoring: because the reading
+   is a judgement about what the measure *is*, C1 and C3 — where the article keeps
+   v1's value under an explicit as-of label — are scored on their lost
+   replacement rather than on staleness. Their `Article today` column says so.
 2. **Drops, if a non-empty list is wanted**, need the test "asserted in v1's
    newest column, not carried into v2's newest column, not contradicted". The
    three candidates are v1 L93 「新增可缩容68C」, v1 L94 (the architect-weekly

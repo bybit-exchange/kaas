@@ -71,7 +71,11 @@ Three facts from the corpus shape the acceptance criteria.
 P1 is a *dropped-claim* case — v2 deleted the section rather than contradicting it
 — and test-set.md calls its status an open labelling rule. There is currently no
 confirmed contradiction-type failure. Labelling the remaining positives costs no
-LLM spend and is a precondition for scoring anything.
+LLM spend and is a precondition for scoring anything. **Superseded by FX3's
+drafting**, which is quoted here as the reasoning A1's criteria were written from:
+the labels now carry 50 drafted contradictions with 31 stated as current, so the
+evidence base is no longer one case — but it is drafted evidence awaiting
+item-by-item confirmation, not adjudicated evidence.
 
 **The fixture as built tests the path A1 can fix.** 38 documents compiled into a
 fresh KB routes each version chain into one `merge→create` call. That is very
@@ -450,7 +454,14 @@ path and report it as a general result.
   versions already wrote.
 - **FX3.** Labels for P2–P5 and P7–P10 — `superseded-contradiction`,
   `superseded-drop`, `replacement`, `control` — are drafted from the diffs and the
-  migrated extractions, then human-confirmed before they score anything.
+  migrated extractions, then human-confirmed before they score anything. Drafted
+  2026-08-14 in [labels.md](labels.md); the two rulings the drafts surfaced were
+  taken 2026-08-15. **P2 is withdrawn from the positives** and kept as a
+  counter-case, because its frontmatter date inverts its content order and scoring
+  it would credit A1 for asserting a wrong order; **P7's measurement-time reading
+  is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
+  seven drafted cases plus P6, carrying 50 contradictions, 31 drops and 42
+  controls, of which 31 contradictions are stated as current today.
   `superseded` is split because Q1 scopes A1's trigger to explicit contradiction
   and sends dropped claims to RP1–RP3's report: only the contradiction list gates
   A1 (FX7), and the drop list is measured so A2's RP1 arm has a baseline. The cost
@@ -543,6 +554,21 @@ path and report it as a general result.
 None blocking A1. Carried to A2: the trail format for chained supersession (NG3),
 and whether A2 needs raw text at write time in order to act on dropped claims
 (RP1).
+
+Opened by FX3's drafting, and not blocking because A1 is no worse than the
+pipeline it replaces: **a frontmatter `date` can be wrong rather than merely
+missing.** Q2 and D3 both provisioned for absence — a dateless source gets no date
+line and the prompt says its ordering is unknown — but a rolling document whose
+`date` records its creation day while its body accumulates later sections gives
+WP2 a date that is confidently wrong, and A1 then asserts an order to the writer
+with no hedge. P2 is the corpus's only inverted chain, which is why it is withdrawn
+from the positives rather than scored (FX3); the weaker symptom is common, at 101
+of 996 corpus documents carrying a body heading date later than their frontmatter
+date. What A1 does not have is any way to notice: the writer is told a date and
+never the text the date came from. Whether the answer is a body-date consistency
+check, an RP-style report, or nothing at all is A2's question, and it needs the
+FX7 run first — if A1 clears the positives with this defect present, the defect is
+not what is costing accuracy.
 
 ## Implementation sequencing
 

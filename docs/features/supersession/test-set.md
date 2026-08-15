@@ -1,11 +1,13 @@
 # Supersession test set: measuring the failure before choosing a fix
 
 Status: test set built; staging landed under FX1; labels **drafted and awaiting
-confirmation** in [labels.md](labels.md) — 58 contradictions, 36 drops and 48
-controls across the eight cases, of which 38 contradictions are still stated as
-current in today's articles. Two cases are blocked on a ruling: P2's chain
-direction is inverted relative to its content, and P7 turns on whether an as-of
-date makes a period. Written 2026-08-10, labels drafted 2026-08-14.
+item-by-item confirmation** in [labels.md](labels.md) — 50 contradictions, 31 drops
+and 42 controls across the seven scoring cases, of which 31 contradictions are
+still stated as current in today's articles. Both blocking rulings are settled
+(2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
+because its frontmatter date inverts its content order, and **P7's
+measurement-time reading is accepted**, so it keeps its 8 contradictions. Written
+2026-08-10, labels drafted 2026-08-14, rulings 2026-08-15.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
 what this set has to deliver before A1 can be judged.
@@ -250,9 +252,10 @@ Splitting the first list is what keeps FX7 honest, and it is not free: P1, the
 one case already adjudicated as failing, is a **drop** rather than a
 contradiction, so the clearest historical failure in this set no longer gates the
 thing it motivated. That is the correct trade: P1 is evidence for A2's RP1 arm,
-not evidence about A1. But it means the positives that gate A1 are the eight
-drafted cases plus P6, and a thin contradiction list on any of them shrinks the
-set that decides whether A2 gets bought.
+not evidence about A1. But it means the positives that gate A1 are the seven
+scoring cases plus P6, and a thin contradiction list on any of them shrinks the
+set that decides whether A2 gets bought. P2 is the second such subtraction, for an
+unrelated reason given below.
 
 Positives. All are same-source, and the article named is the one whose `sources:`
 holds the whole chain. In the Chain column a bare date such as `2026-04-17-`
@@ -264,7 +267,7 @@ the same file is under the singular category directory, so
 | # | Shape | Chain (dates) | Lines, sim | Article | Label |
 |---|---|---|---|---|---|
 | P1 | A | `raw/docs/2026-04-08-入离职-ai-岗位-it-方案.md` → `2026-04-17-` | 52→283, 0.042 | `wiki/decisions/ai-tools-onboarding-offboarding-automation.md` | adjudicated, see below |
-| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [drafted](labels.md#p2--infra-biweekly-review-blocked) — **blocked, direction inverted** |
+| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
 | P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
 | P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale, passes today** |
@@ -298,7 +301,7 @@ contribution, not two, and no supersession marker at all. These are in the
 fixture because a variant that reasons about "which source is newer" will meet
 them, and 55 groups is too many to leave untested.
 
-## Two adjudicated cases
+## Three adjudicated cases
 
 **P1 fails today.** The 04-08 version's 现有情况 section says only ~140 users have
 Lark AI Summary. The 04-17 version drops that section and adds a step marked
@@ -327,6 +330,26 @@ as an accidental signal rather than a guaranteed one
 ([design-options.md](design-options.md), blocker 2). If the failures cluster on
 documents without an internal version marker, then path A — make the signal
 explicit — is the whole fix, and paths B and C are over-buying.
+
+**P2 is withdrawn, because its date lies.** Ruled 2026-08-15. The file dated
+2026-04-14 is a rolling document that accumulates meeting sections: its body
+carries a `# 2026-05-04` heading as well as the `# 2026-04-17` one, its extraction
+records `extracted_at: 2026-05-04`, and in the section both files date 2026-04-17
+it reports figures three weeks newer than the file it supposedly precedes. Its
+frontmatter `date` is its creation day, not its content day, so the chain runs
+backwards relative to its content and scoring it would grade A1 as correct for
+asserting an order that is wrong. It is kept as a counter-case with its label
+intact — see [labels.md](labels.md#p2--infra-biweekly-review-withdrawn-counter-case)
+for the evidence and for the inverted reading to apply if it is ever revived.
+
+This is a finding about the design and not only about the fixture, which is why it
+is recorded here rather than in a footnote. WP2 takes the ordering signal from raw
+frontmatter, so on such a document A1 hands the writer a date that is confidently
+wrong; Q2 and D3 provisioned for a *missing* date, not a wrong one. Scoped rather
+than alarmed: 1 of 12 fixture chains inverts, while 101 of 996 corpus documents
+(10.1%) carry a body heading date later than their frontmatter date. The symptom is
+common and the fatal form is rare. N3 and N4 are stale by about 30 days but their
+relative order holds, so they remain valid controls.
 
 ## Scoring
 
