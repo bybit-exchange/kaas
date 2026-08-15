@@ -1079,7 +1079,7 @@ anyone extending this label set should not reuse that `sed` recipe.
 ## Note: within-version ambiguity
 
 Every contradiction row is phrased "the earlier version asserts X, the later asserts
-incompatible Y". Verification found four places where a single version asserts **both
+incompatible Y". Verification found five places where a single version asserts **both
 X and something close to not-X**, so that phrasing is stronger than the documents
 support. This is a different problem from the co-source confound: there the *article*
 had a second source, here the *fixture document itself* is internally inconsistent.
@@ -1090,9 +1090,10 @@ had a second source, here the *fixture document itself* is internally inconsiste
 | **P4-C8** (v4) | The §5 table names 差额账户 as counterparty (L5698), while L788, L798, L808, L5683 and L5864 still call it 系统户 — including a cell of the same table, two rows up. None is in a pending-decision block |
 | **P4-C7** (v4) | DDL says `service_action` (L4192); prose at L4182 still says `action`. Already documented in open call 2 |
 | **P2** (the 04-14 file) | Asserts vLLM onboarding at both 「进度100%」 (L399, in its `# 2026-05-04` section) and 「进度90%」 (L1358, in its `# 2026-04-17` section) — the artefact of a rolling document updated in place |
+| **P6** (v1) | Its own version: frontmatter `title` (L5) and the H1 (L10) say 「通用网关设计方案 v1.5」 while the body marker at L13 says `> 版本: v1.6`. Governs no row — P6 is adjudicated, not drafted — but it is the only instance where the ambiguity is about the *version* rather than about a claim, and P6's success is credited to that marker ([test-set.md](test-set.md#three-adjudicated-cases)) |
 
-Only one of these was documented when drafted (C7's). The rest are queued as **V18**,
-**V5** and **V10**.
+Only one of these was documented when drafted (C7's). Of the rest, **V18**, **V5** and
+**V10** are queued; P6's changes no scored row and is recorded rather than queued.
 
 Two consequences for scoring. First, a row whose earlier version also asserts the
 replacement is weaker evidence than the table implies, even when the *measured token*

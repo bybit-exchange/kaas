@@ -33,7 +33,7 @@ case in the corpus — a gateway design document at v1.5 and v1.7 as two separat
 Lark documents — the current pipeline produced an article that states the v1.7
 scope and cites the range: "The design is documented in v1.5–v1.7 of the
 specification". The design doc's "Today it states both" is not universally true.
-See [Two adjudicated cases](#two-adjudicated-cases).
+See [Three adjudicated cases](#three-adjudicated-cases).
 
 ## The corpus
 
@@ -381,6 +381,52 @@ as an accidental signal rather than a guaranteed one
 ([design-options.md](design-options.md), blocker 2). If the failures cluster on
 documents without an internal version marker, then path A — make the signal
 explicit — is the whole fix, and paths B and C are over-buying.
+
+**Verified 2026-08-15, and it holds.** v1 L25 carries 「当前 BGW 是一个面向业务的重量级网
+关，存在以下问题：」 and v2 L25 「当前团队维护着**四套独立网关系统**，各自针对不同场景发展，
+代码重叠、运维分散：」. Precision on the second quote: the source bolds the phrase, so it is
+`当前团队维护着**四套独立网关系统**` rather than the plain string quoted above. The scope
+widening also shows up in a second and cleaner place the adjudication does not cite — the
+定位 line, 「定位: 通用业务网关，以 AI 接入场景为首期落地」 at v1 L17 against 「定位: 通用业务
+网关，整合 bgw / bgwg / bgwtp / LiteLLM，以 AI 接入场景为首期落地」 at v2 L17. The article
+leads with the v1.7 framing in its first sentence and names the range in the same one:
+"documented in v1.5–v1.7 of the specification" (L15).
+
+The superseded framing is absent in both languages — 0 hits for `重量级`, and 0 for
+`heavyweight` or `business-oriented gateway` — so the pass is not an artefact of grepping
+Chinese against an English article. One thing that could have read as stale and is not:
+the article repeats BGW's own problem list at L21, including the `fasthttp` and
+technical-debt items. v1.7 keeps that list — the same six-row 问题/描述 table, relocated
+under a new `#### bgw（业务 HTTP 网关）` subheading at v1.7 L27, with 「使用 fasthttp 而非
+byone rest，无法享受 byone 的 OTel Trace、熔断、Nacos 注册等开箱能力」 verbatim at v1.7 L68
+against v1.5 L66. So v1.7 **subordinates** v1.5's framing to one of four gateways rather
+than retracting its detail, and the article is repeating the newest source rather than
+carrying an older one.
+
+**P6 is not confounded either.** Its article compiles from three sources rather than the
+chain's two, but the third — `raw/docs/2026-04-17-access-gateway技术方案.md` — returns 0
+hits for 四套, bgwg, bgwtp and 重量级 and carries no version or date marker of its own; it
+contributes §14 alone. So P6's success is attributable to this pair, just as P1's failure
+is. That co-source is not staged in the fixture, which is how the fixture is built — chain
+files only — so FX4's P6 re-compile sees two of three sources and cannot reproduce §14.
+Score P6 on the framing, not on article completeness.
+
+**One finding, and it lands on the design lesson rather than on the case.** v1's internal
+version marker disagrees with v1's own title: frontmatter `title` (L5) and the H1 (L10)
+both say 「通用网关设计方案 v1.5」, while the body marker at L13 says `> 版本: v1.6`. The
+ordering signal P6's success is credited to is therefore present in both documents but
+self-inconsistent in the earlier one. The case stands, since v1.6 still orders before
+v1.7 — but the finding pushes toward path A rather than away from it: the accidental
+signal is not merely unguaranteed, it can contradict the same document's own title, and a
+reader taking the title sees v1.5→v1.7 where a reader taking the marker sees v1.6→v1.7.
+It is a fifth instance of the shape recorded in
+[labels.md](labels.md#note-within-version-ambiguity), and the first where the ambiguity is
+about the version rather than about a claim.
+
+Two reproductions, recorded because P6's is the one positives row carrying no `†`: its
+line counts rebuild exactly at 2283→2902, and its 0.794 similarity is genuinely
+undistorted — identical to three places with `autojunk=False`, over 2,131 of 2,283 shared
+body lines. The missing dagger is correct rather than an oversight.
 
 **P2 is withdrawn, because its date lies.** Ruled 2026-08-15. The file dated
 2026-04-14 is a rolling document that accumulates meeting sections: its body

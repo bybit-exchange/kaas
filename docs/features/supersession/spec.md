@@ -80,7 +80,13 @@ item-by-item confirmation, not adjudicated evidence.
 **The fixture as built tests the path A1 can fix.** 38 documents compiled into a
 fresh KB routes each version chain into one `merge→create` call. That is very
 likely why P6 succeeded, and it means an unstaged run would score A1 on the easy
-path and report it as a general result.
+path and report it as a general result. The other candidate explanation — an
+ordering signal inside the payload — survives verification but comes out weaker
+than stated: P6's v1 carries `> 版本: v1.6` in its body while its own title and H1
+say v1.5, so the accidental signal can contradict its own document about its own
+version ([test-set.md](test-set.md#three-adjudicated-cases)). It still orders
+correctly here, and it is one more reason to read blocker 2 as an argument for
+path A.
 
 **No date reaches the writer on any route.** `core/merge.py:95` emits
 `- Source: {source_path}` and nothing else.
@@ -471,7 +477,10 @@ path and report it as a general result.
   confounded where an article merges sources beyond the chain under test, so FX5 needs
   staleness defined against the newest source in the compile set rather than as "the
   earlier value appears"; FX7's gate is unaffected because it counts corrections
-  carried.
+  carried. **Verification coverage is now complete**: the eight controls, P1 and P6
+  were checked separately from the 128-item pass, since none of them is a drafted row.
+  All hold. P6 adds no queue item but does add a finding about the accidental ordering
+  signal, recorded above.
   `superseded` is split because Q1 scopes A1's trigger to explicit contradiction
   and sends dropped claims to RP1–RP3's report: only the contradiction list gates
   A1 (FX7), and the drop list is measured so A2's RP1 arm has a baseline. The cost
