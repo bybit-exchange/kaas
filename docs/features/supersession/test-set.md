@@ -20,7 +20,7 @@ cases plus P6**, not seven, and P8 stays in on its 6 drops and 6 controls; **V2 
 P9-C1**, which v2 preserves item-for-item in material already scored as a control; and
 **V3 reclassified P10-C6 as a drop**, since it paired a mean against a median over a
 different span. That is why the totals read 44 and not 50. Verification also found that these articles merge more
-sources than the chain under test, which confounds the staleness column; the 62% figure
+sources than the chain under test, which confounds the staleness column; the 61% figure
 is motivation, not measurement. Written 2026-08-10, labels drafted 2026-08-14, rulings
 and verification 2026-08-15.
 Companion to [design-options.md](design-options.md), which lists the options this

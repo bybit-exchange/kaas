@@ -39,9 +39,10 @@ drafter's job rather than the reviewer's.
 
 Since 2026-08-15 the rows have also been through an independent verification pass,
 so the confirm pass starts from **18 queued rulings** rather than from 122 unchecked
-rows — 19 were raised and one, V16, has since been
+rows — 19 were raised and one, V16, was
 [resolved by investigation](#v16--resolved-by-investigation-no-ruling-needed)
-because it asked an empirical question rather than for a decision. See [the verification pass](#independent-verification-pass-2026-08-15). Note
+because it asked an empirical question rather than for a decision. **Four are now
+ruled** — V1, V2, V3 and V12, the ones that moved the totals — leaving **14 open**. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
 Only the second one clears `to confirm`.
@@ -96,8 +97,8 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3 and V12 applied and the rest of the queue pending.**
-Six of the remaining rulings would move them further; the arithmetic is in
+**These totals have V1, V2, V3 and V12 applied; 14 rulings are still open.** Five of
+those would move a number further — V5, V7, V8, V9 and V19; the details are in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -158,12 +159,18 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 18 items needing a ruling, plus V16 resolved
+### The queue — 19 items: 5 settled, 14 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the other 18 is an agent's
-call, because each either reclassifies a row or changes what a number means.
+call, because each either reclassifies a row or changes what a number means. **V1, V2,
+V3 and V12 are ruled** — the three that moved the totals, plus the one that governs the
+same item as V3 — and each row records the decision. Of the 14 still open, five would
+move a scored number: V5 contests one of P4's stale rows, V7 forces P3 to 8/5 or 9/4,
+V8 would take P5's drops to 6, V9 adds two measured losses to the drop arm, and V19
+redefines staleness for every case at once. The rest change what a number means or
+correct the reasoning under it.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
@@ -1235,7 +1242,7 @@ this for one case; it generalises.
 
 Two consequences, and they are not the same size.
 
-**For the drafted `Article today` column and the 62% headline, the confound is
+**For the drafted `Article today` column and the 61% headline, the confound is
 severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
 contradictions, so of the six cases that still gate, only P3 does. P7 is the worst case:
 its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
@@ -1249,7 +1256,7 @@ the compile over the staged fixture. Only P5 and P7 carry a co-source into that 
 one each, and in both cases the co-source is another case's v1 — itself superseded
 within the fixture, so ordering applies to it too.
 
-So the 62% pre-A1 figure is motivation, not measurement, and should stop being
+So the 61% pre-A1 figure is motivation, not measurement, and should stop being
 quoted as though the two were interchangeable. Before FX5 scores a case, the
 staleness criterion needs stating as *the article asserts the superseded value where
 the newest source in the compile set asserts otherwise* — not merely *the earlier
