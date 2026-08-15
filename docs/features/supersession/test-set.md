@@ -1,7 +1,7 @@
 # Supersession test set: measuring the failure before choosing a fix
 
 Status: test set built; staging landed under FX1; labels **drafted and awaiting
-item-by-item confirmation** in [labels.md](labels.md) — 50 contradictions, 31 drops
+item-by-item confirmation** in [labels.md](labels.md) — 50 contradictions, 30 drops
 and 42 controls across the seven scoring cases, of which 31 contradictions are
 still stated as current in today's articles. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,

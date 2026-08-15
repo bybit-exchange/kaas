@@ -65,7 +65,7 @@ are into the fixture files named at the head of each case.
 | P10 | 8 | 5 | 6 | 4 of 8 | to confirm |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the seven scoring cases: **50 contradictions, 31 drops, 42
+Totals across the seven scoring cases: **50 contradictions, 30 drops, 42
 controls**, and 31 of the 50 contradictions are stated as current in the articles
 today — a 62% pre-A1 staleness rate on the gating column, measured over compiled
 output rather than argued from P1 alone. Plus one non-scored
@@ -77,7 +77,7 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   as evidence about A1.
 - P4 is the sharpest probe at 9 of 10 stale. P8 is the weakest at 4
   contradictions, all resting on one reading of a column rename.
-- Drops are not a rounding error: 31 of them, and on P8 all six are stated as
+- Drops are not a rounding error: 30 of them, and on P8 all six are stated as
   current. That is the baseline A2's RP1 arm would be measured against.
 - The gating set is therefore **seven drafted cases plus P6**, which succeeds
   today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,

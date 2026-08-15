@@ -460,7 +460,7 @@ path and report it as a general result.
   counter-case, because its frontmatter date inverts its content order and scoring
   it would credit A1 for asserting a wrong order; **P7's measurement-time reading
   is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
-  seven drafted cases plus P6, carrying 50 contradictions, 31 drops and 42
+  seven drafted cases plus P6, carrying 50 contradictions, 30 drops and 42
   controls, of which 31 contradictions are stated as current today.
   `superseded` is split because Q1 scopes A1's trigger to explicit contradiction
   and sends dropped claims to RP1–RP3's report: only the contradiction list gates
