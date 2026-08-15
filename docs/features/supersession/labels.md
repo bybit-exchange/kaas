@@ -71,12 +71,12 @@ are into the fixture files named at the head of each case.
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
-| P10 | 8 | 5 | 6 | 4 of 8 | to confirm |
+| P10 | 7 | 6 | 6 | 3 of 7 | to confirm — **V3 ruled 2026-08-15**, C6 reclassified as drop D6, see [P10](#p10--2025-engineering-efficiency-report) |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the seven scoring cases: **45 contradictions, 30 drops, 42
-controls**, and 28 of the 45 contradictions are stated as current in the articles
-today — a 62% pre-A1 staleness rate on the gating column, measured over compiled
+Totals across the seven scoring cases: **44 contradictions, 31 drops, 42
+controls**, and 27 of the 44 contradictions are stated as current in the articles
+today — a 61% pre-A1 staleness rate on the gating column, measured over compiled
 output rather than argued from P1 alone. Plus one non-scored
 `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
 withdrawn label (8/6/6) retained below as counter-case evidence.
@@ -87,7 +87,7 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
 - P4 is the sharpest probe at 9 of 10 stale. **P8 now contributes no
   contradictions**: V1 ruled its four to be de-specifications of one column rename,
   so it carries drops and controls only.
-- Drops are not a rounding error: 30 of them, and on P8 five of six are stated as
+- Drops are not a rounding error: 31 of them, and on P8 five of six are stated as
   current. That is the baseline A2's RP1 arm would be measured against.
 - The gating set is therefore **six drafted cases plus P6**, which succeeds today.
   P1, P2 and now P8 are evidence rather than tests: P1 because it is a drop, P2
@@ -96,8 +96,8 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1 and V2 applied and the rest of the queue pending.** Seven of
-the remaining rulings would move them further; the arithmetic is in
+**These totals have V1, V2, V3 and V12 applied and the rest of the queue pending.**
+Six of the remaining rulings would move them further; the arithmetic is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -169,7 +169,7 @@ call, because each either reclassifies a row or changes what a number means.
 |---|---|---|---|---|---|
 | **V1** | P8-C1–C4 | P8 → contradictions table | **RULED 2026-08-15: accepted.** The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. Two further findings decided it: the article itself writes both sides (「Lucas Wan / Architecture team」 at L188 and L192), so it is not asserting the superseded value under any staleness rule; and v2 keeps person names in the `团队` column (L154, L291, L311) and still names 「Victor / Lucas」 at L681, so nothing was actually re-attributed away. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Struck; moved to the [re-attribution list](#re-attribution-not-contradiction--the-four-rows-v1-struck) | Applied: **P8 → 0 contradictions**, out of the gating set. 7 gating cases → 6; totals 46/30/42 with 29 stale |
 | **V2** | P9-C1 | P9 → contradictions table | **RULED 2026-08-15: accepted.** v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178 for the self-hosted-OpenClaw half, L182–184 for the in-house TradeGPT agent) — the second is already scored as control **K1**, so scoring C1 had the same material both preserved and superseded. Checked at ruling time: the article's two-component framing (L21, L23–24) is what v2 asserts too, so the row's `stale` verdict was wrong on the facts as well as on the classification. The three pillars are a capability taxonomy on a different axis, and the draft's own call 7 files that material under "additive, not superseding" | Struck; substance folded into K1's evidence rather than a new control, and the pillars added to call 7's additive list | Applied: P9 → 6 contradictions, **3 of 6 stale**; totals 45/30/42 with 28 stale |
-| **V3** | P10-C6 | P10 → contradictions table | Compares v1's **mean** dev-phase duration against v2's **median** dev+test cycle — different statistic over a different span. v2's same-scope figure (median 1–3 → 4–7 days, L49/L67) is compatible with a mean of 7.3→11.3. The justification concedes v2 "reports no mean anywhere", which is absence, not contradiction | Reclassify as `superseded-drop` | P10 → 7 contradictions, **3 stale**; drops → 6 |
+| **V3** | P10-C6 | P10 → contradictions table | **RULED 2026-08-15: accepted.** Compares v1's **mean** development duration (L25) against v2's **median** 研发周期 (L28), which v2 L14 defines as development *plus* test — a different statistic over a different span. Checked at ruling time: v2 does carry a same-scope median development duration (the 中位开发时长 column at L49, 1–3 → 4–7 days at L67), and it is compatible with v1's mean 7.3 → 11.3, just as v2's own 「中位低、均值高」 note (L38) predicts; and **no same-basis pair exists to re-cut the row onto**, because v1 reports development duration only as a mean (L25, L73, L177). Keeping it would ask A1 to correct 9.2 days against no replacement value, so R6 was unscoreable | Reclassified as `superseded-drop` **D6**, recorded as a lost drop, with the basis change written into [measurement-basis item 4](#measurement-basis-changes--why-c1c5-c7-and-c8-are-contradictions-rather-than-new-figures) | Applied: P10 → 7 contradictions, **3 stale**; drops → 6; totals 44/31/42 with 27 stale |
 | **V4** | P7 case-level | P7 → preamble and headline | The article's fifth source is the 04-14 infra biweekly (P2's v1), which asserts v1's **entire** 0430 column verbatim (L898–L928). So 7 of 8 staleness observations have a second possible cause | Keep the rows; score only C8 as attributable to this pair until FX4 re-runs on the fixture | P7's staleness stops being quotable as-is |
 | **V5** | P4-C8 | P4 → contradictions table | v4 still names 系统户 as the settling counterparty in five places, including a cell of the very §5 table the row scores on (v4 L788, L798, L808, L5683, L5864), none in a pending-decision block | Add an open call mirroring C7's, or drop the row if zero ambiguity is required | One of P4's 9 stale rows becomes contested |
 | **V6** | P10-C7 | P10 → contradictions table | Pairs v1's ≤90-filtered counts against v2's **full-population** headline. Same-basis counterparts exist in the same v2 rows: 1,971 and 1,129 | Re-base the replacement to 1,971 / 1,129 (≤120) or 2,036 / 1,182 (full), and score the stale verdict on v1's 43% and the peak/trough framing, which are genuinely v1-only | Row survives, figures change |
@@ -178,7 +178,7 @@ call, because each either reclassifies a row or changes what a number means.
 | **V9** | P5-D4/D5 | P5 → drops table | Both dropped clauses are in the article (L427, L402), so both are **lost** drops. The label does not say so | Record the article residue on both rows | P5's drop arm gains two measured losses |
 | **V10** | P2 evidence | P2 → evidence table and open call 2 | Verified by hand. Row 3 of the evidence table is half wrong: in the section both files date 04-17 they **agree** on vLLM at 90% (v1 L1358, v2 L405); the 100% is exclusive to the 04-14 file's 05-04 section (L399). So judgement call 2 is wrong that C7 and C8 are the two unambiguous rows — v1 asserts both values, which is the ambiguity it attributes only to C1–C6. C8 does hold (56% at both L783 and L1781 against 20% at v2 L824) | Correct the row and the call. The inversion conclusion **stands** and is better supported: the rolling file updated its own 04-17 section in place | P2's revival recipe rests on C8 alone |
 | **V11** | P10 call 5 | P10 → open call 5 | The provenance list is wrong in both directions: 1,907/1,081 **and** 45% are in the non-superseded full-data report (L95, L98, L89), so they are not v1-exclusive; but 「9.3 days」 is in **no** source, so L170 is most likely v1's 9.2 mis-transcribed and belongs on the scoreable side | Rewrite the list | Changes which article lines may be scored |
-| **V12** | P10 item 4 | P10 → measurement-basis item 4 | "v2 reports no mean anywhere" is false — v2 L38, L82, L271 all report means | Restrict the claim to development duration | Supports V3 |
+| **V12** | P10 item 4 | P10 → measurement-basis item 4 | **RULED 2026-08-15: accepted**, applied together with V3 since both govern the same item. "v2 reports no mean anywhere" is false — v2 L38 「均值 13-20 天」, L82 「均值产品准备期 13.5 天」, L271 「平均周期 172 天」 | Restricted to development duration, where `平均开发时长` returns 0 hits in v2 | Applied; item 4 rewritten, and it is what carried V3 |
 | **V13** | P10 item 2 | P10 → measurement-basis item 2 | Crosses bases: v1's 8,916/8,378 are ≤90-filtered, v2's 9,412/9,033 are full-population. Throughput was re-based, not revised | Say so | Row unaffected; reasoning corrected |
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
 | **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
@@ -189,12 +189,12 @@ call, because each either reclassifies a row or changes what a number means.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1 and V2 are ruled and applied**, so the Progress table now reads
-45/30/42 with 28 of 45 stale, and P8 no longer gates. If V3 is also accepted the set
-becomes **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
-carried by seven cases still, but only **six of them gating**. That is a smaller and
-more defensible set than the 50/30/42 it started from, and its headline no longer
-leans on P8's rename reading or P7's confounded column.
+the survivors. **V1, V2, V3 and V12 are ruled and applied**, so the Progress table now
+reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
+carried by seven cases still, but only **six of them gating**, since P8 contributes no
+contradictions. That is a smaller and more defensible set than the 50/30/42 it started
+from, and its headline no longer leans on P8's rename reading. P7's confounded column
+is still in it, which is what V4 is for.
 
 #### V16 — resolved by investigation, no ruling needed
 
@@ -1041,7 +1041,6 @@ signal.
 | P10-C3 / R3 | Annual on-time rate ~36%, H1 41.8% → H2 28.5% (−13.3pp) → ~25%, 33.1% → 18.2% (−14.9pp) | v1 L26 → v2 L31 | not stale — L169 uses v2's value | to confirm |
 | P10-C4 / R4 | The best month of 2025 reached only 45% on-time → January was best at 35%, falling monotonically to 14.3% in October | v1 L32 → v2 L36, L51, L204 | **stale** — L84 states the 45% claim, in the same sentence as v2's 35%→14.3%, self-inconsistently | to confirm |
 | P10-C5 / R5 | Median end-to-end delivery cycle ~15 days (13.8 H1, 17.8 H2) → ~17 days (15.3, 19.8) | v1 L24 → v2 L29 | not stale, replacement also missing — neither ~15 nor ~17 appears | to confirm |
-| P10-C6 / R6 | The headline engineering-time metric is *average development duration*, ~9.2 days, +54.8% from 7.3 to 11.3 → *median R&D cycle*, ~6 days, +70% from 5.0 to 8.5, with the cycle decomposed into 产品准备期 plus 研发周期 | v1 L25 → v2 L28, L14–15 | **stale** — L21, L50, L54, L170 all carry v1's mean framing; v2's median sits alongside rather than replacing | to confirm |
 | P10-C7 / R7 | Monthly throughput peaked at 1,907 in July, bottomed at 1,081 in October, a 43% swing → 2,036 and 1,182 | v1 L59 → v2 L135, L138, L176 | **stale** — L60 glues v1's extremes to v2's monthly average in one sentence | to confirm |
 | P10-C8 / R8 | UserService's on-time rate fell 44.6% (Q1) → 22.0% (Q4) → 37.2% → 12.1% | v1 L101 → v2 L233 | **stale** — L282 | to confirm |
 
@@ -1054,6 +1053,7 @@ signal.
 | P10-D3 | Recommends an organizational-change buffer: a 2–4 week transition with lowered delivery expectations when a leader changes, plus a knowledge-transfer checklist | v1 L225 | to confirm |
 | P10-D4 | Proposes a tech-lead quality tier of bug-association rate ≤0.3, rework ≤5%, and a per-capita monthly throughput baseline | v1 L163; v2's third tier is stale-requirement rate / estimation accuracy / P-1+P0 share (L322–326) | to confirm |
 | P10-D5 | Mandates splitting any requirement whose delivery cycle exceeds 20 days, targeting ≤10 days | v1 L199; v2 manages size by tiering instead | to confirm |
+| P10-D6 | The headline engineering-time metric is *average development duration*, ~9.2 days, +54.8% from 7.3 to 11.3 | v1 L25, restated at L73 and L177; `平均开发时长` returns 0 hits in v2, which reports development duration as a median instead. **Reclassified from contradiction C6 by V3, ruled 2026-08-15** — v2's headline 中位研发周期 (L28) is a different statistic over a different span (L14 defines 研发周期 as development *plus* test), so it cannot contradict a mean development duration | to confirm — **lost drop**: the article still carries v1's mean framing at L21, L50, L54 and L170 |
 
 ### Controls
 
@@ -1066,11 +1066,11 @@ signal.
 | P10-K5 | Three-point estimation should replace single-point estimation, with calibration workshops for the lowest on-time teams | v1 L194 → v2 L342 | to confirm |
 | P10-K6 | DORA metrics (deployment frequency, change lead time, MTTR, change failure rate) should be added long-term | v1 L221 → v2 L363 | to confirm |
 
-### Measurement-basis changes — why C1–C8 are contradictions rather than new figures
+### Measurement-basis changes — why C1–C5, C7 and C8 are contradictions rather than new figures
 
 1. **Exclusion rule >90 → >120 days** (v1 L10, L235 → v2 L12, L378). The root
-   change; it invalidates every efficiency figure in v1. C1, C3, C5, C6 and C8 are
-   downstream. Note the exclusion rate also moves from 「约占 6.3%」 to 3.6% —
+   change; it invalidates every efficiency figure in v1. C1, C3, C5 and C8 are
+   downstream, and so is drop D6. Note the exclusion rate also moves from 「约占 6.3%」 to 3.6% —
    roughly 1,151 items excluded against 668.
 2. **One filtered population → a two-dataset design** with purposes split
    (v2 L377–378). Invalidates every throughput figure: annual 17,294, monthly
@@ -1083,8 +1083,22 @@ signal.
    the bottleneck engineering execution and the product queue a separate
    long-tailed problem (mean 13.5 vs median 5.5, P90 43.5).
 4. **Statistic and scope changed: mean 平均开发时长 → median 中位研发周期** (dev+test,
-   from dev start). v2 reports no mean anywhere, so v1's ~9.2 days, 7.3→11.3,
-   +54.8% and Q1 7.1 → Q4 13.5 have no counterpart. C6.
+   from dev start). This is why **V3 reclassified C6 as drop D6** rather than a
+   contradiction: two different statistics over two different spans cannot be
+   incompatible. Three corrections belong here, the first of them V12's.
+   *v2 does report means* — 均值产品准备期 13.5 天 (L82), 均值 13-20 天 (L38), 平均周期
+   172 天 (L271) — so the claim only holds for development duration, where
+   `平均开发时长` returns 0 hits.
+   *v2 does report a same-scope development duration*, as a median: the monthly table
+   carries a 中位开发时长 column (L49) and L67 states it rose from 1–3 days in H1 to 4–7
+   in H2. That is compatible with v1's mean 7.3 → 11.3, exactly as v2's own
+   「中位低、均值高」 note about the long tail (L38) would predict.
+   *And no same-basis pair exists to re-cut the row onto*: v1 reports development
+   duration only as a mean (L25, L73, L177) and never as a median, so there is nothing
+   in v1 to compare against v2's median series. Reclassification was the only coherent
+   option, not the lenient one. The consequence for FX7 is the practical argument:
+   keeping C6 would ask A1 to correct 9.2 days when v2 offers no replacement value for
+   it, so R6 was unscoreable.
 5. **Team-level measure changed from delivery cycle to R&D cycle**, so v1's
    team-level cycle values have no counterpart while team-level on-time rates are
    restated on the new basis and all move down. C8.

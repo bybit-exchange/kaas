@@ -73,9 +73,10 @@ P1 is a *dropped-claim* case — v2 deleted the section rather than contradictin
 confirmed contradiction-type failure. Labelling the remaining positives costs no
 LLM spend and is a precondition for scoring anything. **Superseded by FX3's
 drafting**, which is quoted here as the reasoning A1's criteria were written from:
-the labels now carry 45 drafted contradictions with 28 stated as current (50 and 31 as
-drafted, before V1 and V2 struck five), so the evidence base is no longer one case — but
-it is drafted evidence awaiting item-by-item confirmation, not adjudicated evidence.
+the labels now carry 44 drafted contradictions with 27 stated as current (50 and 31
+as drafted, before V1, V2 and V3 removed six), so the evidence base is no longer one
+case — but it is drafted evidence awaiting item-by-item confirmation, not adjudicated
+evidence.
 
 **The fixture as built tests the path A1 can fix.** 38 documents compiled into a
 fresh KB routes each version chain into one `merge→create` call. That is very
@@ -466,8 +467,9 @@ path A.
   counter-case, because its frontmatter date inverts its content order and scoring
   it would credit A1 for asserting a wrong order; **P7's measurement-time reading
   is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
-  seven drafted cases plus P6, carrying — after V1 and V2, below — 45 contradictions,
-  30 drops and 42 controls, of which 28 are stated as current today. Those 128 items
+  seven drafted cases plus P6, carrying — after V1, V2 and V3, below — 44
+  contradictions, 31 drops and 42 controls, of which 27 are stated as current today.
+  Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [18 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
@@ -482,8 +484,11 @@ path A.
   and controls, which matters because it is the one case with no accidental ordering
   cue. **V2 accepted**: P9-C1 is struck because v2 preserves both halves of v1's end
   state (L175–178 and L184), the second already scored as control K1, so the article's
-  two-component framing was never stale. Together they leave 45 contradictions with 28
-  stale. If P10's C6 also becomes a drop the set is 44 with 27.
+  two-component framing was never stale. **V3 accepted**: P10-C6 becomes drop D6,
+  because it paired v1's *mean* development duration against v2's *median* 研发周期,
+  which v2 defines as development plus test — and v1 reports that duration only as a
+  mean, so no same-basis pair exists to re-cut it onto. Together the three leave **44
+  contradictions, 31 drops and 42 controls with 27 stale**.
   Verification also established that the staleness column is
   confounded where an article merges sources beyond the chain under test, so FX5 needs
   staleness defined against the newest source in the compile set rather than as "the
