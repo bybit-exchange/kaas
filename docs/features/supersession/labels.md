@@ -38,7 +38,7 @@ line of both sides, plus the decisive quote, because aligning them is the
 drafter's job rather than the reviewer's.
 
 Since 2026-08-15 the rows have also been through an independent verification pass,
-so the confirm pass starts from **17 queued disputes** rather than from 122 unchecked
+so the confirm pass starts from **18 queued rulings** rather than from 122 unchecked
 rows. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
@@ -90,7 +90,7 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
   P2 because its date lies.
 
-**These totals are pre-verification.** Nine of the 17 queued disputes below would
+**These totals are pre-verification.** Nine of the 18 queued rulings below would
 move them; the arithmetic if all nine are accepted is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
@@ -148,8 +148,9 @@ row says so. Listed for audit, not for decision.
 | A13 | P9-K2 | v2 range is L53–62; L54–63 omits the 「Fee Conversion」 label cell |
 | A14 | P9-C5 | Reworded — the 5 products span Earn, Margin Staked SOL and Spot X, not Earn alone |
 | A15 | Totals | Drop total is 30, not 31 |
+| A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 17 items needing a ruling
+### The queue — 18 items needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them;
 none is an agent's call, because each either reclassifies a row or changes what a
@@ -173,7 +174,8 @@ number means.
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
 | **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
 | **V16** | P5 undeclared source | P5 → open call 3 | `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md` carries several dropped rationales verbatim (L96, L116, L156, L342, L588) but is **not** in the article's `sources` frontmatter. Confirmed present on disk | Investigate before scoring D2–D5 as lost drops — either the compile read an undeclared source or the frontmatter is incomplete, and both matter | Possible provenance gap in the fixture itself |
-| **V17** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
+| **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V18 case that basis must be stated |
+| **V18** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
 
 **Done means**: every V-item above reads `ruled` with the decision written into the
 row it governs, and the Progress table is recomputed from the survivors. If V1, V2
