@@ -483,17 +483,35 @@ only. See call 2 for the three candidates under a different absence test.
 | ID | v1 → v2 | Evidence | Article today | Status |
 |---|---|---|---|---|
 | P7-C1 / R1 | Q2 progress 40.95%, 24.57w banked → 95.18%, 57.11w | v1 L69 → v2 L75 | present but dated 「as of 2026-04-30」 (L43–49); v2's 95.18% absent, and 57.11 appears mis-rendered as a *rate* at L39 | to confirm |
-| P7-C2 / R2 | Low-utilization governance 17.6w at 117.3% of a 10w–15w target → 44.4w, with 117.3 struck and no new rate given | v1 L90 → v2 L102–103 | **stale, undated** — L480, L57; `44.4` absent | to confirm |
-| P7-C3 / R3 | Commercial-model optimization 13.3%, 6.8w → 41.5%, 8.3w | v1 L75 → v2 L82 | present under a 「Completed (Apr 30)」 column (L58); v2's values absent | to confirm |
+| P7-C2 / R2 | Low-utilization governance 17.6w at 117.3% of a 10w–15w target → 44.4w, with 117.3 struck and no new rate given | v1 L90 → v2 L102–103. Hazard: 117.3% also appears **un-struck** in v2's own 0507 column (L220), so a string-matching scorer will find it "present in v2" and wrongly clear the row | **stale, undated at L480**; also present at L57, but there under a 「Completed (Apr 30)」 column header (L55), so L57 is not undated evidence; `44.4` and `41.13` absent | to confirm |
+| P7-C3 / R3 | Commercial-model optimization 13.3%, 6.8w → 41.5%, 8.3w | v1 L75 → v2 L82 | amount 6.8w present under a 「Completed (Apr 30)」 column (L58); v1's 13.3% **absent** — the article recomputes it as 「~27–34%」; v2's 41.5% and 8.3w absent | to confirm |
 | P7-C4 / R4 | Listing low-utilization rightsizing 3300C at 83.1% → 3864C at 97.28% | v1 L92 → v2 L222 | **stale and undated** — L480; the article *also* carries v2's value at L70 and L481, contradicting itself | to confirm |
 | P7-C5 / R5 | Optimizable cores 7197C on AWS (13.8w) and 17054C on Tencent Cloud (3.8w) → 11362C and 25046C | v1 L96, L99 → v2 L108, L115, L107 | **stale, framed as a live opportunity** — L490 | to confirm |
-| P7-C6 / R6 | EC2 SP shortfall 3000C → 7C, with confirmed reducible scope 11362C | v1 L82 → v2 L207, L88 | **stale and live as an open action** — L571, L192 | to confirm |
+| P7-C6 / R6 | EC2 SP shortfall 3000C → 7C, with confirmed reducible scope 11362C | v1 L82 → v2 L207, L88. Note R6's 11362C is the *same figure* as R5's AWS replacement (v2 L88 against L108), so a scorer matching on figures will double-count the two rows | **stale and live as an open action at L571**; L192 states the same gap but explicitly 「as of April 30」 and in the same sentence carries the replacement scope 11,362核 (also L74, L482); only the `7C` value is lost | to confirm |
 | P7-C7 / R7 | Tencent Cloud ES monthly contract submitted but not landed → done, normal May cashback | v1 L86–87 → v2 L98 | **stale** — L201, open action L572 | to confirm |
 | P7-C8 / R8 | The identify–analyze–track–review closed loop is at 0% → 50% | v1 L319 → v2 L549 | **stale** — L91; sibling rows *were* patched (L114, L115) | to confirm |
 
-**6 of 8 stale**, and **8 of 8 corrections lost** — C1 and C3 keep v1's value under
-an explicit as-of label, which is defensible on its own, but their replacements
-are absent from the article entirely.
+**6 of 8 stale in the article's text, but only C8 is attributable to this pair
+alone**, and **5 of 8 corrections lost** — C4's 3,864C/97.28% and C5/C6's 11,362核
+did land. C1 and C3 keep v1's value under an explicit as-of label, which is
+defensible on its own, but their replacements are absent from the article entirely.
+
+The attribution caveat is not a quibble, and it is the reason this case cannot be
+scored as it stands. The article merges five sources, and one of them —
+`raw/docs/2026-04-14-infra-双周会-2026_h1.md`, which is P2's v1 — asserts v1's
+**entire** 0430 column verbatim: 40.95%/24.57w at L898 (C1), 13.3%/6.8w at L904
+(C3), 3000C at L911 (C6), 合同已提交 at L916 (C7), 117.3%/17.6w at L919 (C2),
+3300C/83.1% at L921 (C4), and 7197C/17054C at L925/L928 (C5). So for C1–C7 an
+article that states the superseded figure may be faithfully reporting *that*
+source rather than mishandling this pair. Only C8 is clean on both sides: 「闭环」 at
+0% appears in neither the 双周会 nor either cost meeting. The corrections that did
+land are confounded the same way — 57.11w, 11362C and 3,864C/97.28% are all also in
+`raw/meetings/2026-05-14-成本管控小组周会.md`. What is *not* confounded is that v2's
+newest column reached the pipeline at all: article L517 and L682 carry content
+existing only in v2 (L97, L190–191), so the absences are genuine losses.
+
+This is a general threat to FX5 and not a P7 quirk — see
+[the co-source confound](#note-co-source-assertion-confounds-the-staleness-column).
 
 ### Controls
 
@@ -905,3 +923,44 @@ were re-verified by direct negative grep on their distinguishing phrases, and
 every one returned 0 hits in the later version. P4's drafting used full-file
 diffs, and P8's confirmed each absence by grep. So no drop list is corrupted, but
 anyone extending this label set should not reuse that `sed` recipe.
+
+## Note: co-source assertion confounds the staleness column
+
+The `Article today` column asks whether a superseded claim survives in the article.
+It answers a weaker question than it appears to, because these articles merge more
+sources than the chain under test. Where a **co-source** independently asserts the
+same claim and was never superseded, an article stating it may be reporting that
+source faithfully rather than mishandling this pair. P10's judgement call 5 caught
+this for one case; it generalises.
+
+| Case | Article sources | This chain | Co-sources | Co-sources also staged in the fixture |
+|---|---|---|---|---|
+| P3 | 2 | 2 | 0 | 0 |
+| P4 | 5 | 4 | 1 | 0 |
+| P5 | 16 | 2 | 14 | 1 — `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md`, which is P9's v1 |
+| P7 | 5 | 2 | 3 | 1 — `raw/docs/2026-04-14-infra-双周会-2026_h1.md`, which is P2's v1 |
+| P8 | 2 | 2 | 0 | 0 |
+| P9 | 4 | 2 | 2 | 0 |
+| P10 | 5 | 2 | 3 | 0 |
+
+Two consequences, and they are not the same size.
+
+**For the drafted `Article today` column and the 62% headline, the confound is
+severe.** Only P3 and P8 are compiled from the chain alone. P7 is the worst case:
+its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
+observations have a second possible cause. P5's article merges 16 sources, which is
+the strongest reason not to read its 0-of-5 pass as evidence that the pipeline
+handles supersession — it may simply have been told the newer values repeatedly.
+
+**For FX5's actual scoring the confound is bounded**, because spec.md's FX4 already
+declares the existing `wiki/` an existence proof rather than a baseline and re-runs
+the compile over the staged fixture. Only P5 and P7 carry a co-source into that run,
+one each, and in both cases the co-source is another case's v1 — itself superseded
+within the fixture, so ordering applies to it too.
+
+So the 62% pre-A1 figure is motivation, not measurement, and should stop being
+quoted as though the two were interchangeable. Before FX5 scores a case, the
+staleness criterion needs stating as *the article asserts the superseded value where
+the newest source in the compile set asserts otherwise* — not merely *the earlier
+value appears*. FX7's gate is unaffected, since it counts corrections carried, not
+staleness.
