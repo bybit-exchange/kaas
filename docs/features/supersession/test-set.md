@@ -6,8 +6,18 @@ and 42 controls across the seven scoring cases, of which 31 contradictions are
 still stated as current in today's articles. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
-measurement-time reading is accepted**, so it keeps its 8 contradictions. Written
-2026-08-10, labels drafted 2026-08-14, rulings 2026-08-15.
+measurement-time reading is accepted**, so it keeps its 8 contradictions.
+
+All 128 drafted items have since been **independently verified** in fresh contexts,
+one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
+confirm pass therefore starts from a queue of
+[17 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
+unchecked rows. Three of those rulings would move the totals above — most sharply
+P8, whose four contradictions may collapse entirely, taking the gating set from
+seven cases to six. Verification also found that these articles merge more sources
+than the chain under test, which confounds the staleness column; the 62% figure is
+motivation, not measurement. Written 2026-08-10, labels drafted 2026-08-14, rulings
+and verification 2026-08-15.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
 what this set has to deliver before A1 can be judged.

@@ -37,6 +37,13 @@ Confirming does not require reopening the fixture. Every row carries the file an
 line of both sides, plus the decisive quote, because aligning them is the
 drafter's job rather than the reviewer's.
 
+Since 2026-08-15 the rows have also been through an independent verification pass,
+so the confirm pass starts from **17 queued disputes** rather than from 122 unchecked
+rows. See [the verification pass](#independent-verification-pass-2026-08-15). Note
+that `verified` there is **not** `confirmed`: verification re-derives a row from the
+sources, and confirmation is a human decision about whether the row should score.
+Only the second one clears `to confirm`.
+
 ## The rule these labels apply
 
 Four lists, defined in [test-set.md](test-set.md#the-cases). The split that
@@ -72,7 +79,7 @@ output rather than argued from P1 alone. Plus one non-scored
 `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
 withdrawn label (8/6/6) retained below as counter-case evidence.
 
-- **P5 already passes** (0 of 5 stale), and it leaks its ordering three ways
+- **P5 already passes** (0 of 5 stale), and it leaks its ordering six ways
   inside the body, so it belongs with P6 as an accidental-signal case rather than
   as evidence about A1.
 - P4 is the sharpest probe at 9 of 10 stale. P8 is the weakest at 4
@@ -82,6 +89,99 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
 - The gating set is therefore **seven drafted cases plus P6**, which succeeds
   today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
   P2 because its date lies.
+
+**These totals are pre-verification.** Nine of the 17 queued disputes below would
+move them; the arithmetic if all nine are accepted is in
+[the verification pass](#independent-verification-pass-2026-08-15).
+
+---
+
+## Independent verification pass, 2026-08-15
+
+Every row of the seven scoring cases was re-derived from the sources in a fresh
+context, one per case, with no access to the drafting reasoning — only the row, the
+named fixture versions and the article. Each was asked to open the cited lines rather
+than accept a plausible row, and to flag disagreements only. P2 was excluded because
+it now gates nothing; its evidence was checked separately by hand (queue item **V10**).
+
+| Case | Items checked | verified | line corrected | disputed |
+|---|---|---|---|---|
+| P3 | 19 | 16 | 2 | 1 |
+| P4 | 20 + X1 | 19 | 0 | 1 |
+| P5 | 16 | 15 | 0 | 1 |
+| P7 | 14 | 11 | 0 | 3 + 1 case-level |
+| P8 | 16 + 6 relocated | 17 | 1 | 4 |
+| P9 | 18 | 16 | 1 | 1 |
+| P10 | 19 | 17 | 0 | 2 |
+| **Total** | **128** | **111** | **4** | **13 + 1 case-level** |
+
+Nothing came back `unverifiable`. The quoting is in good shape: of 128 items only
+four had a line number that had drifted, and no row was found to have invented a
+quote. What verification did find is concentrated in **classification** — whether a
+row is a contradiction at all — and in the **`Article today`** column, which is the
+one that scores.
+
+Two whole-set findings came out of it, both recorded as notes below rather than as
+rows, because they change what the numbers mean:
+[co-source assertion](#note-co-source-assertion-confounds-the-staleness-column)
+confounds the staleness column, and P5's pass is confounded six ways over.
+
+### Already applied — objective corrections, no ruling needed
+
+These were wrong in a way the sources settle, so they are fixed in place and each
+row says so. Listed for audit, not for decision.
+
+| # | Where | Correction |
+|---|---|---|
+| A1 | P3-D5 | Quote is at v1 L1113; L1114 is `</lark-td>` |
+| A2 | P3-K3 | v2 cite moves to L97/L109 — L28 lacks the AI-authorship half the control is about |
+| A3 | P3-D1 | Narrowed to the repository count; v2 L20 restates the multi-team half |
+| A4 | P5-D5 | Reworded to the dropped rationale only; v3 keeps the removal itself |
+| A5 | P5 preamble | "three ways" → six in-body ordering families, plus one in frontmatter |
+| A6 | P5 call 2 | 251 → **273** pairable rows; nine → **eight** new ⚠️ endpoints |
+| A7 | P5 call 3 | 10 → **17** abridged rows; two → **six** article details carried |
+| A8 | P7 headline | 6 of 8 stale *in text*, and 5 of 8 corrections lost, not 8 of 8 |
+| A9 | P7-C2/C3/C6 | `Article today` cells rewritten — L57 and L192 carry explicit as-of labels, and v1's 13.3% is absent (recomputed as ~27–34%) |
+| A10 | P8 preamble | Four rows replace named individuals with team names; two do not become plain `架构` |
+| A11 | P8 drops | Five of six stated as current, not all six — D3's headcount is absent |
+| A12 | P8 relocated | v2 L291/L311, not L283/L303 |
+| A13 | P9-K2 | v2 range is L53–62; L54–63 omits the 「Fee Conversion」 label cell |
+| A14 | P9-C5 | Reworded — the 5 products span Earn, Margin Staked SOL and Spot X, not Earn alone |
+| A15 | Totals | Drop total is 30, not 31 |
+
+### The queue — 17 items needing a ruling
+
+Ordered by how much they move the measurement. Owner is the Captain for all of them;
+none is an agent's call, because each either reclassifies a row or changes what a
+number means.
+
+| # | Item | Location | Finding | Recommendation | If accepted |
+|---|---|---|---|---|---|
+| **V1** | P8-C1–C4 | P8 → contradictions table | The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Strike all four; move to a re-attribution list | **P8 → 0 contradictions**, leaves the gating set. 7 cases → 6 |
+| **V2** | P9-C1 | P9 → contradictions table | v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178, L182–184) — the second is already scored as control **K1**. The three pillars are a capability taxonomy on a different axis. The draft's own call 7 files that same material under "additive, not superseding" | Strike; record the substance as a control | P9 → 6 contradictions, **3 of 6 stale** |
+| **V3** | P10-C6 | P10 → contradictions table | Compares v1's **mean** dev-phase duration against v2's **median** dev+test cycle — different statistic over a different span. v2's same-scope figure (median 1–3 → 4–7 days, L49/L67) is compatible with a mean of 7.3→11.3. The justification concedes v2 "reports no mean anywhere", which is absence, not contradiction | Reclassify as `superseded-drop` | P10 → 7 contradictions, **3 stale**; drops → 6 |
+| **V4** | P7 case-level | P7 → preamble and headline | The article's fifth source is the 04-14 infra biweekly (P2's v1), which asserts v1's **entire** 0430 column verbatim (L898–L928). So 7 of 8 staleness observations have a second possible cause | Keep the rows; score only C8 as attributable to this pair until FX4 re-runs on the fixture | P7's staleness stops being quotable as-is |
+| **V5** | P4-C8 | P4 → contradictions table | v4 still names 系統户 as the settling counterparty in five places, including a cell of the very §5 table the row scores on (v4 L788, L798, L808, L5683, L5864), none in a pending-decision block | Add an open call mirroring C7's, or drop the row if zero ambiguity is required | One of P4's 9 stale rows becomes contested |
+| **V6** | P10-C7 | P10 → contradictions table | Pairs v1's ≤90-filtered counts against v2's **full-population** headline. Same-basis counterparts exist in the same v2 rows: 1,971 and 1,129 | Re-base the replacement to 1,971 / 1,129 (≤120) or 2,036 / 1,182 (full), and score the stale verdict on v1's 43% and the peak/trough framing, which are genuinely v1-only | Row survives, figures change |
+| **V7** | P3-D3 vs call 2 | P3 → drops table and open call 2 | Both rest on the same v1 lines (L635–638). Promoting call 2 to a 9th contradiction would score that evidence twice — once gating, once as a drop | Rule explicitly either/or, and record that promoting it strikes D3 | P3 either 8/5 or 9/4, never 9/5 |
+| **V8** | P5 `universal-transfer` | P5 → open call 3 | An unlisted abridgement loses a whole distinct assertion — 「资金可转到他人控制的子账户」, 0 hits in v3 — the same shape used to promote D4 and D5, and the article carries it at L394 | Promote to a drop or decline explicitly | P5 drops 5 → 6 |
+| **V9** | P5-D4/D5 | P5 → drops table | Both dropped clauses are in the article (L427, L402), so both are **lost** drops. The label does not say so | Record the article residue on both rows | P5's drop arm gains two measured losses |
+| **V10** | P2 evidence | P2 → evidence table and open call 2 | Verified by hand. Row 3 of the evidence table is half wrong: in the section both files date 04-17 they **agree** on vLLM at 90% (v1 L1358, v2 L405); the 100% is exclusive to the 04-14 file's 05-04 section (L399). So judgement call 2 is wrong that C7 and C8 are the two unambiguous rows — v1 asserts both values, which is the ambiguity it attributes only to C1–C6. C8 does hold (56% at both L783 and L1781 against 20% at v2 L824) | Correct the row and the call. The inversion conclusion **stands** and is better supported: the rolling file updated its own 04-17 section in place | P2's revival recipe rests on C8 alone |
+| **V11** | P10 call 5 | P10 → open call 5 | The provenance list is wrong in both directions: 1,907/1,081 **and** 45% are in the non-superseded full-data report (L95, L98, L89), so they are not v1-exclusive; but 「9.3 days」 is in **no** source, so L170 is most likely v1's 9.2 mis-transcribed and belongs on the scoreable side | Rewrite the list | Changes which article lines may be scored |
+| **V12** | P10 item 4 | P10 → measurement-basis item 4 | "v2 reports no mean anywhere" is false — v2 L38, L82, L271 all report means | Restrict the claim to development duration | Supports V3 |
+| **V13** | P10 item 2 | P10 → measurement-basis item 2 | Crosses bases: v1's 8,916/8,378 are ≤90-filtered, v2's 9,412/9,033 are full-population. Throughput was re-based, not revised | Say so | Row unaffected; reasoning corrected |
+| **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
+| **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
+| **V16** | P5 undeclared source | P5 → open call 3 | `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md` carries several dropped rationales verbatim (L96, L116, L156, L342, L588) but is **not** in the article's `sources` frontmatter. Confirmed present on disk | Investigate before scoring D2–D5 as lost drops — either the compile read an undeclared source or the frontmatter is incomplete, and both matter | Possible provenance gap in the fixture itself |
+| **V17** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
+
+**Done means**: every V-item above reads `ruled` with the decision written into the
+row it governs, and the Progress table is recomputed from the survivors. If V1, V2
+and V3 are all accepted the set becomes **44 contradictions, 31 drops and 42
+controls, with 27 of 44 stale (61%)** — carried by seven cases still, but only **six
+of them gating**, because P8 keeps its 6 drops and 6 controls while contributing no
+contradictions. That is a smaller and more defensible set than the 50/30/42 above,
+and its headline no longer leans on P8's rename reading or P7's confounded column.
 
 ---
 
@@ -381,12 +481,32 @@ count was corrected from three. All six controls are present.
 - `article` = `data/kb-knowledge/wiki/project/bybit-ai-trading-skill.md`
 
 **This case already passes: 0 of 5 contradictions are stale.** That is a result,
-not a gap in the label. Like P6, it comes with a confound. The pair leaks its
-ordering three ways inside the body: the H1 carries 「(v3)」 (v3 L10), the
-`生成时间` lines differ (v1 L13 「2026-03-13」 vs v3 L12 「2026-03-19」), and the
-module count differs. A pipeline can order this pair with no dated metadata at
-all, so P5 cannot testify that A1's explicit signal did the work. It belongs with
-P6 as an accidental-signal case.
+not a gap in the label. Like P6, it comes with a confound — a far larger one than
+first drafted. Verification found **six independent in-body ordering families**, not
+three:
+
+1. The H1 carries 「(v3)」 (v3 L10) — and so does the frontmatter `title` (v3 L5), so
+   this one reaches a pipeline as metadata too, not only as body text.
+2. The `生成时间` lines differ (v1 L13 「2026-03-13」 vs v3 L12 「2026-03-19」). This is
+   the only differing date; frontmatter `date` is `2026-03-13` in both.
+3. The module count on that same line: 「全部 8 个 modules」 against 「全部 11 个」.
+4. The summary-statistics table moves monotonically on five rows at once: 280→301,
+   258→279, ~165→~169, ~93→~110, ~25→~31 (v1 L5441–5473 → v3 L6344–6376).
+5. Section inventory and numbering: 17 numbered `##` sections against 19, with v1's
+   §5 Leverage Token gone and everything after §4 shifted down by one.
+6. The endpoint index ceiling equals each file's own 总 API 数 (280 against 301), so
+   the index column is itself a version stamp.
+
+A pipeline can order this pair six ways with no dated metadata at all, so P5 cannot
+testify that A1's explicit signal did the work. It belongs with P6 as an
+accidental-signal case, and is the more extreme of the two.
+
+There is a second, independent reason this pass is weak evidence: **the revision is
+structurally incapable of producing a hard contradiction.** Across all 273 shared
+endpoint rows there are zero changes to name, method or 状态, and all 17 body
+differences are pure trailing-clause deletions. It is additive scope plus a recount —
+the easiest supersession shape there is. Report P5 as a confounded, low-difficulty
+pass and do not aggregate its 0-of-5 with a case like P7 without that caveat.
 
 Note also that the same-day filenames make this the one pair where `date`
 frontmatter alone cannot order the versions — the tie is broken by path, per WP5.
@@ -409,7 +529,7 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
 | P5-D2 | When cancelling all orders, take care not to cancel strategic standing orders | v1 L584; v3 L583 reduces the note to 「Mainnet 需确认」 | to confirm |
 | P5-D3 | Batch order placement must display all orders before confirmation | v1 L604; v3 L603 reduced | to confirm |
 | P5-D4 | The BybitPay Payout endpoint is essentially an alternative withdrawal channel | v1 L4744; v3 L4889 reduced | to confirm |
-| P5-D5 | Institutional-loan UID bind/unbind is removed because it affects other users' accounts | v1 L4007; v3 L4044 reduced | to confirm |
+| P5-D5 | The stated *reason* for removing institutional-loan UID bind/unbind — that it affects other users' accounts — is dropped; v3 keeps the removal with no rationale | v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 → v3 L4044 「机构贷款绑定/解绑 UID」; `影响他人账户` 0 hits in v3. **Reworded on verification** — as first drafted the row folded in the surviving removal, so a grader applying the absence test to the row as written finds it present in v3 and mis-scores it | to confirm |
 
 ### Controls
 
@@ -427,12 +547,24 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
 1. **P5-D1: drop or contradiction?** v3 never says leverage tokens are out of
    scope — the module is simply gone. Under the stated rule that is a drop. But
    「全部 11 个 modules」 plus the absence arguably asserts it is no longer in
-   scope. **This is the entry most likely to need overruling, and it changes the
-   headline**: the article does still carry the v1-only content (L413 「Earn Place
+   scope. Under the stated rule it stays a drop, and verification removed the
+   reason for overruling it. As first drafted this entry claimed the article's
+   leverage-token content is v1-only and that promoting D1 would make P5 1 of 6
+   stale. **That premise is false.** The two article lines are real (L413 「Earn Place
    Order, Leverage Token Purchase/Redeem」, L567 「22 endpoints including leverage
-   tokens」), so reclassifying it makes P5 1 of 6 stale instead of 0 of 5.
-2. **No status flags changed anywhere.** All 251 pairable endpoint rows match on
-   name, method and 状态; the ⚠️ count rose only because of nine new
+   tokens」) but the content is over-determined: two of the article's own declared,
+   never-superseded sources assert it independently —
+   `raw/docs/2026-03-11-bybit-ai-trading-skill-能力清单.md` L260 supplies L567's
+   「22 个 endpoint」 with leverage tokens and spot margin together, and
+   `raw/docs/2026-03-12-bybit-trading-skill-保留接口清单按场景.md` L494–538 supplies
+   L413. Promoting D1 would credit the pipeline's failure for content unsuperseded
+   sources legitimately provide. D1 stays a drop and P5 stays 0 of 5. See
+   [the co-source confound](#note-co-source-assertion-confounds-the-staleness-column).
+2. **No status flags changed anywhere.** All **273** pairable endpoint rows match on
+   name, method and 状态 — zero differences across all three fields, which is the
+   strongest single piece of evidence in this case. (251 as first drafted was wrong:
+   v1 has 278 REST endpoint rows and v3 299, sharing 273 paths, since 278 − 5
+   leverage-token rows = 273.) The ⚠️ count rose only because of **eight** new
    copy-trading / strategy / bot write endpoints. So this revision offers no
    reversed-decision contradiction — it is additive scope plus a recount. Verified
    mechanically: 280 distinct `/v5/...` paths in v1, 301 in v3, 5 dropped (all
@@ -441,8 +573,23 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
    备注 cells without contradicting them (fixed-term borrow, flexible borrow,
    Release Assets, Create Sub-account, Distribute Voucher, Delete Master API Key).
    Treated as restatement because the parent claim survives; the four promoted to
-   drops are the ones where a whole distinct assertion disappears. Note the article
-   still carries two of the abridged details verbatim (L399, L402).
+   drops are the ones where a whole distinct assertion disappears. **Verification
+   found this inventory materially incomplete**: there are **17** abridged rows, not
+   the 10 accounted for here. The seven unlisted are `universal-transfer` (v1 L2730 →
+   v3 L2652), `query-universal-transfer-list` (L2732 → L2672), `agreement/pay`
+   (L4826 → L4971), `move-positions` (L970 → L969), `move-history` (L990 → L989),
+   `create-sub-api` (L3035 → L2978) and `update-api` (L3055 → L2998). Two
+   consequences. `universal-transfer` loses a whole distinct assertion —
+   「资金可转到他人控制的子账户」, 0 hits in v3 — which is the same shape used to promote
+   D4 and D5, so it should be promoted or explicitly declined. And the article
+   carries at least **six** abridged details, not two: L394, L396, L397, L399, L402,
+   L416, L427. Two of those are D4's and D5's own dropped clauses (L427, L402), so
+   **D4 and D5 are lost drops**, which this label did not state.
+   Caveat before anyone scores that: `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md`
+   carries several of these rationales verbatim (L96, L116, L156, L342, L588) while
+   **not** appearing in the article's `sources` frontmatter — so the article's
+   carriage of them has a possible provenance outside this pair *and* outside its
+   declared source list. Confirmed present in `data/kb-knowledge/raw/docs/`.
 4. **Left out**: the 🔴 glyph on removal rows (presentation), and endpoint index
    renumbering caused by the Leverage Token removal (positional artifact — a
    grader must not match on endpoint numbers).

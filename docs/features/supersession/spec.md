@@ -461,7 +461,17 @@ path and report it as a general result.
   it would credit A1 for asserting a wrong order; **P7's measurement-time reading
   is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
   seven drafted cases plus P6, carrying 50 contradictions, 30 drops and 42
-  controls, of which 31 contradictions are stated as current today.
+  controls, of which 31 contradictions are stated as current today. Those 128 items
+  were then **independently verified** in fresh contexts (111 verified, 4
+  line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
+  [17 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
+  pass. Three would move the totals: if P8's four contradictions collapse, P9's C1 is
+  struck and P10's C6 becomes a drop, the set is 44 contradictions with 27 stale, and
+  only six cases gate. Verification also established that the staleness column is
+  confounded where an article merges sources beyond the chain under test, so FX5 needs
+  staleness defined against the newest source in the compile set rather than as "the
+  earlier value appears"; FX7's gate is unaffected because it counts corrections
+  carried.
   `superseded` is split because Q1 scopes A1's trigger to explicit contradiction
   and sends dropped claims to RP1–RP3's report: only the contradiction list gates
   A1 (FX7), and the drop list is measured so A2's RP1 arm has a baseline. The cost
