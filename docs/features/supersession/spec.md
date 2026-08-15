@@ -336,6 +336,20 @@ path A.
   cannot make this call instead: it has no YAML parser, so it cannot tell a date
   from a string that looks like one, and preserving the value is the only safe
   thing it can do.
+- **WP9 — open, raised as queue item V20 by ruling V19.** Same-day blocks are the
+  unhandled case. WP5 breaks a date tie on the path and WP6 then states that blocks run
+  oldest to newest without qualification, so a same-day pair gets a positive ordering
+  claim resting on a filename. That is 159 of 397 multi-source articles on the reference
+  KB (411 pairs), and it is wrong on the fixture's own P5: both versions carry
+  `date: 2026-03-13`, and since `-` sorts before `.` the payload renders
+  `…完整-api-清单-v3.md` first and so asserts that v1 is the newest. Either WP6's undated
+  caveat extends to same-day blocks, or the tie breaks on a stated signal rather than
+  the path. Whichever is chosen, BG1 must break it in the same direction: it currently
+  orders a same-day pair path-ascending while claiming newest-first, which makes one
+  document at once the oldest for WP6's claim and the newest for BG1's. Scope across the
+  eight cases: three render a source after their own chain head — P5, P7 and P10 — but
+  only P5's is a chain member, and the same-day co-sources P7 and P10 render last assert
+  none of the superseded values, so no stale row outside P5 turns on this.
 
 ### BG. Budget and truncation
 
@@ -472,9 +486,11 @@ path A.
   Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
-  [18 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass — 19 were raised, and the one that asked an empirical question rather than for a
-  decision is resolved: P5's article carries nothing that the undeclared hardening plan
+  [19 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
+  pass, of which **five are taken and 14 remain**. Nineteen were raised; the one that
+  asked an empirical question rather than for a decision is resolved, and ruling V19
+  added a twentieth. The resolved one: P5's article carries nothing that the undeclared
+  hardening plan
   asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so its
   dropped rationales score as lost drops and the fixture has no provenance gap.
   Three would move the totals, and two are **ruled 2026-08-15**. **V1 accepted**: P8's
@@ -489,11 +505,17 @@ path A.
   which v2 defines as development plus test — and v1 reports that duration only as a
   mean, so no same-basis pair exists to re-cut it onto. Together the three leave **44
   contradictions, 31 drops and 42 controls with 27 stale**.
-  Verification also established that the staleness column is
-  confounded where an article merges sources beyond the chain under test, so FX5 needs
-  staleness defined against the newest source in the compile set rather than as "the
-  earlier value appears"; FX7's gate is unaffected because it counts corrections
-  carried. **Verification coverage is now complete**: the eight controls, P1 and P6
+  **V19 is ruled 2026-08-16**, in a tightened form: staleness is now defined against the
+  newest source in the compile set *that speaks to the item*, per claim rather than per
+  document, since the newest document is usually silent on any one claim. Ruling it
+  established two things the item did not claim. Its own rationale does not hold — no
+  fixture co-source is newer than its chain head except P5's, so the wording answers V4
+  in no case. And P5 cannot be scored on this column at all yet: both of its versions
+  carry `date: 2026-03-13`, the payload breaks that tie on the path and so states the
+  chain backwards, which would read as 5 of 5 stale rather than 0 of 5. That defect is
+  raised as **V20** and is a WP-family code fix, not a scoring definition. FX7's gate is
+  unaffected either way, because it counts corrections carried.
+  **Verification coverage is now complete**: the eight controls, P1 and P6
   were checked separately from the 128-item pass, since none of them is a drafted row.
   All hold. P6 adds no queue item but does add a finding about the accidental ordering
   signal, recorded above.
@@ -548,8 +570,11 @@ path A.
   so labels.md is again unaffected.
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
   every case; Staleness over `superseded-contradiction`, on the merge-path stages,
-  is the discriminating column. Staleness (drop) is recorded on the same runs and
-  gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
+  is the discriminating column. Both staleness columns are read per claim, against
+  the newest source in the compile set that speaks to that item (V19), and a case
+  whose source order rests on a same-day tie-break is reported apart from the gate
+  until V20 lands — P5 is the only one. Staleness (drop) is recorded on the same runs
+  and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
   *after* WP3 lands, against FX4's baseline: the same documents through the flat

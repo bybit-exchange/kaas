@@ -68,7 +68,7 @@ are into the fixture files named at the head of each case.
 |---|---|---|---|---|---|
 | P3 | 8 | 5 | 6 | 6 of 8 | to confirm |
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
-| P5 | 5 | 5 | 6 | **0 of 5** | to confirm — passes today, see [P5](#p5--bybit-trading-skill-api-inventory) |
+| P5 | 5 | 5 | 6 | **0 of 5** | to confirm — 0 only against the true version order; the payload states it backwards (**V20**), see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
@@ -82,9 +82,10 @@ output rather than argued from P1 alone. Plus one non-scored
 `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
 withdrawn label (8/6/6) retained below as counter-case evidence.
 
-- **P5 already passes** (0 of 5 stale), and it leaks its ordering six ways
-  inside the body, so it belongs with P6 as an accidental-signal case rather than
-  as evidence about A1.
+- **P5 reads 0 of 5 stale** and leaks its ordering six ways inside the body, so it
+  belongs with P6 as an accidental-signal case rather than as evidence about A1. That
+  reading also depends on the true version order: both versions share a date, and the
+  payload's tie-break states the chain backwards, which is **V20**.
 - P4 is the sharpest probe at 9 of 10 stale. **P8 now contributes no
   contradictions**: V1 ruled its four to be de-specifications of one column rename,
   so it carries drops and controls only.
@@ -97,8 +98,11 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3 and V12 applied; 14 rulings are still open.** Five of
-those would move a number further — V5, V7, V8, V9 and V19; the details are in
+**These totals have V1, V2, V3, V12 and V19 applied; 14 rulings are still open.** Four
+of those would move a number further — V5, V7, V8 and V9. V19 moved no total but
+changed what the staleness column measures, and ruling it raised **V20**: P5's two
+versions share a date, so the payload orders them backwards and P5's 0-of-5 pass
+cannot be scored on that column until a tie-break rule lands. The details are in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -159,17 +163,19 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 19 items: 5 settled, 14 still needing a ruling
+### The queue — 20 items: 6 settled, 14 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
-score and is therefore settled below by evidence; none of the other 18 is an agent's
+score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3 and V12 are ruled** — the three that moved the totals, plus the one that governs the
-same item as V3 — and each row records the decision. Of the 14 still open, five would
-move a scored number: V5 contests one of P4's stale rows, V7 forces P3 to 8/5 or 9/4,
-V8 would take P5's drops to 6, V9 adds two measured losses to the drop arm, and V19
-redefines staleness for every case at once. The rest change what a number means or
+V3, V12 and V19 are ruled** — the three that moved the totals, the one that governs the
+same item as V3, and the one that redefined the staleness column — and each row records
+the decision. **V20 was raised by ruling V19** and is the only item added after the
+pass. Of the 14 still open, four would move a scored number: V5 contests one of P4's
+stale rows, V7 forces P3 to 8/5 or 9/4, V8 would take P5's drops to 6, and V9 adds two
+measured losses to the drop arm. V20 moves no total either, but it decides whether P5
+can be scored on the gating column at all. The rest change what a number means or
 correct the reasoning under it.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
@@ -192,16 +198,19 @@ correct the reasoning under it.
 | **V16** | P5 undeclared source | P5 → open call 3 | **RESOLVED 2026-08-15, no ruling needed** — the hardening plan carries those rationales, but so does v1, and nothing the plan asserts *alone* reaches the article. Evidence [below](#v16--resolved-by-investigation-no-ruling-needed) | Score D2–D5 as lost drops; the residues are v1's | No provenance gap. Queue drops to 18 |
 | **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
 | **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
-| **V19** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
+| **V19** | FX5 criterion | spec.md FX5 | **RULED 2026-08-16: accepted in a tightened form.** Staleness read "the earlier value appears in the article", which over-attributes. Two findings at ruling time reshaped the fix. First, the drafted wording *"the newest source in the compile set"* is wrong per document and had to become **the newest source that speaks to that item**, since the newest document is usually silent on any one claim and the drafted form would clear an item whenever the latest source simply did not mention it. Second, the item's own rationale does not hold: it invokes V4, but no fixture co-source is newer than its chain head except P5's — P7's is `2026-04-14` against a chain head of `2026-05-14`, P10's `2026-03-05` against `2026-03-06` — so the restatement answers **V4 in no case**, and V4 must still be ruled on its own | Applied to both staleness columns in test-set.md's Scoring table and to FX5, per claim rather than per document. FX7's gate is unaffected, since it counts corrections carried | Applied: no total moved. Ruling it surfaced **V20**, and P5 leaves the gating column until V20 is ruled |
+| **V20** | Same-day source order | `py/src/kb_ai/core/merge.py` (WP family) | Raised by ruling V19. `build_source_blocks` sorts dated blocks `(date, source_path)` (L173–174) and `_SOURCE_ORDER` tells the model without qualification that "blocks run oldest to newest", caveating **undated** blocks only (L596–603). A same-day pair therefore gets a positive ordering claim resting on a path tie-break, which carries no recency evidence. **P5 is a live inversion**: both versions carry `date: 2026-03-13`, and since `-` sorts before `.` the payload renders `…清单-v3.md` first, so it states that v1 is the newest. Its article carries v3's figures (L32, L141–144), so scored against the stated order P5 reads **5 of 5 stale, not 0 of 5**, and its compile set contains a second such pair (`…测试报告-v100.md` before `…测试报告.md`). Measured on the reference KB (`~/.knowledge`, 691 articles, 397 multi-source, `sources` with comma-packed entries split): **159 articles (40%) carry at least two same-day sources, 411 pairs** — reproducing merge.py's own "160 of 395". Of the 411 only 8 have a version-suffix shape and about 3 are true successor pairs, so the tie-break is mostly **uninformative rather than inverted**. Separately `_budget_priority` (L262–265) breaks same-day ties path-ascending while claiming newest-first, so for every same-day pair one document is at once the "oldest" for the ordering claim and the "newest" for the budget claim. **Scope, checked across all eight cases**: three have a chain head that is not last within its own day — P5 (shares `2026-03-13` with two, one rendered after it), P7 (`2026-05-14`, one after) and P10 (`2026-03-06`, two after) — but only in P5 is the document rendered after the head a member of the chain. P7's later-rendered same-day source `raw/meetings/2026-05-14-成本管控小组周会.md` carries **v2's** replacements (`97.28` and `11362`, one hit each) and none of v1's six superseded figures; P10's two carry none of v1's either, its only `7.3` hits being `+17.3pp` at L180 and L183. So no stale row outside P5 is affected, and P5's payload has four tie-broken groups (03-10, 03-11, 03-12, 03-13) rather than one | Give same-day pairs an explicit rule and stop asserting an order the data does not carry: either extend WP6's undated caveat to same-day blocks, or order them on a stated tie-breaker (a version marker in the title, or the body's own 生成时间). Whichever is chosen, `_budget_priority` must break the tie in the same direction | P5 becomes scoreable and is then the only Shape-B probe of a same-day chain. Until then its Staleness is reported apart from the gate |
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3 and V12 are ruled and applied**, so the Progress table now
-reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
+the survivors. **V1, V2, V3, V12 and V19 are ruled and applied**, so the Progress table
+now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
 carried by seven cases still, but only **six of them gating**, since P8 contributes no
 contradictions. That is a smaller and more defensible set than the 50/30/42 it started
 from, and its headline no longer leans on P8's rename reading. P7's confounded column
-is still in it, which is what V4 is for.
+is still in it, which is what V4 is for — and V19's ruling established that V4 cannot
+be answered by redefining the column, because P7's co-source is older than its chain
+head.
 
 #### V16 — resolved by investigation, no ruling needed
 
@@ -550,10 +559,17 @@ count was corrected from three. All six controls are present.
 - `v3` = `.../raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md`
 - `article` = `data/kb-knowledge/wiki/project/bybit-ai-trading-skill.md`
 
-**This case already passes: 0 of 5 contradictions are stale.** That is a result,
-not a gap in the label. Like P6, it comes with a confound — a far larger one than
-first drafted. Verification found **six independent in-body ordering families**, not
-three:
+**This case reads 0 of 5 contradictions stale — but only against the true version
+order, which is not the order the compile set states.** Both versions carry
+`date: 2026-03-13`, so the payload's oldest-to-newest claim falls to a path tie-break
+that renders `…-v3.md` first and therefore asserts that **v1** is the newest source;
+read that way the case is 5 of 5 stale. The tie is already recorded as ordering family
+2 below, but its consequence was not drawn. That is queue item **V20**, and until it is
+ruled P5's Staleness is reported apart from the gating count.
+
+The 0-of-5 reading is still a result rather than a gap in the label. Like P6, it comes
+with a confound — a far larger one than first drafted. Verification found **six
+independent in-body ordering families**, not three:
 
 1. The H1 carries 「(v3)」 (v3 L10) — and so does the frontmatter `title` (v3 L5), so
    this one reaches a pipeline as metadata too, not only as body text.
@@ -628,8 +644,10 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
    「22 个 endpoint」 with leverage tokens and spot margin together, and
    `raw/docs/2026-03-12-bybit-trading-skill-保留接口清单按场景.md` L494–538 supplies
    L413. Promoting D1 would credit the pipeline's failure for content unsuperseded
-   sources legitimately provide. D1 stays a drop and P5 stays 0 of 5. See
-   [the co-source confound](#note-co-source-assertion-confounds-the-staleness-column).
+   sources legitimately provide. D1 stays a drop and P5 stays 0 of 5 on the true
+   version order — see [the co-source
+   confound](#note-co-source-assertion-confounds-the-staleness-column), and **V20** for
+   why that order is not the one the payload states.
 2. **No status flags changed anywhere.** All **273** pairable endpoint rows match on
    name, method and 状态 — zero differences across all three fields, which is the
    strongest single piece of evidence in this case. (251 as first drafted was wrong:
@@ -1218,8 +1236,9 @@ v4 itself still says in five places. So a stale verdict needs the later version 
 *unambiguous*, not merely to contain the correction somewhere.
 
 That is a stricter test than "the earlier value appears", and it points the same way
-as V19: the criterion has to be written against what the newest source actually
-asserts, in full, rather than against the one line the label happened to cite.
+as V19, which is why V19's ruled form reads against **the newest source that speaks to
+the item** — what that source actually asserts, in full, rather than the one line the
+label happened to cite.
 
 ## Note: co-source assertion confounds the staleness column
 
@@ -1257,8 +1276,21 @@ one each, and in both cases the co-source is another case's v1 — itself supers
 within the fixture, so ordering applies to it too.
 
 So the 61% pre-A1 figure is motivation, not measurement, and should stop being
-quoted as though the two were interchangeable. Before FX5 scores a case, the
-staleness criterion needs stating as *the article asserts the superseded value where
-the newest source in the compile set asserts otherwise* — not merely *the earlier
-value appears*. FX7's gate is unaffected, since it counts corrections carried, not
-staleness.
+quoted as though the two were interchangeable. The criterion this note asked for is now
+ruled: **V19** restates staleness against *the newest source in the compile set that
+speaks to the item*, per claim rather than per document. It buys less here than this
+note assumed, though. The wording only clears an observation where a co-source is
+**newer** than the chain head, and of the two co-sources that reach the fixture run
+neither is — P7's is dated `2026-04-14` against a chain head of `2026-05-14`, P10's
+`2026-03-05` against `2026-03-06`. P5's is the only one that is newer, and P5 is the
+case that already scores 0. So the confound above still has to be handled case by
+case, which is what V4 is for on P7, and the 61% figure keeps its caveat rather than
+being repaired by a definition. FX7's gate is unaffected, since it counts corrections
+carried, not staleness.
+
+P5's 0-of-5 has a second and larger problem that this note missed, now filed as
+**V20**: its two versions share a date, so the payload's oldest-to-newest claim rests
+on a path tie-break that renders `…清单-v3.md` first and thereby states that **v1** is
+the newest source. Read against the order the compile set actually presents, P5 is 5 of
+5 stale. The 16-source confound above is the weaker of the two reasons not to read that
+pass as evidence.
