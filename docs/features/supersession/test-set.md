@@ -311,6 +311,33 @@ contribution, not two, and no supersession marker at all. These are in the
 fixture because a variant that reasons about "which source is newer" will meet
 them, and 55 groups is too many to leave untested.
 
+### Controls verified, 2026-08-15
+
+The controls were checked directly, because they are what protects A1 from being
+**wrongly failed**: if a chain labelled purely additive in fact contains a
+contradiction, then A1 reporting that contradiction correctly would be scored as a
+false positive. All eight hold.
+
+| # | Claim | Result |
+|---|---|---|
+| N1 | later version only adds | **valid.** The only body line not carried forward is the H1 itself — a retitle from 「AI分析环境专项建设讨论」 to 「AI分析环境接入流程讨论」. A retitle is a scope shift, not a contradicted claim |
+| N2 | later version only adds | **valid.** An append-at-top rolling meeting log. Its shared 「周例会 0428」 section is unedited between versions apart from one heading whitespace change and a removed `<!-- Unsupported block type: 53 -->` extraction artifact |
+| N3 | later version only adds | **valid.** One blank line differs; nothing else |
+| N4 | later version only adds | **valid.** One blank line differs; nothing else |
+| U1–U4 | same bytes, two dates | **valid, all four.** Bodies are byte-identical after frontmatter is stripped, and each pair's `checksum` field matches exactly (`49fa91ea…`, `248f8e30…`, `34e46297…`, `224bee9b…`) while `date` differs. U1 is the most adversarial: `ai-应用部署平台方案` is identical across a **six-week** gap, 2026-03-04 to 2026-04-17 |
+
+Precision note on N1–N4: "only adds" is right in substance but not literally true for
+N1, whose title changed. State it as *adds only, apart from a retitle*.
+
+**N2 carries the same wrong-date pathology as P2**, and this is the second named
+instance in the fixture rather than a P2 quirk. The file dated `2026-04-17` contains
+「周例会 0428」 (L12) and 「周例会 0422」 (L177) — both meetings held *after* its own
+date — and the file dated `2026-05-06` contains 「周例会 0512」 (L37). Unlike P2 this
+does **not** invalidate the control, because the pair still orders correctly: the
+05-06 file is a strict superset of the 04-17 one. But it is direct evidence that a
+frontmatter `date` can misdescribe its own content in the fixture, which is the open
+question spec.md records against A2.
+
 ## Three adjudicated cases
 
 **P1 fails today.** The 04-08 version's 现有情况 section says only ~140 users have
@@ -320,6 +347,20 @@ places, including a table row `| Lark AI Summary | ~140 users only |` and a
 callout beginning "Notable finding: Only approximately 140 users currently have
 access", plus a pending action item to consult Lark on pricing. The correction
 never landed.
+
+**Verified 2026-08-15, and it holds exactly.** v1 L21 `## 现有情况` and L26
+「目前仅有 140 左右用户拥有 AI Summary 权限」; in v2 both `现有情况` and `140` return **0
+hits**, so the section is dropped and the figure is not restated; v2 L41 carries
+「**Step 4｜OpenClaw 机器人创建（新增，4.17 已上线）**」. The article has exactly **four**
+occurrences of `140` — L39 (the quoted table row), L44 (the quoted callout), L241 and
+L702 — and both quoted strings match verbatim.
+
+Worth stating because it is unusual in this set: **P1 is not confounded.** Its article
+compiles from 11 sources, but none of the nine co-sources asserts the ~140 figure —
+the only other hit in any of them is a coincidental substring of the numeric `id`
+`7612093357330714037`. So unlike P7, P1's four stale mentions are attributable to this
+chain alone. That makes the motivating case's evidence stronger than the drafted
+positives' on this axis, even though it is a drop and therefore does not gate A1.
 
 Note what this case does *not* establish: v2 dropped the claim rather than
 contradicting it. That labelling rule is now fixed — P1's items go in

@@ -490,6 +490,17 @@ path and report it as a general result.
   last commit before A1, against its own copy of the staged fixture — the comparison
   FX7 makes is between two runs of the same documents, and which working tree each
   ran from does not enter it.
+  **Add one check to both arms**, found while verifying the controls: the existing
+  articles' `sources` frontmatter is unreliable as a list of paths. Across all 682
+  articles, **91 entries pack two or more comma-separated paths into a single YAML list
+  item**, and **22 articles list the same source path two or three times**. Both are
+  old-writer output, so a fresh run should not reproduce them — but G2 is exactly the
+  claim that a source is an attributable unit, so the baseline and the A1 arm should
+  each be checked for comma-packed and duplicated `sources` entries. A duplicated entry
+  is also the double-count failure the U1–U4 controls exist to catch, already present
+  22 times in real output. Anyone doing co-source analysis on the *existing* articles
+  must split these entries on commas first; the seven scoring cases were checked and
+  contain none, so labels.md's co-source table is unaffected.
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
   every case; Staleness over `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. Staleness (drop) is recorded on the same runs and
