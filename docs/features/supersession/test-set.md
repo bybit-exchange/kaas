@@ -11,7 +11,7 @@ measurement-time reading is accepted**, so it keeps its 8 contradictions.
 All 128 drafted items have since been **independently verified** in fresh contexts,
 one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
 confirm pass therefore starts from a queue of
-[18 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
+[19 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
 unchecked rows. Three of those rulings would move the totals above — most sharply
 P8, whose four contradictions may collapse entirely, taking the gating set from
 seven cases to six. Verification also found that these articles merge more sources

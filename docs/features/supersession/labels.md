@@ -38,7 +38,7 @@ line of both sides, plus the decisive quote, because aligning them is the
 drafter's job rather than the reviewer's.
 
 Since 2026-08-15 the rows have also been through an independent verification pass,
-so the confirm pass starts from **18 queued rulings** rather than from 122 unchecked
+so the confirm pass starts from **19 queued rulings** rather than from 122 unchecked
 rows. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
@@ -90,7 +90,7 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
   P2 because its date lies.
 
-**These totals are pre-verification.** Nine of the 18 queued rulings below would
+**These totals are pre-verification.** Nine of the 19 queued rulings below would
 move them; the arithmetic if all nine are accepted is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
@@ -121,10 +121,12 @@ quote. What verification did find is concentrated in **classification** — whet
 row is a contradiction at all — and in the **`Article today`** column, which is the
 one that scores.
 
-Two whole-set findings came out of it, both recorded as notes below rather than as
-rows, because they change what the numbers mean:
+Three whole-set findings came out of it, recorded as notes below rather than as rows,
+because they change what the numbers mean:
 [co-source assertion](#note-co-source-assertion-confounds-the-staleness-column)
-confounds the staleness column, and P5's pass is confounded six ways over.
+confounds the staleness column; P5's pass is confounded six ways over; and
+[several documents contradict themselves](#note-within-version-ambiguity), which the
+label's "the earlier version asserts X" phrasing does not allow for.
 
 ### Already applied — objective corrections, no ruling needed
 
@@ -150,7 +152,7 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 18 items needing a ruling
+### The queue — 19 items needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them;
 none is an agent's call, because each either reclassifies a row or changes what a
@@ -174,8 +176,9 @@ number means.
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
 | **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
 | **V16** | P5 undeclared source | P5 → open call 3 | `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md` carries several dropped rationales verbatim (L96, L116, L156, L342, L588) but is **not** in the article's `sources` frontmatter. Confirmed present on disk | Investigate before scoring D2–D5 as lost drops — either the compile read an undeclared source or the frontmatter is incomplete, and both matter | Possible provenance gap in the fixture itself |
-| **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V18 case that basis must be stated |
-| **V18** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
+| **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
+| **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
+| **V19** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
 
 **Done means**: every V-item above reads `ruled` with the decision written into the
 row it governs, and the Progress table is recomputed from the survivors. If V1, V2
@@ -1072,6 +1075,37 @@ were re-verified by direct negative grep on their distinguishing phrases, and
 every one returned 0 hits in the later version. P4's drafting used full-file
 diffs, and P8's confirmed each absence by grep. So no drop list is corrupted, but
 anyone extending this label set should not reuse that `sed` recipe.
+
+## Note: within-version ambiguity
+
+Every contradiction row is phrased "the earlier version asserts X, the later asserts
+incompatible Y". Verification found four places where a single version asserts **both
+X and something close to not-X**, so that phrasing is stronger than the documents
+support. This is a different problem from the co-source confound: there the *article*
+had a second source, here the *fixture document itself* is internally inconsistent.
+
+| Where | The document says both |
+|---|---|
+| **P4-C3** (v1) | L1761 names the monthly `uta_liq_trans_log_202605`; L1763, two lines later, already introduces `translog_realtime` — its replacement. L1763 is also control K4's line |
+| **P4-C8** (v4) | The §5 table names 差额账户 as counterparty (L5698), while L788, L798, L808, L5683 and L5864 still call it 系统户 — including a cell of the same table, two rows up. None is in a pending-decision block |
+| **P4-C7** (v4) | DDL says `service_action` (L4192); prose at L4182 still says `action`. Already documented in open call 2 |
+| **P2** (the 04-14 file) | Asserts vLLM onboarding at both 「进度100%」 (L399, in its `# 2026-05-04` section) and 「进度90%」 (L1358, in its `# 2026-04-17` section) — the artefact of a rolling document updated in place |
+
+Only one of these was documented when drafted (C7's). The rest are queued as **V18**,
+**V5** and **V10**.
+
+Two consequences for scoring. First, a row whose earlier version also asserts the
+replacement is weaker evidence than the table implies, even when the *measured token*
+is clean — P4-C3's is clean, and it still deserves the caveat. Second, and more
+practically for FX5: **an extractor reading the later version alone can legitimately
+emit the older claim**, because the later version still makes it. P4-C8 is the sharp
+case — grading the article stale at L421–424 would fail a pipeline for repeating what
+v4 itself still says in five places. So a stale verdict needs the later version to be
+*unambiguous*, not merely to contain the correction somewhere.
+
+That is a stricter test than "the earlier value appears", and it points the same way
+as V19: the criterion has to be written against what the newest source actually
+asserts, in full, rather than against the one line the label happened to cite.
 
 ## Note: co-source assertion confounds the staleness column
 
