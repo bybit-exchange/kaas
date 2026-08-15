@@ -38,8 +38,10 @@ line of both sides, plus the decisive quote, because aligning them is the
 drafter's job rather than the reviewer's.
 
 Since 2026-08-15 the rows have also been through an independent verification pass,
-so the confirm pass starts from **19 queued rulings** rather than from 122 unchecked
-rows. See [the verification pass](#independent-verification-pass-2026-08-15). Note
+so the confirm pass starts from **18 queued rulings** rather than from 122 unchecked
+rows — 19 were raised and one, V16, has since been
+[resolved by investigation](#v16--resolved-by-investigation-no-ruling-needed)
+because it asked an empirical question rather than for a decision. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
 Only the second one clears `to confirm`.
@@ -90,7 +92,7 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   today. P1 and P2 are both evidence rather than tests: P1 because it is a drop,
   P2 because its date lies.
 
-**These totals are pre-verification.** Nine of the 19 queued rulings below would
+**These totals are pre-verification.** Nine of the queued rulings below would
 move them; the arithmetic if all nine are accepted is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
@@ -152,11 +154,12 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 19 items needing a ruling
+### The queue — 18 items needing a ruling, plus V16 resolved
 
-Ordered by how much they move the measurement. Owner is the Captain for all of them;
-none is an agent's call, because each either reclassifies a row or changes what a
-number means.
+Ordered by how much they move the measurement. Owner is the Captain for all of them
+except **V16**, which asked whether a document was read rather than how a row should
+score and is therefore settled below by evidence; none of the other 18 is an agent's
+call, because each either reclassifies a row or changes what a number means.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
@@ -175,18 +178,69 @@ number means.
 | **V13** | P10 item 2 | P10 → measurement-basis item 2 | Crosses bases: v1's 8,916/8,378 are ≤90-filtered, v2's 9,412/9,033 are full-population. Throughput was re-based, not revised | Say so | Row unaffected; reasoning corrected |
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
 | **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
-| **V16** | P5 undeclared source | P5 → open call 3 | `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md` carries several dropped rationales verbatim (L96, L116, L156, L342, L588) but is **not** in the article's `sources` frontmatter. Confirmed present on disk | Investigate before scoring D2–D5 as lost drops — either the compile read an undeclared source or the frontmatter is incomplete, and both matter | Possible provenance gap in the fixture itself |
+| **V16** | P5 undeclared source | P5 → open call 3 | **RESOLVED 2026-08-15, no ruling needed** — the hardening plan carries those rationales, but so does v1, and nothing the plan asserts *alone* reaches the article. Evidence [below](#v16--resolved-by-investigation-no-ruling-needed) | Score D2–D5 as lost drops; the residues are v1's | No provenance gap. Queue drops to 18 |
 | **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
 | **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
 | **V19** | FX5 criterion | spec.md FX5 | Staleness is currently "the earlier value appears in the article". Given V4 and V9 that over-attributes | Restate as *the article asserts the superseded value where the newest source in the compile set asserts otherwise* | FX7's gate is unaffected — it counts corrections carried |
 
-**Done means**: every V-item above reads `ruled` with the decision written into the
-row it governs, and the Progress table is recomputed from the survivors. If V1, V2
+**Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
+decision written into the row it governs, and the Progress table is recomputed from
+the survivors. If V1, V2
 and V3 are all accepted the set becomes **44 contradictions, 31 drops and 42
 controls, with 27 of 44 stale (61%)** — carried by seven cases still, but only **six
 of them gating**, because P8 keeps its 6 drops and 6 controls while contributing no
 contradictions. That is a smaller and more defensible set than the 50/30/42 above,
 and its headline no longer leans on P8's rename reading or P7's confounded column.
+
+#### V16 — resolved by investigation, no ruling needed
+
+The item asked whether the compile read `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md`
+without declaring it, or whether the article's `sources:` list is simply incomplete.
+**Neither, as far as the article's content can show**: every rationale it carries is
+also asserted by v1, which is declared and is the chain under test, and two of them
+are v1-exclusive across the whole corpus.
+
+No artifact settles the routing question directly, so it cannot be answered that way.
+`.compile-state.json` records a checksum and a timestamp per source and no target
+article, and no `.classify-cache/` survives in `data/kb-knowledge`, so which article
+each document was classified into is unrecoverable. Nor is the frontmatter itself
+authoritative: on the rewrite path the *model* writes the `sources:` entry
+(`py/src/kb_ai/core/merge.py:703-714`), which is why 91 entries corpus-wide are
+comma-packed — including this document's own entry in the article that does declare it
+(`wiki/decision/ai-trading-agent-architecture-decisions.md` L16 packs three paths into
+one item, and repeats a path already listed at L6).
+
+So it was resolved on content, in both directions.
+
+- **Nothing plan-exclusive reaches the article.** Of the plan's 982 lines, 68 survive
+  as text no other raw document contains. None of the 68 appears in the article. The
+  sharpest is 「打乱策略性挂单」 (plan L588), the plan's cancel-all framing and a
+  corpus-exclusive string: the article instead carries v1's DCP note (article L423) and
+  v1's own 「注意不要误取消策略性挂单」 wording is what the abridged v3 row reduces. Also
+  absent are the plan's supply-chain threat items (L908 repo/CDN injection, L942 CDN
+  poisoning) and its entire P0/P1/P2 execution checklist (L954–L980).
+- **Two residues are v1-exclusive, so they can only be v1's.** 「影响他人账户」 occurs
+  once in the corpus, v1 L4007 — absent from v3, from the plan (its L502 drops the
+  clause) and from the retained-interface list — and it is what article L402 carries as
+  "affects other accounts". That is **D5's** dropped clause. And v1 L2975's parenthetical
+  「组合攻击链入口（创建子账户→转资金→子账户提现）」 is likewise a single corpus hit,
+  reproduced at article L399; v3 L2918 keeps the label without the expansion, and the
+  plan phrases it the other way round (L382 「创建子账户 → 转资金 → 子账户提现（组合攻击链）」).
+- **Where both assert a rationale, the article follows v1's wording.** Article L427
+  "sends funds to any UID" matches v1 L4744 「向任意 UID 打款，本质是另一种提现通道」 without
+  the plan's 商户 (plan L96) — that is **D4**. Article L394 matches v1 L2730 without the
+  plan's 「主账户↔任意子账户」 gloss (plan L116).
+- **The neighbouring material is declared too.** The article's risk tiering (L143, L388:
+  12 P0 high-risk, 10 P1 medium-high) is v1 L5486/L5494, and its jsDelivr and SHA256
+  content comes from three declared sources — `2026-03-10-bybit-ai-trading-agent-设计方案.md`
+  and both testnet reports — not from the plan.
+
+Consequence: **D2–D5 can be scored as lost drops**, P5's 16 declared sources stand, and
+the [co-source table](#note-co-source-assertion-confounds-the-staleness-column) is
+unaffected. The general risk the item raised is real but is not this case's: an
+unreliable `sources:` list is what FX4's added check exists for, and where it does bite
+is co-source analysis on the *existing* articles, which must split comma-packed entries
+first.
 
 ---
 
@@ -590,11 +644,13 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
    carries at least **six** abridged details, not two: L394, L396, L397, L399, L402,
    L416, L427. Two of those are D4's and D5's own dropped clauses (L427, L402), so
    **D4 and D5 are lost drops**, which this label did not state.
-   Caveat before anyone scores that: `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md`
-   carries several of these rationales verbatim (L96, L116, L156, L342, L588) while
-   **not** appearing in the article's `sources` frontmatter — so the article's
-   carriage of them has a possible provenance outside this pair *and* outside its
-   declared source list. Confirmed present in `data/kb-knowledge/raw/docs/`.
+   The caveat this raised is now **discharged**:
+   `raw/docs/2026-03-12-bybit-trading-skill-security-hardening-plan.md` does carry
+   several of these rationales verbatim (L96, L116, L156, L342, L588) while **not**
+   appearing in the article's `sources` frontmatter, but nothing it asserts alone
+   reaches the article, and D5's own clause 「影响他人账户」 is a single corpus hit at
+   v1 L4007. So the residues are v1's and D4 and D5 score as lost drops — evidence in
+   [V16](#v16--resolved-by-investigation-no-ruling-needed).
 4. **Left out**: the 🔴 glyph on removal rows (presentation), and endpoint index
    renumbering caused by the Leverage Token removal (positional artifact — a
    grader must not match on endpoint numbers).

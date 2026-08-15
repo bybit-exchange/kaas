@@ -470,8 +470,12 @@ path A.
   controls, of which 31 contradictions are stated as current today. Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
-  [19 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass. Three would move the totals: if P8's four contradictions collapse, P9's C1 is
+  [18 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
+  pass — 19 were raised, and the one that asked an empirical question rather than for a
+  decision is resolved: P5's article carries nothing that the undeclared hardening plan
+  asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so its
+  dropped rationales score as lost drops and the fixture has no provenance gap.
+  Three would move the totals: if P8's four contradictions collapse, P9's C1 is
   struck and P10's C6 becomes a drop, the set is 44 contradictions with 27 stale, and
   only six cases gate. Verification also established that the staleness column is
   confounded where an article merges sources beyond the chain under test, so FX5 needs
