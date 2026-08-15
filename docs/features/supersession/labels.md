@@ -70,13 +70,13 @@ are into the fixture files named at the head of each case.
 | P5 | 5 | 5 | 6 | **0 of 5** | to confirm — passes today, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
-| P9 | 7 | 5 | 6 | 4 of 7 | to confirm |
+| P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
 | P10 | 8 | 5 | 6 | 4 of 8 | to confirm |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the seven scoring cases: **46 contradictions, 30 drops, 42
-controls**, and 29 of the 46 contradictions are stated as current in the articles
-today — a 63% pre-A1 staleness rate on the gating column, measured over compiled
+Totals across the seven scoring cases: **45 contradictions, 30 drops, 42
+controls**, and 28 of the 45 contradictions are stated as current in the articles
+today — a 62% pre-A1 staleness rate on the gating column, measured over compiled
 output rather than argued from P1 alone. Plus one non-scored
 `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
 withdrawn label (8/6/6) retained below as counter-case evidence.
@@ -96,8 +96,8 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1 applied and the rest of the queue pending.** Eight of the
-remaining rulings would move them further; the arithmetic is in
+**These totals have V1 and V2 applied and the rest of the queue pending.** Seven of
+the remaining rulings would move them further; the arithmetic is in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -168,7 +168,7 @@ call, because each either reclassifies a row or changes what a number means.
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
 | **V1** | P8-C1–C4 | P8 → contradictions table | **RULED 2026-08-15: accepted.** The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. Two further findings decided it: the article itself writes both sides (「Lucas Wan / Architecture team」 at L188 and L192), so it is not asserting the superseded value under any staleness rule; and v2 keeps person names in the `团队` column (L154, L291, L311) and still names 「Victor / Lucas」 at L681, so nothing was actually re-attributed away. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Struck; moved to the [re-attribution list](#re-attribution-not-contradiction--the-four-rows-v1-struck) | Applied: **P8 → 0 contradictions**, out of the gating set. 7 gating cases → 6; totals 46/30/42 with 29 stale |
-| **V2** | P9-C1 | P9 → contradictions table | v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178, L182–184) — the second is already scored as control **K1**. The three pillars are a capability taxonomy on a different axis. The draft's own call 7 files that same material under "additive, not superseding" | Strike; record the substance as a control | P9 → 6 contradictions, **3 of 6 stale** |
+| **V2** | P9-C1 | P9 → contradictions table | **RULED 2026-08-15: accepted.** v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178 for the self-hosted-OpenClaw half, L182–184 for the in-house TradeGPT agent) — the second is already scored as control **K1**, so scoring C1 had the same material both preserved and superseded. Checked at ruling time: the article's two-component framing (L21, L23–24) is what v2 asserts too, so the row's `stale` verdict was wrong on the facts as well as on the classification. The three pillars are a capability taxonomy on a different axis, and the draft's own call 7 files that material under "additive, not superseding" | Struck; substance folded into K1's evidence rather than a new control, and the pillars added to call 7's additive list | Applied: P9 → 6 contradictions, **3 of 6 stale**; totals 45/30/42 with 28 stale |
 | **V3** | P10-C6 | P10 → contradictions table | Compares v1's **mean** dev-phase duration against v2's **median** dev+test cycle — different statistic over a different span. v2's same-scope figure (median 1–3 → 4–7 days, L49/L67) is compatible with a mean of 7.3→11.3. The justification concedes v2 "reports no mean anywhere", which is absence, not contradiction | Reclassify as `superseded-drop` | P10 → 7 contradictions, **3 stale**; drops → 6 |
 | **V4** | P7 case-level | P7 → preamble and headline | The article's fifth source is the 04-14 infra biweekly (P2's v1), which asserts v1's **entire** 0430 column verbatim (L898–L928). So 7 of 8 staleness observations have a second possible cause | Keep the rows; score only C8 as attributable to this pair until FX4 re-runs on the fixture | P7's staleness stops being quotable as-is |
 | **V5** | P4-C8 | P4 → contradictions table | v4 still names 系统户 as the settling counterparty in five places, including a cell of the very §5 table the row scores on (v4 L788, L798, L808, L5683, L5864), none in a pending-decision block | Add an open call mirroring C7's, or drop the row if zero ambiguity is required | One of P4's 9 stale rows becomes contested |
@@ -189,8 +189,8 @@ call, because each either reclassifies a row or changes what a number means.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1 is ruled and applied**, so the Progress table now reads 46/30/42
-with 29 of 46 stale, and P8 no longer gates. If V2 and V3 are also accepted the set
+the survivors. **V1 and V2 are ruled and applied**, so the Progress table now reads
+45/30/42 with 28 of 45 stale, and P8 no longer gates. If V3 is also accepted the set
 becomes **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
 carried by seven cases still, but only **six of them gating**. That is a smaller and
 more defensible set than the 50/30/42 it started from, and its headline no longer
@@ -940,7 +940,7 @@ is distinguishable from v1 by body content, not only by the date prefix.
 
 | ID | v1 → v2 | Evidence | Article today | Status |
 |---|---|---|---|---|
-| P9-C1 / R1 | The end state is two parts (Skills for self-hosted OpenClaw users, plus an "online lobster" via the TradeGPT entry) → natural-language personalized answers plus cross-product order placement and risk management, structured as three pillars (问答交互 / 智能投顾 / Agent能力) | v1 L20 → v2 L122, L130, L133, L136 | **stale** — L21, L23–24 keep the two-component framing, L26 keeps "four interconnected product areas" | to confirm |
+| ~~P9-C1 / R1~~ | ~~The end state is two parts (Skills for self-hosted OpenClaw users, plus an "online lobster" via the TradeGPT entry) → three pillars (问答交互 / 智能投顾 / Agent能力)~~ | ~~v1 L20 → v2 L122, L130, L133, L136~~ | **struck by V2, ruled 2026-08-15** — v2 keeps *both* parts (L175–178 and L184, the latter already scored as control **K1**), so the article's two-component framing at L21, L23–24 matches the newest source and was never stale. The pillars are a capability taxonomy on another axis; the substance now sits in control K1 below and in call 7's additive list. ID retired | — |
 | P9-C2 / R2 | Phase 3 completes end of September → end of October | v1 L140–141 → v2 L124 | not stale — L339, and L341 explicitly records the move | to confirm |
 | P9-C3 / R3 | Phases 1 and 2 complete mid-June and mid-August → end of June and end of August | v1 L108–109, L126–127 → v2 L124 | not stale — L339, L422, L461 | to confirm |
 | P9-C4 / R4 | Top-20 Q&A optimization is a phase-1 deliverable → reassigned to phase 2 | v1 L121 → v2 L156 with the legend at L124 | **stale** — L434 lists it under Phase 1 | to confirm |
@@ -962,7 +962,7 @@ is distinguishable from v1 by body content, not only by the date prefix.
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P9-K1 | The only four OpenClaw capabilities TradeGPT lacks — heartbeat trigger, workflow orchestration, long memory, multi-chat-app adaptation — will be built in-house | v1 L27 → v2 L184, L625–632 | to confirm |
+| P9-K1 | The only four OpenClaw capabilities TradeGPT lacks — heartbeat trigger, workflow orchestration, long memory, multi-chat-app adaptation — will be built in-house, and with it v1's whole two-part end state: 对自有龙虾用户 Skills at v2 L175–178 and the in-house TradeGPT agent at L184 | v1 L20, L27 → v2 L175–178, L184, L625–632 (the two-part half added by V2, which struck C1) | to confirm |
 | P9-K2 | The 26H1 Fee Conversion target is 80 Mil, 300% growth on 25H2's 19.9 Mil actual | v1 L63–72 → v2 L53–62 (L54–63 as first drafted omits the 「Fee Conversion」 label cell at L53) | to confirm |
 | P9-K3 | Agent sub-account phase 1 covers account balance cap, fund transfer, max borrow leverage and max contract leverage | v1 L186 → v2 L620 | to confirm |
 | P9-K4 | TradeGPT's private Skills may recommend on 180 days of Copy Trading leader performance while the product shows users only 90 | v1 L194 → v2 L639 | to confirm |
@@ -1003,7 +1003,10 @@ is distinguishable from v1 by body content, not only by the date prefix.
    conditional in v1; and the token-quota statistic, which v2's 「交易量提升Token额度」
    presupposes.
 7. **Additive, not superseding** (the list that proves P9 belongs with the
-   positives rather than the negative controls): a whole new 智能投顾 pillar with
+   positives rather than the negative controls) — and V2 moved the three-pillar
+   restructure (问答交互 / 智能投顾 / Agent能力, v2 L130/L133/L136) into this list, because
+   it is a capability taxonomy on a different axis from v1's two-audience split rather
+   than a replacement for it: a whole new 智能投顾 pillar with
    two detail tables plus 大模型交易员 and 资产配置助手 (L320–585); two new OKR rows
    (Question Count per User 2.6 → 6.5, per Day 96.5K → 241K, L89–117); an
    Agent-capability resourcing table (L197–243); ABF独立部署; a new 运营支持 section
@@ -1218,7 +1221,7 @@ this for one case; it generalises.
 
 Two consequences, and they are not the same size.
 
-**For the drafted `Article today` column and the 63% headline, the confound is
+**For the drafted `Article today` column and the 62% headline, the confound is
 severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
 contradictions, so of the six cases that still gate, only P3 does. P7 is the worst case:
 its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
@@ -1232,7 +1235,7 @@ the compile over the staged fixture. Only P5 and P7 carry a co-source into that 
 one each, and in both cases the co-source is another case's v1 — itself superseded
 within the fixture, so ordering applies to it too.
 
-So the 63% pre-A1 figure is motivation, not measurement, and should stop being
+So the 62% pre-A1 figure is motivation, not measurement, and should stop being
 quoted as though the two were interchangeable. Before FX5 scores a case, the
 staleness criterion needs stating as *the article asserts the superseded value where
 the newest source in the compile set asserts otherwise* — not merely *the earlier
