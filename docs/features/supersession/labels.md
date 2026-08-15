@@ -98,13 +98,15 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3, V12, V19 and V4 applied; 13 rulings are still open.**
-Four of those would move a number further — V5, V7, V8 and V9. V19 moved no total but
-changed what the staleness column measures, and ruling it raised **V20**: P5's two
-versions share a date, so the payload orders them backwards and P5's 0-of-5 pass
-cannot be scored on that column until a tie-break rule lands. V4 moved no total either
-— P7 keeps all 8 rows, and what narrowed is the claim that its staleness demonstrates
-*this pair's* ordering being lost, which only C8 supports. The details are in
+**These totals have V1, V2, V3, V4, V5, V12 and V19 applied; 12 rulings are still open.**
+Three of those would move a number further — V7, V8 and V9. The four rulings taken
+since have all left the totals where they were. V19 changed what the staleness column
+measures and raised **V20**: P5's two versions share a date, so the payload orders them
+backwards and P5's 0-of-5 pass cannot be scored on that column until a tie-break rule
+lands. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
+demonstrates *this pair's* ordering being lost, which C8 alone supports. V5 kept P4-C8
+at **9 of 10 stale**, since the residual `系统户` prose describes a different level than
+the counterparty role the row scores. The details are in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -165,20 +167,20 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 20 items: 7 settled, 13 still needing a ruling
+### The queue — 20 items: 8 settled, 12 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3, V12, V19 and V4 are ruled** — the three that moved the totals, the one that governs
-the same item as V3, the one that redefined the staleness column, and the one that
-settled P7's confound — and each row records the decision. **V20 was raised by ruling
-V19** and is the only item added after the pass. Of the 13 still open, four would move a
-scored number: V5 contests one of P4's stale rows, V7 forces P3 to 8/5 or 9/4, V8 would
-take P5's drops to 6, and V9 adds two measured losses to the drop arm. V20 moves no
-total either, but it decides whether P5 can be scored on the gating column at all. The
-rest change what a number means or correct the reasoning under it.
+V3, V4, V5, V12 and V19 are ruled** — the three that moved the totals, the one that
+governs the same item as V3, the one that redefined the staleness column, the one that
+settled P7's confound, and the one that kept P4-C8 — and each row records the decision.
+**V20 was raised by ruling V19** and is the only item added after the pass. Of the 12
+still open, three would move a scored number: V7 forces P3 to 8/5 or 9/4, V8 would take
+P5's drops to 6, and V9 adds two measured losses to the drop arm. V20 moves no total
+either, but it decides whether P5 can be scored on the gating column at all. The rest
+change what a number means or correct the reasoning under it.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
@@ -186,7 +188,7 @@ rest change what a number means or correct the reasoning under it.
 | **V2** | P9-C1 | P9 → contradictions table | **RULED 2026-08-15: accepted.** v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178 for the self-hosted-OpenClaw half, L182–184 for the in-house TradeGPT agent) — the second is already scored as control **K1**, so scoring C1 had the same material both preserved and superseded. Checked at ruling time: the article's two-component framing (L21, L23–24) is what v2 asserts too, so the row's `stale` verdict was wrong on the facts as well as on the classification. The three pillars are a capability taxonomy on a different axis, and the draft's own call 7 files that material under "additive, not superseding" | Struck; substance folded into K1's evidence rather than a new control, and the pillars added to call 7's additive list | Applied: P9 → 6 contradictions, **3 of 6 stale**; totals 45/30/42 with 28 stale |
 | **V3** | P10-C6 | P10 → contradictions table | **RULED 2026-08-15: accepted.** Compares v1's **mean** development duration (L25) against v2's **median** 研发周期 (L28), which v2 L14 defines as development *plus* test — a different statistic over a different span. Checked at ruling time: v2 does carry a same-scope median development duration (the 中位开发时长 column at L49, 1–3 → 4–7 days at L67), and it is compatible with v1's mean 7.3 → 11.3, just as v2's own 「中位低、均值高」 note (L38) predicts; and **no same-basis pair exists to re-cut the row onto**, because v1 reports development duration only as a mean (L25, L73, L177). Keeping it would ask A1 to correct 9.2 days against no replacement value, so R6 was unscoreable | Reclassified as `superseded-drop` **D6**, recorded as a lost drop, with the basis change written into [measurement-basis item 4](#measurement-basis-changes--why-c1c5-c7-and-c8-are-contradictions-rather-than-new-figures) | Applied: P10 → 7 contradictions, **3 stale**; drops → 6; totals 44/31/42 with 27 stale |
 | **V4** | P7 case-level | P7 → preamble and headline | **RULED 2026-08-16: the finding is accepted, the scoring restriction is rejected.** The premise is verified exactly — `raw/docs/2026-04-14-infra-双周会-2026_h1.md` (P2's v1) asserts v1's entire 0430 column, confirmed with fixed-string counts at L898 (`40.95`, `24.57`), L904 (`13.3`), L911 (`3000C`), L916 (`合同已提交`), L919 (`117.3`), L921 (`3300`, `83.1`) and L925/L928 (`7197`, `17054`). But "score only C8" rests on attributing staleness to a document *pair*, and supersession is a property of the **compile set**: the set holds 04-14 asserting the old value and v2 asserting otherwise, so a writer emitting it undated mishandled ordering whichever document it read it from — and that co-source is itself superseded inside the fixture by P2's v2. Under V19's ruled criterion all six stale rows stand, because the newest source speaking to each is v2 (2026-05-14). For FX7 the confound cancels outright, since the co-source sits in both arms | All 8 rows stay scoreable. What is restricted is the **causal** claim: only C8 supports "this pair's ordering was lost", so the headline no longer reads 6 of 8 as evidence of ordering loss. Two repairs came with the ruling — C8's test is tightened to the full phrase `识别—分析—跟踪—复盘`, since the bare token `闭环` has 7 hits in the 双周会 on a different loop (L823), and C6 gains an ambiguity note because the newest source in the set may assert its old value | Applied: no total moved. P7 stays a gating case at 6 of 8 stale |
-| **V5** | P4-C8 | P4 → contradictions table | v4 still names 系统户 as the settling counterparty in five places, including a cell of the very §5 table the row scores on (v4 L788, L798, L808, L5683, L5864), none in a pending-decision block | Add an open call mirroring C7's, or drop the row if zero ambiguity is required | One of P4's 9 stale rows becomes contested |
+| **V5** | P4-C8 | P4 → contradictions table | **RULED 2026-08-16: the residual is recorded, the row stands.** The five `系统户` mentions are verified (v4 L788, L798, L808, L5683, L5864, none in a 待决策 block) but they are weaker than C7's residual, not stronger, because they describe a different level: three are transType accounting directions in §3.3 engine, one is hedged with 可以考虑, and one is a worked example whose next lines say 「差额公司出」, sitting under a `light-yellow` open question. Against that, the replacement is the cleanest in the chain — v2 L5447–5453 and v3 L5697–5703 are the same table row replaced cell for cell across subject, role and detail 1. Two line-level corrections came out of ruling it: **the pair is v2→v3, not v2→v4** (`差额账户` first appears in v3; v4 shifts the two lines by one with no content change), which independently confirms what **V15** argues for X1; and **`允许透支` is not part of the change**, since it already stands in v2's cell | Row kept and scored on the table row, the same basis call 2 uses for C7. Residual written up as [call 8](#p4-open-judgement-calls); both line corrections applied to the row | Applied: no total moved. P4 stays **9 of 10 stale** |
 | **V6** | P10-C7 | P10 → contradictions table | Pairs v1's ≤90-filtered counts against v2's **full-population** headline. Same-basis counterparts exist in the same v2 rows: 1,971 and 1,129 | Re-base the replacement to 1,971 / 1,129 (≤120) or 2,036 / 1,182 (full), and score the stale verdict on v1's 43% and the peak/trough framing, which are genuinely v1-only | Row survives, figures change |
 | **V7** | P3-D3 vs call 2 | P3 → drops table and open call 2 | Both rest on the same v1 lines (L635–638). Promoting call 2 to a 9th contradiction would score that evidence twice — once gating, once as a drop | Rule explicitly either/or, and record that promoting it strikes D3 | P3 either 8/5 or 9/4, never 9/5 |
 | **V8** | P5 `universal-transfer` | P5 → open call 3 | An unlisted abridgement loses a whole distinct assertion — 「资金可转到他人控制的子账户」, 0 hits in v3 — the same shape used to promote D4 and D5, and the article carries it at L394 | Promote to a drop or decline explicitly | P5 drops 5 → 6 |
@@ -196,7 +198,7 @@ rest change what a number means or correct the reasoning under it.
 | **V12** | P10 item 4 | P10 → measurement-basis item 4 | **RULED 2026-08-15: accepted**, applied together with V3 since both govern the same item. "v2 reports no mean anywhere" is false — v2 L38 「均值 13-20 天」, L82 「均值产品准备期 13.5 天」, L271 「平均周期 172 天」 | Restricted to development duration, where `平均开发时长` returns 0 hits in v2 | Applied; item 4 rewritten, and it is what carried V3 |
 | **V13** | P10 item 2 | P10 → measurement-basis item 2 | Crosses bases: v1's 8,916/8,378 are ≤90-filtered, v2's 9,412/9,033 are full-population. Throughput was re-based, not revised | Say so | Row unaffected; reasoning corrected |
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
-| **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens |
+| **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens. **Corroborated 2026-08-16 by ruling V5**: on the same material, `差额账户` first appears at v3 L5697/L5703 and v4 changes nothing there but the line offset, so the v3 landing point is now verified from two directions |
 | **V16** | P5 undeclared source | P5 → open call 3 | **RESOLVED 2026-08-15, no ruling needed** — the hardening plan carries those rationales, but so does v1, and nothing the plan asserts *alone* reaches the article. Evidence [below](#v16--resolved-by-investigation-no-ruling-needed) | Score D2–D5 as lost drops; the residues are v1's | No provenance gap. Queue drops to 18 |
 | **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
 | **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
@@ -205,7 +207,7 @@ rest change what a number means or correct the reasoning under it.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3, V12, V19 and V4 are ruled and applied**, so the Progress
+the survivors. **V1, V2, V3, V4, V5, V12 and V19 are ruled and applied**, so the Progress
 table now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale
 (61%)** — carried by seven cases still, but only **six of them gating**, since P8
 contributes no contradictions. That is a smaller and more defensible set than the
@@ -482,7 +484,7 @@ what changed is mostly storage architecture.
 | P4-C5 / R5 | Existing `uta_leverage_log` will be refactored into monthly shards → migrated from MySQL to TiDB | v1 L3213 → v4 L3869, L3871 | **stale** — L504–506, action L638, plus `uta_spot_leverage_log_{yyyyMM}` L508 | to confirm |
 | P4-C6 / R6 | `set_time` in the user-behaviour log tables is nanoseconds → milliseconds | v1 L2626 (and L2782, L2921, L3179, L3353, L3612, L3754) → v4 L3359, L3405 | **stale** — L494 | to confirm |
 | P4-C7 / R7 | `uta_auto_add_margin_log` trigger column is `action` → `service_action` | v2 L3954 → v4 L4192 | **stale** — L514, action L639 | to confirm |
-| P4-C8 / R8 | Incident counterparty is the trading system account (系统户), funds settle against it → the in-trading difference account (差额账户), overdraft allowed | v2 L5447, L5453 → v4 L5698, L5704 | **stale** — L421–424 | to confirm |
+| P4-C8 / R8 | Incident counterparty is the trading system account (系统户), funds settle against it → the in-trading difference account (差额账户). Overdraft is **not** part of the change: 「允许透支」 already stands in v2's cell | v2 L5447, L5453 → **v3** L5697, L5703. Corrected from v4 by V5: `差额账户` first appears in v3, and v4 only shifts these two lines by one with no content change | **stale** — L421–424 | to confirm — **V5 ruled 2026-08-16**, row stands with a residual at [call 8](#p4-open-judgement-calls) |
 | P4-C9 / R9 | Post-rollback disposal is futures dumped to the order book with options and spot moved to a PM takeover account, pending TR discussion → spot and positions handed to TRW | v2 L5455 → v4 L5706 | **stale** — L425–426, plus open item L667; TRW appears nowhere | to confirm |
 | P4-C10 / R10 | Asset recovery is 60% done → 90% developed, integration testing next week | v3 L5674 → v4 L5675 | not stale — L735 carries v4's value | to confirm |
 
@@ -510,7 +512,7 @@ what changed is mostly storage architecture.
 
 | ID | Sequence | Status |
 |---|---|---|
-| P4-X1 | The system-side account absorbing incident funds: v1 「对账补齐到系统账号（账号可以提前创建好）」 (L4776) → v2 「交易系统户 … 和系统户结算，允许透支」 (L5447, L5453) → v4 「交易系统内的差额账户 … 和差额账户结算」 (L5698, L5704) | to confirm — weak, see call 4 |
+| P4-X1 | The system-side account absorbing incident funds: v1 「对账补齐到系统账号（账号可以提前创建好）」 (L4776) → v2 「交易系统户 … 和系统户结算，允许透支」 (L5447, L5453) → **v3** 「交易系统内的差额账户 … 和差额账户结算」 (L5697, L5703; v4's L5698/L5704 are the same two lines shifted one, per V5) | to confirm — weak, see call 4 |
 
 **Restored (contradicted mid-chain, then reverted by v4): none.** v3→v4 touches
 three progress cells and reverts nothing.
@@ -546,6 +548,22 @@ three progress cells and reverts nothing.
 7. **Only C10 comes from v3→v4.** Add the MarginDB cell (v3 L5774 → v4 L5775) if
    the v3-vs-v4 discrimination should rest on more than one item. The 封禁 cell was
    empty in v3, so that is an addition, not a supersession.
+8. **C8 has residual `系统户` prose, weaker than C7's — recorded by V5, ruled
+   2026-08-16.** The replacement itself is as clean as this fixture gets: v2 L5447–5453
+   and v3 L5697–5703 are the *same table row* replaced cell for cell, subject
+   (交易系统户 → 交易系统内的差额账户), role (both 作为事故用户的对手方) and detail 1
+   (…资金都和系统户结算，允许透支 → …资金都和差额账户结算，允许透支). But v3 and v4 each
+   keep five `系统户` mentions, and none is in a 待决策 block. They sit at a different level of
+   description, which is why the row survives: three are transType accounting directions
+   in §3.3 engine (v4 L788, L798, L808 — 「给用户加钱 / 系统户扣钱」, i.e. which ledger
+   account moves per transType, not who the counterparty is); one is hedged with 可以考虑
+   (L5683, 「系统户分片被动形成持仓」); and one is a worked example (L5864,
+   「系统户UID： +1个BTC, -80000个USDT」) that three lines later says 「现货交易/期货交易：
+   差额公司出」, which is complementary rather than contrary, and which sits under
+   「系统账户拿到一批垃圾币，如何处置掉？」 highlighted `light-yellow` — this document's
+   open-question marker, as at L5688. Scored on the table row, the same basis call 2 makes
+   for C7. Drop it only if zero ambiguity is required, and note that doing so would
+   discard the chain's cleanest cell-for-cell replacement.
 
 Also carried as current in the article but not gating: **all four** drops —
 P4-D1 `TradeEngineService` as the ban/unban service (L333, L357, L396, L563),

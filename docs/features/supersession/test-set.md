@@ -12,7 +12,7 @@ All 128 drafted items have since been **independently verified** in fresh contex
 one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
 confirm pass therefore starts from a queue of
 [19 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **six are taken with 13 left**. Nineteen items were raised: one
+unchecked rows, and **seven are taken with 12 left**. Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
 twentieth. Three of the rulings move the totals above and **all three are taken**:
