@@ -69,7 +69,7 @@ are into the fixture files named at the head of each case.
 | P3 | 8 | 5 | 6 | 6 of 8 | to confirm |
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
 | P5 | 5 | 5 | 6 | **0 of 5** | to confirm — 0 only against the true version order; the payload states it backwards (**V20**), see [P5](#p5--bybit-trading-skill-api-inventory) |
-| P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted, see [P7](#p7--2026-h1-cost-progress-tracking) |
+| P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted; **V4 ruled 2026-08-16**, all 8 rows stay scoreable and only the causal claim narrows to C8, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
 | P10 | 7 | 6 | 6 | 3 of 7 | to confirm — **V3 ruled 2026-08-15**, C6 reclassified as drop D6, see [P10](#p10--2025-engineering-efficiency-report) |
@@ -98,11 +98,13 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3, V12 and V19 applied; 14 rulings are still open.** Four
-of those would move a number further — V5, V7, V8 and V9. V19 moved no total but
+**These totals have V1, V2, V3, V12, V19 and V4 applied; 13 rulings are still open.**
+Four of those would move a number further — V5, V7, V8 and V9. V19 moved no total but
 changed what the staleness column measures, and ruling it raised **V20**: P5's two
 versions share a date, so the payload orders them backwards and P5's 0-of-5 pass
-cannot be scored on that column until a tie-break rule lands. The details are in
+cannot be scored on that column until a tie-break rule lands. V4 moved no total either
+— P7 keeps all 8 rows, and what narrowed is the claim that its staleness demonstrates
+*this pair's* ordering being lost, which only C8 supports. The details are in
 [the verification pass](#independent-verification-pass-2026-08-15).
 
 ---
@@ -163,27 +165,27 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 20 items: 6 settled, 14 still needing a ruling
+### The queue — 20 items: 7 settled, 13 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3, V12 and V19 are ruled** — the three that moved the totals, the one that governs the
-same item as V3, and the one that redefined the staleness column — and each row records
-the decision. **V20 was raised by ruling V19** and is the only item added after the
-pass. Of the 14 still open, four would move a scored number: V5 contests one of P4's
-stale rows, V7 forces P3 to 8/5 or 9/4, V8 would take P5's drops to 6, and V9 adds two
-measured losses to the drop arm. V20 moves no total either, but it decides whether P5
-can be scored on the gating column at all. The rest change what a number means or
-correct the reasoning under it.
+V3, V12, V19 and V4 are ruled** — the three that moved the totals, the one that governs
+the same item as V3, the one that redefined the staleness column, and the one that
+settled P7's confound — and each row records the decision. **V20 was raised by ruling
+V19** and is the only item added after the pass. Of the 13 still open, four would move a
+scored number: V5 contests one of P4's stale rows, V7 forces P3 to 8/5 or 9/4, V8 would
+take P5's drops to 6, and V9 adds two measured losses to the drop arm. V20 moves no
+total either, but it decides whether P5 can be scored on the gating column at all. The
+rest change what a number means or correct the reasoning under it.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
 | **V1** | P8-C1–C4 | P8 → contradictions table | **RULED 2026-08-15: accepted.** The four rows are not incompatible, they are **de-specifications**. v2 keeps `@lucas.wan` over the whole infra category (v2 L19) and glosses him as `Lucas (架构)` (v2 L271), so `团队 = 架构` generalises `Owner = Lucas Wan` rather than contradicting it. Two further findings decided it: the article itself writes both sides (「Lucas Wan / Architecture team」 at L188 and L192), so it is not asserting the superseded value under any staleness rule; and v2 keeps person names in the `团队` column (L154, L291, L311) and still names 「Victor / Lucas」 at L681, so nothing was actually re-attributed away. The draft's own call 3 excludes 「Q2 W6」→「Q2」 for exactly this shape | Struck; moved to the [re-attribution list](#re-attribution-not-contradiction--the-four-rows-v1-struck) | Applied: **P8 → 0 contradictions**, out of the gating set. 7 gating cases → 6; totals 46/30/42 with 29 stale |
 | **V2** | P9-C1 | P9 → contradictions table | **RULED 2026-08-15: accepted.** v2 preserves *both* of v1's end-state parts near item-for-item (v2 L175–178 for the self-hosted-OpenClaw half, L182–184 for the in-house TradeGPT agent) — the second is already scored as control **K1**, so scoring C1 had the same material both preserved and superseded. Checked at ruling time: the article's two-component framing (L21, L23–24) is what v2 asserts too, so the row's `stale` verdict was wrong on the facts as well as on the classification. The three pillars are a capability taxonomy on a different axis, and the draft's own call 7 files that material under "additive, not superseding" | Struck; substance folded into K1's evidence rather than a new control, and the pillars added to call 7's additive list | Applied: P9 → 6 contradictions, **3 of 6 stale**; totals 45/30/42 with 28 stale |
 | **V3** | P10-C6 | P10 → contradictions table | **RULED 2026-08-15: accepted.** Compares v1's **mean** development duration (L25) against v2's **median** 研发周期 (L28), which v2 L14 defines as development *plus* test — a different statistic over a different span. Checked at ruling time: v2 does carry a same-scope median development duration (the 中位开发时长 column at L49, 1–3 → 4–7 days at L67), and it is compatible with v1's mean 7.3 → 11.3, just as v2's own 「中位低、均值高」 note (L38) predicts; and **no same-basis pair exists to re-cut the row onto**, because v1 reports development duration only as a mean (L25, L73, L177). Keeping it would ask A1 to correct 9.2 days against no replacement value, so R6 was unscoreable | Reclassified as `superseded-drop` **D6**, recorded as a lost drop, with the basis change written into [measurement-basis item 4](#measurement-basis-changes--why-c1c5-c7-and-c8-are-contradictions-rather-than-new-figures) | Applied: P10 → 7 contradictions, **3 stale**; drops → 6; totals 44/31/42 with 27 stale |
-| **V4** | P7 case-level | P7 → preamble and headline | The article's fifth source is the 04-14 infra biweekly (P2's v1), which asserts v1's **entire** 0430 column verbatim (L898–L928). So 7 of 8 staleness observations have a second possible cause | Keep the rows; score only C8 as attributable to this pair until FX4 re-runs on the fixture | P7's staleness stops being quotable as-is |
+| **V4** | P7 case-level | P7 → preamble and headline | **RULED 2026-08-16: the finding is accepted, the scoring restriction is rejected.** The premise is verified exactly — `raw/docs/2026-04-14-infra-双周会-2026_h1.md` (P2's v1) asserts v1's entire 0430 column, confirmed with fixed-string counts at L898 (`40.95`, `24.57`), L904 (`13.3`), L911 (`3000C`), L916 (`合同已提交`), L919 (`117.3`), L921 (`3300`, `83.1`) and L925/L928 (`7197`, `17054`). But "score only C8" rests on attributing staleness to a document *pair*, and supersession is a property of the **compile set**: the set holds 04-14 asserting the old value and v2 asserting otherwise, so a writer emitting it undated mishandled ordering whichever document it read it from — and that co-source is itself superseded inside the fixture by P2's v2. Under V19's ruled criterion all six stale rows stand, because the newest source speaking to each is v2 (2026-05-14). For FX7 the confound cancels outright, since the co-source sits in both arms | All 8 rows stay scoreable. What is restricted is the **causal** claim: only C8 supports "this pair's ordering was lost", so the headline no longer reads 6 of 8 as evidence of ordering loss. Two repairs came with the ruling — C8's test is tightened to the full phrase `识别—分析—跟踪—复盘`, since the bare token `闭环` has 7 hits in the 双周会 on a different loop (L823), and C6 gains an ambiguity note because the newest source in the set may assert its old value | Applied: no total moved. P7 stays a gating case at 6 of 8 stale |
 | **V5** | P4-C8 | P4 → contradictions table | v4 still names 系统户 as the settling counterparty in five places, including a cell of the very §5 table the row scores on (v4 L788, L798, L808, L5683, L5864), none in a pending-decision block | Add an open call mirroring C7's, or drop the row if zero ambiguity is required | One of P4's 9 stale rows becomes contested |
 | **V6** | P10-C7 | P10 → contradictions table | Pairs v1's ≤90-filtered counts against v2's **full-population** headline. Same-basis counterparts exist in the same v2 rows: 1,971 and 1,129 | Re-base the replacement to 1,971 / 1,129 (≤120) or 2,036 / 1,182 (full), and score the stale verdict on v1's 43% and the peak/trough framing, which are genuinely v1-only | Row survives, figures change |
 | **V7** | P3-D3 vs call 2 | P3 → drops table and open call 2 | Both rest on the same v1 lines (L635–638). Promoting call 2 to a 9th contradiction would score that evidence twice — once gating, once as a drop | Rule explicitly either/or, and record that promoting it strikes D3 | P3 either 8/5 or 9/4, never 9/5 |
@@ -203,14 +205,15 @@ correct the reasoning under it.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3, V12 and V19 are ruled and applied**, so the Progress table
-now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale (61%)** —
-carried by seven cases still, but only **six of them gating**, since P8 contributes no
-contradictions. That is a smaller and more defensible set than the 50/30/42 it started
-from, and its headline no longer leans on P8's rename reading. P7's confounded column
-is still in it, which is what V4 is for — and V19's ruling established that V4 cannot
-be answered by redefining the column, because P7's co-source is older than its chain
-head.
+the survivors. **V1, V2, V3, V12, V19 and V4 are ruled and applied**, so the Progress
+table now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale
+(61%)** — carried by seven cases still, but only **six of them gating**, since P8
+contributes no contradictions. That is a smaller and more defensible set than the
+50/30/42 it started from, and its headline no longer leans on P8's rename reading.
+P7's confounded column stays in it: V19 established that the confound cannot be
+dissolved by redefining the column, because P7's co-source is older than its chain
+head, and V4 then established that it does not need to be — the rows score, and only
+the causal claim narrows.
 
 #### V16 — resolved by investigation, no ruling needed
 
@@ -724,28 +727,64 @@ only. See call 2 for the three candidates under a different absence test.
 | P7-C3 / R3 | Commercial-model optimization 13.3%, 6.8w → 41.5%, 8.3w | v1 L75 → v2 L82 | amount 6.8w present under a 「Completed (Apr 30)」 column (L58); v1's 13.3% **absent** — the article recomputes it as 「~27–34%」; v2's 41.5% and 8.3w absent | to confirm |
 | P7-C4 / R4 | Listing low-utilization rightsizing 3300C at 83.1% → 3864C at 97.28% | v1 L92 → v2 L222 | **stale and undated** — L480; the article *also* carries v2's value at L70 and L481, contradicting itself | to confirm |
 | P7-C5 / R5 | Optimizable cores 7197C on AWS (13.8w) and 17054C on Tencent Cloud (3.8w) → 11362C and 25046C | v1 L96, L99 → v2 L108, L115, L107 | **stale, framed as a live opportunity** — L490 | to confirm |
-| P7-C6 / R6 | EC2 SP shortfall 3000C → 7C, with confirmed reducible scope 11362C | v1 L82 → v2 L207, L88. Note R6's 11362C is the *same figure* as R5's AWS replacement (v2 L88 against L108), so a scorer matching on figures will double-count the two rows | **stale and live as an open action at L571**; L192 states the same gap but explicitly 「as of April 30」 and in the same sentence carries the replacement scope 11,362核 (also L74, L482); only the `7C` value is lost | to confirm |
+| P7-C6 / R6 | EC2 SP shortfall 3000C → 7C, with confirmed reducible scope 11362C | v1 L82 → v2 L207, L88. Note R6's 11362C is the *same figure* as R5's AWS replacement (v2 L88 against L108), so a scorer matching on figures will double-count the two rows | **stale and live as an open action at L571**; L192 states the same gap but explicitly 「as of April 30」 and in the same sentence carries the replacement scope 11,362核 (also L74, L482); only the `7C` value is lost. **Residual recorded by V4**: the newest source in the set restates 3000C at 05-20 L374 — see below | to confirm |
 | P7-C7 / R7 | Tencent Cloud ES monthly contract submitted but not landed → done, normal May cashback | v1 L86–87 → v2 L98 | **stale** — L201, open action L572 | to confirm |
 | P7-C8 / R8 | The identify–analyze–track–review closed loop is at 0% → 50% | v1 L319 → v2 L549 | **stale** — L91; sibling rows *were* patched (L114, L115) | to confirm |
 
-**6 of 8 stale in the article's text, but only C8 is attributable to this pair
-alone**, and **5 of 8 corrections lost** — C4's 3,864C/97.28% and C5/C6's 11,362核
-did land. C1 and C3 keep v1's value under an explicit as-of label, which is
-defensible on its own, but their replacements are absent from the article entirely.
+**6 of 8 stale in the article's text**, and **5 of 8 corrections lost** — C4's
+3,864C/97.28% and C5/C6's 11,362核 did land. C1 and C3 keep v1's value under an
+explicit as-of label, which is defensible on its own, but their replacements are
+absent from the article entirely.
 
-The attribution caveat is not a quibble, and it is the reason this case cannot be
-scored as it stands. The article merges five sources, and one of them —
+**V4 ruled 2026-08-16: all 8 rows stay scoreable; only the causal claim is
+restricted.** The confound below is real and verified, but it does not invalidate the
+observations. Supersession is a property of the compile set, not of a document pair:
+the set holds the 04-14 source asserting the old value and v2 asserting otherwise, so
+a writer that emits it undated has mishandled ordering whichever document it read it
+from — and the 04-14 source is itself superseded inside the fixture by P2's v2, so A1
+orders it too. Under [V19's ruled
+criterion](#independent-verification-pass-2026-08-15) every stale row
+holds, because the newest source speaking to each is v2. What the confound does kill is
+the *causal* reading: only **C8** supports "this pair's ordering was lost", so 6 of 8
+may not be quoted as evidence of ordering loss. For FX7 it cancels outright, the
+co-source being present in both arms.
+
+The attribution caveat is not a quibble. The article merges five sources, and one of
+them —
 `raw/docs/2026-04-14-infra-双周会-2026_h1.md`, which is P2's v1 — asserts v1's
 **entire** 0430 column verbatim: 40.95%/24.57w at L898 (C1), 13.3%/6.8w at L904
 (C3), 3000C at L911 (C6), 合同已提交 at L916 (C7), 117.3%/17.6w at L919 (C2),
-3300C/83.1% at L921 (C4), and 7197C/17054C at L925/L928 (C5). So for C1–C7 an
-article that states the superseded figure may be faithfully reporting *that*
-source rather than mishandling this pair. Only C8 is clean on both sides: 「闭环」 at
-0% appears in neither the 双周会 nor either cost meeting. The corrections that did
-land are confounded the same way — 57.11w, 11362C and 3,864C/97.28% are all also in
-`raw/meetings/2026-05-14-成本管控小组周会.md`. What is *not* confounded is that v2's
-newest column reached the pipeline at all: article L517 and L682 carry content
-existing only in v2 (L97, L190–191), so the absences are genuine losses.
+3300C/83.1% at L921 (C4), and 7197C/17054C at L925/L928 (C5). All nine tokens were
+re-counted as fixed strings when V4 was ruled, one hit each except `7197` with two. So
+for C1–C7 an article that states the superseded figure may be faithfully reporting
+*that* source rather than mishandling this pair.
+
+**Only C8 is clean on both sides**, and the test has to be the full phrase: v1 L319
+「**[0%]**建立“识别—分析—跟踪—复盘”闭环机制」 → v2 L549 「**[50%]**」, and
+`识别—分析—跟踪—复盘` returns **0 hits** in all three non-chain sources. The bare token
+「闭环」 does not work as the test — it has 7 hits in the 双周会 alone, all of them a
+different loop (L823 「三盘闭环：异常 → 工单 → 治理 → 验证」, L876 「自动识别与治理闭环机制」).
+That is the same string-matching hazard already recorded on C2's 117.3%.
+
+The corrections that did land are confounded the same way — 57.11w, 11362C and
+3,864C/97.28% are all also in `raw/meetings/2026-05-14-成本管控小组周会.md` (fixed-string,
+one hit each; note `3,864` carries a comma there, so a scorer searching `3864` misses
+it). Two corrections are in **no** source but v2: C1's 95.18%, C2's 44.4w/41.13, C3's
+41.5%/8.3w and C5's 25046C all return 0 hits across the three non-chain sources, as do
+C7's ES-contract outcome and C6's 7C. What is *not* confounded is that v2's newest
+column reached the pipeline at all: article L517 and L682 carry content existing only
+in v2 (L97, L190–191), so the absences are genuine losses.
+
+**C6 carries an extra ambiguity, found when V4 was ruled.** The newest source in the
+compile set is `raw/meetings/2026-05-20-aws成本分析.md`, and at L374 a speaker says
+「这是Q2，还计划内的还剩3000 C 没有优化」 — C6's own figure, six days *after* v2 reported
+that gap closed (v2 L207 「目前缺口7C」, against 「预估完成9993C」 on a 「需优化1w核」 target,
+v1 L82 having been 「预估完成7197C」 with 「目前缺口3000C」). Whether the transcript means the
+EC2 SP shortfall or the broader Q2 plan is not stated. So C6 is the one row where the
+newest source that speaks to the item may be asserting the superseded value, which is
+exactly the case V19's criterion turns on. The row stands, with this residual recorded
+as C7's and C9's are in P4. It does not reach the fixture run: the 05-20 meeting is not
+staged.
 
 This is a general threat to FX5 and not a P7 quirk — see
 [the co-source confound](#note-co-source-assertion-confounds-the-staleness-column).
@@ -1265,7 +1304,12 @@ Two consequences, and they are not the same size.
 severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
 contradictions, so of the six cases that still gate, only P3 does. P7 is the worst case:
 its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
-observations have a second possible cause. P5's article merges 16 sources, which is
+observations have a second possible cause. **V4 ruled 2026-08-16 that this bounds the
+causal claim, not the score** — a value the article states undated is still contradicted
+by the newest source in the same compile set, whichever document supplied it, so P7's
+rows stay scoreable and only "this pair's ordering was lost" narrows to C8.
+
+P5's article merges 16 sources, which is
 the strongest reason not to read its 0-of-5 pass as evidence that the pipeline
 handles supersession — it may simply have been told the newer values repeatedly.
 

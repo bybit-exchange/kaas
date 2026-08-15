@@ -12,7 +12,7 @@ All 128 drafted items have since been **independently verified** in fresh contex
 one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
 confirm pass therefore starts from a queue of
 [19 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **five are taken with 14 left**. Nineteen items were raised: one
+unchecked rows, and **six are taken with 13 left**. Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
 twentieth. Three of the rulings move the totals above and **all three are taken**:
@@ -289,7 +289,7 @@ the same file is under the singular category directory, so
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
 | P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale under the drafted reading**; both versions share a date and the payload orders them backwards, so V19 holds it out of the gate |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
-| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, framing call open |
+| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
 | P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
 | P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [drafted](labels.md#p9--bybit-ai-toc-project-initiation) — **6C** / 5D / 6K, C1 struck by V2 |
 | P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [drafted](labels.md#p10--2025-engineering-efficiency-report) — **7C** / **6D** / 6K, C6 reclassified as a drop by V3 |
@@ -481,6 +481,13 @@ here: P7's co-source is dated `2026-04-14` against a chain head of `2026-05-14`,
 P10's is `2026-03-05` against `2026-03-06`, so both stay stale and
 [V4](labels.md#independent-verification-pass-2026-08-15) is not answered by this
 wording. P5 is the only case whose co-source is newer than its own chain head.
+
+**V4 is ruled 2026-08-16 and did not need the wording**: a co-source that supplied the
+old value does not excuse the article, because supersession is a property of the compile
+set rather than of the labelled pair — the newest source speaking to the item still
+contradicts what the article states. So P7 keeps all 8 rows and 6 of 8 stale, and what
+the confound bounds is the causal claim, which only P7-C8 supports. For FX7 it cancels,
+the co-source being present in both arms.
 
 **A case whose source order rests on a same-day tie-break is reported apart from the
 gate**, because the compile set cannot order it. P5's two versions both carry

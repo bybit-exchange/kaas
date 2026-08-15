@@ -487,7 +487,7 @@ path A.
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [19 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **five are taken and 14 remain**. Nineteen were raised; the one that
+  pass, of which **six are taken and 13 remain**. Nineteen were raised; the one that
   asked an empirical question rather than for a decision is resolved, and ruling V19
   added a twentieth. The resolved one: P5's article carries nothing that the undeclared
   hardening plan
@@ -510,7 +510,11 @@ path A.
   document, since the newest document is usually silent on any one claim. Ruling it
   established two things the item did not claim. Its own rationale does not hold — no
   fixture co-source is newer than its chain head except P5's, so the wording answers V4
-  in no case. And P5 cannot be scored on this column at all yet: both of its versions
+  in no case. **V4 is then ruled 2026-08-16 on its own**: the confound is verified but
+  bounds only the causal claim, since a value the article states undated is still
+  contradicted by the newest source in the same compile set whichever document supplied
+  it. P7 keeps all 8 rows; only "this pair's ordering was lost" narrows to C8.
+  And P5 cannot be scored on this column at all yet: both of its versions
   carry `date: 2026-03-13`, the payload breaks that tie on the path and so states the
   chain backwards, which would read as 5 of 5 stale rather than 0 of 5. That defect is
   raised as **V20** and is a WP-family code fix, not a scoring definition. FX7's gate is
