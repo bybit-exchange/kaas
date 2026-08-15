@@ -1,11 +1,14 @@
 # Supersession test set: measuring the failure before choosing a fix
 
-Status: test set built, labels not yet adjudicated, and the fixture needs
-restructuring before it can score anything — compiling all 38 documents in one run
-routes each version chain into a single `merge→create` call and leaves the merge
-paths untested. See FX2 in [spec.md](spec.md). Written 2026-08-10.
+Status: test set built; staging landed under FX1; labels **drafted and awaiting
+confirmation** in [labels.md](labels.md) — 58 contradictions, 36 drops and 48
+controls across the eight cases, of which 38 contradictions are still stated as
+current in today's articles. Two cases are blocked on a ruling: P2's chain
+direction is inverted relative to its content, and P7 turns on whether an as-of
+date makes a period. Written 2026-08-10, labels drafted 2026-08-14.
 Companion to [design-options.md](design-options.md), which lists the options this
-set exists to separate.
+set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
+what this set has to deliver before A1 can be judged.
 
 The design options were written from code reading. Two of their claims are
 empirical and neither had a number attached: how often a later document actually
@@ -55,8 +58,13 @@ by a prompt nobody can identify. Two consequences worth stating:
   loader, as of 2026-08-14**: they were serialized at `schema_version: 1` and
   `storage/extraction.py` now reads 2, so `extraction.load` refuses all 982 with
   `unsupported schema_version`. The files are still readable as text — the RP3
-  measurements above parsed them directly — but FX3's label drafting needs them
-  re-serialized through the current serializer first, which is still free.
+  measurements above parsed them directly, and so did FX3's label drafting, which
+  is why **no re-serialization is needed** despite an earlier note here saying it
+  was. The version is checked inside `parse` (`storage/extraction.py:209`), which
+  only `load` calls; `load_header` never checks it, so the catalog and selection
+  paths read these files fine. Re-serializing would also buy a compile nothing:
+  `prompt_version: legacy-extract-cache` makes every one of them stale, so a
+  compile re-extracts whatever the schema line says.
 - The existing `wiki/` is a historical artifact, compiled by prompt versions that
   no longer exist. It is evidence that the failure mode occurs; it is not a
   baseline any run can reproduce. The baseline has to be re-measured.
@@ -218,16 +226,33 @@ Fixture at `data/kb-supersession-fixture/` (gitignored): 38 raw documents with
 their migrated extractions, ready to compile. Regenerate with the commands in
 [Regenerating](#regenerating).
 
-Each case still needs a label before it can score anything. The label is three
+Each case still needs a label before it can score anything. The label is four
 lists, drafted from the diff and from the migrated extractions, then confirmed by
 a human:
 
-- `superseded` — asserted by the earlier version, contradicted or dropped by the
-  later one. An article stating one of these as current is the failure.
-- `replacement` — what the later version says instead. An article missing one of
-  these has lost the correction.
-- `control` — asserted by the earlier version and kept by the later one. An
-  article missing one of these means a variant is deleting too aggressively.
+- `superseded-contradiction` — asserted by the earlier version, and the later one
+  asserts something incompatible about the same subject. There has to be a
+  specific later statement to point at. An article stating one of these as
+  current is the failure A1 is judged on.
+- `superseded-drop` — asserted by the earlier version and simply absent from the
+  later one, which says nothing incompatible. Measured and reported, but it does
+  not gate: Q1 scopes A1's trigger to explicit contradiction and sends dropped
+  claims to the RP1–RP3 report instead, so scoring A1 on drops would judge it
+  against work it does not contain. A restated claim is not a drop.
+- `replacement` — what the later version says instead, one entry per
+  `superseded-contradiction` entry. An article missing one of these has lost the
+  correction.
+- `control` — asserted by the earlier version and kept by the later one, restated
+  in new words included. An article missing one of these means a variant is
+  deleting too aggressively.
+
+Splitting the first list is what keeps FX7 honest, and it is not free: P1, the
+one case already adjudicated as failing, is a **drop** rather than a
+contradiction, so the clearest historical failure in this set no longer gates the
+thing it motivated. That is the correct trade: P1 is evidence for A2's RP1 arm,
+not evidence about A1. But it means the positives that gate A1 are the eight
+drafted cases plus P6, and a thin contradiction list on any of them shrinks the
+set that decides whether A2 gets bought.
 
 Positives. All are same-source, and the article named is the one whose `sources:`
 holds the whole chain. In the Chain column a bare date such as `2026-04-17-`
@@ -239,15 +264,22 @@ the same file is under the singular category directory, so
 | # | Shape | Chain (dates) | Lines, sim | Article | Label |
 |---|---|---|---|---|---|
 | P1 | A | `raw/docs/2026-04-08-入离职-ai-岗位-it-方案.md` → `2026-04-17-` | 52→283, 0.042 | `wiki/decisions/ai-tools-onboarding-offboarding-automation.md` | adjudicated, see below |
-| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448 | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | to draft |
-| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096 | `wiki/concepts/cht-knowledge-plugin-system.md` | to draft |
-| P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | to draft; 4-version chain |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217 | `wiki/projects/bybit-ai-trading-skill.md` | to draft; same-day pair |
+| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [drafted](labels.md#p2--infra-biweekly-review-blocked) — **blocked, direction inverted** |
+| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
+| P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale, passes today** |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
-| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | to draft |
-| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079 | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | to draft |
-| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168 | `wiki/projects/tradegpt-toc-product-roadmap.md` | to draft |
-| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | to draft |
+| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, framing call open |
+| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — 4C / 6D / 6K |
+| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [drafted](labels.md#p9--bybit-ai-toc-project-initiation) — 7C / 5D / 6K |
+| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [drafted](labels.md#p10--2025-engineering-efficiency-report) — 8C / 5D / 6K |
+
+† The `sim` value is distorted downward by `difflib`'s `autojunk` heuristic and
+should not be read as a body-similarity fraction — P8's 0.079 is 0.928 with the
+heuristic off, on two files sharing 1,544 of 1,709 lines. The recorded values are
+the ones the corpus was stratified with, so they are kept rather than silently
+replaced; the measurement and what it costs are in
+[labels.md](labels.md#note-the-recorded-similarity-figures-are-distorted).
 
 Negative controls. The later version only adds. Marking anything superseded here
 is a false positive, and the design doc's stated reason for preferring
@@ -277,9 +309,11 @@ access", plus a pending action item to consult Lark on pricing. The correction
 never landed.
 
 Note what this case does *not* establish: v2 dropped the claim rather than
-contradicting it. Whether a dropped claim counts as superseded is a labelling
-rule this set has to fix explicitly, and it is the same question D1 answers for
-the article body.
+contradicting it. That labelling rule is now fixed — P1's items go in
+`superseded-drop`, which is measured and does not gate A1 (see
+[The cases](#the-cases)). So this case, the most legible failure in the set, is
+evidence for A2's RP1 arm rather than a test A1 has to pass. Keeping it scored
+under its own column is what stops that evidence from being quietly discarded.
 
 **P6 succeeds today.** v1.5 frames the problem as "当前 BGW 是一个面向业务的重量级
 网关"; v1.7 reframes it as "当前团队维护着四套独立网关系统" and widens the scope to
@@ -301,12 +335,18 @@ Per case, over the produced article:
 | Metric | Measured as | Failure |
 |---|---|---|
 | Correction landed | each `replacement` present and stated as current | missing |
-| Staleness | any `superseded` item present and stated as current | present |
-| Trail | any `superseded` item present and marked as superseded | — |
+| Staleness | any `superseded-contradiction` item present and stated as current | present — this is the gating column |
+| Staleness (drop) | any `superseded-drop` item present and stated as current | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
+| Trail | any `superseded-contradiction` item present and marked as superseded | — |
 | Collateral | each `control` item still present | missing |
 | Size | article bytes, against the pre-run article | growth |
 | False positive | on N1–N4, any supersession marker at all | present |
 | Double count | on U1–U4, the duplicate contributing twice | present |
+
+Staleness (drop) is carried as its own column rather than left unmeasured because
+it is the only number that says whether A2's RP1 arm is worth building: if A1's
+explicit ordering signal happens to clear the drops as well, that arm gets
+cheaper, and nobody learns that from a run that does not look.
 
 Staleness and Trail are separate columns on purpose: that pair is what separates
 the D1 options, and no single score can.
@@ -315,9 +355,12 @@ the D1 options, and no single score can.
 - current-plus-trail: Staleness 0, Trail 1
 - article family: two articles, and Trail is not applicable
 
-For D2 the discriminating column is Correction landed on P1–P10 with False
-positive held at 0 on N1–N4. Path A leaves the ordering judgement to the model;
-path B hands it an explicit claim; path C removes the question by recomposing.
+For D2 the discriminating column is Correction landed on every case with a
+non-empty `replacement` list, with False positive held at 0 on N1–N4. P1 is not
+one of them: a dropped claim has nothing to replace it with, so its Correction
+landed is vacuous and it scores only under Staleness (drop). Path A leaves the
+ordering judgement to the model; path B hands it an explicit claim; path C removes
+the question by recomposing.
 Path A is worth shipping first if and only if it clears the positives without
 tripping the negatives.
 
@@ -353,8 +396,11 @@ precede it.
   one article; if classify routes a version elsewhere on a given run, the case
   scores nothing rather than scoring a failure. Same instability the design doc
   lists as out of scope (`docs/articles/kaas-four-layers.md:308-313`).
-- Whether a dropped claim is superseded. That is a labelling rule to be fixed
-  before scoring, and it is upstream of D1 rather than answered by the data.
+- Whether a dropped claim *ought* to be treated as superseded. The labelling rule
+  is now fixed (drops are scored in their own non-gating column), but that is a
+  scoping decision about what A1 is judged on, taken because Q1 had already scoped
+  A1 to explicit contradiction. It is not a finding about the data, and the data
+  cannot produce one.
 - The 14 documents with no cached extraction. They are in `data/kb-knowledge/`
   with no `extraction/` file and are outside every case.
 

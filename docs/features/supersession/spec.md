@@ -448,9 +448,18 @@ path and report it as a general result.
   version N into the wiki stage N−1 produced, so the merge paths are exercised at
   all, and P4's four-version chain merges repeatedly into an article that earlier
   versions already wrote.
-- **FX3.** Labels for P2–P5 and P7–P10 — `superseded`, `replacement`, `control` —
-  are drafted from the diffs and the migrated extractions, then human-confirmed
-  before they score anything.
+- **FX3.** Labels for P2–P5 and P7–P10 — `superseded-contradiction`,
+  `superseded-drop`, `replacement`, `control` — are drafted from the diffs and the
+  migrated extractions, then human-confirmed before they score anything.
+  `superseded` is split because Q1 scopes A1's trigger to explicit contradiction
+  and sends dropped claims to RP1–RP3's report: only the contradiction list gates
+  A1 (FX7), and the drop list is measured so A2's RP1 arm has a baseline. The cost
+  of the split is stated in test-set.md rather than buried: P1, the one adjudicated
+  failure, is a drop case and therefore no longer gates the work it motivated.
+  Needs no re-serialization of the fixture's `schema_version: 1` extractions,
+  contrary to an earlier note in test-set.md: the version check lives inside
+  `parse` (`storage/extraction.py:209`), which only `extraction.load` calls, and
+  drafting reads the files as text.
 - **FX4.** A pre-A1 baseline is measured on the staged fixture, before any code
   changes. The existing `wiki/` in `data/kb-knowledge` was written by prompt
   versions that no longer exist and is an existence proof, not a baseline.
@@ -461,16 +470,20 @@ path and report it as a general result.
   FX7 makes is between two runs of the same documents, and which working tree each
   ran from does not enter it.
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
-  every case; Staleness on the merge-path stages is the discriminating column.
-  False positives stay at 0 on N1–N4 and no duplicate contributes twice on U1–U4.
+  every case; Staleness over `superseded-contradiction`, on the merge-path stages,
+  is the discriminating column. Staleness (drop) is recorded on the same runs and
+  gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
+  twice on U1–U4.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
   *after* WP3 lands, against FX4's baseline: the same documents through the flat
   bag and through per-source blocks, article prose compared. It cannot be part of
   FX4 itself, because one of its two arms is the change being measured.
   Per-source blocks alter every new article, not only corrections.
-- **FX7.** A1 is judged on Staleness across FX4's baseline and the post-A1 run.
-  Clearing the positives without tripping N1–N4 is what makes A2 optional rather
-  than assumed.
+- **FX7.** A1 is judged on Staleness over `superseded-contradiction` across FX4's
+  baseline and the post-A1 run. Clearing those positives without tripping N1–N4 is
+  what makes A2 optional rather than assumed. Staleness (drop) moving is reported
+  as a finding about A2's RP1 arm and does not enter the verdict either way, so a
+  run that clears the contradictions and leaves every drop stale still passes.
 
 ### VF. Verification
 
