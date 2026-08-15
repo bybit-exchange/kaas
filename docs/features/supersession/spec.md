@@ -503,17 +503,37 @@ path A.
   last commit before A1, against its own copy of the staged fixture — the comparison
   FX7 makes is between two runs of the same documents, and which working tree each
   ran from does not enter it.
-  **Add one check to both arms**, found while verifying the controls: the existing
-  articles' `sources` frontmatter is unreliable as a list of paths. Across all 682
-  articles, **91 entries pack two or more comma-separated paths into a single YAML list
-  item**, and **22 articles list the same source path two or three times**. Both are
-  old-writer output, so a fresh run should not reproduce them — but G2 is exactly the
-  claim that a source is an attributable unit, so the baseline and the A1 arm should
-  each be checked for comma-packed and duplicated `sources` entries. A duplicated entry
-  is also the double-count failure the U1–U4 controls exist to catch, already present
-  22 times in real output. Anyone doing co-source analysis on the *existing* articles
-  must split these entries on commas first; the seven scoring cases were checked and
-  contain none, so labels.md's co-source table is unaffected.
+  **Add two checks to both arms**, found while verifying the controls and then
+  re-measured while resolving V16: the existing articles' `sources` frontmatter is
+  unreliable as a list of paths, and in seven articles it is not reachable at all.
+  Across all 682 articles, **91 entries pack two or more comma-separated paths into a
+  single YAML list item** (46 articles), and a source path is **listed twice or more in
+  21 articles** as a literally repeated list item — **30 articles** once the comma-packed
+  items are split, which is how the paths have to be read. The definition matters more
+  than the number, so it is now attached: an earlier note here said 22 articles, which
+  does not reproduce under any of four readings tried (exact item 21, basename 25,
+  comma-split 30, both 32) and is withdrawn. `91` reproduces exactly.
+  Both are old-writer output, so a fresh run should not reproduce them — but G2 is
+  exactly the claim that a source is an attributable unit, so the baseline and the A1 arm
+  should each be checked for comma-packed and duplicated `sources` entries. A duplicated
+  entry is also the double-count failure the U1–U4 controls exist to catch, already
+  present 47 times across those 30 articles. Anyone doing co-source analysis on the
+  *existing* articles must split these entries on commas first; the seven scoring cases
+  were checked and contain none, so labels.md's co-source table is unaffected.
+  The second check is the sharper one, because it is a defect nothing catches today.
+  **Seven of the 682 articles do not begin with a frontmatter delimiter**: the writer's
+  own preamble prose stands above it — `wiki/decision/web3-cluster-decision.md` opens
+  「Looking at the new information, it's largely already captured in the existing
+  article…」 — and `wiki/project/ddq-auto-fill-tool.md` additionally wraps the article in
+  a ` ```markdown ` fence. `split_frontmatter` returns `None` for content that does not
+  open with a delimiter line (`py/src/kb_ai/_frontmatter.py`), so for these seven every
+  key is invisible to every reader: no `title` for the catalog, no `date` for WP2's
+  ordering signal, and **no `sources` for `derive` to copy**, which fails G2 outright
+  rather than mis-shaping it. `kb-ai check` does not surface them — its extraction line
+  counts documents against extractions (982 match, 14 missing of 996) and its grounding
+  line skipped all 682 on the `schema_version: 1` gate. So both arms should assert that
+  every article written opens at byte 0 with `---`. None of the seven is a scoring case,
+  so labels.md is again unaffected.
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
   every case; Staleness over `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. Staleness (drop) is recorded on the same runs and
