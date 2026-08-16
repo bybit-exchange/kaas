@@ -14,7 +14,7 @@ then added a 129th row itself — P5-D6, promoted by V8 — whose absence was ve
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
 [20 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **twelve are taken with 8 left**, none of the 8 moving a total.
+unchecked rows, and **thirteen are taken with 7 left**, none of the 7 moving a total.
 Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
@@ -29,10 +29,11 @@ P9-C1**, which v2 preserves item-for-item in material already scored as a contro
 different span; and **V8 promoted P5's `universal-transfer` abridgement to a drop**, the
 one row of seventeen whose dropped clause v3 neither restates nor entails, taking the
 drop total to 32. That is why the totals read 44 and not 50. Verification also found that these articles merge more
-sources than the chain under test, which confounds the staleness column; the 61% figure
-is motivation, not measurement — and since **V20** keeps P5 out of that column for good,
-61% (27 of 44) is the all-cases reading while the five cases actually judged on it read
-**69% (27 of 39)**. Written 2026-08-10, labels drafted 2026-08-14, rulings and
+sources than the chain under test, which confounds the staleness column, so the published
+figure is motivation, not measurement — and since **V20** keeps P5 out of that column for
+good, **V21 publishes 69% (27 of 39)** over the five cases actually judged on it, retiring
+the 27-of-44 reading, which shares the numerator only because P5 is scored at a 0 of 5 the
+payload cannot support. Written 2026-08-10, labels drafted 2026-08-14, rulings and
 verification 2026-08-15 to 2026-08-16.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
@@ -296,7 +297,7 @@ the same file is under the singular category directory, so
 | P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
 | P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21 ruled 2026-08-16** keeps v3's wrong date in the fixture, since the staged file is byte-identical to its corpus copy, and reports P5 as an **A2 body-date case** — v3's frontmatter being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
 | P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
@@ -460,9 +461,16 @@ is recorded here rather than in a footnote. WP2 takes the ordering signal from r
 frontmatter, so on such a document A1 hands the writer a date that is confidently
 wrong; Q2 and D3 provisioned for a *missing* date, not a wrong one. Scoped rather
 than alarmed: 1 of 12 fixture chains inverts, while 101 of 996 corpus documents
-(10.1%) carry a body heading date later than their frontmatter date. The symptom is
+(10.1%) carry a body-stated date later than their frontmatter date — 99 in a heading, 2 in
+a 生成时间 line. The symptom is
 common and the fatal form is rare. N3 and N4 are stale by about 30 days but their
-relative order holds, so they remain valid controls.
+relative order holds, so they remain valid controls — though ruling **V21** found that it
+holds only under frontmatter dates: both members of each pair carry the *same* body
+heading date, because a transcript's heading names the meeting rather than the document,
+so a body-date rule would collapse them into same-day ties. The same ruling measured the
+population a rule could read at all — 505 of the 996 documents state a body date, and
+among those the newest one points earlier than the frontmatter date more often (109) than
+later (101).
 
 ## Scoring
 
@@ -515,12 +523,23 @@ reference KB a filename version marker survives inspection on 1, and a body-stat
 on 1. The payload therefore stops telling the writer that v1 is newest and puts nothing
 in its place, so P5's 0 of 5 would be luck rather than evidence and its Staleness stays
 reported separately for good. **The cases judged on the gating column are five** — P3,
-P4, P7, P9, P10 — and P5's five contradictions still count in the set totals, which is
-why the stale rate has two readings: 27 of 44 (61%) over all cases carrying
-contradictions, 27 of 39 (69%) over the five that gate. Ruling V20 also found what sits
-under the tie: v3's body reads 「生成时间：2026-03-19」 (L12) against v1's 「2026-03-13」
-(L13), so the shared frontmatter date is an **error in v3's metadata**, not a fact about
-the corpus, and how P5 is finally reported is queue item **V21**.
+P4, P7, P9, P10 — and P5's five contradictions still count in the set totals. Ruling V20
+also found what sits under the tie: v3's body reads 「生成时间：2026-03-19」 (L12) against
+v1's 「2026-03-13」 (L13), so the shared frontmatter date is an **error in v3's metadata**,
+not a fact about the corpus.
+
+**V21 is ruled 2026-08-16 and settles both halves of that.** The fixture keeps v3 exactly
+as staged — it and v1 are byte-identical to their copies under `data/kb-knowledge/raw/docs/`,
+so re-dating either would be the only place a staged document departs from the document it
+came from — and P5 is reported as an **A2 body-date case**: its 5C testify to the
+wrong-date defect A2 has to answer instead of gating A1. **The published stale rate is
+27 of 39 (69%)**, over P3, P4, P7, P9 and P10. The 27-of-44 reading is retired as a
+headline because it is not the conservative one it looks like: both readings share the
+numerator 27 only because P5 is scored 0 of 5, the reading V20 ruled unsupported, and
+against the order the payload states today P5 is 5 of 5 — so the all-cases figure is a
+27–32 of 44 band (61–73%) whose position depends on a measurement of a case that is not
+judged. 27 of 39 is the only figure independent of P5, and it is quoted with its
+composition attached: five gating cases, P8 out on V1 and P5 out on V21.
 
 Staleness (drop) is carried as its own column rather than left unmeasured because
 it is the only number that says whether A2's RP1 arm is worth building: if A1's

@@ -42,8 +42,8 @@ so the confirm pass starts from **18 queued rulings** rather than from 122 unche
 rows — 19 were raised and one, V16, was
 [resolved by investigation](#v16--resolved-by-investigation-no-ruling-needed)
 because it asked an empirical question rather than for a decision. Two more were raised
-by rulings since, so the queue stands at 20 rulings of which **twelve are taken**,
-leaving **eight open**. See [the verification pass](#independent-verification-pass-2026-08-15). Note
+by rulings since, so the queue stands at 20 rulings of which **thirteen are taken**,
+leaving **seven open**. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
 Only the second one clears `to confirm`.
@@ -69,7 +69,7 @@ are into the fixture files named at the head of each case.
 |---|---|---|---|---|---|
 | P3 | 8 | 5 | 6 | 6 of 8 | to confirm — **V7 ruled 2026-08-16**: D3 stays a drop and call 2's promotion is declined, so P3 holds at 8C / 5D and has no queue item left, see [P3](#p3--cht-knowledge-distillation-and-indexing) |
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
-| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent, pending **V21** on v3's frontmatter date. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
+| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted; **V4 ruled 2026-08-16**, all 8 rows stay scoreable and only the causal claim narrows to C8, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
@@ -77,21 +77,24 @@ are into the fixture files named at the head of each case.
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
 Totals across the seven scoring cases: **44 contradictions, 32 drops, 42
-controls**, and 27 of the 44 contradictions are stated as current in the articles
-today — a 61% pre-A1 staleness rate, measured over compiled output rather than argued
-from P1 alone. Read over the cases that actually gate it is **27 of 39, 69%**: P5's five
-contradictions are in the 44, but P5 is reported apart from the staleness column and V20
-made that permanent, so the denominator has to say which reading it is (V21). Plus one
-non-scored `chained-supersession` entry (P4) as evidence for NG3's trail format, and P2's
-withdrawn label (8/6/6) retained below as counter-case evidence.
+controls**. The published pre-A1 staleness rate is **27 of 39, 69%** — measured over
+compiled output rather than argued from P1 alone, and over the five cases actually judged
+on the column (P3, P4, P7, P9, P10). P5's five contradictions are in the 44 but P5 is
+reported apart from the staleness column, permanently under V20 and as an A2 body-date
+case under **V21**, so the 44-denominator reading is retired as a headline: it shares the
+numerator only because P5 is scored 0 of 5, which is the reading V20 ruled the payload
+cannot support. Plus one non-scored `chained-supersession` entry (P4) as evidence for
+NG3's trail format, and P2's withdrawn label (8/6/6) retained below as counter-case
+evidence.
 
 - **P5 reads 0 of 5 stale** and leaks its ordering six ways inside the body, so it
   belongs with P6 as an accidental-signal case rather than as evidence about A1. That
   reading also depends on the true version order, which the payload does not carry:
   the two versions share a frontmatter date and the tie-break states the chain
   backwards. **V20 is ruled** — the payload stops claiming an order it cannot support,
-  which keeps P5 out of the gating column rather than putting it in — and the wrong
-  date underneath is **V21**.
+  which keeps P5 out of the gating column rather than putting it in — and **V21 is ruled**
+  on the wrong date underneath: the fixture keeps v3 byte-for-byte as the corpus holds it,
+  and P5 is reported as an A2 body-date case.
 - P4 is the sharpest probe at 9 of 10 stale. **P8 now contributes no
   contradictions**: V1 ruled its four to be de-specifications of one column rename,
   so it carries drops and controls only.
@@ -100,14 +103,15 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   against. P5's fourth residue is excluded rather than uncounted: a never-superseded
   declared source asserts the same material, so no supersession rule could have removed
   it (V9).
-- The gating set is therefore **six drafted cases plus P6**, which succeeds today.
-  P1, P2 and now P8 are evidence rather than tests: P1 because it is a drop, P2
+- The gating set is therefore **five drafted cases plus P6**, which succeeds today.
+  P1, P2, P8 and now P5 are evidence rather than tests: P1 because it is a drop, P2
   because its date lies, P8 because what its later version changed was the grain of
-  an attribution rather than its content. P8 still exercises the signal — it is the
+  an attribution rather than its content, P5 because its date is wrong by six days and
+  the payload can state no order for it (V20, V21). P8 still exercises the signal — it is the
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 applied; 8 rulings are
+**These totals have V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19, V20 and V21 applied; 7 rulings are
 still open, and none of them moves a number.** The
 seven rulings between V3 and V8 all left the totals where they were; **V8 is the last one
 to move any**, taking the drop total from 31 to 32. It promotes P5's unlisted
@@ -123,11 +127,12 @@ measures and raised **V20**, which is now ruled: same-day blocks get WP6's undat
 instead of a tie-breaker, since no stated signal reaches more than 1 of 384 same-day pairs
 on the reference KB. That settles the payload's claim but not P5 — ruling it found v3's
 frontmatter date wrong by six days against its own body, so P5's staleness stays out of
-the gating count and the reason is now **V21**. With P5 out for good rather than pending,
-the stale rate needs its basis stated: **27 of 44 (61%) counting P5's five contradictions,
-27 of 39 (69%) with them held apart from the column P5 is not judged on**, over five
-gating cases rather than six. V21 picks which one is the headline; both are quoted until
-it does. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
+the gating count and the reason became **V21**, now **ruled 2026-08-16**: the fixture keeps
+v3 verbatim, because both its files are byte-identical to their corpus copies, and P5 is
+recorded as an A2 body-date case instead. With P5 out for good, the published rate is
+**27 of 39 (69%)** over the five gating cases. The 44-denominator reading is retired:
+27 of 44 (61%) and the payload's own 32 of 44 (73%) are the two ends of one band, and
+which end you land on depends on a measurement of P5 that V20 ruled unsupported. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
 demonstrates *this pair's* ordering being lost, which C8 alone supports. V5 kept P4-C8
 at **9 of 10 stale**, since the residual `系统户` prose describes a different level than
 the counterparty role the row scores. V6 kept P10-C7 on the replacement it was drafted
@@ -194,28 +199,28 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 21 items: 13 settled, 8 still needing a ruling
+### The queue — 21 items: 14 settled, 7 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 are ruled** — the three that moved the totals, the one
+V3, V4, V5, V6, V7, V8, V9, V12, V19, V20 and V21 are ruled** — the three that moved the totals, the one
 that governs the same item as V3, the one that redefined the staleness column, the one
 that settled P7's confound, the one that kept P4-C8, the one that gave same-day sources a
 rule, the one that held P10-C7 on v2's throughput basis, the one that kept P3's
-manifest material on the drop arm, the one that took P5's drop arm to 6, and the one that
-then measured what that arm has lost — and each row
+manifest material on the drop arm, the one that took P5's drop arm to 6, the one that
+then measured what that arm has lost, and the one that settled how P5 is reported — and each row
 records the decision. **Two items were added after the pass rather
 than found by it**: V19's ruling raised **V20**, and V20's ruling raised **V21**, each
-because settling the item exposed the defect under it. **All three items expected to move
-a number are ruled**, and none of the 8 still open moves one: V7 left P3 at 8/5, V8 took
+because settling the item exposed the defect under it. Ruling V21 raised nothing further,
+so the queue is closed at 21. **All three items expected to move
+a number are ruled**, and none of the 7 still open moves one: V7 left P3 at 8/5, V8 took
 the drop total to 32, and V9 moved nothing at all, since D4 and D5 were already on the
 drop arm — what it settled is that arm's measurement, 3 of 6 stated as current, with D1's
 co-sourced residue excluded. The rest change what a number means or correct
-the reasoning under it — V21 included, which decides how P5's staleness is reported but
-moves no total, because ruling V20 established that P5 stays out of the gating count
-either way.
+the reasoning under it — V21 included, which moved no total and instead decided which
+staleness figure is published, 27 of 39 over the five gating cases.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
@@ -238,23 +243,25 @@ either way.
 | **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
 | **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
 | **V19** | FX5 criterion | spec.md FX5 | **RULED 2026-08-16: accepted in a tightened form.** Staleness read "the earlier value appears in the article", which over-attributes. Two findings at ruling time reshaped the fix. First, the drafted wording *"the newest source in the compile set"* is wrong per document and had to become **the newest source that speaks to that item**, since the newest document is usually silent on any one claim and the drafted form would clear an item whenever the latest source simply did not mention it. Second, the item's own rationale does not hold: it invokes V4, but no fixture co-source is newer than its chain head except P5's — P7's is `2026-04-14` against a chain head of `2026-05-14`, P10's `2026-03-05` against `2026-03-06` — so the restatement answers **V4 in no case**, and V4 must still be ruled on its own | Applied to both staleness columns in test-set.md's Scoring table and to FX5, per claim rather than per document. FX7's gate is unaffected, since it counts corrections carried | Applied: no total moved. Ruling it surfaced **V20**, and P5 leaves the gating column — V20 is now ruled and P5 stays out, on V21's grounds rather than on an unruled tie |
-| **V20** | Same-day source order | `py/src/kb_ai/core/merge.py` (WP family) | **RULED 2026-08-16: accepted, and settled on the caveat rather than a tie-breaker.** Raised by ruling V19. `build_source_blocks` sorts dated blocks `(date, source_path)` (L173–174) and `_SOURCE_ORDER` tells the model without qualification that "blocks run oldest to newest", caveating **undated** blocks only (L596–603). A same-day pair therefore gets a positive ordering claim resting on a path tie-break, which carries no recency evidence. **P5 is a live inversion**: both versions carry `date: 2026-03-13`, and since `-` sorts before `.` the payload renders `…清单-v3.md` first, so it states that v1 is the newest. Its article carries v3's figures (L32, L141–144), so scored against the stated order P5 reads **5 of 5 stale, not 0 of 5**, and its compile set contains a second such pair (`…测试报告-v100.md` before `…测试报告.md`). The larger ruling-time finding is that P5 is a same-day pair in its frontmatter only, not in fact: v1's body reads 「生成时间：2026-03-13」 (L13) and v3's reads 「生成时间：2026-03-19」 (L12), six days apart. The fact is already recorded as this case's ordering family 2, but only as a confound that leaks the order to the writer; its consequence for the ordering rule was not drawn. What v3 carries is a frontmatter date that is wrong by its own body — the WP2 rolling-date class the spec files under A2 (101 of 996 corpus documents) — and the path tie-break then renders the pair backwards on top of it. Two defects, not one, and only the second is V20's. Measured on the reference KB (`~/.knowledge`, 691 articles, 397 multi-source, `sources` with comma-packed entries split): **156 articles (39%) carry at least two same-day sources, 384 pairs**. Re-measured at ruling time, and the basis had to be restated: the figure first recorded here, 159 articles and 411 pairs, counts byte-identical duplicates as two blocks, which is what merge.py's own comment ("160 of the 395") measures too — but WP7 collapses them into one, and a WP-family fix operates on the post-dedup list. Dropping only repeated paths reproduces 160 articles and 414 pairs, so the recorded figure was the pre-WP7 basis and drifts 3 pairs from today's snapshot; under WP7 the population is 156 and 384. Neither basis changes the argument, and both are given because the item is quoted as a population size. **Neither candidate tie-breaker reaches that population.** A filename version marker appears in 9 of the 384 pairs (2%), and only 2 pair two revisions of the same title; of those 2 the `…测试报告-v100.md` marker turns out to name the tested skill's version, 1.0.0, against a sibling that reports 3.1.0, so it carries no claim about which document is newer and the usable revision signal is **1 pair in 384**. A body-stated date appears in both members of 9 pairs, is unambiguous and differing in 5, and again only 1 of the 5 is a revision pair. So the tie-break is **uninformative rather than inverted** in ~99% of cases, and no stated signal covers them. Separately `_budget_priority` (L262–265) breaks same-day ties path-ascending while claiming newest-first, so for every same-day pair one document is at once the "oldest" for the ordering claim and the "newest" for the budget claim. **Scope, checked across all eight cases**: three have a chain head that is not last within its own day — P5 (shares `2026-03-13` with two, one rendered after it), P7 (`2026-05-14`, one after) and P10 (`2026-03-06`, two after) — but only in P5 is the document rendered after the head a member of the chain. P7's later-rendered same-day source `raw/meetings/2026-05-14-成本管控小组周会.md` carries **v2's** replacements (`97.28` and `11362`, one hit each) and none of v1's six superseded figures; P10's two carry none of v1's either, its only `7.3` hits being `+17.3pp` at L180 and L183. So no stale row outside P5 is affected, and P5's payload has four tie-broken groups (03-10, 03-11, 03-12, 03-13) rather than one — ten same-day pairs inside that one payload, from groups of 2, 3, 3 and 3. **Re-checked at ruling time against the caveat form specifically**, since withdrawing an ordering claim is a different intervention from correcting one: on P7 and P10 the blocks that go unordered are the chain head and co-sources that assert the replacements or nothing, so neither case loses a signal it was scored on. One gap in V4's wording closed on the way: P7's chain head is **not** the newest document in its compile set — `raw/meetings/2026-05-20-aws成本分析.md` is — but it is silent on every token this case turns on — v1's superseded figures and v2's replacements alike (`40.95`, `24.57`, `13.3`, `3000C`, `117.3`, `3300`, `83.1`, `7197`, `17054`, `97.28`, `11362`) plus `闭环`, 0 fixed-string hits each across its 919 lines, so V19's per-claim criterion still lands on v2 and V4's score stands | **Ruled: WP6's caveat extends to same-day blocks, and the tie-breakers are rejected.** Same-day blocks keep rendering in path order for reproducibility, exactly as undated blocks do under WP5, and the system prompt stops claiming a recency relation between them: what WP6 says of an undated block's position now also holds of two blocks sharing a `- Date:` line. The tie-breakers are rejected on the measurement above — a signal that fires on 1 pair in 384 cannot be the rule for the population, and a rule stated in the system prompt applies to every payload, not to the pairs where it happens to be informative. Reading the body's own date is rejected for a second reason: it is **A2's question, already deferred pending FX7**, and the data does not support pre-empting it — of the 10 same-day sources whose body date contradicts their frontmatter, 7 point *earlier* and 2 later (1 carries two body dates), so a body-date rule would move most documents in the direction of looking older, with no way to establish from the corpus which date is the document's own. `_budget_priority` (L262–265) needs no change of direction, which the item did not notice: it already breaks the tie path-ascending (`-date`, then `source_path`) and so does the render (`date`, then `source_path`), so both serve the same document first and the conflict was never in the two orders — it was in WP6 calling that document older while BG1 called it newer. Withdrawing the recency claim dissolves it. What BG1 owes is the matching qualification in its own prose: priority is **newest known day first, ties broken on path for stability**, with no claim that the block served first is the newer of a same-day pair. Two code notes for the implementation. `py/tests/test_core_merge_blocks.py:316` (`test_sources_dated_the_same_day_claim_the_budget_in_path_order`) **pins the behaviour this ruling changes** and is rewritten by the fix, not added to. And `_budget_priority`'s own docstring quotes "160 of the 395 multi-source articles" — the pre-WP7 basis, which becomes **156 of 397** (384 pairs) once identical checksums collapse | Applied: no total moved, and the item's own consequence is reversed. P5 does *not* become scoreable by this ruling — the caveat removes a false claim ("v1 is the newest") and puts *no claim* in its place, so the payload gives A1 no basis to prefer v3's figures and P5's 0 of 5 would be luck rather than evidence of supersession being handled. P5 therefore stays out of the gating count after the fix lands, for a different reason than before: not an unruled tie, but a frontmatter date wrong by six days against its own body. That is raised as **V21**. The fix is still worth taking on its own terms — it stops 384 pairs' worth of unfounded ordering claims, and P5 is the one case in the fixture where such a claim is actively inverted. One number does move, and it is not a total: making P5's exclusion permanent puts the stale rate's denominator in question, since 27 of 44 (61%) counts P5's five contradictions in a column P5 is not judged on. Held apart it reads 27 of 39 (69%), over five gating cases rather than six. Both figures are stated wherever the headline is quoted until V21 picks one |
-| **V21** | P5's frontmatter date | `data/kb-supersession-fixture/raw/docs/2026-03-13-…-v3.md`, and P5's row in test-set.md | Raised by ruling V20. v3's frontmatter says `date: 2026-03-13`, its body says 「生成时间：2026-03-19」 (L12), and v1's body says 「2026-03-13」 (L13) — so the two documents are six days apart and the payload's date tie is an artifact of the wrong metadata, not of the corpus. This is the WP2 rolling-date defect the spec files under A2 (101 of 996 corpus documents carry a body heading date later than their frontmatter date), and P5 is a fixture instance of it, which the spec does not yet record — its only named instance is P2, whose chain is inverted *by date*. P5's is not: 03-13 → 03-19 is the true order, and only the render inverts it. With V20 ruled, P5's staleness column has no basis in the payload either way, so the case cannot probe A1's ordering until this is settled | Three options, and none is free. **Re-date v3 in the fixture** makes P5 a normal two-day Shape-B chain but makes the fixture unfaithful to the source document it was staged from, which is the one property FX1–FX3 rest on. **Score P5 as an A2 body-date case** keeps the fixture honest and gives A2's deferred question its first measured instance, at the cost of P5 never gating A1. **Leave it out** costs the Shape-B probe with nothing bought. Recommend the second, and record in FX3 that the fixture holds two wrong-date cases, P2 by inversion and P5 by a tie | P5's 5C / 6D / 6K stay counted in the set totals; what changes is that its staleness sits outside the gate permanently rather than pending a fix, so the cases judged on the gating column are **five** — P3, P4, P7, P9, P10 — with P8 out on V1 and P5 out on this. The set totals do not move, but the **stale rate depends on which denominator is published**: 27 of 44 (61%) with P5's five counted, 27 of 39 (69%) with them held apart. Choosing between them is part of this item, not a separate one |
+| **V20** | Same-day source order | `py/src/kb_ai/core/merge.py` (WP family) | **RULED 2026-08-16: accepted, and settled on the caveat rather than a tie-breaker.** Raised by ruling V19. `build_source_blocks` sorts dated blocks `(date, source_path)` (L173–174) and `_SOURCE_ORDER` tells the model without qualification that "blocks run oldest to newest", caveating **undated** blocks only (L596–603). A same-day pair therefore gets a positive ordering claim resting on a path tie-break, which carries no recency evidence. **P5 is a live inversion**: both versions carry `date: 2026-03-13`, and since `-` sorts before `.` the payload renders `…清单-v3.md` first, so it states that v1 is the newest. Its article carries v3's figures (L32, L141–144), so scored against the stated order P5 reads **5 of 5 stale, not 0 of 5**, and its compile set contains a second such pair (`…测试报告-v100.md` before `…测试报告.md`). The larger ruling-time finding is that P5 is a same-day pair in its frontmatter only, not in fact: v1's body reads 「生成时间：2026-03-13」 (L13) and v3's reads 「生成时间：2026-03-19」 (L12), six days apart. The fact is already recorded as this case's ordering family 2, but only as a confound that leaks the order to the writer; its consequence for the ordering rule was not drawn. What v3 carries is a frontmatter date that is wrong by its own body — the WP2 rolling-date class the spec files under A2 (101 of 996 corpus documents) — and the path tie-break then renders the pair backwards on top of it. Two defects, not one, and only the second is V20's. Measured on the reference KB (`~/.knowledge`, 691 articles, 397 multi-source, `sources` with comma-packed entries split): **156 articles (39%) carry at least two same-day sources, 384 pairs**. Re-measured at ruling time, and the basis had to be restated: the figure first recorded here, 159 articles and 411 pairs, counts byte-identical duplicates as two blocks, which is what merge.py's own comment ("160 of the 395") measures too — but WP7 collapses them into one, and a WP-family fix operates on the post-dedup list. Dropping only repeated paths reproduces 160 articles and 414 pairs, so the recorded figure was the pre-WP7 basis and drifts 3 pairs from today's snapshot; under WP7 the population is 156 and 384. Neither basis changes the argument, and both are given because the item is quoted as a population size. **Neither candidate tie-breaker reaches that population.** A filename version marker appears in 9 of the 384 pairs (2%), and only 2 pair two revisions of the same title; of those 2 the `…测试报告-v100.md` marker turns out to name the tested skill's version, 1.0.0, against a sibling that reports 3.1.0, so it carries no claim about which document is newer and the usable revision signal is **1 pair in 384**. A body-stated date appears in both members of 9 pairs, is unambiguous and differing in 5, and again only 1 of the 5 is a revision pair. So the tie-break is **uninformative rather than inverted** in ~99% of cases, and no stated signal covers them. Separately `_budget_priority` (L262–265) breaks same-day ties path-ascending while claiming newest-first, so for every same-day pair one document is at once the "oldest" for the ordering claim and the "newest" for the budget claim. **Scope, checked across all eight cases**: three have a chain head that is not last within its own day — P5 (shares `2026-03-13` with two, one rendered after it), P7 (`2026-05-14`, one after) and P10 (`2026-03-06`, two after) — but only in P5 is the document rendered after the head a member of the chain. P7's later-rendered same-day source `raw/meetings/2026-05-14-成本管控小组周会.md` carries **v2's** replacements (`97.28` and `11362`, one hit each) and none of v1's six superseded figures; P10's two carry none of v1's either, its only `7.3` hits being `+17.3pp` at L180 and L183. So no stale row outside P5 is affected, and P5's payload has four tie-broken groups (03-10, 03-11, 03-12, 03-13) rather than one — ten same-day pairs inside that one payload, from groups of 2, 3, 3 and 3. **Re-checked at ruling time against the caveat form specifically**, since withdrawing an ordering claim is a different intervention from correcting one: on P7 and P10 the blocks that go unordered are the chain head and co-sources that assert the replacements or nothing, so neither case loses a signal it was scored on. One gap in V4's wording closed on the way: P7's chain head is **not** the newest document in its compile set — `raw/meetings/2026-05-20-aws成本分析.md` is — but it is silent on every token this case turns on — v1's superseded figures and v2's replacements alike (`40.95`, `24.57`, `13.3`, `3000C`, `117.3`, `3300`, `83.1`, `7197`, `17054`, `97.28`, `11362`) plus `闭环`, 0 fixed-string hits each across its 919 lines, so V19's per-claim criterion still lands on v2 and V4's score stands | **Ruled: WP6's caveat extends to same-day blocks, and the tie-breakers are rejected.** Same-day blocks keep rendering in path order for reproducibility, exactly as undated blocks do under WP5, and the system prompt stops claiming a recency relation between them: what WP6 says of an undated block's position now also holds of two blocks sharing a `- Date:` line. The tie-breakers are rejected on the measurement above — a signal that fires on 1 pair in 384 cannot be the rule for the population, and a rule stated in the system prompt applies to every payload, not to the pairs where it happens to be informative. Reading the body's own date is rejected for a second reason: it is **A2's question, already deferred pending FX7**, and the data does not support pre-empting it — of the 10 same-day sources whose body date contradicts their frontmatter, 7 point *earlier* and 2 later (1 carries two body dates), so a body-date rule would move most documents in the direction of looking older, with no way to establish from the corpus which date is the document's own. `_budget_priority` (L262–265) needs no change of direction, which the item did not notice: it already breaks the tie path-ascending (`-date`, then `source_path`) and so does the render (`date`, then `source_path`), so both serve the same document first and the conflict was never in the two orders — it was in WP6 calling that document older while BG1 called it newer. Withdrawing the recency claim dissolves it. What BG1 owes is the matching qualification in its own prose: priority is **newest known day first, ties broken on path for stability**, with no claim that the block served first is the newer of a same-day pair. Two code notes for the implementation. `py/tests/test_core_merge_blocks.py:316` (`test_sources_dated_the_same_day_claim_the_budget_in_path_order`) **pins the behaviour this ruling changes** and is rewritten by the fix, not added to. And `_budget_priority`'s own docstring quotes "160 of the 395 multi-source articles" — the pre-WP7 basis, which becomes **156 of 397** (384 pairs) once identical checksums collapse | Applied: no total moved, and the item's own consequence is reversed. P5 does *not* become scoreable by this ruling — the caveat removes a false claim ("v1 is the newest") and puts *no claim* in its place, so the payload gives A1 no basis to prefer v3's figures and P5's 0 of 5 would be luck rather than evidence of supersession being handled. P5 therefore stays out of the gating count after the fix lands, for a different reason than before: not an unruled tie, but a frontmatter date wrong by six days against its own body. That is raised as **V21**. The fix is still worth taking on its own terms — it stops 384 pairs' worth of unfounded ordering claims, and P5 is the one case in the fixture where such a claim is actively inverted. One number does move, and it is not a total: making P5's exclusion permanent puts the stale rate's denominator in question, since 27 of 44 (61%) counts P5's five contradictions in a column P5 is not judged on. Held apart it reads 27 of 39 (69%), over five gating cases rather than six. **V21 ruled 2026-08-16 publishes 27 of 39**, on the ground that the 44-denominator reading embeds P5 at the 0 of 5 this ruling declared unsupported |
+| **V21** | P5's frontmatter date | `data/kb-supersession-fixture/raw/docs/2026-03-13-…-v3.md`, and P5's row in test-set.md | **RULED 2026-08-16: the second option is taken — the fixture keeps v3 verbatim, P5 is recorded as an A2 body-date case, and the published stale rate becomes 27 of 39 (69%).** Raised by ruling V20. The premise verifies exactly: v3's frontmatter reads `date: 2026-03-13` (L4) while its body reads 「生成时间：2026-03-19」 (L12), against v1's 「生成时间：2026-03-13」 (L13) — six days apart, so the payload's date tie is an artifact of v3's metadata rather than a property of the corpus, and the true order 03-13 → 03-19 is not inverted by the dates the way P2's is. Only WP5's path tie-break inverts it. Five findings came with ruling it. **Fixture fidelity is measured rather than assumed, and it is what decides the first option**: both P5 files are byte-identical to their corpus copies under `data/kb-knowledge/raw/docs/`, so re-dating v3 would make P5 the one place in the fixture where a staged document departs from the document it was staged from — the property FX1–FX3 rest on. **P5 was already inside the A2 population, counted but not named**: of the 101 corpus documents whose newest body-stated date postdates their frontmatter date, 99 state it in a heading and **2 in a 生成时间 line**, and v3 is one of those two; the fixture's recorded 6 of 38 is 5 on headings alone, so the sixth was always P5. What was wrong is the descriptor rather than the count — "body heading date" has to read **body-stated date**, since the heading form alone measures 99 of 996 and not 101. **The count is a floor, and P5 is the third named fixture instance rather than the second**: N2's 04-17 file heads a section 「周例会 0428」 (L12) and its 05-06 file 「周例会 0512」 (L37), an `MMDD` form no date scan catches, which takes the fixture to at least 8 of 38 — test-set.md already names N2 as the second instance. One recorded figure does not reproduce: **36 stale by more than a week** measures 35 at more than seven days and 40 at seven or more, while 101 and 99 reproduce exactly (the original script is gone per FX1, so these are a reconstruction's numbers, stated with their thresholds). **The rate is conditional on a body date existing, and the corpus does not favour reading one**: only **505 of the 996** documents state a body date at all, so the conditional rate is 101 of 505 (20%) rather than 10.1% — and among those 505 the newest body date points **earlier** than the frontmatter date in **109** and later in 101, with 295 agreeing — so at corpus scale the two directions are near-even rather than lopsided, which is V20's finding (7 earlier of 10) reproduced at n=505 and weakened by it: earlier still leads, and no basis in the corpus says which of a document's two dates is its own. **A body-date rule would de-order two pairs to order one**: both members of N3 carry the heading 「Meeting transcript: realclaw安全评估 2026-04-10」 (L9) and both members of N4 「文字记录：…2026年4月9日」 (L9), because a transcript's heading date names the meeting rather than the document — so reading body dates collapses two pairs that frontmatter dates order correctly (03-10 → 03-11) into same-day ties, which under WP9 carry no ordering claim at all. Corpus-wide that shape dominates the population: **78 of the 101 sit under `raw/meetings`**, and 24 of them fall in 10 clusters sharing both a title and a body date | **Ruled: score P5 as an A2 body-date case, and publish 27 of 39 (69%).** The first option is rejected on the byte-identity above, the third because it loses the same Shape-B probe the second one loses while buying nothing in return. What the second option buys is exact and small: P5 is the one fixture pair a body-date rule would order, against the two it would de-order, so it gives A2's deferred question its first measured instance **and** its first measured counter-evidence. That is a reason to keep the question in A2 pending FX7 rather than to pre-empt it here, which is where V20 left it. FX3 records three wrong-date cases rather than two — P2 inverted by date, N2 dated before its own sections with its order intact, P5 tied by a date wrong by six days — and the descriptor corrections land wherever the population is quoted. **On the denominator**: the two readings share the numerator 27 only because P5 is scored 0 of 5, and that 0 is precisely the reading V20 ruled the payload cannot support. Scored against the order the payload states today P5 is 5 of 5, which makes the all-cases figure **32 of 44 (73%)**. So 27 of 44 is not the conservative reading of the pair; it is the low end of a 27–32 of 44 band (61–73%) whose position turns entirely on an unruled measurement of a case that is not judged on the column. **27 of 39 is the only figure that does not depend on P5**, and it sits inside that band, so publishing it is not taking the flattering end of it — but it is the larger number and therefore the one that argues harder for buying A1, so it is published with its composition attached rather than bare: 27 of 39 over five gating cases, with P5 and P8 named as excluded and why. 61% is retired as a headline and kept only as the set-total statement — 44 contradictions across seven cases, 39 of them judged on staleness | Applied: **no total moves** — 44/32/42 with 27 stale, and P5's 5C / 6D / 6K stay counted. Two things change. The published rate is **27 of 39 (69%)** across five gating cases (P3, P4, P7, P9, P10), and P5's exclusion now has a recorded disposition rather than a pending one: an A2 body-date case, reported apart from the gate for good. Its drop arm is unaffected — V9's 3 of 6 is measured against the labels, which take the true order from the two 生成时间 lines, and drops do not gate. The queue closes at **21 items, 14 settled and 7 open**, none of the 7 moving a total |
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 are ruled and applied**, so the
-Progress table now reads **44 contradictions, 32 drops and 42 controls, with 27 of 44
-stale (61%)** — carried by seven cases still, but only **six of them gating**, since P8
-contributes no contradictions. The drop total is 32 rather than 31 because V8 promoted
+the survivors. **V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19, V20 and V21 are ruled and applied**, so the
+Progress table now reads **44 contradictions, 32 drops and 42 controls, with 27 of 39
+stale (69%)** — carried by seven cases still, but only **five of them gating**, since P8
+contributes no contradictions and P5 is not judged on the column. The drop total is 32 rather than 31 because V8 promoted
 P5's `universal-transfer` abridgement to D6, the one row of that case's seventeen where
 the dropped clause is neither entailed by what survives in its cell nor restated by v3
 elsewhere. V9 leaves it at 32 and puts a figure on what that arm has lost: **3 of P5's 6
 drops are stated as current** (D4, D5, D6), with D1's residue excluded because a
 never-superseded declared source asserts the same material. V20 leaves those totals where they are and adds one
 qualification to the headline: P5's five contradictions are counted in the 44 but P5 is
-not judged on the staleness column, so the figure over the cases actually gating is
-**27 of 39 (69%)** across five cases, and V21 decides which of the two is published.
+not judged on the staleness column. **V21 publishes the figure that follows from it** —
+**27 of 39 (69%)** across five cases — and disposes of P5 as an A2 body-date case, the
+fixture keeping v3's wrong frontmatter date because the staged file is byte-identical to
+the corpus copy it came from.
 That is a smaller and more defensible set than the 50/30/42 it started from, and its headline no longer leans on P8's rename reading.
 P7's confounded column stays in it: V19 established that the confound cannot be
 dissolved by redefining the column, because P7's co-source is older than its chain
@@ -421,15 +428,28 @@ Scope of the risk, measured over the corpus rather than assumed:
 | Measurement | Result |
 |---|---|
 | Fixture chains whose body-content order inverts their frontmatter order | **1 of 12** (P2 only) |
-| Fixture docs whose newest body heading date postdates their frontmatter date | 6 of 38 |
-| Corpus docs with the same symptom | 101 of 996 (10.1%); 36 stale by more than a week |
+| Fixture docs whose newest body-stated date postdates their frontmatter date | 6 of 38 — 5 in a heading, plus P5's v3 in a 生成时间 line; **8 of 38** counting N2's pair, whose later sections are titled `周例会 0428` and `0512` |
+| Corpus docs with the same symptom | **101 of 996** (10.1%) — 99 in a heading, 2 in a 生成时间 line; 35 stale by more than a week (40 at a week or more) |
+| Corpus docs stating a body date at all — a `YYYY-MM-DD`-style date in a heading or on a 生成时间/更新时间 line | **505 of 996**, so the conditional rate is 101 of 505 (20%) — and the newest body date points **earlier** than the frontmatter date in 109 of them, later in 101, equal in 295 |
 | Corpus docs sharing the placeholder `date: 2026-01-01` | 21 |
 | N3 / N4 | absolute dates stale by ~30 days, **relative order preserved** — still valid controls |
 
 The symptom is common; the fatal form (inverted order) is rare. Meeting
 transcripts are the main source — `2026-03-10-realclaw安全评估.md` is dated
 2026-03-10 while its body heading reads 「Meeting transcript: realclaw安全评估
-2026-04-10」.
+2026-04-10」 — and 78 of the 101 sit under `raw/meetings`.
+Three qualifications, measured while ruling **V21** and recorded because this table is
+quoted as a population size. The descriptor is **body-stated date**, not body *heading*
+date: the heading form alone measures 99, and the two documents that take it to 101 state
+their date in a 生成时间 line, one of them being P5's v3. Both figures are **floors**,
+because a body date written as `MMDD` inside a section title is invisible to any date
+scan — which is exactly N2's shape. And the direction matters as much as the rate: over the
+505 documents that state a body date, the disagreements split 109 *earlier* against 101
+later, so reading the body's date moves about as many documents towards looking older as
+newer. That is V20's finding at n=505 rather than n=10, and weaker than its sample
+suggested — 7 earlier against 2 later there reads as lopsided, this reads as near-even —
+but it points the same way, and neither basis tells you which date is the document's own.
+Which is why the fix for this class stays A2's question rather than being pre-empted.
 
 ### Contradictions and their replacements — drafted in the fixture's stated direction, i.e. reversed relative to content
 
@@ -638,7 +658,14 @@ asserting a better one, because no signal in the corpus reaches more than 1 same
 pair in 384. So P5's Staleness stays reported apart from the gating count after the
 fix rather than joining it. Ruling V20 also read family 2 the other way round: the two
 `生成时间` lines mean these documents are **six days apart**, so the tie is v3's
-frontmatter being wrong rather than the corpus being ambiguous — queue item **V21**.
+frontmatter being wrong rather than the corpus being ambiguous. That was queue item
+**V21**, **ruled 2026-08-16**: the fixture keeps v3 exactly as staged — both files are
+byte-identical to their copies under `data/kb-knowledge/raw/docs/`, so re-dating one
+would break the only fidelity property FX1–FX3 rest on — and P5 is reported as an **A2
+body-date case**, which is what its 5C now testify to instead of gating A1. It is also
+the instance A2 will be argued from in both directions: a body-date rule would order
+this pair, and would collapse N3's and N4's into same-day ties, both members of each
+carrying one heading date for the meeting they transcribe.
 
 The 0-of-5 reading is still a result rather than a gap in the label. Like P6, it comes
 with a confound — a far larger one than first drafted. Verification found **six
@@ -1423,9 +1450,9 @@ this for one case; it generalises.
 
 Two consequences, and they are not the same size.
 
-**For the drafted `Article today` column and the 61% headline, the confound is
+**For the drafted `Article today` column and the published 69% headline, the confound is
 severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
-contradictions, so of the six cases that still gate, only P3 does. P7 is the worst case:
+contradictions, so of the five cases that still gate after V21, only P3 does. P7 is the worst case:
 its co-source asserts v1's *entire* 0430 column, so 7 of its 8 staleness
 observations have a second possible cause. **V4 ruled 2026-08-16 that this bounds the
 causal claim, not the score** — a value the article states undated is still contradicted
@@ -1442,7 +1469,7 @@ the compile over the staged fixture. Only P5 and P7 carry a co-source into that 
 one each, and in both cases the co-source is another case's v1 — itself superseded
 within the fixture, so ordering applies to it too.
 
-So the 61% pre-A1 figure is motivation, not measurement, and should stop being
+So the published pre-A1 figure is motivation, not measurement, and should stop being
 quoted as though the two were interchangeable. The criterion this note asked for is now
 ruled: **V19** restates staleness against *the newest source in the compile set that
 speaks to the item*, per claim rather than per document. It buys less here than this
@@ -1451,7 +1478,7 @@ note assumed, though. The wording only clears an observation where a co-source i
 neither is — P7's is dated `2026-04-14` against a chain head of `2026-05-14`, P10's
 `2026-03-05` against `2026-03-06`. P5's is the only one that is newer, and P5 is the
 case that already scores 0. So the confound above still has to be handled case by
-case, which is what V4 is for on P7, and the 61% figure keeps its caveat rather than
+case, which is what V4 is for on P7, and the published figure keeps its caveat rather than
 being repaired by a definition. FX7's gate is unaffected, since it counts corrections
 carried, not staleness.
 
@@ -1463,4 +1490,7 @@ actually presents, P5 is 5 of 5 stale. The 16-source confound above is the weake
 two reasons not to read that pass as evidence. V20's ruling withdraws the claim rather
 than correcting it, so neither reading gates: P5's staleness is reported apart for good.
 And the shared date turns out to be an error rather than a fact about the corpus — the
-bodies are six days apart, which is **V21**.
+bodies are six days apart, which is **V21**, **ruled 2026-08-16** as an A2 body-date case
+with the fixture left verbatim. One consequence for this note: the published rate is now
+27 of 39 over five cases, four of which carry a co-source — so the confound described
+here reaches every case behind the headline figure but P3.

@@ -363,7 +363,13 @@ path A.
   nothing, so no stale row outside P5 turns on this either way. P5 does not become
   gate-scoreable: withdrawing the claim leaves its chain unordered in the payload, and
   the six-day gap its two bodies actually state makes the shared `date: 2026-03-13` an
-  error in v3's frontmatter rather than a property of the corpus — queue item V21.
+  error in v3's frontmatter rather than a property of the corpus. That was queue item
+  V21, **ruled 2026-08-16**: the fixture keeps v3 as staged and P5 is reported as an A2
+  body-date case (FX3, FX5). The ruling also corroborated this one's basis on the whole
+  corpus rather than on 10 same-day sources — of the 505 documents stating a body date,
+  109 state one *earlier* than their frontmatter date against 101 later, near-even rather
+  than the 7-to-2 the sample showed — so a body-date tie-breaker has no established
+  direction to move documents in, and reading body dates stays A2's question.
 
 ### BG. Budget and truncation
 
@@ -447,8 +453,9 @@ path A.
   daily standup series contributes 11 members to a single article. The version
   marker is reported as a triage key and marked groups are listed first, but it is
   not a filter: P7, P8 and P9 are shape-B positives whose two versions share a title
-  verbatim, so filtering on the marker would silence three of the six cases A1 is
-  scored on.
+  verbatim, so filtering on the marker would silence two of the five cases
+  judged on the gating column, plus P8, the one case carrying no accidental ordering cue
+  at all.
 - **RP5.** Nothing from RP3 or RP4 is fed to the model. It informs an operator; it
   does not enter a prompt. That is what keeps the lineage heuristic clear of D2's
   gate on build path B. Held structurally rather than by inspection: the rule lives
@@ -504,9 +511,9 @@ path A.
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [20 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **twelve are taken and 8 remain**, none of the 8 moving a total. Nineteen were raised; the one that
+  pass, of which **thirteen are taken and 7 remain**, none of the 7 moving a total. Nineteen were raised; the one that
   asked an empirical question rather than for a decision is resolved, ruling V19
-  added a twentieth, and ruling V20 a twenty-first. The resolved one: P5's article
+  added a twentieth, and ruling V20 a twenty-first, which closed the queue. The resolved one: P5's article
   carries nothing that the undeclared hardening plan
   asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so the
   dropped rationales its article carries score as lost drops — D4 and D5, ruling V9
@@ -515,7 +522,8 @@ path A.
   Three would move the totals, and two are **ruled 2026-08-15**. **V1 accepted**: P8's
   four contradictions are struck as de-specifications of one column rename — v2 names
   Lucas both on the category heading and as `Lucas (架构)`, and the article writes both
-  sides — so **P8 leaves the gating set, six cases plus P6**, staying in on its drops
+  sides — so **P8 leaves the gating set, six cases plus P6** at that point and five once
+  V21 settles P5, staying in on its drops
   and controls, which matters because it is the one case with no accidental ordering
   cue. **V2 accepted**: P9-C1 is struck because v2 preserves both halves of v1's end
   state (L175–178 and L184), the second already scored as control K1, so the article's
@@ -551,9 +559,19 @@ path A.
   correcting it, since no signal in the corpus reaches more than 1 same-day pair in 384.
   So P5's exclusion becomes permanent rather than pending, and ruling it found the reason
   underneath — v3's body dates itself six days after its frontmatter, so the tie is an
-  error in the metadata and is filed as **V21**. FX7's gate is unaffected either way,
-  because it counts corrections carried; what the exclusion does change is the stale
-  rate's basis, 27 of 44 with P5's five contradictions counted against 27 of 39 without.
+  error in the metadata, filed as **V21** and **ruled 2026-08-16**. FX7's gate is
+  unaffected either way, because it counts corrections carried; what the exclusion changes
+  is which stale rate is published, and V21 publishes **27 of 39 (69%)** over the five
+  gating cases. The 27-of-44 reading is retired as a headline: both readings share the
+  numerator only because P5 is scored 0 of 5, which is the reading WP9's ruling found the
+  payload cannot support, and against the order the payload states today P5 is 5 of 5 —
+  making the all-cases figure 32 of 44 (73%) instead. 27 of 39 is the one figure that does
+  not depend on P5. **V21 also settles the fixture's side of it**: v3 keeps its wrong date,
+  because both P5 files are byte-identical to their corpus copies and re-dating one would
+  be the only place a staged document departs from what it was staged from (FX1). P5 is
+  reported as an A2 body-date case instead, which makes the fixture's wrong-date record
+  three cases rather than two — P2 inverted by date, N2 dated before its own sections with
+  its order intact, P5 tied by a date wrong by six days.
   **Verification coverage is now complete**: the eight controls, P1 and P6
   were checked separately from the 128-item pass, since none of them is a drafted row.
   All hold. P6 adds no queue item but does add a finding about the accidental ordering
@@ -615,9 +633,11 @@ path A.
   P5 is the only one, and WP9 keeps it there rather than letting it in, because the
   fix withdraws the ordering claim instead of correcting it (V20, ruled 2026-08-16).
   The cases judged on this column are therefore five: P3, P4, P7, P9 and P10.
-  P5's five contradictions stay in the set totals, so the stale rate has two readings —
-  27 of 44 (61%) over all cases carrying contradictions, 27 of 39 (69%) over the five
-  that gate — and V21 picks the published one. Staleness (drop) is recorded on the same
+  P5's five contradictions stay in the set totals, and **V21 (ruled 2026-08-16) publishes
+  the rate over the cases that gate — 27 of 39 (69%)**, quoted with that composition
+  attached rather than bare, since a reader has to be able to see that P5 and P8 are out
+  and why. P5's own row is reported under the A2 body-date heading V21 gives it, not as a
+  pending fix. Staleness (drop) is recorded on the same
   runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
@@ -698,17 +718,34 @@ line and the prompt says its ordering is unknown — but a rolling document whos
 WP2 a date that is confidently wrong, and A1 then asserts an order to the writer
 with no hedge. P2 is the corpus's only chain inverted *by its dates*, which is why it is
 withdrawn from the positives rather than scored (FX3); the weaker symptom is common, at
-101 of 996 corpus documents carrying a body heading date later than their frontmatter
-date. **P5 is a second fixture instance, found by ruling V20**: its v3 is dated
-`2026-03-13` in frontmatter and 「生成时间：2026-03-19」 in its body, which is what makes
-it share a date with its own predecessor. Its chain is not inverted by date — 03-13 →
-03-19 is the true order — so the damage arrives through WP5's tie-break rendering it
-backwards instead, and the disposition of the case is queue item V21. What A1 does not
+101 of 996 corpus documents carrying a body-stated date later than their frontmatter
+date — 99 of them in a heading and 2 in a 生成时间 line, one of those two being P5's v3.
+**P5 is a third fixture instance, found by ruling V20 and disposed of by V21**: its v3 is
+dated `2026-03-13` in frontmatter and 「生成时间：2026-03-19」 in its body, which is what
+makes it share a date with its own predecessor. Its chain is not inverted by date — 03-13
+→ 03-19 is the true order — so the damage arrives through WP5's tie-break rendering it
+backwards instead. N2 is the second, dated before two sections it already carries with its
+order intact (test-set.md). What A1 does not
 have is any way to notice: the writer is told a date and never the text the date came
 from. Whether the answer is a body-date consistency
 check, an RP-style report, or nothing at all is A2's question, and it needs the
 FX7 run first — if A1 clears the positives with this defect present, the defect is
 not what is costing accuracy.
+
+Ruling V21 measured what a body-date rule would be worth, and the answer is why the
+question stays here rather than being answered early. The rate is conditional on a body
+date existing: only **505 of the 996** documents state one, so the symptom runs at 101 of
+505 (20%) among documents a rule could read at all — but among those same 505 the newest
+body date points **earlier** than the frontmatter date in 109 and later in 101 — near-even,
+so the rule has no established direction and nothing in the corpus says which of a
+document's two dates is its own. On the fixture it is sharper still: it
+would order P5's pair, and it would **de-order N3's and N4's**, whose two members each
+carry one heading date for the meeting they transcribe (「…realclaw安全评估 2026-04-10」 on
+both, 「…2026年4月9日」 on both), turning two pairs that frontmatter dates order correctly
+into same-day ties that WP9 leaves unordered. That costs those controls nothing scoreable —
+they are append-only false-positive checks — but a rule that buys one ordered pair and
+withdraws two is not obviously worth its own risk, and 78 of the 101 corpus instances are
+the transcript shape that produced it.
 
 ## Implementation sequencing
 
