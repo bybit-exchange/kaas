@@ -506,6 +506,11 @@ here: P7's co-source is dated `2026-04-14` against a chain head of `2026-05-14`,
 P10's is `2026-03-05` against `2026-03-06`, so both stay stale and
 [V4](labels.md#independent-verification-pass-2026-08-15) is not answered by this
 wording. P5 is the only case whose co-source is newer than its own chain head.
+**Ruling V11 measured what P10's day gap covers**, since the gap was recorded before
+anyone read the co-source: it is v1's own companion volume and prints v1's ≤90 series
+verbatim beside the full population, so 2 of P10's 3 staleness observations have a second
+possible cause and only C8's figures are unique to the chain. The disposition is V4's, and
+the rows score.
 
 **V4 is ruled 2026-08-16 and did not need the wording**: a co-source that supplied the
 old value does not excuse the article, because supersession is a property of the compile
