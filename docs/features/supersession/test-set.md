@@ -23,8 +23,10 @@ P9-C1**, which v2 preserves item-for-item in material already scored as a contro
 **V3 reclassified P10-C6 as a drop**, since it paired a mean against a median over a
 different span. That is why the totals read 44 and not 50. Verification also found that these articles merge more
 sources than the chain under test, which confounds the staleness column; the 61% figure
-is motivation, not measurement. Written 2026-08-10, labels drafted 2026-08-14, rulings
-and verification 2026-08-15.
+is motivation, not measurement — and since **V20** keeps P5 out of that column for good,
+61% (27 of 44) is the all-cases reading while the five cases actually judged on it read
+**69% (27 of 39)**. Written 2026-08-10, labels drafted 2026-08-14, rulings and
+verification 2026-08-15 to 2026-08-16.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
 what this set has to deliver before A1 can be judged.
@@ -287,7 +289,7 @@ the same file is under the singular category directory, so
 | P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
 | P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale under the drafted reading**; both versions share a date and the payload orders them backwards, so V19 holds it out of the gate |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
 | P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
@@ -497,9 +499,21 @@ qualification that blocks run oldest to newest (`merge.py:596-603`, caveated for
 undated blocks only). Since `-` sorts before `.`, the payload presents `…-v3.md`
 first — so it tells the writer that **v1 is the newest source**, inverting the chain.
 Scored against the order actually stated, P5 reads 5 of 5 stale rather than 0 of 5,
-since the article carries v3's figures (L32, L141–144). Until **V20** gives same-day
-pairs an ordering rule, P5's Staleness is reported separately and does not enter the
-gating count; once it does, P5 becomes the only Shape-B probe of a same-day chain.
+since the article carries v3's figures (L32, L141–144).
+
+**V20 is ruled 2026-08-16, and it keeps P5 out rather than letting it in.** Same-day
+blocks get WP6's undated caveat — their relative position carries no ordering claim —
+because no stated tie-breaker reaches the population: of 384 same-day pairs on the
+reference KB a filename version marker survives inspection on 1, and a body-stated date
+on 1. The payload therefore stops telling the writer that v1 is newest and puts nothing
+in its place, so P5's 0 of 5 would be luck rather than evidence and its Staleness stays
+reported separately for good. **The cases judged on the gating column are five** — P3,
+P4, P7, P9, P10 — and P5's five contradictions still count in the set totals, which is
+why the stale rate has two readings: 27 of 44 (61%) over all cases carrying
+contradictions, 27 of 39 (69%) over the five that gate. Ruling V20 also found what sits
+under the tie: v3's body reads 「生成时间：2026-03-19」 (L12) against v1's 「2026-03-13」
+(L13), so the shared frontmatter date is an **error in v3's metadata**, not a fact about
+the corpus, and how P5 is finally reported is queue item **V21**.
 
 Staleness (drop) is carried as its own column rather than left unmeasured because
 it is the only number that says whether A2's RP1 arm is worth building: if A1's

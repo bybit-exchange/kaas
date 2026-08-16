@@ -336,20 +336,34 @@ path A.
   cannot make this call instead: it has no YAML parser, so it cannot tell a date
   from a string that looks like one, and preserving the value is the only safe
   thing it can do.
-- **WP9 — open, raised as queue item V20 by ruling V19.** Same-day blocks are the
-  unhandled case. WP5 breaks a date tie on the path and WP6 then states that blocks run
-  oldest to newest without qualification, so a same-day pair gets a positive ordering
-  claim resting on a filename. That is 159 of 397 multi-source articles on the reference
-  KB (411 pairs), and it is wrong on the fixture's own P5: both versions carry
-  `date: 2026-03-13`, and since `-` sorts before `.` the payload renders
-  `…完整-api-清单-v3.md` first and so asserts that v1 is the newest. Either WP6's undated
-  caveat extends to same-day blocks, or the tie breaks on a stated signal rather than
-  the path. Whichever is chosen, BG1 must break it in the same direction: it currently
-  orders a same-day pair path-ascending while claiming newest-first, which makes one
-  document at once the oldest for WP6's claim and the newest for BG1's. Scope across the
-  eight cases: three render a source after their own chain head — P5, P7 and P10 — but
-  only P5's is a chain member, and the same-day co-sources P7 and P10 render last assert
-  none of the superseded values, so no stale row outside P5 turns on this.
+- **WP9.** Two blocks that share a `- Date:` line carry **no ordering claim relative to
+  each other**, and the system prompt says so — what WP6 states about an undated block's
+  position holds equally of a same-day pair. They still render in path order, for
+  reproducibility rather than recency, exactly as undated blocks do under WP5. Raised as
+  queue item V20 by ruling V19 and **ruled 2026-08-16** in this form, against the
+  alternative of breaking the tie on a stated signal. The alternative loses on
+  measurement: on the reference KB 156 of 397 multi-source articles carry a same-day pair
+  (384 pairs, counting one block per checksum as WP7 requires; 160 articles and 414 pairs
+  before that dedup), and of those 384 a filename version marker appears in 9, names a
+  document revision in 2, and survives inspection in **1** — the other of the two,
+  `…测试报告-v100.md`, marks the *tested skill's* version 1.0.0 against a sibling
+  reporting 3.1.0. A body-stated date fares no better: present in both members of 9
+  pairs, unambiguous and differing in 5, a revision pair in 1. A rule in the system
+  prompt applies to every payload, so a signal worth 1 pair in 384 cannot be it. Reading
+  body dates is also A2's question and is left there (see the closing note): of the 10
+  same-day sources whose body date contradicts their frontmatter, 7 point earlier and 2
+  later, so the corpus does not establish which date is the document's own. **BG1 needs
+  no change of direction** — it already breaks the tie path-ascending and so does the
+  render, so both serve the same block first; the conflict was WP6 calling that block
+  older while BG1 called it newer, and withdrawing the claim ends it. What BG1 restates
+  is its own basis: newest known *day* first, ties broken on path for stability, with no
+  claim that the block served first is the newer. Scope across the eight cases: three
+  render a source after their own chain head — P5, P7 and P10 — but only P5's is a chain
+  member, and the same-day co-sources P7 and P10 render last assert the replacements or
+  nothing, so no stale row outside P5 turns on this either way. P5 does not become
+  gate-scoreable: withdrawing the claim leaves its chain unordered in the payload, and
+  the six-day gap its two bodies actually state makes the shared `date: 2026-03-13` an
+  error in v3's frontmatter rather than a property of the corpus — queue item V21.
 
 ### BG. Budget and truncation
 
@@ -357,13 +371,16 @@ path A.
   truncation (`core/merge.py:102-143`, field priority with exponential backoff on
   list fields) received one flat extraction; with per-source blocks, filling
   oldest-first would truncate or drop the newest source — precisely backwards for
-  supersession. Precisely: dated blocks newest to oldest, then undated blocks in
-  path order. This is *not* the render order reversed, because WP5 sorts undated
-  blocks last: reversing would rank the blocks that make no recency claim above the
-  one source known to be newest, and WP6 says their position carries no such claim
-  to read. An undated source is the first to give way, including to a dated source
-  older than it may turn out to be — the guarantee BG1 buys is about the newest
-  *known* source.
+  supersession. Precisely: dated blocks newest **day** to oldest, ties broken on path
+  for stability, then undated blocks in path order. This is *not* the render order
+  reversed, because WP5 sorts undated blocks last: reversing would rank the blocks that
+  make no recency claim above the one source known to be newest, and WP6 says their
+  position carries no such claim to read. An undated source is the first to give way,
+  including to a dated source older than it may turn out to be — the guarantee BG1 buys
+  is about the newest *known* source. Same-day blocks are peers here in the same sense
+  WP9 gives them in the prompt: one of them is served first because the order has to be
+  stable, not because it is the newer, and nothing downstream may read priority as
+  recency within a day.
 - **BG2.** When the budget cannot fit every block, whole blocks are dropped from
   the bottom of BG1's priority order rather than a block being left structurally
   broken. Not "trailing", which is the same thing only while every block is dated;
@@ -514,11 +531,17 @@ path A.
   bounds only the causal claim, since a value the article states undated is still
   contradicted by the newest source in the same compile set whichever document supplied
   it. P7 keeps all 8 rows; only "this pair's ordering was lost" narrows to C8.
-  And P5 cannot be scored on this column at all yet: both of its versions
+  And P5 cannot be scored on this column at all: both of its versions
   carry `date: 2026-03-13`, the payload breaks that tie on the path and so states the
-  chain backwards, which would read as 5 of 5 stale rather than 0 of 5. That defect is
-  raised as **V20** and is a WP-family code fix, not a scoring definition. FX7's gate is
-  unaffected either way, because it counts corrections carried.
+  chain backwards, which would read as 5 of 5 stale rather than 0 of 5. That defect was
+  raised as **V20**, a WP-family code fix rather than a scoring definition, and is
+  **ruled 2026-08-16** as WP9: the payload withdraws the ordering claim instead of
+  correcting it, since no signal in the corpus reaches more than 1 same-day pair in 384.
+  So P5's exclusion becomes permanent rather than pending, and ruling it found the reason
+  underneath — v3's body dates itself six days after its frontmatter, so the tie is an
+  error in the metadata and is filed as **V21**. FX7's gate is unaffected either way,
+  because it counts corrections carried; what the exclusion does change is the stale
+  rate's basis, 27 of 44 with P5's five contradictions counted against 27 of 39 without.
   **Verification coverage is now complete**: the eight controls, P1 and P6
   were checked separately from the 128-item pass, since none of them is a drafted row.
   All hold. P6 adds no queue item but does add a finding about the accidental ordering
@@ -576,9 +599,14 @@ path A.
   every case; Staleness over `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. Both staleness columns are read per claim, against
   the newest source in the compile set that speaks to that item (V19), and a case
-  whose source order rests on a same-day tie-break is reported apart from the gate
-  until V20 lands — P5 is the only one. Staleness (drop) is recorded on the same runs
-  and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
+  whose source order rests on a same-day tie-break is reported apart from the gate —
+  P5 is the only one, and WP9 keeps it there rather than letting it in, because the
+  fix withdraws the ordering claim instead of correcting it (V20, ruled 2026-08-16).
+  The cases judged on this column are therefore five: P3, P4, P7, P9 and P10.
+  P5's five contradictions stay in the set totals, so the stale rate has two readings —
+  27 of 44 (61%) over all cases carrying contradictions, 27 of 39 (69%) over the five
+  that gate — and V21 picks the published one. Staleness (drop) is recorded on the same
+  runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
   *after* WP3 lands, against FX4's baseline: the same documents through the flat
@@ -656,11 +684,16 @@ missing.** Q2 and D3 both provisioned for absence — a dateless source gets no 
 line and the prompt says its ordering is unknown — but a rolling document whose
 `date` records its creation day while its body accumulates later sections gives
 WP2 a date that is confidently wrong, and A1 then asserts an order to the writer
-with no hedge. P2 is the corpus's only inverted chain, which is why it is withdrawn
-from the positives rather than scored (FX3); the weaker symptom is common, at 101
-of 996 corpus documents carrying a body heading date later than their frontmatter
-date. What A1 does not have is any way to notice: the writer is told a date and
-never the text the date came from. Whether the answer is a body-date consistency
+with no hedge. P2 is the corpus's only chain inverted *by its dates*, which is why it is
+withdrawn from the positives rather than scored (FX3); the weaker symptom is common, at
+101 of 996 corpus documents carrying a body heading date later than their frontmatter
+date. **P5 is a second fixture instance, found by ruling V20**: its v3 is dated
+`2026-03-13` in frontmatter and 「生成时间：2026-03-19」 in its body, which is what makes
+it share a date with its own predecessor. Its chain is not inverted by date — 03-13 →
+03-19 is the true order — so the damage arrives through WP5's tie-break rendering it
+backwards instead, and the disposition of the case is queue item V21. What A1 does not
+have is any way to notice: the writer is told a date and never the text the date came
+from. Whether the answer is a body-date consistency
 check, an RP-style report, or nothing at all is A2's question, and it needs the
 FX7 run first — if A1 clears the positives with this defect present, the defect is
 not what is costing accuracy.
@@ -675,7 +708,11 @@ not what is costing accuracy.
    for callers of `create_new_article` and `merge_into_article` is worth re-running
    at implementation time in case another has landed.
 3. **Budget.** BG1–BG4 with VF3.
-4. **Prompt and version.** WP6, PV1, PV2.
+4. **Prompt and version.** WP6, PV1, PV2, and **WP9** with them — it is the same prompt
+   paragraph plus BG1's restated basis, and it lands as a fix on code already shipped
+   (`build_source_blocks`, `_SOURCE_ORDER`, `_budget_priority`) rather than as new
+   surface. It rewrites `test_sources_dated_the_same_day_claim_the_budget_in_path_order`
+   (`py/tests/test_core_merge_blocks.py:316`), which pins the claim WP9 withdraws.
 5. **Reports.** RP2 verified, then RP3–RP5 with VF4.
 6. **Fixture.** FX1, FX2, FX3, then the FX4 baseline, then VF7 with FX5, FX6 and
    FX7.
