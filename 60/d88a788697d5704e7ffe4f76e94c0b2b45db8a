@@ -1,0 +1,25 @@
+docs/features/supersession/test-set.md
+  b6348373144adf54 509-513
+docs/features/supersession/labels.md
+  b6348373144adf54 76,114,145-148,210,215-216,221-223,228,235-237,251,261,265,283-286,1290,1292,1304,1332-1338,1395-1400,1406-1407,1409-1448,1539-1540,1563-1572
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "60d88a788697d5704e7ffe4f76e94c0b2b45db8a",
+  "prompts": {
+    "b6348373144adf54": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "48e13958-972d-4aa2-a8cb-47d356fe3992",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2361,
+      "total_deletions": 2287,
+      "accepted_lines": 98,
+      "overriden_lines": 0
+    }
+  }
+}
