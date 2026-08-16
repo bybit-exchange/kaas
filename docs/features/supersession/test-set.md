@@ -11,14 +11,16 @@ measurement-time reading is accepted**, so it keeps its 8 contradictions.
 All 128 drafted items have since been **independently verified** in fresh contexts,
 one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
 confirm pass therefore starts from a queue of
-[19 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **seven are taken with 12 left**. Nineteen items were raised: one
+[20 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
+unchecked rows, and **ten are taken with 10 left**. Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
-twentieth. Three of the rulings move the totals above and **all three are taken**:
-**V1 struck P8's four
-contradictions** as de-specifications of one column rename, so the gating set is **six
-cases plus P6**, not seven, and P8 stays in on its 6 drops and 6 controls; **V2 struck
+twentieth and ruling V20 a twenty-first. Three of the rulings move the totals above and
+**all three are taken**: **V1 struck P8's four
+contradictions** as de-specifications of one column rename, so six cases carry gating
+contradictions rather than seven — five of them judged on the staleness column, since
+V20 leaves P5 reported apart — plus P6, and P8 stays in on its 6 drops and 6 controls;
+**V2 struck
 P9-C1**, which v2 preserves item-for-item in material already scored as a control; and
 **V3 reclassified P10-C6 as a drop**, since it paired a mean against a median over a
 different span. That is why the totals read 44 and not 50. Verification also found that these articles merge more

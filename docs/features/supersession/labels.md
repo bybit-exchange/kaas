@@ -103,12 +103,18 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3, V4, V5, V12 and V19 applied; 12 rulings are still open.**
-Three of those would move a number further — V7, V8 and V9. The four rulings taken
-since have all left the totals where they were. V19 changed what the staleness column
-measures and raised **V20**: P5's two versions share a date, so the payload orders them
-backwards and P5's 0-of-5 pass cannot be scored on that column until a tie-break rule
-lands. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
+**These totals have V1, V2, V3, V4, V5, V6, V7, V12, V19 and V20 applied; 10 rulings are
+still open.** Two of those would move a number further — V8 and V9. The seven rulings
+taken since have all left the totals where they were. V19 changed what the staleness column
+measures and raised **V20**, which is now ruled: same-day blocks get WP6's undated caveat
+instead of a tie-breaker, since no stated signal reaches more than 1 of 384 same-day pairs
+on the reference KB. That settles the payload's claim but not P5 — ruling it found v3's
+frontmatter date wrong by six days against its own body, so P5's staleness stays out of
+the gating count and the reason is now **V21**. With P5 out for good rather than pending,
+the stale rate needs its basis stated: **27 of 44 (61%) counting P5's five contradictions,
+27 of 39 (69%) with them held apart from the column P5 is not judged on**, over five
+gating cases rather than six. V21 picks which one is the headline; both are quoted until
+it does. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
 demonstrates *this pair's* ordering being lost, which C8 alone supports. V5 kept P4-C8
 at **9 of 10 stale**, since the residual `系统户` prose describes a different level than
 the counterparty role the row scores. V6 kept P10-C7 on the replacement it was drafted
@@ -175,20 +181,24 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 20 items: 8 settled, 12 still needing a ruling
+### The queue — 21 items: 11 settled, 10 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3, V4, V5, V12 and V19 are ruled** — the three that moved the totals, the one that
-governs the same item as V3, the one that redefined the staleness column, the one that
-settled P7's confound, and the one that kept P4-C8 — and each row records the decision.
-**V20 was raised by ruling V19** and is the only item added after the pass. Of the 12
-still open, three would move a scored number: V7 forces P3 to 8/5 or 9/4, V8 would take
-P5's drops to 6, and V9 adds two measured losses to the drop arm. V20 moves no total
-either, but it decides whether P5 can be scored on the gating column at all. The rest
-change what a number means or correct the reasoning under it.
+V3, V4, V5, V6, V7, V12, V19 and V20 are ruled** — the three that moved the totals, the one
+that governs the same item as V3, the one that redefined the staleness column, the one
+that settled P7's confound, the one that kept P4-C8, the one that gave same-day sources a
+rule, the one that held P10-C7 on v2's throughput basis, and the one that kept P3's
+manifest material on the drop arm — and each row records the decision. **Two items were added after the pass rather
+than found by it**: V19's ruling raised **V20**, and V20's ruling raised **V21**, each
+because settling the item exposed the defect under it. Of the 10 still open, two would
+move a scored number: V8 would take P5's drops to 6, and V9 adds two measured losses to
+the drop arm — V7, the third, is now ruled and left P3 at 8/5. The rest change what a number means or correct
+the reasoning under it — V21 included, which decides how P5's staleness is reported but
+moves no total, because ruling V20 established that P5 stays out of the gating count
+either way.
 
 | # | Item | Location | Finding | Recommendation | If accepted |
 |---|---|---|---|---|---|
@@ -216,11 +226,14 @@ change what a number means or correct the reasoning under it.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3, V4, V5, V12 and V19 are ruled and applied**, so the Progress
-table now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44 stale
-(61%)** — carried by seven cases still, but only **six of them gating**, since P8
-contributes no contradictions. That is a smaller and more defensible set than the
-50/30/42 it started from, and its headline no longer leans on P8's rename reading.
+the survivors. **V1, V2, V3, V4, V5, V6, V7, V12, V19 and V20 are ruled and applied**, so the
+Progress table now reads **44 contradictions, 31 drops and 42 controls, with 27 of 44
+stale (61%)** — carried by seven cases still, but only **six of them gating**, since P8
+contributes no contradictions. V20 leaves those totals where they are and adds one
+qualification to the headline: P5's five contradictions are counted in the 44 but P5 is
+not judged on the staleness column, so the figure over the cases actually gating is
+**27 of 39 (69%)** across five cases, and V21 decides which of the two is published.
+That is a smaller and more defensible set than the 50/30/42 it started from, and its headline no longer leans on P8's rename reading.
 P7's confounded column stays in it: V19 established that the confound cannot be
 dissolved by redefining the column, because P7's co-source is older than its chain
 head, and V4 then established that it does not need to be — the rows score, and only

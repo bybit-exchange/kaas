@@ -503,11 +503,11 @@ path A.
   Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
-  [19 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **seven are taken and 12 remain**. Nineteen were raised; the one that
-  asked an empirical question rather than for a decision is resolved, and ruling V19
-  added a twentieth. The resolved one: P5's article carries nothing that the undeclared
-  hardening plan
+  [20 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
+  pass, of which **ten are taken and 10 remain**. Nineteen were raised; the one that
+  asked an empirical question rather than for a decision is resolved, ruling V19
+  added a twentieth, and ruling V20 a twenty-first. The resolved one: P5's article
+  carries nothing that the undeclared hardening plan
   asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so its
   dropped rationales score as lost drops and the fixture has no provenance gap.
   Three would move the totals, and two are **ruled 2026-08-15**. **V1 accepted**: P8's
