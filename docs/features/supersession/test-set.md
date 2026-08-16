@@ -14,7 +14,7 @@ then added a 129th row itself — P5-D6, promoted by V8 — whose absence was ve
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
 [21 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **sixteen are taken with 4 left**, none of the 4 moving a total.
+unchecked rows, and **seventeen are taken with 3 left**, none of the 3 moving a total.
 Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
@@ -510,7 +510,11 @@ wording. P5 is the only case whose co-source is newer than its own chain head.
 anyone read the co-source: it is v1's own companion volume and prints v1's ≤90 series
 verbatim beside the full population, so 2 of P10's 3 staleness observations have a second
 possible cause and only C8's figures are unique to the chain. The disposition is V4's, and
-the rows score.
+the rows score. **Ruling V14 found the one place where a co-source helps instead**, and it
+qualifies that last clause: P10's other same-day co-source, the `2026-03-06` Q1 report,
+reproduces v2's 2025 team rates as its year-ago baseline column (L173–180), so on C8 the
+*replacement* is co-asserted while only the superseded pair 「44.6」 / 「22.0」 belongs to one
+document — the reverse of C4's and C7's shape.
 
 **V4 is ruled 2026-08-16 and did not need the wording**: a co-source that supplied the
 old value does not excuse the article, because supersession is a property of the compile
