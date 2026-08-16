@@ -13,12 +13,13 @@ one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. Th
 then added a 129th row itself — P5-D6, promoted by V8 — whose absence was verified by
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
-[21 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **seventeen are taken with 3 left**, none of the 3 moving a total.
+[22 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
+unchecked rows, and **twenty are taken with 2 left**, neither of the 2 able to move a total.
 Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
-twentieth and ruling V20 a twenty-first. Four of the rulings move the totals above and
+twentieth, ruling V20 a twenty-first and ruling V15 a twenty-second — V22, ruled
+2026-08-17, the last item that could have moved a number and it did not. Four of the rulings move the totals above and
 **all four are taken**: **V1 struck P8's four
 contradictions** as de-specifications of one column rename, so six cases carry gating
 contradictions rather than seven — five of them judged on the staleness column, since

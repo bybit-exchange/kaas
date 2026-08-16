@@ -525,10 +525,12 @@ path A.
   Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
-  [21 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **seventeen are taken and 3 remain**, none of the 3 moving a total. Nineteen were raised; the one that
+  [22 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
+  pass, of which **twenty are taken and 2 remain**, neither able to move a total. Nineteen were raised; the one that
   asked an empirical question rather than for a decision is resolved, ruling V19
-  added a twentieth, and ruling V20 a twenty-first, which closed the queue. The resolved one: P5's article
+  added a twentieth, ruling V20 a twenty-first and ruling V15 a twenty-second, which
+  closed the queue — V22, ruled 2026-08-17 on P4-C9, the last item that could have moved
+  a number. The resolved one: P5's article
   carries nothing that the undeclared hardening plan
   asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so the
   dropped rationales its article carries score as lost drops — D4 and D5, ruling V9
