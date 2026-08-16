@@ -1,0 +1,32 @@
+py/pyproject.toml
+  c390724cacfabba7 9
+py/src/kb_ai/convert.py
+  c390724cacfabba7 1-58
+py/tests/test_convert.py
+  c390724cacfabba7 1-134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "98dfba9eff61d77ccc554de7973224b5c373cad3",
+  "prompts": {
+    "c390724cacfabba7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00b2b-cea3-7593-b4db-098bb6107943",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 405,
+      "total_deletions": 92,
+      "accepted_lines": 942,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}
