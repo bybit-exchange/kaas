@@ -1,7 +1,7 @@
 # Supersession test set: measuring the failure before choosing a fix
 
 Status: test set built; staging landed under FX1; labels **drafted and awaiting
-item-by-item confirmation** in [labels.md](labels.md) — 44 contradictions, 31 drops
+item-by-item confirmation** in [labels.md](labels.md) — 44 contradictions, 32 drops
 and 42 controls across the seven scoring cases, of which 27 contradictions are
 still stated as current in today's articles. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
@@ -9,21 +9,25 @@ because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
 
 All 128 drafted items have since been **independently verified** in fresh contexts,
-one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The
+one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. The pass
+then added a 129th row itself — P5-D6, promoted by V8 — whose absence was verified by
+negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
 [20 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **ten are taken with 10 left**. Nineteen items were raised: one
+unchecked rows, and **eleven are taken with 9 left**. Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
-twentieth and ruling V20 a twenty-first. Three of the rulings move the totals above and
-**all three are taken**: **V1 struck P8's four
+twentieth and ruling V20 a twenty-first. Four of the rulings move the totals above and
+**all four are taken**: **V1 struck P8's four
 contradictions** as de-specifications of one column rename, so six cases carry gating
 contradictions rather than seven — five of them judged on the staleness column, since
 V20 leaves P5 reported apart — plus P6, and P8 stays in on its 6 drops and 6 controls;
 **V2 struck
 P9-C1**, which v2 preserves item-for-item in material already scored as a control; and
 **V3 reclassified P10-C6 as a drop**, since it paired a mean against a median over a
-different span. That is why the totals read 44 and not 50. Verification also found that these articles merge more
+different span; and **V8 promoted P5's `universal-transfer` abridgement to a drop**, the
+one row of seventeen whose dropped clause v3 neither restates nor entails, taking the
+drop total to 32. That is why the totals read 44 and not 50. Verification also found that these articles merge more
 sources than the chain under test, which confounds the staleness column; the 61% figure
 is motivation, not measurement — and since **V20** keeps P5 out of that column for good,
 61% (27 of 44) is the all-cases reading while the five cases actually judged on it read
@@ -291,7 +295,7 @@ the same file is under the singular category directory, so
 | P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
 | P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / 5D / 6K, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
 | P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
