@@ -515,7 +515,7 @@ path A.
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [21 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **fourteen are taken and 6 remain**, none of the 6 moving a total. Nineteen were raised; the one that
+  pass, of which **sixteen are taken and 4 remain**, none of the 4 moving a total. Nineteen were raised; the one that
   asked an empirical question rather than for a decision is resolved, ruling V19
   added a twentieth, and ruling V20 a twenty-first, which closed the queue. The resolved one: P5's article
   carries nothing that the undeclared hardening plan

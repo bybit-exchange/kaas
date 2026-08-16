@@ -14,7 +14,7 @@ then added a 129th row itself — P5-D6, promoted by V8 — whose absence was ve
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
 [21 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **fourteen are taken with 6 left**, none of the 6 moving a total.
+unchecked rows, and **sixteen are taken with 4 left**, none of the 4 moving a total.
 Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
