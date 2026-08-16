@@ -342,14 +342,17 @@ path A.
   reproducibility rather than recency, exactly as undated blocks do under WP5. Raised as
   queue item V20 by ruling V19 and **ruled 2026-08-16** in this form, against the
   alternative of breaking the tie on a stated signal. The alternative loses on
-  measurement: on the reference KB 156 of 397 multi-source articles carry a same-day pair
-  (384 pairs, counting one block per checksum as WP7 requires; 160 articles and 414 pairs
-  before that dedup), and of those 384 a filename version marker appears in 9, names a
+  measurement: on the reference KB 160 of 397 multi-source articles carry a same-day pair
+  (**412 pairs** counting one block per checksum as WP7 requires, 414 before that dedup —
+  re-measured at implementation time, since the 156 and 384 first recorded here deduped on
+  the body with frontmatter stripped, which collapses 83 groups whose members are dated
+  differently and is the one distinction this population is about), and of those a filename
+  version marker appears in 9, names a
   document revision in 2, and survives inspection in **1** — the other of the two,
   `…测试报告-v100.md`, marks the *tested skill's* version 1.0.0 against a sibling
   reporting 3.1.0. A body-stated date fares no better: present in both members of 9
   pairs, unambiguous and differing in 5, a revision pair in 1. A rule in the system
-  prompt applies to every payload, so a signal worth 1 pair in 384 cannot be it. Reading
+  prompt applies to every payload, so a signal worth 1 pair in 412 cannot be it. Reading
   body dates is also A2's question and is left there (see the closing note): of the 10
   same-day sources whose body date contradicts their frontmatter, 7 point earlier and 2
   later, so the corpus does not establish which date is the document's own. **BG1 needs

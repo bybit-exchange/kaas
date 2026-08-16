@@ -318,9 +318,9 @@ def test_sources_dated_the_same_day_break_to_path_order_for_stability():
     serves one of them first because a drop has to be reproducible, not because it
     is the newer, and nothing downstream may read the priority as recency -- which
     is why _SOURCE_ORDER withdraws the ordering claim for exactly this pair. It
-    decides real drops either way: 156 of the reference KB's 397 multi-source
-    articles carry a same-day pair, 384 pairs, counting one block per checksum as
-    WP7 requires.
+    decides real drops either way, on two of every five multi-source articles in the
+    reference KB; the measurement and its basis live in _budget_priority's docstring
+    rather than being restated here.
 
     Stability is therefore the property under test, and it is asserted the only way
     that can distinguish it from a caller-inherited order: both permutations of the

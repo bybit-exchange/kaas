@@ -521,19 +521,22 @@ the co-source being present in both arms.
 
 **A case whose source order rests on a same-day tie-break is reported apart from the
 gate**, because the compile set cannot order it. P5's two versions both carry
-`date: 2026-03-13`, and `build_source_blocks` breaks that tie on the path
-(`py/src/kb_ai/core/merge.py:173-174`) while the system prompt stated without
-qualification that blocks run oldest to newest (`merge.py:596-603` as it stood when
-this was found, caveated for undated blocks only; WP9's bullet has since landed). Since `-` sorts before `.`, the payload presents `…-v3.md`
-first — so it tells the writer that **v1 is the newest source**, inverting the chain.
-Scored against the order actually stated, P5 reads 5 of 5 stale rather than 0 of 5,
-since the article carries v3's figures (L32, L141–144).
+`date: 2026-03-13`, and `build_source_blocks` broke that tie on the path while the
+system prompt stated without qualification that blocks run oldest to newest, caveating
+undated blocks only (`merge.py:173-174` and `:596-603` as they stood when this was
+found). Since `-` sorts before `.`, the payload presented `…-v3.md` first — so it told
+the writer that **v1 is the newest source**, inverting the chain. Scored against the
+order it stated, P5 read 5 of 5 stale rather than 0 of 5, since the article carries
+v3's figures (L32, L141–144).
 
-**V20 is ruled 2026-08-16, and it keeps P5 out rather than letting it in.** Same-day
-blocks get WP6's undated caveat — their relative position carries no ordering claim —
-because no stated tie-breaker reaches the population: of 384 same-day pairs on the
-reference KB a filename version marker survives inspection on 1, and a body-stated date
-on 1. The payload therefore stops telling the writer that v1 is newest and puts nothing
+**V20 is ruled 2026-08-16 and shipped the same day as WP9, and it keeps P5 out rather
+than letting it in.** Same-day blocks get WP6's undated caveat — their relative position
+carries no ordering claim — because no stated tie-breaker reaches the population: of the
+412 same-day pairs on the reference KB a filename version marker appears on 9 and
+survives inspection on 1, and a body-stated date on 1. (The ruling recorded 384 pairs;
+implementing it found that basis had deduped on the body rather than on WP7's checksum,
+and the corrected 412 leaves every leg of the argument standing.) The payload therefore
+stops telling the writer that v1 is newest and puts nothing
 in its place, so P5's 0 of 5 would be luck rather than evidence and its Staleness stays
 reported separately for good. **The cases judged on the gating column are five** — P3,
 P4, P7, P9, P10 — and P5's five contradictions still count in the set totals. Ruling V20

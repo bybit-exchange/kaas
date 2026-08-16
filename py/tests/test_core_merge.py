@@ -1065,16 +1065,31 @@ def test_source_order_statement_reaches_the_three_paths_as_sent(monkeypatch):
         assert mg._SOURCE_ORDER in system
 
 
+def _order_bullets(*tokens: str) -> list[str]:
+    """The `_SOURCE_ORDER` bullets naming any of ``tokens``, lowercased.
+
+    The statement now carries two disclaimers with the same vocabulary, so a check
+    run over the whole constant passes on either of them and stops detecting the
+    deletion of the other. Both disclaimer tests therefore assert inside the bullet
+    that raises their own case.
+    """
+    bullets = [b.lower() for b in mg._SOURCE_ORDER.split("\n- ")]
+    return [b for b in bullets if any(t in b for t in tokens)]
+
+
 def test_source_order_statement_gives_the_direction_and_disclaims_the_undated():
     """Wording is load-bearing, as it is for the grounding constraint. Both halves
     of WP6 have to be there: which way the blocks run, and that an undated block's
     position is not an ordering claim (S5). Half of it is worse than neither --
     "blocks are ordered" with no disclaimer invites reading the undated tail,
     which sorts last for determinism alone, as the newest material."""
-    text = mg._SOURCE_ORDER.lower()
-    assert "oldest to newest" in text
-    assert "undated" in text
-    assert "unknown" in text or "no ordering claim" in text
+    assert "oldest to newest" in mg._SOURCE_ORDER.lower()
+    undated = _order_bullets("undated")
+
+    assert undated, "the statement never mentions an undated block"
+    for bullet in undated:
+        assert "unknown" in bullet or "no ordering claim" in bullet, \
+            "an undated block's position is raised without disclaiming it"
 
 
 def test_source_order_statement_withdraws_the_claim_between_same_day_blocks():
@@ -1082,23 +1097,24 @@ def test_source_order_statement_withdraws_the_claim_between_same_day_blocks():
     two blocks sharing a `- Date:` line there is nothing behind it: they render in
     path order, which buys reproducibility and not recency. Left unqualified the
     statement misinforms the writer about a pair in two of every five multi-source
-    articles -- 156 of 397 on the reference KB, 384 pairs -- and the fixture holds a
-    live inversion, P5's v3 rendering first because `-` sorts before `.`. It is a
-    withdrawal rather than a tie-breaker because no signal in the corpus reaches the
-    population: a filename version marker survives inspection in 1 pair of the 384.
+    articles on the reference KB, and the fixture holds a live inversion -- P5's v3
+    renders first because `-` sorts before `.`. The measurement is recorded once, in
+    `_budget_priority`'s docstring, rather than restated here.
 
-    Asserted on the bullet that names the case rather than on the constant as a
-    whole, because "same day" appearing anywhere in the paragraph is not the point
-    -- the sentence that raises the case is the sentence that has to disclaim it."""
-    bullets = [b.lower() for b in mg._SOURCE_ORDER.split("\n- ")]
-    same_day = [b for b in bullets if "same day" in b or "same date" in b]
+    Asserted inside the bullet that raises the case, and on the withdrawal being
+    stated positively: "no ordering claim ... so read the path order instead" would
+    satisfy a laxer check while instructing exactly the tie-breaker V20 rejected."""
+    same_day = _order_bullets("same day", "same date")
 
     assert same_day, "the statement never mentions two sources sharing a day"
     for bullet in same_day:
         assert "no ordering claim" in bullet, \
             "the same-day case is raised without withdrawing the ordering claim"
-        assert "reproducib" in bullet or "not because" in bullet, \
-            "path order is offered without saying it is not a recency signal"
+        assert "reproducib" in bullet, \
+            "path order is offered without saying what it is there for"
+        assert "unknown" in bullet, \
+            "the withdrawal is gestured at rather than stated: nothing says which "\
+            "of the two came first is unknown"
 
 
 def test_source_order_statement_names_the_label_the_renderer_emits():

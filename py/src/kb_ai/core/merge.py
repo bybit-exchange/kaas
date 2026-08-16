@@ -183,8 +183,9 @@ def _block_header(block: SourceBlock) -> str:
     """The ``- Source:`` line, and the ``- Date:`` line when there is one (WP1).
 
     An undated source gets no date line at all rather than a placeholder: the
-    system prompt states that blocks run oldest to newest and that an undated
-    source's position carries no ordering claim (WP6), and a rendered "unknown"
+    system prompt states that blocks run oldest to newest, that an undated source's
+    position carries no ordering claim (WP6) and that two blocks sharing a day make
+    none about each other (WP9), and a rendered "unknown"
     would be a second, weaker statement of the same thing in the place where the
     model is least likely to apply it.
     """
@@ -264,11 +265,17 @@ def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
     Sources sharing a day therefore break to path order, the same direction the
     undated ones take, and both keys are read off the blocks rather than inherited
     from the order they arrive in -- so the queue is a total order for any input, not
-    only for what ``build_source_blocks`` happens to emit. It decides real drops: 156
-    of the 397 multi-source articles in the reference KB carry a same-day pair, 384
-    pairs, counting one block per checksum as WP7 does. The 160 of 395 this line
-    quoted before V20 re-measured it was the pre-WP7 basis, which counts
-    byte-identical duplicates as two blocks.
+    only for what ``build_source_blocks`` happens to emit. It decides real drops: on
+    the reference KB **160 of the 397 multi-source articles carry a same-day pair,
+    412 pairs** after WP7 collapses identical checksums (414 before it, and the
+    dedup removes 2 pairs because only one article holds a byte-identical duplicate
+    of its own source). Two earlier figures for this line were both measured on
+    something else: 160 of 395 predates two articles being added, and V20's recorded
+    156 of 397 / 384 pairs deduped on the *body* with frontmatter stripped, which
+    collapses 84 within-article groups of which 83 hold documents whose frontmatter
+    dates differ -- the distinction the same-day population is about, and one WP7
+    does not make, since its key is sha256 over the whole file (``storage/store.py``
+    ``_compute_checksum``, applied at ``:172``).
     """
     dated = sorted((i for i, b in enumerate(blocks) if b.date is not None),
                    key=lambda i: (-blocks[i].date.toordinal(), blocks[i].source_path))
@@ -577,10 +584,10 @@ composition about its subject:
 #
 # The same-day bullet is a withdrawal and not a tie-breaker, ruled as queue item
 # V20: two blocks sharing a day are ordered by path here, which carries no recency
-# evidence, and on the reference KB that reaches 156 of 397 multi-source articles
-# (384 pairs, one block per checksum as WP7 requires). No signal covers that
-# population -- a filename version marker survives inspection in 1 pair of the 384
-# -- and reading the body's own date is A2's question, where 109 of the 505
+# evidence, and on the reference KB that reaches 160 of 397 multi-source articles
+# (412 pairs, measured in _budget_priority below). No signal covers that population
+# -- a filename version marker appears on 9 of the pairs and survives inspection on
+# 1 -- and reading the body's own date is A2's question, where 109 of the 505
 # documents stating one point earlier than their frontmatter against 101 later. So
 # the prompt stops claiming a relation it cannot support instead of guessing one.
 #
@@ -618,8 +625,8 @@ Source order — the material you were given is one block per source document:
 - The blocks run oldest to newest. A block's `- Date:` line is the day that source
   document is dated, which is not the day it was ingested or compiled.
 - Two blocks sharing the same day carry no ordering claim relative to each other.
-  They sit in path order for reproducibility, not because the earlier one is the
-  earlier document: which of them came first within that day is unknown.
+  They sit in path order for reproducibility, not because the one that appears
+  first is the earlier document: which of them came first that day is unknown.
 - A block with no `- Date:` line is undated. Undated blocks come last for
   reproducibility, not because they are recent: where such a source sits among the
   others is unknown, and its position carries no ordering claim to read.
