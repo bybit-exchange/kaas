@@ -117,7 +117,15 @@ path A.
 - **NG3. Chained supersession (A2).** With no markers there is nothing for a third
   version to nest into. Whether v3 superseding what v2 already superseded keeps or
   drops the v1 entry is A2's first open question. Fixture case P4 still runs under
-  A1, scored on Staleness with Trail expected 0.
+  A1, scored on Staleness with Trail expected 0. **The question has no instance in
+  this fixture, measured rather than assumed (labels.md V15, ruled 2026-08-17):** P4
+  is the only staged chain longer than a pair, and inside it every predicate v3
+  changes was either introduced by v2 or left untouched by it, so no nested
+  supersession exists to label. P4-X1 carries the nearest shape instead — one entity
+  in three states where the first step is a *drop* and the second a supersession, and
+  the compiled article asserts both stale states while carrying neither replacement
+  term. Answering NG3 on evidence needs a chain selected and staged for it — FX1's
+  `select_cases.py` plus an FX2 stage — not a relabelling of what FX3 already holds.
 - **NG4. Marking a dropped claim as superseded.** See [Trigger and
   reports](#rp-trigger-and-reports).
 - **NG5. Gating on `write_prompt_version` (D5).** It stays reported, never gated.
