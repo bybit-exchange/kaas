@@ -522,9 +522,9 @@ the co-source being present in both arms.
 **A case whose source order rests on a same-day tie-break is reported apart from the
 gate**, because the compile set cannot order it. P5's two versions both carry
 `date: 2026-03-13`, and `build_source_blocks` breaks that tie on the path
-(`py/src/kb_ai/core/merge.py:173-174`) while the system prompt states without
-qualification that blocks run oldest to newest (`merge.py:596-603`, caveated for
-undated blocks only). Since `-` sorts before `.`, the payload presents `…-v3.md`
+(`py/src/kb_ai/core/merge.py:173-174`) while the system prompt stated without
+qualification that blocks run oldest to newest (`merge.py:596-603` as it stood when
+this was found, caveated for undated blocks only; WP9's bullet has since landed). Since `-` sorts before `.`, the payload presents `…-v3.md`
 first — so it tells the writer that **v1 is the newest source**, inverting the chain.
 Scored against the order actually stated, P5 reads 5 of 5 stale rather than 0 of 5,
 since the article carries v3's figures (L32, L141–144).

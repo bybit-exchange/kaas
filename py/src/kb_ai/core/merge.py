@@ -157,7 +157,10 @@ def build_source_blocks(
     Blocks come back oldest to newest, undated last in path order (WP5). Both
     orders are total and path-derived, because ``compile.py`` writes article
     groups on 16 workers and raw-scan order is not stable across ingests -- an
-    ordering that varied per run would make the payload unreproducible.
+    ordering that varied per run would make the payload unreproducible. Sources
+    sharing a day sit in path order for that reason alone, which is why the prompt
+    withdraws the ordering claim between them rather than letting the render imply
+    one (WP9).
     """
     by_checksum: dict[str, SourceBlock] = {}
     for source_path, checksum, extraction in sorted(items, key=lambda item: item[0]):
@@ -239,7 +242,7 @@ def _estimate_block_size(block: SourceBlock) -> int:
 def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
     """Indices into ``blocks``, in the order they may claim the budget (BG1).
 
-    Dated blocks first, newest to oldest, then the undated ones in the path order
+    Dated blocks first, newest day to oldest, then the undated ones in the path order
     WP5 already put them in. Not simply the render order reversed: WP5 sorts
     undated blocks *last* for determinism, so reversing would put the blocks that
     make no recency claim at the front of the queue and drop the one source we
@@ -252,12 +255,20 @@ def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
     made on nothing; what BG1 buys is that the newest *known* source is in the
     payload, and this is the order that pays it.
 
-    Sources sharing a day break to path order, the same direction the undated ones
-    take, and both keys are read off the blocks rather than inherited from the
-    order they arrive in -- so the queue is a total order for any input, not only
-    for what ``build_source_blocks`` happens to emit. It decides real drops: 160 of
-    the 395 multi-source articles in the reference KB have two sources dated the
-    same day.
+    Stated as BG1's own basis: newest known *day* first, ties broken on path for
+    stability, with no claim that the block served first is the newer of a same-day
+    pair. WP9 withdraws that claim in the prompt, and priority here must not
+    reinstate it -- one of two peers is served first because a drop has to be
+    reproducible, not because it is later.
+
+    Sources sharing a day therefore break to path order, the same direction the
+    undated ones take, and both keys are read off the blocks rather than inherited
+    from the order they arrive in -- so the queue is a total order for any input, not
+    only for what ``build_source_blocks`` happens to emit. It decides real drops: 156
+    of the 397 multi-source articles in the reference KB carry a same-day pair, 384
+    pairs, counting one block per checksum as WP7 does. The 160 of 395 this line
+    quoted before V20 re-measured it was the pre-WP7 basis, which counts
+    byte-identical duplicates as two blocks.
     """
     dated = sorted((i for i, b in enumerate(blocks) if b.date is not None),
                    key=lambda i: (-blocks[i].date.toordinal(), blocks[i].source_path))
@@ -562,7 +573,16 @@ composition about its subject:
 
 
 # Appended to all three write-stage system prompts, after the grounding block
-# (supersession spec WP6).
+# (supersession spec WP6, with the same-day withdrawal of WP9).
+#
+# The same-day bullet is a withdrawal and not a tie-breaker, ruled as queue item
+# V20: two blocks sharing a day are ordered by path here, which carries no recency
+# evidence, and on the reference KB that reaches 156 of 397 multi-source articles
+# (384 pairs, one block per checksum as WP7 requires). No signal covers that
+# population -- a filename version marker survives inspection in 1 pair of the 384
+# -- and reading the body's own date is A2's question, where 109 of the 505
+# documents stating one point earlier than their frontmatter against 101 later. So
+# the prompt stops claiming a relation it cannot support instead of guessing one.
 #
 # The payload changed shape under this increment: one block per source, dated
 # where the document dates itself, rendered oldest to newest with the undated ones
@@ -597,6 +617,9 @@ _SOURCE_ORDER = """
 Source order — the material you were given is one block per source document:
 - The blocks run oldest to newest. A block's `- Date:` line is the day that source
   document is dated, which is not the day it was ingested or compiled.
+- Two blocks sharing the same day carry no ordering claim relative to each other.
+  They sit in path order for reproducibility, not because the earlier one is the
+  earlier document: which of them came first within that day is unknown.
 - A block with no `- Date:` line is undated. Undated blocks come last for
   reproducibility, not because they are recent: where such a source sits among the
   others is unknown, and its position carries no ordering claim to read.

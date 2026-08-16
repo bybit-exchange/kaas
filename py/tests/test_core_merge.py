@@ -1077,6 +1077,30 @@ def test_source_order_statement_gives_the_direction_and_disclaims_the_undated():
     assert "unknown" in text or "no ordering claim" in text
 
 
+def test_source_order_statement_withdraws_the_claim_between_same_day_blocks():
+    """WP9. "The blocks run oldest to newest" is a positive ordering claim, and for
+    two blocks sharing a `- Date:` line there is nothing behind it: they render in
+    path order, which buys reproducibility and not recency. Left unqualified the
+    statement misinforms the writer about a pair in two of every five multi-source
+    articles -- 156 of 397 on the reference KB, 384 pairs -- and the fixture holds a
+    live inversion, P5's v3 rendering first because `-` sorts before `.`. It is a
+    withdrawal rather than a tie-breaker because no signal in the corpus reaches the
+    population: a filename version marker survives inspection in 1 pair of the 384.
+
+    Asserted on the bullet that names the case rather than on the constant as a
+    whole, because "same day" appearing anywhere in the paragraph is not the point
+    -- the sentence that raises the case is the sentence that has to disclaim it."""
+    bullets = [b.lower() for b in mg._SOURCE_ORDER.split("\n- ")]
+    same_day = [b for b in bullets if "same day" in b or "same date" in b]
+
+    assert same_day, "the statement never mentions two sources sharing a day"
+    for bullet in same_day:
+        assert "no ordering claim" in bullet, \
+            "the same-day case is raised without withdrawing the ordering claim"
+        assert "reproducib" in bullet or "not because" in bullet, \
+            "path order is offered without saying it is not a recency signal"
+
+
 def test_source_order_statement_names_the_label_the_renderer_emits():
     """The statement quotes a literal line label. Renaming it in _block_header
     would leave the prompt describing a line no payload contains, and the

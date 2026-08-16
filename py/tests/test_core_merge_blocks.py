@@ -313,22 +313,33 @@ def test_an_undated_block_gives_way_before_any_dated_one():
         assert "raw/unknown.md" not in text
 
 
-def test_sources_dated_the_same_day_claim_the_budget_in_path_order():
-    """The tiebreak among equal dates, in the same direction as the undated one.
-    Reversing the dated list instead of sorting it made same-day sources claim in
-    descending path order, which decides real drops: 160 of the 395 multi-source
-    articles in the reference KB have two sources sharing a day. Blocks are handed
-    over in a deliberately unsorted order, because the queue is not allowed to
-    inherit its tiebreak from however the caller built the list."""
-    blocks = _blocks(
-        ("raw/b.md", date(2021, 1, 1), _extraction(summary="b" * 2000)),
-        ("raw/a.md", date(2021, 1, 1), _extraction(summary="a" * 2000)),
-    )
-    budget = mg._estimate_block_size(blocks[0]) + 100
+def test_sources_dated_the_same_day_break_to_path_order_for_stability():
+    """WP9 rewrote what this pins. Two sources sharing a day are peers: the queue
+    serves one of them first because a drop has to be reproducible, not because it
+    is the newer, and nothing downstream may read the priority as recency -- which
+    is why _SOURCE_ORDER withdraws the ordering claim for exactly this pair. It
+    decides real drops either way: 156 of the reference KB's 397 multi-source
+    articles carry a same-day pair, 384 pairs, counting one block per checksum as
+    WP7 requires.
 
-    text = mg._render_blocks(blocks, budget)
+    Stability is therefore the property under test, and it is asserted the only way
+    that can distinguish it from a caller-inherited order: both permutations of the
+    same pair, which must queue identically and drop the same source. The earlier
+    version handed over one permutation and asserted the survivor, which a queue
+    that simply kept its input order would also have passed."""
+    for first, second in (("raw/b.md", "raw/a.md"), ("raw/a.md", "raw/b.md")):
+        blocks = _blocks(
+            (first, date(2021, 1, 1), _extraction(summary="x" * 2000)),
+            (second, date(2021, 1, 1), _extraction(summary="y" * 2000)),
+        )
+        budget = mg._estimate_block_size(blocks[0]) + 100
 
-    assert "raw/a.md" in text and "raw/b.md" not in text
+        queued = [blocks[i].source_path for i in mg._budget_priority(blocks)]
+        text = mg._render_blocks(blocks, budget)
+
+        assert queued == ["raw/a.md", "raw/b.md"], \
+            f"the queue inherited the order it was handed ({first} first)"
+        assert "raw/a.md" in text and "raw/b.md" not in text
 
 
 def test_a_block_that_is_nothing_but_its_header_still_fits_whole():
