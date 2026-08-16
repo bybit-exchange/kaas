@@ -1,0 +1,29 @@
+py/tests/test_core_merge.py
+  0b258fcbdc78f806 1080-1103
+docs/features/supersession/test-set.md
+  0b258fcbdc78f806 525-527
+py/src/kb_ai/core/merge.py
+  0b258fcbdc78f806 160-163,245,258-271,576-585,620-622
+py/tests/test_core_merge_blocks.py
+  0b258fcbdc78f806 316-335,337-338,340-342
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "2ee70486708c7190537f1b6f2b7b8dea3b484e31",
+  "prompts": {
+    "0b258fcbdc78f806": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6559b147-f919-4594-8602-46f514021a03",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 84,
+      "total_deletions": 2942,
+      "accepted_lines": 84,
+      "overriden_lines": 0
+    }
+  }
+}
