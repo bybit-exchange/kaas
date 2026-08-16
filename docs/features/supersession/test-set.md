@@ -13,8 +13,8 @@ one per case: 111 verified, 4 line-corrected, 13 disputed, none unverifiable. Th
 then added a 129th row itself — P5-D6, promoted by V8 — whose absence was verified by
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
-[20 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **thirteen are taken with 7 left**, none of the 7 moving a total.
+[21 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
+unchecked rows, and **fourteen are taken with 6 left**, none of the 6 moving a total.
 Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
@@ -448,13 +448,21 @@ body lines. The missing dagger is correct rather than an oversight.
 **P2 is withdrawn, because its date lies.** Ruled 2026-08-15. The file dated
 2026-04-14 is a rolling document that accumulates meeting sections: its body
 carries a `# 2026-05-04` heading as well as the `# 2026-04-17` one, its extraction
-records `extracted_at: 2026-05-04`, and in the section both files date 2026-04-17
-it reports figures three weeks newer than the file it supposedly precedes. Its
+records `extracted_at: 2026-05-04`, and that 05-04 section reports figures three
+weeks newer than the file it supposedly precedes. Its
 frontmatter `date` is its creation day, not its content day, so the chain runs
 backwards relative to its content and scoring it would grade A1 as correct for
 asserting an order that is wrong. It is kept as a counter-case with its label
 intact — see [labels.md](labels.md#p2--infra-biweekly-review-withdrawn-counter-case)
-for the evidence and for the inverted reading to apply if it is ever revived.
+for the evidence.
+Ruling **V10** located that newer reporting precisely, correcting an earlier statement
+here that put it in the section both files date 2026-04-17: there the two documents agree
+*verbatim* on seven of the eight drafted rows, and the rolling file amended its own 04-17
+section in exactly one place — storage non-standard governance, 56% against 20%, inside a
+block otherwise byte-identical. That is stronger evidence of which file is later than
+differing figures would be, and it also closes the revival reading: the one row where the
+pair disagrees leaves no residue in the article, so P2 has nothing to score in either
+direction and stays a counter-case for good.
 
 This is a finding about the design and not only about the fixture, which is why it
 is recorded here rather than in a footnote. WP2 takes the ordering signal from raw
