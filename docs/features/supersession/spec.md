@@ -504,12 +504,14 @@ path A.
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
   [20 rulings](labels.md#independent-verification-pass-2026-08-15) for the confirm
-  pass, of which **eleven are taken and 9 remain**. Nineteen were raised; the one that
+  pass, of which **twelve are taken and 8 remain**, none of the 8 moving a total. Nineteen were raised; the one that
   asked an empirical question rather than for a decision is resolved, ruling V19
   added a twentieth, and ruling V20 a twenty-first. The resolved one: P5's article
   carries nothing that the undeclared hardening plan
-  asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so its
-  dropped rationales score as lost drops and the fixture has no provenance gap.
+  asserts alone, and two of the residues at issue are v1-exclusive corpus-wide, so the
+  dropped rationales its article carries score as lost drops — D4 and D5, ruling V9
+  having found that this investigation's "D2–D5" over-counted by two — and the fixture
+  has no provenance gap.
   Three would move the totals, and two are **ruled 2026-08-15**. **V1 accepted**: P8's
   four contradictions are struck as de-specifications of one column rename — v2 names
   Lucas both on the category heading and as `Lucas (架构)`, and the article writes both
@@ -527,7 +529,11 @@ path A.
   destination under a third party's control and v3 asserts that nowhere else. Re-reading
   all seventeen of that case's abridged 备注 cells leaves D6 the only promotion, so the
   current totals are **44 contradictions, 32 drops and 42 controls with 27 stale** — 27
-  unmoved, because drops do not gate.
+  unmoved, because drops do not gate. **V9 is ruled 2026-08-16** and moves no total, since
+  D4 and D5 were already drops; what it settles is the drop arm's own measurement, the
+  baseline RP1 would be judged against — **3 of P5's 6 drops are stated as current in the
+  article**, and D1's residue is excluded because a declared, never-superseded source
+  lists the same endpoints as retained, so no supersession rule could have removed it.
   **V19 is ruled 2026-08-16**, in a tightened form: staleness is now defined against the
   newest source in the compile set *that speaks to the item*, per claim rather than per
   document, since the newest document is usually silent on any one claim. Ruling it

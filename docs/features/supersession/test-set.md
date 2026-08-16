@@ -14,7 +14,8 @@ then added a 129th row itself — P5-D6, promoted by V8 — whose absence was ve
 negative grep when it was ruled. The
 confirm pass therefore starts from a queue of
 [20 rulings](labels.md#independent-verification-pass-2026-08-15) rather than from 122
-unchecked rows, and **eleven are taken with 9 left**. Nineteen items were raised: one
+unchecked rows, and **twelve are taken with 8 left**, none of the 8 moving a total.
+Nineteen items were raised: one
 asked whether a document outside P5's declared sources fed its article, and
 investigation settled that on the article's own content, while ruling V19 raised a
 twentieth and ruling V20 a twenty-first. Four of the rulings move the totals above and
@@ -295,7 +296,7 @@ the same file is under the singular category directory, so
 | P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
 | P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21** carries the disposition, v3's frontmatter date being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
 | P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
@@ -471,7 +472,7 @@ Per case, over the produced article:
 |---|---|---|
 | Correction landed | each `replacement` present and stated as current | missing |
 | Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
-| Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest" | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
+| Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
 | Trail | any `superseded-contradiction` item present and marked as superseded | — |
 | Collateral | each `control` item still present | missing |
 | Size | article bytes, against the pre-run article | growth |

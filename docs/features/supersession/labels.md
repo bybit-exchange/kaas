@@ -42,8 +42,8 @@ so the confirm pass starts from **18 queued rulings** rather than from 122 unche
 rows — 19 were raised and one, V16, was
 [resolved by investigation](#v16--resolved-by-investigation-no-ruling-needed)
 because it asked an empirical question rather than for a decision. Two more were raised
-by rulings since, so the queue stands at 20 rulings of which **eleven are taken**,
-leaving **nine open**. See [the verification pass](#independent-verification-pass-2026-08-15). Note
+by rulings since, so the queue stands at 20 rulings of which **twelve are taken**,
+leaving **eight open**. See [the verification pass](#independent-verification-pass-2026-08-15). Note
 that `verified` there is **not** `confirmed`: verification re-derives a row from the
 sources, and confirmation is a human decision about whether the row should score.
 Only the second one clears `to confirm`.
@@ -69,7 +69,7 @@ are into the fixture files named at the head of each case.
 |---|---|---|---|---|---|
 | P3 | 8 | 5 | 6 | 6 of 8 | to confirm — **V7 ruled 2026-08-16**: D3 stays a drop and call 2's promotion is declined, so P3 holds at 8C / 5D and has no queue item left, see [P3](#p3--cht-knowledge-distillation-and-indexing) |
 | P4 | 10 | 4 | 6 | **9 of 10** | to confirm — worst case in the set |
-| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent, pending **V21** on v3's frontmatter date. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6, see [P5](#p5--bybit-trading-skill-api-inventory) |
+| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent, pending **V21** on v3's frontmatter date. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | to confirm — reading accepted; **V4 ruled 2026-08-16**, all 8 rows stay scoreable and only the causal claim narrows to C8, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
@@ -96,7 +96,10 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   contradictions**: V1 ruled its four to be de-specifications of one column rename,
   so it carries drops and controls only.
 - Drops are not a rounding error: 32 of them, and on P8 five of six are stated as
-  current. That is the baseline A2's RP1 arm would be measured against.
+  current, on P5 three of six. That is the baseline A2's RP1 arm would be measured
+  against. P5's fourth residue is excluded rather than uncounted: a never-superseded
+  declared source asserts the same material, so no supersession rule could have removed
+  it (V9).
 - The gating set is therefore **six drafted cases plus P6**, which succeeds today.
   P1, P2 and now P8 are evidence rather than tests: P1 because it is a drop, P2
   because its date lies, P8 because what its later version changed was the grain of
@@ -104,14 +107,18 @@ withdrawn label (8/6/6) retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1, V2, V3, V4, V5, V6, V7, V8, V12, V19 and V20 applied; 9 rulings are
-still open.** One of those would move a number further — V9, on the arm V8 just moved. The
-seven rulings between V3 and V8 all left the totals where they were; **V8 is the first
-since V3 to move one**, taking the drop total from 31 to 32. It promotes P5's unlisted
+**These totals have V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 applied; 8 rulings are
+still open, and none of them moves a number.** The
+seven rulings between V3 and V8 all left the totals where they were; **V8 is the last one
+to move any**, taking the drop total from 31 to 32. It promotes P5's unlisted
 `universal-transfer` abridgement to drop **D6**, and re-reading all seventeen of that
 case's abridged rows against the test the promotion implies leaves D6 the only one that
 qualifies: every other dropped clause is either restated by v3 on a sibling row or
-entailed by what its own cell keeps. V19 changed what the staleness column
+entailed by what its own cell keeps. **V9 then closed the number-moving group without
+moving one**: D4 and D5 were already drops, so recording their article residues measures
+P5's drop arm at **3 of 6 stated as current** rather than adding a row, and D1's residue
+is excluded because a never-superseded declared source asserts the same content.
+V19 changed what the staleness column
 measures and raised **V20**, which is now ruled: same-day blocks get WP6's undated caveat
 instead of a tie-breaker, since no stated signal reaches more than 1 of 384 same-day pairs
 on the reference KB. That settles the payload's claim but not P5 — ruling it found v3's
@@ -187,23 +194,25 @@ row says so. Listed for audit, not for decision.
 | A15 | Totals | Drop total is 30, not 31 |
 | A16 | P10-C4 | v1's 45% sits in the sentence *after* the cited one at L84, not the same sentence — the cite is right, the quote boundary was not |
 
-### The queue — 21 items: 12 settled, 9 still needing a ruling
+### The queue — 21 items: 13 settled, 8 still needing a ruling
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's
 call, because each either reclassifies a row or changes what a number means. **V1, V2,
-V3, V4, V5, V6, V7, V8, V12, V19 and V20 are ruled** — the three that moved the totals, the one
+V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 are ruled** — the three that moved the totals, the one
 that governs the same item as V3, the one that redefined the staleness column, the one
 that settled P7's confound, the one that kept P4-C8, the one that gave same-day sources a
 rule, the one that held P10-C7 on v2's throughput basis, the one that kept P3's
-manifest material on the drop arm, and the one that took P5's drop arm to 6 — and each row
+manifest material on the drop arm, the one that took P5's drop arm to 6, and the one that
+then measured what that arm has lost — and each row
 records the decision. **Two items were added after the pass rather
 than found by it**: V19's ruling raised **V20**, and V20's ruling raised **V21**, each
-because settling the item exposed the defect under it. Of the 9 still open, one would
-move a scored number: V9 records two measured losses on P5's drop arm. Of the three items
-expected to move a number, two are now ruled — V7 left P3 at 8/5 and V8 took the drop
-total to 32. The rest change what a number means or correct
+because settling the item exposed the defect under it. **All three items expected to move
+a number are ruled**, and none of the 8 still open moves one: V7 left P3 at 8/5, V8 took
+the drop total to 32, and V9 moved nothing at all, since D4 and D5 were already on the
+drop arm — what it settled is that arm's measurement, 3 of 6 stated as current, with D1's
+co-sourced residue excluded. The rest change what a number means or correct
 the reasoning under it — V21 included, which decides how P5's staleness is reported but
 moves no total, because ruling V20 established that P5 stays out of the gating count
 either way.
@@ -218,14 +227,14 @@ either way.
 | **V6** | P10-C7 | P10 → contradictions table | **RULED 2026-08-16: the basis mismatch is real, the repair is rejected, and the row stands exactly as drafted.** The premise holds — v1's 1,907 and 1,081 (L50, L53) are counted after 「剔除交付周期 >90 天」 (L10, L235) while v2's 2,036 and 1,182 are 全量 (L135, L138). What the item missed is that there are **three populations, not two**, so its own repair does not fix what it names: v2's 剔除后 column is filtered at >120 days (L12, L378), so 1,971 / 1,129 is no more v1's basis than 2,036 / 1,182 is. Three checks then settled which of v2's two columns the row belongs on, and all three point away from the item's preference. First, **v2 assigns its datasets by purpose**: 全量 「用于吞吐量统计和长周期分析」 and 剔除版 「用于效率指标计算」 (L377–378). C7 is a throughput claim, so v2's own designated basis for it is 全量. Second, the ≤120 column **does not reconcile with v2's own headline**: its twelve cells sum to 17,578 against a stated 17,777, and its 差异 cells sum to 867 (4.7% of 全量) against the headline's 668 (3.6%) — while the 全量 column sums to exactly 18,445, v2's stated total. The recommended target is the one column in the document that does not add up. Third, **nothing was revised, only re-based**: across all twelve months v1 ≤ v2's ≤120 ≤ v2's 全量 holds without exception (July +64 then +65, October +48 then +53, December +0 then +167), and v1's twelve cells sum to 17,294, its own stated total. Two figures cannot be incompatible as counts of nested populations, which is why this row scores as a re-basing of the same metric rather than a corrected error. **The residual the item wanted to score instead is not v1-only**, which is the reason its second half fails: v2 marks 7月 as 「全年峰值」 (L135) and 10月 as 「国庆+全年最低」 (L138, restated L176) and gives the peak its own section 4.4 (L179), and the swing is 43.3% on v1's basis, 41.9% on 全量 and 42.7% on ≤120 — so both the framing and the ~43% are preserved by v2, and scoring staleness on them would charge A1 for material v2 still asserts | Row kept unchanged, replacement stays **2,036 / 1,182**, and the basis change is recorded in [measurement-basis item 2](#measurement-basis-changes--why-c1c5-c7-and-c8-are-contradictions-rather-than-new-figures) rather than in the row. The stale verdict stands and gains the sharper evidence ruling it produced: article L60 states 1,907 and 1,081 and its next sentence gives the 2025 monthly average as 「approximately 1,537 items」 — and 1,537 is 18,445/12, v2's 全量 average, where v1's own average is 1,441 (17,294/12). The article is therefore not faithfully reporting v1; it splices v1's ≤90 extremes onto v2's 全量 average inside two sentences, and on the replacement the sentence becomes one population (2,036 / 1,182 / 1,537) | Applied: no total moved. P10 stays 7C / 6D / 6K with 3 stale, and totals stay 44/31/42 with 27 stale. **V13 is the same shape and this ruling decides it**: v1's H1 8,916 / H2 8,378 sum to 17,294 (≤90) and v2's 9,412 / 9,033 sum to 18,445 (全量), so its drafted disposition — row unaffected, reasoning corrected — is what this ruling confirms |
 | **V7** | P3-D3 vs call 2 | P3 → drops table and open call 2 | **RULED 2026-08-16: the either/or is real, and it resolves to the drop. D3 stands, call 2's promotion is declined.** The overlap is exact, not approximate: D3's cited L635–638 are four lines *inside* the `interfaces[]` array of v1's 「manifest.json 标准格式」 at L630–646, which is call 2's subject, and both cash out in the same four article lines — L119–123, written under the heading 「Example `manifest.json` for the transfer system」. What decided the direction is that **promotion would add a gating row carrying no stale evidence of its own**. The manifest pair has exactly one directly asserted clash, the `version` field (v1 L626 `"2024-04-20"` against v2 L176 `"0.1.0"`), and the article is *current* on it: L125 states v2's semantics in detail — patch bump 「`0.1.0 → 0.1.1`」, `createdAt` preserved, document lists merged. Everything the article is stale on in that section is D3's content. So C9 would gate on the *absence* of `interfaces[]` from v2's 规范, and reading an absence as an assertion is precisely the inference **calls 4 and 6 decline** — call 4 keeps three removed commands as absences rather than contradictions, call 6 leaves the 80K/22K clash unlabelled as inferred. Promoting call 2 while declining those would apply two standards inside one case. Three checks came with the ruling. **v2 carries none of the contract vocabulary**: `idempotent`, `idempotent_key`, `timeout_ms`, `retryable_errors`, `fatal_errors`, `RATE_LIMITED`, `TIMEOUT`, `INSUFFICIENT_BALANCE`, `ACCOUNT_FROZEN`, `幂等`, `超时`, and `QueryTransfer`, `proto_repo`, `tags` — 0 hits each, so the material is absent rather than restated, and no replacement value exists for A1 to write. **The drop is larger than the row states**: v1's array holds two interfaces, and QueryTransfer's contract (L640–645, `idempotent: false`, `timeout_ms: 2000`) is dropped as well, with no article residue. **And the article does carry both schemas**, six lines apart — v1's interface block at L119–123 and v2's versioning semantics at L125 — which is the self-contradiction the feature exists to catch, but it is one article defect, so it may be counted once | Declined. D3 stays a `superseded-drop` and is recorded as a **lost** drop, since the article states it at L119–123; call 2 is rewritten below as a declined promotion rather than a pending one, keeping the manifest-schema clash on record as evidence. Q1's split is what makes this the right side to land on: A1 can only append and v2 supplies no replacement text, so the only thing that can be done with this material is report it, which is RP1–RP3's arm | Applied: **P3 stays 8C / 5D with 6 of 8 stale**, so the totals stay 44/31/42 with 27 stale and the 9/4 branch is closed. This was the first of the three items expected to move a number and it does not — **V8 and V9 were the remaining two, and V8 has since taken the drop total to 32** |
 | **V8** | P5 `universal-transfer` | P5 → open call 3 and drops table | **RULED 2026-08-16: promoted, and it is the only one of the seventeen abridgements that qualifies.** The premise is verified exactly: v1 L2730 reads 「跨 UID 转账，资金可转到他人控制的子账户」 and v3 L2652 keeps 「跨 UID 转账」 alone, with 「他人控制」 at 0 hits in v3. What decided it is that promoting one abridgement forces a test on the other sixteen, so all seventeen were re-read side by side, and the test the drafter's four promotions actually embody has **two prongs**: the dropped text must state a proposition its own surviving cell does not entail, **and** v3 must not assert that proposition anywhere else, including on a sibling row of the same family. `universal-transfer` passes both. 跨 UID 转账 does not entail that the destination may be an account under a third party's control — that is the reason the endpoint was removed at all, and the hardening plan glosses the same clause as 「主账户↔任意子账户」 (L116), i.e. arbitrary sub-accounts rather than one's own. It is the shape already promoted as **D4** (「向任意 UID 打款，本质是另一种提现通道」 → 「向任意 UID 打款」, v1 L4744 → v3 L4889) and **D5** (「机构贷款绑定/解绑 UID，影响他人账户」 → 「机构贷款绑定/解绑 UID」, v1 L4007 → v3 L4044). **The second prong is what holds the count at one**, and it is the finding the item did not have: the two borrow rows are not silent losses but a **de-duplication**. v1 states 有清算风险 twice (L3659 fixed-term, L3815 flexible) and 产生利息负债 twice; v3 splits them one apiece, keeping 有清算风险 on fixed-term (L3696) and 产生利息负债 on flexible (L3852), so both propositions still stand in the document and neither row loses one. The same prong declines `create-sub-api`, whose dropped 可能赋予更高权限 survives as the sibling API-key row's 「AI 可给自己加 Withdraw 权限」 (v3 L2998). The remaining seven decline on the first prong: 等于转移持仓价值 is an equivalence gloss of the surviving 跨 UID 移动仓位 — which is itself already scored as control **K2** — 无需用户交互 glosses 静默扣款, 涉及资产分配 glosses 分发优惠券给用户, `update-api`'s 「（权限提升）」 is a label for the clause it follows, `create-sub-member`'s parenthetical expands a 组合攻击链入口 label v3 keeps (1 hit), `delete-api`'s dropped 删除主 API Key duplicates its own Endpoint column, Release Assets merges its two clauses rather than dropping either (v3 L5589 「释放 crypto 给买家，AI 无法判断法币到账」), and the two 配套查询 rows drop only the antecedent's name | Promoted to **P5-D6**, recorded as a **lost** drop on arrival, since article L394 states it as 「Funds can reach accounts controlled by others」 — so V9's finding lands on this row too and it needs no second pass. Three repairs came with the ruling. **The absence test is pinned to the full clause** 「资金可转到他人控制的子账户」 or 「他人控制」, because 「他人」 alone has a hit in v3 — L2958 「冻结子账户影响他人使用」, a row byte-identical to v1 L3015 — which is the string-matching hazard recorded on P7-C2 and tightened on C8 by V4. **The residue is not v1-exclusive**, unlike D5's: the undeclared hardening plan carries the same clause at L116. V16's method still lands it on v1, because the plan's own 「主账户↔任意子账户」 gloss is absent from the article and the plan is neither among the article's 16 declared sources nor staged in the fixture, so it cannot reach the FX4 run at all. And **call 3's count of article residues is seven, not the six A7 recorded** — L394, L396, L397, L399, L402, L416, L427, which is what its own list already enumerates | Applied: **P5 → 5C / 6D / 6K**, and the set totals become **44 contradictions, 32 drops, 42 controls**, with 27 stale unmoved because drops do not gate. D6 is the 129th drafted item and the only one not in the 128-item pass; its absence was verified by negative grep when it was ruled. Of the two open items expected to move a number **V9 is now the last**, and it is on this same arm |
-| **V9** | P5-D4/D5 | P5 → drops table | Both dropped clauses are in the article (L427, L402), so both are **lost** drops. The label does not say so. **Scope confirmed by ruling V8 2026-08-16**: the new D6 is recorded as lost on arrival, so this item stays on D4 and D5 — and when it lands P5's drop arm carries three measured losses, not two | Record the article residue on both rows | P5's drop arm gains two measured losses |
+| **V9** | P5-D4/D5 | P5 → drops table | **RULED 2026-08-16: accepted, and the arm was measured whole rather than row by row.** The premise verifies exactly — v1 L4744 「向任意 UID 打款，本质是另一种提现通道」 against v3 L4889 「向任意 UID 打款」, and v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 against v3 L4044 「机构贷款绑定/解绑 UID」, with article L427 "alternative withdrawal channel (sends funds to any UID)" and L402 "institutional loan UID binding (affects other accounts)" carrying both dropped clauses. Three findings came with ruling it. **The two rows are not on the same evidential footing**: 「影响他人账户」 has exactly one corpus hit, v1 L4007 — the hardening plan's own line for that endpoint drops the clause (plan L502 「机构贷款绑定/解绑 UID」) — so D5 is a v1 fingerprint, while 「另一种提现通道」 has two, v1 L4744 and plan L96 「商户向任意 UID 打款，本质是另一种提现通道」, which puts **D4 on D6's footing rather than D5's**. It still lands on v1 under V16's method: the article carries no 商户, and the plan is neither declared among the article's 16 sources nor staged in the fixture. **Each row's absence test has to be pinned to the dropped half**, the hazard V8 recorded on D6. For D4 the test is 「另一种提现通道」 (v1 1, v3 0) and *not* 「向任意 UID 打款」, which is v3 L4889's own surviving cell and is asserted in that same abridged form by a declared, never-superseded source (`…保留接口清单按场景.md` L3550); for D5 it is the full 「影响他人账户」 (0 in v3) and not 「影响他人」, which hits v3 L2958 「冻结子账户影响他人使用」. **And V16's recommendation over-reached**: it reads "score D2–D5 as lost drops", but D2 and D3 have no article residue at all — 「注意不要误取消策略性挂单」 (v1 L584) and 「展示全部订单再确认」 (v1 L604) are absent; the article's only cancel-all content is the DCP note at L423, whose row both versions carry with an identical 「断线保护设置」 备注 (v1 L725–728, v3 L724–727), and its batch-order line (L406) states only the confirmation requirement v3 L603 keeps. What V16 settled is *whose* the residues are, not that there are four of them | D4 and D5 each record the article line and the pinned test, and the drops table gains the arm's measurement: **3 of 6 stated as current** (D4, D5, D6). **D1 is a fourth article residue and is deliberately not counted**, which is call 1's reasoning applied to the measurement — the leverage-token content at article L413 and L567 is over-determined by two declared, never-superseded sources, one of which lists Purchase and Redeem as *retained* with 「执行前需确认」 (`…保留接口清单按场景.md` L514–537; `…能力清单.md` L260 supplies L567), so counting it would charge the chain for material no supersession rule could have removed. One near-miss is recorded with it: the article's generic confirmation card (L320, L580) is not D3's batch-specific 「展示全部订单再确认」, and a grader matching on "review before confirming" will read it as one | Applied: **no total moves** — 44/32/42 with 27 stale, since D4 and D5 were already on the drop arm. What lands is the arm's measured figure, **P5 3 of 6**, alongside P8's 5 of 6. This was the last of the three items expected to move a number and it moves none; **no item still open moves a total** |
 | **V10** | P2 evidence | P2 → evidence table and open call 2 | Verified by hand. Row 3 of the evidence table is half wrong: in the section both files date 04-17 they **agree** on vLLM at 90% (v1 L1358, v2 L405); the 100% is exclusive to the 04-14 file's 05-04 section (L399). So judgement call 2 is wrong that C7 and C8 are the two unambiguous rows — v1 asserts both values, which is the ambiguity it attributes only to C1–C6. C8 does hold (56% at both L783 and L1781 against 20% at v2 L824) | Correct the row and the call. The inversion conclusion **stands** and is better supported: the rolling file updated its own 04-17 section in place | P2's revival recipe rests on C8 alone |
 | **V11** | P10 call 5 | P10 → open call 5 | The provenance list is wrong in both directions: 1,907/1,081 **and** 45% are in the non-superseded full-data report (L95, L98, L89), so they are not v1-exclusive; but 「9.3 days」 is in **no** source, so L170 is most likely v1's 9.2 mis-transcribed and belongs on the scoreable side | Rewrite the list | Changes which article lines may be scored |
 | **V12** | P10 item 4 | P10 → measurement-basis item 4 | **RULED 2026-08-15: accepted**, applied together with V3 since both govern the same item. "v2 reports no mean anywhere" is false — v2 L38 「均值 13-20 天」, L82 「均值产品准备期 13.5 天」, L271 「平均周期 172 天」 | Restricted to development duration, where `平均开发时长` returns 0 hits in v2 | Applied; item 4 rewritten, and it is what carried V3 |
 | **V13** | P10 item 2 | P10 → measurement-basis item 2 | Crosses bases: v1's 8,916/8,378 are ≤90-filtered, v2's 9,412/9,033 are full-population. Throughput was re-based, not revised. **Decided in substance by V6 2026-08-16** and left open only to be recorded on its turn: the two pairs sum to v1's 17,294 and v2's 18,445, so this is C7's shape at half-year granularity, and V6's ruling already wrote the basis change into item 2 | Say so; the wording V6 added covers it, so this item is a confirmation rather than a rewrite | Row unaffected; reasoning corrected |
 | **V14** | P10 call 4 | P10 → open call 4 | v2's roster is v1's same eight teams **plus** Trading Engine and Finance, not "10 different ones" | Correct | Strengthens the call |
 | **V15** | P4-X1 | P4 → chained-supersession entry | The trail's third step lands at **v3**, not v4 — 差额账户/TRW first appear at v3 L5697–5705, and v3→v4 changes nothing there. And v1→v2 is a reframing, so a strict reading leaves one supersession | Rewrite as v2→v3, or record "none" | NG3's trail-format evidence weakens. **Corroborated 2026-08-16 by ruling V5**: on the same material, `差额账户` first appears at v3 L5697/L5703 and v4 changes nothing there but the line offset, so the v3 landing point is now verified from two directions |
-| **V16** | P5 undeclared source | P5 → open call 3 | **RESOLVED 2026-08-15, no ruling needed** — the hardening plan carries those rationales, but so does v1, and nothing the plan asserts *alone* reaches the article. Evidence [below](#v16--resolved-by-investigation-no-ruling-needed) | Score D2–D5 as lost drops; the residues are v1's | No provenance gap. Queue drops to 18 |
+| **V16** | P5 undeclared source | P5 → open call 3 | **RESOLVED 2026-08-15, no ruling needed** — the hardening plan carries those rationales, but so does v1, and nothing the plan asserts *alone* reaches the article. Evidence [below](#v16--resolved-by-investigation-no-ruling-needed) | Score D2–D5 as lost drops; the residues are v1's — **the D2–D3 half is wrong and ruling V9 corrected it**: neither clause reaches the article, so only D4 and D5 are lost | No provenance gap. Queue drops to 18 |
 | **V17** | P10-C5 | P10 → contradictions table | Verified as a contradiction, but the delta is largely a **basis artifact**, and v2 misdeclares its own basis. v2 L378 says the series is ≤120-filtered; its twelve monthly medians (L51–62) are identical in all twelve months to the full report's **unfiltered** 全量中位周期 column (L89–100), not its 剔除 column. So v1's ≤90-*filtered* 13.8/17.8 is being compared against v2's *unfiltered* 15.3/19.8. Verified independently by comparing all 24 values | Keep the row — v2 declares the same span and statistic, so it is a contradiction on its face — but record that much of "+2 days" is re-basing rather than degradation, and do not cite C5 as evidence of real slowdown | C5 survives with a caveat; strengthens the V19 case that basis must be stated |
 | **V18** | P4-C3 | P4 → contradictions table | v1 asserts **both** the monthly table and its replacement, two lines apart: L1761 「资金流水记录表 按月存储… uta_liq_trans_log_202605」 and L1763 「translog_realtime 实时translog表（TiDB单表，日分区，7天滚动）」. Verified independently — `uta_liq_trans_log` 1 hit in v1 and 0 in v2–v4, `translog_realtime` already 2 hits in v1. Note L1763 is also the line control **K4** is scored on | Keep the row: the measured token is clean and v2–v4 drop it entirely. Add an open call recording that v1 is internally ambiguous here, as C7's and C9's residuals already are | Row survives; one more documented residual |
 | **V19** | FX5 criterion | spec.md FX5 | **RULED 2026-08-16: accepted in a tightened form.** Staleness read "the earlier value appears in the article", which over-attributes. Two findings at ruling time reshaped the fix. First, the drafted wording *"the newest source in the compile set"* is wrong per document and had to become **the newest source that speaks to that item**, since the newest document is usually silent on any one claim and the drafted form would clear an item whenever the latest source simply did not mention it. Second, the item's own rationale does not hold: it invokes V4, but no fixture co-source is newer than its chain head except P5's — P7's is `2026-04-14` against a chain head of `2026-05-14`, P10's `2026-03-05` against `2026-03-06` — so the restatement answers **V4 in no case**, and V4 must still be ruled on its own | Applied to both staleness columns in test-set.md's Scoring table and to FX5, per claim rather than per document. FX7's gate is unaffected, since it counts corrections carried | Applied: no total moved. Ruling it surfaced **V20**, and P5 leaves the gating column — V20 is now ruled and P5 stays out, on V21's grounds rather than on an unruled tie |
@@ -234,13 +243,15 @@ either way.
 
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1, V2, V3, V4, V5, V6, V7, V8, V12, V19 and V20 are ruled and applied**, so the
+the survivors. **V1, V2, V3, V4, V5, V6, V7, V8, V9, V12, V19 and V20 are ruled and applied**, so the
 Progress table now reads **44 contradictions, 32 drops and 42 controls, with 27 of 44
 stale (61%)** — carried by seven cases still, but only **six of them gating**, since P8
 contributes no contradictions. The drop total is 32 rather than 31 because V8 promoted
 P5's `universal-transfer` abridgement to D6, the one row of that case's seventeen where
 the dropped clause is neither entailed by what survives in its cell nor restated by v3
-elsewhere. V20 leaves those totals where they are and adds one
+elsewhere. V9 leaves it at 32 and puts a figure on what that arm has lost: **3 of P5's 6
+drops are stated as current** (D4, D5, D6), with D1's residue excluded because a
+never-superseded declared source asserts the same material. V20 leaves those totals where they are and adds one
 qualification to the headline: P5's five contradictions are counted in the 44 but P5 is
 not judged on the staleness column, so the figure over the cases actually gating is
 **27 of 39 (69%)** across five cases, and V21 decides which of the two is published.
@@ -293,7 +304,10 @@ So it was resolved on content, in both directions.
   content comes from three declared sources — `2026-03-10-bybit-ai-trading-agent-设计方案.md`
   and both testnet reports — not from the plan.
 
-Consequence: **D2–D5 can be scored as lost drops**, P5's 16 declared sources stand, and
+Consequence: **D4 and D5 can be scored as lost drops** — as first written this read
+"D2–D5", which **ruling V9 corrected**: D2's and D3's clauses never reach the article,
+so there is nothing of theirs to lose, and what this investigation settles is whose the
+residues are rather than how many there are. P5's 16 declared sources stand, and
 the [co-source table](#note-co-source-assertion-confounds-the-staleness-column) is
 unaffected. The general risk the item raised is real but is not this case's: an
 unreliable `sources:` list is what FX4's added check exists for, and where it does bite
@@ -670,12 +684,26 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
 
 | ID | Asserted by v1, absent from v3 | Evidence | Status |
 |---|---|---|---|
-| P5-D1 | The skill inventories a Leverage Token module (`/v5/spot-lever-token/*`, 5 endpoints under `spot.md`), Purchase and Redeem needing Mainnet confirmation | v1 L1241, endpoints L1273–1349; verified absent (`spot-lever-token`, `杠杆代币`: 0 hits in v3) | to confirm — see call 1 |
-| P5-D2 | When cancelling all orders, take care not to cancel strategic standing orders | v1 L584; v3 L583 reduces the note to 「Mainnet 需确认」 | to confirm |
-| P5-D3 | Batch order placement must display all orders before confirmation | v1 L604; v3 L603 reduced | to confirm |
-| P5-D4 | The BybitPay Payout endpoint is essentially an alternative withdrawal channel | v1 L4744; v3 L4889 reduced | to confirm |
-| P5-D5 | The stated *reason* for removing institutional-loan UID bind/unbind — that it affects other users' accounts — is dropped; v3 keeps the removal with no rationale | v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 → v3 L4044 「机构贷款绑定/解绑 UID」; `影响他人账户` 0 hits in v3. **Reworded on verification** — as first drafted the row folded in the surviving removal, so a grader applying the absence test to the row as written finds it present in v3 and mis-scores it | to confirm |
+| P5-D1 | The skill inventories a Leverage Token module (`/v5/spot-lever-token/*`, 5 endpoints under `spot.md`), Purchase and Redeem needing Mainnet confirmation | v1 L1241, endpoints L1273–1349; verified absent (`spot-lever-token`, `杠杆代币`: 0 hits in v3) | to confirm — see call 1, and **V9 ruled 2026-08-16**: the article does state this material (L413, L567) but it is **not counted as a lost drop**, two declared never-superseded sources asserting it independently |
+| P5-D2 | When cancelling all orders, take care not to cancel strategic standing orders | v1 L584; v3 L583 reduces the note to 「Mainnet 需确认」 | to confirm — **V9 ruled 2026-08-16**: **not** a lost drop, 「注意不要误取消策略性挂单」 having no residue in the article |
+| P5-D3 | Batch order placement must display all orders before confirmation | v1 L604; v3 L603 reduced | to confirm — **V9 ruled 2026-08-16**: **not** a lost drop, and the near-miss is the article's generic confirmation card (L320, L580), which is not 「展示全部订单再确认」 |
+| P5-D4 | The BybitPay Payout endpoint is essentially an alternative withdrawal channel | v1 L4744 「向任意 UID 打款，本质是另一种提现通道」 → v3 L4889 「向任意 UID 打款」. Test on 「另一种提现通道」, 0 hits in v3 — **not** on 「向任意 UID 打款」, which is v3 L4889's own surviving cell and is asserted in the same abridged form by the declared, never-superseded `…保留接口清单按场景.md` L3550 | to confirm — **V9 ruled 2026-08-16**, a **lost** drop: article L427 states it as "alternative withdrawal channel (sends funds to any UID)". The residue is not v1-exclusive corpus-wide — the undeclared, unstaged hardening plan carries the clause at L96, with a 商户 the article does not have — so this row sits on D6's footing rather than D5's, see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
+| P5-D5 | The stated *reason* for removing institutional-loan UID bind/unbind — that it affects other users' accounts — is dropped; v3 keeps the removal with no rationale | v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 → v3 L4044 「机构贷款绑定/解绑 UID」; `影响他人账户` 0 hits in v3 — **not** `影响他人`, which hits v3 L2958 「冻结子账户影响他人使用」. **Reworded on verification** — as first drafted the row folded in the surviving removal, so a grader applying the absence test to the row as written finds it present in v3 and mis-scores it | to confirm — **V9 ruled 2026-08-16**, a **lost** drop: article L402 states it as "institutional loan UID binding (affects other accounts)". The residue is a v1 fingerprint, 「影响他人账户」 being a single corpus hit, and the hardening plan drops the clause on its own line for this endpoint (plan L502) |
 | P5-D6 | Universal Transfer's stated risk — that funds can be moved to a sub-account under someone else's control — is dropped; v3 keeps the endpoint, its 移除 status and the bare 跨 UID 转账 classification | v1 L2730 「跨 UID 转账，资金可转到他人控制的子账户」 → v3 L2652 「跨 UID 转账」. Test on the full clause 「资金可转到他人控制的子账户」 or on 「他人控制」, both 0 hits in v3 — **not** on 「他人」, which hits v3 L2958 「冻结子账户影响他人使用」, a row identical in both versions | to confirm — **V8 ruled 2026-08-16**, promoted from [call 3](#p5-open-judgement-calls), and a **lost** drop: article L394 states it as 「Funds can reach accounts controlled by others」. Note the residue is not v1-exclusive corpus-wide (the undeclared hardening plan carries the clause at L116), but that document reaches neither the article nor the fixture — see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
+
+**Three of the six are stated as current in the article today** — D4 (L427), D5 (L402)
+and D6 (L394) — which is the baseline A2's RP1 arm would be measured against for this
+case, and **V9 ruled 2026-08-16** stops the count there. D1's material is in the article
+too (L413, L567) and is deliberately excluded: two of the article's declared,
+never-superseded sources assert it independently, and one lists the two endpoints as
+retained with 「执行前需确认」 (`raw/docs/2026-03-12-bybit-trading-skill-保留接口清单按场景.md`
+L514–537), so no supersession rule could have removed it — call 1's reasoning, applied to
+the measurement rather than to the classification. D2 and D3 never reached the article at
+all: its only cancel-all content is the DCP note at L423, whose row both versions carry
+with an identical 「断线保护设置」 备注 (v1 L725–728, v3 L724–727), and its batch-order line
+(L406) states the confirmation requirement v3 L603 keeps. The
+near-miss to avoid there is reading the article's generic confirmation card (L320, L580)
+as D3's 「展示全部订单再确认」 — the batch-specific proposition is absent.
 
 ### Controls
 
@@ -708,7 +736,11 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
    version order — see [the co-source
    confound](#note-co-source-assertion-confounds-the-staleness-column), and **V20** for
    why that order is not the one the payload states — and, after V20's ruling, not one
-   the payload will state at all.
+   the payload will state at all. **V9, ruled 2026-08-16, extends this to the drop
+   measurement**: D1's article residue is not counted among P5's lost drops either,
+   because `…保留接口清单按场景.md` L514–537 lists Purchase and Redeem as retained with
+   「执行前需确认」 and is never superseded, so the article is not carrying that content
+   in error.
 2. **No status flags changed anywhere.** All **273** pairable endpoint rows match on
    name, method and 状态 — zero differences across all three fields, which is the
    strongest single piece of evidence in this case. (251 as first drafted was wrong:
@@ -741,7 +773,8 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
    **The article carries seven abridged details, not the two first drafted** — L394,
    L396, L397, L399, L402, L416, L427; A7's "six" undercounts its own list. Three are
    drop clauses, so **D4, D5 and D6 are lost drops** (L427, L402, L394) — D6 recorded
-   as such by V8, D4 and D5 by **V9**. The other four (L396, L397, L399, L416) belong
+   as such by V8, D4 and D5 by **V9, ruled 2026-08-16**, which also measured the whole
+   arm at 3 of 6 and declined to count D1's residue. The other four (L396, L397, L399, L416) belong
    to *declined* rows, and that is a hazard rather than a gap: their v1 wording is
    genuinely gone from v3, so a grader testing strings finds a loss where the label
    says there is none. The proposition is what survives, not the phrasing.
