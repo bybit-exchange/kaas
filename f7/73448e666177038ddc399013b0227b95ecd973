@@ -1,0 +1,31 @@
+internal/fadvise/fadvise_other.go
+  05b97127d6c705eb 1-11
+internal/fadvise/fadvise_test.go
+  05b97127d6c705eb 1-114
+internal/fadvise/fadvise_linux.go
+  05b97127d6c705eb 1-21
+internal/fadvise/read.go
+  05b97127d6c705eb 1-53
+go.mod
+  05b97127d6c705eb 8-9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f773448e666177038ddc399013b0227b95ecd973",
+  "prompts": {
+    "05b97127d6c705eb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00fad-0b5b-7cb2-8bfa-b5a5329d9847",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 201,
+      "total_deletions": 2,
+      "accepted_lines": 637,
+      "overriden_lines": 0
+    }
+  }
+}
