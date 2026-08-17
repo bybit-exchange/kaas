@@ -1,13 +1,17 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass under way — 19 of 118 rows settled, 99 still read
-`to confirm`.** P3 is the first case through it, on 2026-08-17: **14 confirmed, 5
-amended, none rejected**, and no total moved — P3 holds at 8C / 5D / 6K with 6 of 8
-stale. All five amendments widen evidence rather than change a verdict; four of them
-add article residue the drafts had under-cited, which matters because a fix that
-reached only the cited lines would otherwise have scored as complete. One open call
-is left for Captain, P3 call 3, the only one in the case that would move published
-totals. The verification queue below is
+Status: **confirm pass under way — 19 of 118 scoring rows settled, 99 still read
+`to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
+because P2 scores nothing. Two cases are through it, both on 2026-08-17, and no total
+moved in either. **P3 — 14 confirmed, 5 amended, none rejected**, holding at 8C / 5D /
+6K with 6 of 8 stale: four amendments add article residue the drafts had under-cited,
+which matters because a fix reaching only the cited lines would otherwise have scored
+as complete, and the fifth restores the half of a control's evidence that was missing.
+**P2 — 15 confirmed, 3 amended**, its C7 and C8 already settled by V10; the label
+stays in the fixture's stated direction as counter-case evidence, and confirming it
+corrected the identity claim underneath the inversion, which holds on content and not
+on bytes. One open call is left for Captain, **P3 call 3**, the only one in either case
+that would move published totals. The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -84,7 +88,7 @@ are into the fixture files named at the head of each case.
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
 | P10 | 7 | 6 | 6 | 3 of 7 | to confirm — **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
-| ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
+| ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue; **confirm pass 2026-08-17** settled its 18 marked rows, 15 confirmed and 3 amended, C7 and C8 having been settled by V10 already, and corrected the agreement to hold on content rather than on bytes, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
 Totals across the seven scoring cases: **44 contradictions, 32 drops, 42
 controls**. The published pre-A1 staleness rate is **27 of 39, 69%** — measured over
@@ -521,13 +525,22 @@ day. Every `replacement` drafted below is therefore the **older** figure.
 The newer reporting is in v1's 05-04 section, not in the section both files date 04-17:
 there the two documents agree *word for word* on every one of C1–C7, each v2 line the
 tables cite being present verbatim in v1's 04-17 section (v2 L953 → v1 L1910, L969 →
-L1926, L448 → L1405, L451 → L1408, L578 → L1535, L585 → L1542, L405 → L1358). Every
+L1926, L448 → L1405, L451 → L1408, L578 → L1535, L585 → L1542, L405 → L1358). **The
+identity is on content, not on bytes — corrected while confirming P2 on 2026-08-17**: the
+rolling file re-indents with tabs where v2 uses spaces, so of those seven pairs only v2
+L953 / v1 L1910 is byte-identical and the other six match once leading whitespace is
+normalised. Anyone re-deriving this with a plain `diff` will see differences on lines that
+agree word for word, which is the third form the same hazard takes in this pair, after
+C8's split colour spans and K2's bold markers. Every
 `v1` cite below, by contrast, points into the **05-04** section, which runs from L81
 where the 04-17 one begins at L1025. So C1–C7 set v1's 05-04 reporting against v2's
 04-17 reporting — the inversion itself — rather than two documents disagreeing about
 one date. **C8 is the single exception**: v1 L1776–1786 and v2 L819–829 are
-byte-identical apart from three lines, two dashboard image tokens and the 进度总览
-figure, 56% against 20%. The rolling file amended its own 04-17 section in exactly one
+identical apart from three lines, two dashboard image tokens and the 进度总览
+figure, 56% against 20% — **identical once indentation is normalised, which the confirm
+pass corrected on 2026-08-17**, since a byte-level `diff` of those eleven lines reports
+nine changed and only these three survive normalisation. The two image lines also carry
+different pixel dimensions, so the tokens are not the only thing that moved there. The rolling file amended its own 04-17 section in exactly one
 place, which is stronger evidence that it is the later document than differing figures
 would have been.
 
@@ -568,36 +581,36 @@ Which is why the fix for this class stays A2's question rather than being pre-em
 
 | ID | What v1 (04-14 file) asserts | Evidence | Article today | Status |
 |---|---|---|---|---|
-| P2-C1 / R1 | Q2 cloud-cost optimization at 40.95%, 24.57W banked → 0.28%, 0.17W | v1 L898 → v2 L953 | **stale** — L615, L761 state 40.95% / 24.57W as current | to confirm |
-| P2-C2 / R2 | Low-load governance over-delivered at 117.3%, 17.6W against a 10W–15W target → 0% | v1 L919 → v2 L969 | **stale** — L618, L762 | to confirm |
-| P2-C3 / R3 | AI-gateway scenario convergence 90% (36/40) plus 34 extra → 87.5% (35/40) plus 32 extra | v1 L435 → v2 L448 | **stale** — L578, L759 | to confirm |
-| P2-C4 / R4 | Self-developed AI gateway kicked off 4.20 at 100%, design review due 5.8 → still an evaluation due 4.20 | v1 L438–439 → v2 L451 | **stale** — L578 | to confirm |
-| P2-C5 / R5 | Bgwst gray release at 50% trading QPS, 40K/s daily, 230K peak, full 5.12 → 45%, 35K/s, 61K peak, full end of April | v1 L557 → v2 L578 | **stale** — L592 | to confirm |
-| P2-C6 / R6 | Bgws C++ committed to testnet 5.27 and mainnet 6.16 → no schedule, estimate due 4.24 | v1 L562–564 → v2 L585 | **stale** — L593 | to confirm |
+| P2-C1 / R1 | Q2 cloud-cost optimization at 40.95%, 24.57W banked → 0.28%, 0.17W | v1 L898 → v2 L953 | **stale** — L615, L761 state 40.95% / 24.57W as current | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-C2 / R2 | Low-load governance over-delivered at 117.3%, 17.6W against a 10W–15W target → 0% | v1 L919 → v2 L969 | **stale** — L618, L762 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-C3 / R3 | AI-gateway scenario convergence 90% (36/40) plus 34 extra → 87.5% (35/40) plus 32 extra | v1 L435 → v2 L448 | **stale** — L578, L759 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-C4 / R4 | Self-developed AI gateway kicked off 4.20 at 100%, design review due 5.8 → still an evaluation due 4.20 | v1 L438–439 → v2 L451 | **stale** — L578 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-C5 / R5 | Bgwst gray release at 50% trading QPS, 40K/s daily, 230K peak, full 5.12 → 45%, 35K/s, 61K peak, full end of April | v1 L557 → v2 L578 | **stale** — L592 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-C6 / R6 | Bgws C++ committed to testnet 5.27 and mainnet 6.16 → no schedule, estimate due 4.24 | v1 L562–564 → v2 L585 | **stale** — L593 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
 | P2-C7 / R7 | vLLM instance monitoring 100% complete → 90% | v1 L399 (**05-04 section**) → v2 L405; v1's own 04-17 section reads 90% at L1358, verbatim with v2 | **not a clean observation** — the article states both, 90% at L445 against 100% at L580 and L760 | **V10 ruled 2026-08-16** — ambiguous rather than unambiguous. All three lines carry the same counts 「sitnet 8/10，testnet 1/1， mainnet 11/12」 and only the grade differs, so the 100% re-grades an unchanged measurement; v1's own parent line L398 still reads 【80%进行中】 above it |
-| P2-C8 / R8 | Storage non-standard governance overall 56% → 20% | v1 L1781 (04-17 section, 「[56%] 进度总览」) and L783 (05-04 section, 「P-1治理率 56%」) → v2 L824 | not stale, and the replacement is absent too — no storage-governance figure in the article | **V10 ruled 2026-08-16** — the pair's only cross-document disagreement. Two string hazards recorded with it: v1's 56% is split across three `<text color="green">` spans (`**[**`, `**56**`, `**%]**`), so `grep -F "56%"` finds only L783 and misses the cited L1781; and the article's four `56` hits (L82, L342, L643, L707) are all alert-RCA coverage, not this metric |
+| P2-C8 / R8 | Storage non-standard governance overall 56% → 20% | v1 L1781 (04-17 section, 「[56%] 进度总览」) and L783 (05-04 section, 「P-1治理率 56%」) → v2 L824 | not stale, and the replacement is absent too — no storage-governance figure in the article | **V10 ruled 2026-08-16** — the pair's only cross-document disagreement. Two string hazards recorded with it: v1's 56% is split across three `<text color="green">` spans (`**[**`, `**56**`, `**%]**`), so `grep -F "56%"` finds only L783 and misses the cited L1781; and the article's four `56` hits (L82, L342, L643, L707) are all alert-RCA coverage, not this metric — **re-verified 2026-08-17**, and L707 is the sharpest of the four because it pairs 56% with 「P0/P-1」, which is the token v1's own 56% line carries at L783 |
 
 ### Drops (measured, not gating)
 
 | ID | Asserted by the 04-14 file, absent from the 04-17 file | Evidence | Status |
 |---|---|---|---|
-| P2-D1 | ABF security-compliance conversion 100% complete by 4.30 across testnet/prod — 6 accounts, 585 hosts, 922 disks | v1 L315 | to confirm |
-| P2-D2 | The Fiat model-call anomaly was fixed, cutting spend from a 1750/day peak to under 50/day, catching about 4w per month | v1 L940 | to confirm |
-| P2-D3 | Private-model stability progress was slow because staff were absorbed by ABF disk encryption, finishing 4.30 | v1 L395 | to confirm |
-| P2-D4 | Agreed plan for third-party gateway metadata: align with the efficiency platform by Q2, add vendor and purpose fields to the Blueking egress ticket, Blueking loads it into the efficiency database | v1 L225–227 | to confirm |
-| P2-D5 | Three pending improvements for the AI deployment platform: one-click deploy for Claude Code and OpenClaw, externally reachable generated domains pending security review, database creation | v1 L1397–1400 | to confirm |
-| P2-D6 | EBS storage-encryption data migration is complete | v1 L1271 | to confirm |
+| P2-D1 | ABF security-compliance conversion 100% complete by 4.30 across testnet/prod — 6 accounts, 585 hosts, 922 disks | v1 L315 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-D2 | The Fiat model-call anomaly was fixed, cutting spend from a 1750/day peak to under 50/day, catching about 4w per month | v1 L940 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-D3 | Private-model stability progress was slow because staff were absorbed by ABF disk encryption, finishing 4.30 | v1 L395; 「磁盘加密」 and 「进展慢」 are both 0 hits in v2, whose seven `ABF` hits are that team's own work items (v2 L309–316: peoplecare sync, new GIT onboarding, pen-test support, Slack bot) | amended 2026-08-17 — the drop stands, and the note is that a presence test on `ABF` does not detect it: the token survives in v2 on a different subject |
+| P2-D4 | Agreed plan for third-party gateway metadata: align with the efficiency platform by Q2, add vendor and purpose fields to the Blueking egress ticket, Blueking loads it into the efficiency database | v1 L225–227 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-D5 | Three pending improvements for the AI deployment platform: one-click deploy for Claude Code and OpenClaw, externally reachable generated domains pending security review, database creation | v1 L1397–1400; 「待优化项」, 「一键部署」, 「创建数据库」 and 「外部人员访问」 are each 0 hits in v2 | amended 2026-08-17 — the drop stands, with the nearest v2 line recorded: L445 「外网openclaw已支持自动化部署」 is about openclaw deployment automation and carries none of the three pending items, so `openclaw` (5 hits in v2) is a second token that survives a drop of this kind |
+| P2-D6 | EBS storage-encryption data migration is complete | v1 L1271 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
 
 ### Controls
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P2-K1 | Third-party gateway totals: 338 channels (+21), 197 not onboarded (−17), 141 onboarded (+38) | v1 L720 → v2 L750 | to confirm |
-| P2-K2 | Third-party gateway scope: 6 departments, 206 applications, 57 scheduled for April, rest evaluated in batches before 4.20 | v1 L709 → v2 L739 | to confirm |
-| P2-K3 | Unified-framework backlog: 198 Java and 179 Go applications remaining | v1 L1789, L1791 → v2 L832, L834 | to confirm |
-| P2-K4 | AI adoption: 67.35% AI developers (33/49), 40.13% AI-generated code | v1 L991–992 → v2 L1037–1038 | to confirm |
-| P2-K5 | Cost baseline: Q1 stock baseline 3330W excluding 90W of compliance sites, Q1 3330W → Q2 3090W/3030W | v1 L890 → v2 L945 | to confirm |
-| P2-K6 | Image zero-trust is live, all base images converging onto the efficiency platform by 4.30 | v1 L626 → v2 L647 | to confirm |
+| P2-K1 | Third-party gateway totals: 338 channels (+21), 197 not onboarded (−17), 141 onboarded (+38) | v1 L720 → v2 L750 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-K2 | Third-party gateway scope: 6 departments, 206 applications, 57 scheduled for April, rest evaluated in batches before 4.20 | v1 L709 → v2 L739, identical in content; the only difference is bold markers around the 57 (`其中57个` against `其中****57****个`) | amended 2026-08-17 — the control stands, recorded because a string-equality test on this row fails on markup while the assertion is unchanged |
+| P2-K3 | Unified-framework backlog: 198 Java and 179 Go applications remaining | v1 L1789, L1791 → v2 L832, L834 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-K4 | AI adoption: 67.35% AI developers (33/49), 40.13% AI-generated code | v1 L991–992 → v2 L1037–1038 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-K5 | Cost baseline: Q1 stock baseline 3330W excluding 90W of compliance sites, Q1 3330W → Q2 3090W/3030W | v1 L890 → v2 L945 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
+| P2-K6 | Image zero-trust is live, all base images converging onto the efficiency platform by 4.30 | v1 L626 → v2 L647 | confirmed 2026-08-17 — re-derived from both files; label retained in the fixture's stated direction as counter-case evidence, scoring nothing under FX5 and gating nothing under FX7 |
 
 ### P2 open judgement calls
 
