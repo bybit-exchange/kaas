@@ -1,0 +1,23 @@
+etc/kaas.toml
+  c390724cacfabba7 68,70-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b060f6235e9b3fde0b8427e57553c43ded18faa3",
+  "prompts": {
+    "c390724cacfabba7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00b2b-cea3-7593-b4db-098bb6107943",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 7,
+      "accepted_lines": 643,
+      "overriden_lines": 0
+    }
+  }
+}
