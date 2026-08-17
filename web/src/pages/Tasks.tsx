@@ -28,7 +28,7 @@ import { FilePreviewSheet } from '@/components/FilePreviewSheet'
 import { Trash2, Eye, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 const STATUS_FILTERS = ['all', 'pending', 'running', 'succeeded', 'failed', 'cancelled'] as const
-const TERMINAL_STATUSES = ['succeeded', 'failed', 'cancelled'] as const
+const TERMINAL_STATUSES = ['pending', 'succeeded', 'failed', 'cancelled'] as const
 type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 const PAGE_SIZE = 10

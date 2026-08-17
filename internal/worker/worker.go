@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -84,12 +85,6 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		hbWG.Wait()
 	}()
 
-	content, err := os.ReadFile(task.RawPath)
-	if err != nil {
-		w.fail(ctx, task, fmt.Sprintf("read raw %q: %v", task.RawPath, err))
-		return
-	}
-
 	// One relative path feeding both requests. It is the extraction file's key
 	// and the article's sources: entry, and submit.go builds RawPath by joining
 	// an already-absolute KBDir, so forwarding it verbatim used to record an
@@ -101,20 +96,40 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		return
 	}
 
+	// Detect rich documents by extension; they are routed via FilePath
+	// (the Python daemon converts them) instead of reading binary content.
+	fext := strings.ToLower(filepath.Ext(task.RawPath))
+	rich := isRichDoc(fext)
+	if rich {
+		sourceRef = strings.TrimSuffix(sourceRef, fext) + ".md"
+	}
+
+	// Build the ExtractRequest: rich docs send FilePath, text files send Content.
+	req := bridge.ExtractRequest{
+		KBDir:          w.cfg.KBDir,
+		Source:         sourceRef,
+		Model:          w.cfg.Model,
+		Strategy:       w.cfg.ExtractStrategy,
+		SummarizeModel: w.cfg.SummarizeModel,
+	}
+	if rich {
+		req.FilePath = task.RawPath
+	} else {
+		content, readErr := os.ReadFile(task.RawPath)
+		if readErr != nil {
+			w.fail(ctx, task, fmt.Sprintf("read raw %q: %v", task.RawPath, readErr))
+			return
+		}
+		req.Content = string(content)
+	}
+
 	// Extract (Claim already set stage=extract). The engine persists the
 	// extraction under <kb>/extraction/<rel> before returning, so a pipeline
 	// failure with an attempt left replays the task without paying again.
 	var ext *bridge.ExtractResponse
 	err = w.brk.Do(func() error {
 		var e error
-		ext, e = w.eng.Extract(ctx, bridge.ExtractRequest{
-			Content:        string(content),
-			KBDir:          w.cfg.KBDir,
-			Source:         sourceRef,
-			Model:          w.cfg.Model,
-			Strategy:       w.cfg.ExtractStrategy,
-			SummarizeModel: w.cfg.SummarizeModel,
-		})
+		ext, e = w.eng.Extract(ctx, req)
 		return e
 	})
 	if err != nil {
@@ -188,6 +203,15 @@ func buildResult(ext *bridge.ExtractResponse, pipe *bridge.PipelineResponse) str
 		return "{}"
 	}
 	return string(b)
+}
+
+// isRichDoc returns true for document extensions that require MarkItDown conversion.
+func isRichDoc(ext string) bool {
+	switch ext {
+	case ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".epub", ".rtf":
+		return true
+	}
+	return false
 }
 
 // WorkerID returns a per-process owner id (hostname-pid). The pid changes on

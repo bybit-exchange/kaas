@@ -45,6 +45,7 @@ describe('fetchUploadConfig', () => {
     mockFetch.mockResolvedValue(
       makeResponse(200, {
         max_file_size: 2097152,
+        max_rich_file_size: 5242880,
         max_zip_file_size: 10485760,
         max_files_per_upload: 50,
         allowed_extensions: ['.md', '.txt'],
@@ -55,6 +56,7 @@ describe('fetchUploadConfig', () => {
 
     expect(config).toEqual({
       maxFileSize: 2097152,
+      maxRichFileSize: 5242880,
       maxZipFileSize: 10485760,
       maxFilesPerUpload: 50,
       allowedExtensions: ['.md', '.txt'],
@@ -66,6 +68,7 @@ describe('fetchUploadConfig', () => {
     mockFetch.mockResolvedValue(
       makeResponse(200, {
         max_file_size: 1,
+        max_rich_file_size: 5,
         max_zip_file_size: 2,
         max_files_per_upload: 3,
         allowed_extensions: [],
@@ -78,6 +81,7 @@ describe('fetchUploadConfig', () => {
       'allowedExtensions',
       'maxFileSize',
       'maxFilesPerUpload',
+      'maxRichFileSize',
       'maxZipFileSize',
     ])
   })

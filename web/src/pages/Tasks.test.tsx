@@ -384,7 +384,7 @@ describe('Tasks page', () => {
 
     // Deleting a running task would orphan the worker's in-flight write, so the
     // action is only offered once the task has reached a terminal state.
-    it.each(['pending', 'running'])('offers no delete for a %s task', async (status) => {
+    it.each(['running'])('offers no delete for a %s task', async (status) => {
       mockListTasks.mockResolvedValue({
         tasks: [{ ...TASK_1, status, title: 'Busy Task' }],
         total: 1,

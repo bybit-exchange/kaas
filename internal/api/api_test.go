@@ -151,6 +151,7 @@ func testUploadConf() config.UploadConf {
 	return config.UploadConf{
 		MaxBodyBytes:        30 << 20,
 		MaxFileSize:         1 << 20,
+		MaxRichFileSize:     10 << 20,
 		MaxZipFileSize:      5 << 20,
 		MaxFilesPerUpload:   20,
 		MaxZipEntries:       200,

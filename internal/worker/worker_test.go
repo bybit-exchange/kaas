@@ -29,6 +29,7 @@ type fakeEngine struct {
 	extractErr  error
 	pipelineErr error
 	onExtract   func(ctx context.Context) // optional hook (blocking tests)
+	lastReq     bridge.ExtractRequest      // last received ExtractRequest
 }
 
 func (f *fakeEngine) Extract(ctx context.Context, req bridge.ExtractRequest) (*bridge.ExtractResponse, error) {
@@ -37,6 +38,7 @@ func (f *fakeEngine) Extract(ctx context.Context, req bridge.ExtractRequest) (*b
 	}
 	f.mu.Lock()
 	f.extractN++
+	f.lastReq = req
 	f.mu.Unlock()
 	if f.extractErr != nil {
 		return nil, f.extractErr
@@ -259,4 +261,90 @@ func TestProcessHeartbeats(t *testing.T) {
 	}
 	close(release)
 	<-done
+}
+
+// submitAndClaimRich creates a task whose RawPath has a rich doc extension.
+// The file is not read by the worker, so it can contain arbitrary bytes.
+func submitAndClaimRich(t *testing.T, q *queue.Queue, owner, kbDir string) *store.Task {
+	t.Helper()
+	raw := filepath.Join(kbDir, "raw", "abc123.pdf")
+	if err := os.MkdirAll(filepath.Dir(raw), 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	// Write binary garbage (simulates a real PDF binary).
+	if err := os.WriteFile(raw, []byte("\x00\x01\x02 not utf8"), 0o644); err != nil {
+		t.Fatalf("write raw: %v", err)
+	}
+	if err := q.Submit(context.Background(), &store.Task{
+		ID: "t-rich", Source: "upload", RawPath: raw, ContentHash: "hrich", MaxAttempts: 2,
+	}); err != nil {
+		t.Fatalf("Submit: %v", err)
+	}
+	task, err := q.Claim(context.Background(), owner)
+	if err != nil || task == nil {
+		t.Fatalf("Claim: task=%v err=%v", task, err)
+	}
+	return task
+}
+
+func TestProcessRichDocRoutesFilePath(t *testing.T) {
+	q, st := newQ(t)
+	kbDir := t.TempDir()
+	task := submitAndClaimRich(t, q, "w1", kbDir)
+
+	eng := &fakeEngine{}
+	cfg := Config{KBDir: kbDir, PipelineWorkers: 2, HeartbeatInterval: 5 * time.Millisecond}
+	w := NewWorker(q, eng, newBrk(), "w1", cfg)
+
+	w.Process(context.Background(), task)
+
+	// Verify the task succeeded.
+	final, err := st.GetTask(context.Background(), "t-rich")
+	if err != nil {
+		t.Fatalf("GetTask: %v", err)
+	}
+	if final.Status != store.StatusSucceeded {
+		t.Fatalf("want succeeded, got %s (error: %s)", final.Status, final.Error)
+	}
+
+	// Verify ExtractRequest used FilePath (not Content).
+	eng.mu.Lock()
+	req := eng.lastReq
+	eng.mu.Unlock()
+
+	if req.FilePath == "" {
+		t.Fatal("rich doc: expected FilePath to be set")
+	}
+	if req.Content != "" {
+		t.Fatal("rich doc: expected Content to be empty")
+	}
+	if req.FilePath != task.RawPath {
+		t.Fatalf("rich doc: FilePath=%q, want %q", req.FilePath, task.RawPath)
+	}
+	// sourceRef should be normalized to .md
+	wantSource := filepath.Join("raw", "abc123.md")
+	if req.Source != wantSource {
+		t.Fatalf("rich doc: Source=%q, want %q", req.Source, wantSource)
+	}
+}
+
+func TestProcessTextFileRoutesContent(t *testing.T) {
+	q, _ := newQ(t)
+	task := submitAndClaim(t, q, "w1")
+
+	eng := &fakeEngine{}
+	w := NewWorker(q, eng, newBrk(), "w1", wcfg())
+
+	w.Process(context.Background(), task)
+
+	eng.mu.Lock()
+	req := eng.lastReq
+	eng.mu.Unlock()
+
+	if req.Content == "" {
+		t.Fatal("text file: expected Content to be set")
+	}
+	if req.FilePath != "" {
+		t.Fatal("text file: expected FilePath to be empty")
+	}
 }

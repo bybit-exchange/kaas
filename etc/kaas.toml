@@ -65,11 +65,12 @@ level = "info"
 format = "json"
 
 # --- Upload limits (POST /api/submit/files) ---
-# All values below show defaults; uncomment and adjust as needed.
+# Local deployment: generous limits for convenience.
 [upload]
-# max_body_bytes = 31457280        # 30 MiB — total multipart body limit
-# max_file_size = 1048576          # 1 MiB — max per individual file
-# max_zip_file_size = 5242880      # 5 MiB — max for a .zip archive
-# max_files_per_upload = 20        # max top-level files in one request
-# max_zip_entries = 200            # max entries extracted from a zip
-# max_zip_extracted_size = 31457280 # 30 MiB — total extracted bytes cap
+max_body_bytes = 209715200         # 200 MiB — total multipart body limit
+max_file_size = 1048576            # 1 MiB — max per text file (.md/.txt/.csv)
+max_rich_file_size = 52428800      # 50 MiB — max per rich document (.pdf/.docx/.pptx/...)
+max_zip_file_size = 104857600      # 100 MiB — max for a .zip archive
+max_files_per_upload = 50          # max top-level files in one request
+max_zip_entries = 500              # max entries extracted from a zip
+max_zip_extracted_size = 209715200 # 200 MiB — total extracted bytes cap

@@ -38,7 +38,8 @@ func EventType(raw json.RawMessage) string {
 // uses -- which would mark every UI-ingested extraction stale on the next CLI
 // compile, forever, once per document.
 type ExtractRequest struct {
-	Content        string `json:"content"`
+	Content        string `json:"content,omitempty"`
+	FilePath       string `json:"file_path,omitempty"`
 	KBDir          string `json:"kb_dir"`
 	Source         string `json:"source"`
 	Model          string `json:"model,omitempty"`

@@ -34,8 +34,9 @@ type LogConf struct {
 
 // UploadConf configures file upload limits for POST /api/submit/files.
 type UploadConf struct {
-	MaxBodyBytes        int64 `json:"max_body_bytes,default=31457280"`
+	MaxBodyBytes        int64 `json:"max_body_bytes,default=52428800"`
 	MaxFileSize         int64 `json:"max_file_size,default=1048576"`
+	MaxRichFileSize     int64 `json:"max_rich_file_size,default=10485760"`
 	MaxZipFileSize      int64 `json:"max_zip_file_size,default=5242880"`
 	MaxFilesPerUpload   int   `json:"max_files_per_upload,default=20"`
 	MaxZipEntries       int   `json:"max_zip_entries,default=200"`

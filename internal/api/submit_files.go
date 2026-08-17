@@ -22,14 +22,24 @@ import (
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
+// richExtensions are document formats that require MarkItDown conversion.
+var richExtensions = map[string]bool{
+	".pdf": true, ".docx": true, ".pptx": true, ".xlsx": true,
+	".html": true, ".htm": true, ".epub": true, ".rtf": true,
+}
+
 // allowedExtensions are the extensions accepted at the top level (includes .zip).
 var allowedExtensions = map[string]bool{
 	".md": true, ".txt": true, ".csv": true, ".zip": true,
+	".pdf": true, ".docx": true, ".pptx": true, ".xlsx": true,
+	".html": true, ".htm": true, ".epub": true, ".rtf": true,
 }
 
 // allowedInnerExtensions are extensions accepted inside a ZIP (excludes .zip).
 var allowedInnerExtensions = map[string]bool{
 	".md": true, ".txt": true, ".csv": true,
+	".pdf": true, ".docx": true, ".pptx": true, ".xlsx": true,
+	".html": true, ".htm": true, ".epub": true, ".rtf": true,
 }
 
 // submitFilesItem describes one processed file in the response.
@@ -123,16 +133,20 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 			}
 			s.processZip(r, data, fh.Filename, &resp)
 		} else {
-			if fh.Size > s.cfg.Upload.MaxFileSize {
+			maxSize := s.cfg.Upload.MaxFileSize
+			if richExtensions[ext] {
+				maxSize = s.cfg.Upload.MaxRichFileSize
+			}
+			if fh.Size > maxSize {
 				f.Close()
 				resp.Failed = append(resp.Failed, submitFilesItem{
 					Name:   fh.Filename,
 					Status: "failed",
-					Reason: fmt.Sprintf("file too large (max %dMB)", s.cfg.Upload.MaxFileSize>>20),
+					Reason: fmt.Sprintf("file too large (max %dMB)", maxSize>>20),
 				})
 				continue
 			}
-			data, err := io.ReadAll(io.LimitReader(f, s.cfg.Upload.MaxFileSize+1))
+			data, err := io.ReadAll(io.LimitReader(f, maxSize+1))
 			f.Close()
 			if err != nil {
 				resp.Failed = append(resp.Failed, submitFilesItem{
@@ -142,7 +156,7 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 				})
 				continue
 			}
-			s.processFile(r, fh.Filename, data, &resp)
+			s.processFile(r, fh.Filename, ext, data, &resp)
 		}
 	}
 
@@ -151,12 +165,16 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 
 // processFile hashes, writes raw, and enqueues a single file. On submission
 // failure the raw file is cleaned up.
-func (s *Server) processFile(r *http.Request, name string, content []byte, resp *submitFilesResponse) {
+func (s *Server) processFile(r *http.Request, name string, ext string, content []byte, resp *submitFilesResponse) {
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
 
 	id := uuid.NewString()
-	rawPath := filepath.Join(s.cfg.KBDir, "raw", id+".md")
+	rawExt := ".md"
+	if richExtensions[ext] {
+		rawExt = ext
+	}
+	rawPath := filepath.Join(s.cfg.KBDir, "raw", id+rawExt)
 	if err := os.MkdirAll(filepath.Dir(rawPath), 0o755); err != nil {
 		resp.Failed = append(resp.Failed, submitFilesItem{
 			Name:   name,
@@ -182,7 +200,11 @@ func (s *Server) processFile(r *http.Request, name string, content []byte, resp 
 		ContentHash: hash,
 		MaxAttempts: defaultMaxAttempts,
 	}
-	task.FileTitle = fmtitle.ExtractTitle(content)
+	if richExtensions[ext] {
+		task.FileTitle = strings.TrimSuffix(filepath.Base(name), ext)
+	} else {
+		task.FileTitle = fmtitle.ExtractTitle(content)
+	}
 
 	if err := s.q.Submit(r.Context(), task); err != nil {
 		_ = os.Remove(rawPath)
@@ -214,6 +236,7 @@ type preparedFile struct {
 	Name    string
 	Content []byte
 	Hash    string
+	Ext     string
 }
 
 // writtenFile tracks a file successfully written to disk in the commit phase.
@@ -319,7 +342,11 @@ func (s *Server) validateZipEntries(data []byte, zipName string) ([]preparedFile
 				Reason: "open zip entry: " + err.Error(),
 			}
 		}
-		content, err := io.ReadAll(io.LimitReader(rc, s.cfg.Upload.MaxFileSize+1))
+		entryMaxSize := s.cfg.Upload.MaxFileSize
+		if richExtensions[ext] {
+			entryMaxSize = s.cfg.Upload.MaxRichFileSize
+		}
+		content, err := io.ReadAll(io.LimitReader(rc, entryMaxSize+1))
 		rc.Close()
 		if err != nil {
 			return nil, &submitFilesItem{
@@ -328,11 +355,11 @@ func (s *Server) validateZipEntries(data []byte, zipName string) ([]preparedFile
 				Reason: "read zip entry: " + err.Error(),
 			}
 		}
-		if int64(len(content)) > s.cfg.Upload.MaxFileSize {
+		if int64(len(content)) > entryMaxSize {
 			return nil, &submitFilesItem{
 				Name:   zipName,
 				Status: "failed",
-				Reason: fmt.Sprintf("file too large (max %dMB)", s.cfg.Upload.MaxFileSize>>20),
+				Reason: fmt.Sprintf("file too large (max %dMB)", entryMaxSize>>20),
 			}
 		}
 
@@ -341,6 +368,7 @@ func (s *Server) validateZipEntries(data []byte, zipName string) ([]preparedFile
 			Name:    baseName,
 			Content: content,
 			Hash:    hex.EncodeToString(sum[:]),
+			Ext:     ext,
 		})
 	}
 
@@ -354,7 +382,11 @@ func (s *Server) commitFiles(ctx context.Context, files []preparedFile) ([]submi
 	written := make([]writtenFile, 0, len(files))
 	for _, pf := range files {
 		id := uuid.NewString()
-		rawPath := filepath.Join(s.cfg.KBDir, "raw", id+".md")
+		rawExt := ".md"
+		if richExtensions[pf.Ext] {
+			rawExt = pf.Ext
+		}
+		rawPath := filepath.Join(s.cfg.KBDir, "raw", id+rawExt)
 		if err := os.MkdirAll(filepath.Dir(rawPath), 0o755); err != nil {
 			s.rollbackFiles(written)
 			return nil, &submitFilesItem{Name: pf.Name, Status: "failed", Reason: "create raw dir: " + err.Error()}
@@ -363,7 +395,13 @@ func (s *Server) commitFiles(ctx context.Context, files []preparedFile) ([]submi
 			s.rollbackFiles(written)
 			return nil, &submitFilesItem{Name: pf.Name, Status: "failed", Reason: "write raw: " + err.Error()}
 		}
-		written = append(written, writtenFile{Name: pf.Name, ID: id, Hash: pf.Hash, RawPath: rawPath, FileTitle: fmtitle.ExtractTitle(pf.Content)})
+		var fileTitle string
+		if richExtensions[pf.Ext] {
+			fileTitle = strings.TrimSuffix(filepath.Base(pf.Name), pf.Ext)
+		} else {
+			fileTitle = fmtitle.ExtractTitle(pf.Content)
+		}
+		written = append(written, writtenFile{Name: pf.Name, ID: id, Hash: pf.Hash, RawPath: rawPath, FileTitle: fileTitle})
 	}
 
 	// Sub-phase 2b: enqueue all written files.
@@ -403,6 +441,7 @@ func (s *Server) rollbackFiles(written []writtenFile) {
 
 type uploadConfigResponse struct {
 	MaxFileSize       int64    `json:"max_file_size"`
+	MaxRichFileSize   int64    `json:"max_rich_file_size"`
 	MaxZipFileSize    int64    `json:"max_zip_file_size"`
 	MaxFilesPerUpload int      `json:"max_files_per_upload"`
 	AllowedExtensions []string `json:"allowed_extensions"`
@@ -417,6 +456,7 @@ func (s *Server) handleUploadConfig(w http.ResponseWriter, _ *http.Request) {
 
 	writeJSON(w, http.StatusOK, uploadConfigResponse{
 		MaxFileSize:       s.cfg.Upload.MaxFileSize,
+		MaxRichFileSize:   s.cfg.Upload.MaxRichFileSize,
 		MaxZipFileSize:    s.cfg.Upload.MaxZipFileSize,
 		MaxFilesPerUpload: s.cfg.Upload.MaxFilesPerUpload,
 		AllowedExtensions: exts,

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { submitFiles, type SubmitFilesResult } from '@/api/submit'
 import { useUploadConfig } from '@/hooks/useUploadConfig'
 
+const RICH_EXTENSIONS = new Set(['.pdf', '.docx', '.pptx', '.xlsx', '.html', '.htm', '.epub', '.rtf'])
+
 interface FileUploadZoneProps {
   onUploadComplete?: (result: SubmitFilesResult) => void
 }
@@ -39,16 +41,21 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
         toast.error(t('submit.file.invalidExtension', { name: file.name }))
         continue
       }
+      let sizeLimit: number
       if (ext === '.zip') {
-        if (file.size > config.maxZipFileSize) {
-          toast.error(t('submit.file.zipTooLarge', { name: file.name }))
-          continue
-        }
+        sizeLimit = config.maxZipFileSize
+      } else if (RICH_EXTENSIONS.has(ext)) {
+        sizeLimit = config.maxRichFileSize
       } else {
-        if (file.size > config.maxFileSize) {
+        sizeLimit = config.maxFileSize
+      }
+      if (file.size > sizeLimit) {
+        if (ext === '.zip') {
+          toast.error(t('submit.file.zipTooLarge', { name: file.name }))
+        } else {
           toast.error(t('submit.file.fileTooLarge', { name: file.name }))
-          continue
         }
+        continue
       }
       valid.push(file)
     }
@@ -208,7 +215,7 @@ export function FileUploadZone({ onUploadComplete }: FileUploadZoneProps) {
       <Upload className="h-8 w-8 text-muted-foreground" />
       <p className="mt-2 text-sm text-muted-foreground">{t('submit.file.dropzone')}</p>
       <p className="mt-1 text-xs text-muted-foreground/70">
-        {t('submit.file.maxSize', { fileSize: formatSize(config.maxFileSize), zipSize: formatSize(config.maxZipFileSize) })} | {t('submit.file.allowedTypes', { types: config.allowedExtensions.join(' ') })}
+        {t('submit.file.maxSize', { fileSize: formatSize(config.maxFileSize), richSize: formatSize(config.maxRichFileSize), zipSize: formatSize(config.maxZipFileSize) })} | {t('submit.file.allowedTypes', { types: config.allowedExtensions.join(' ') })}
       </p>
       <p className="mt-0.5 text-xs text-muted-foreground/70">{t('submit.file.zipHint')}</p>
       <input
