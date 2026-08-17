@@ -1,10 +1,14 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass complete on the rows — all 118 scoring rows settled, none still
-reads `to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
-because P2 scores nothing. All eight cases went through it on 2026-08-17 and no total
-moved in any of them. What "done" still needs is the last of its three conditions:
-test-set.md's Status block, which continues to call these labels awaiting-confirmation.
+Status: **confirm pass complete — all 118 scoring rows settled, 64 confirmed and 54
+amended, none rejected and none still reading `to confirm`**, plus P2's 18 marked
+counter-case rows, which sit outside the 118 because P2 scores nothing. All eight cases
+went through it on 2026-08-17 and **no total moved in any of them**, so the set still reads
+44 / 32 / 42 with 27 of 39 stale. All three of the conditions under
+[How to confirm](#how-to-confirm) are met, test-set.md's Status block included, so FX5 has
+something settled to score against. What confirmation did not settle is five judgement
+calls, each a promotion whose other branch moves a published total; they are named below
+and stay with Captain.
 **P8 — 6 confirmed, 6 amended, none rejected**, holding at 0C / 6D / 6K with five of six
 drops stated as current, and it is the one case the pass could close *completely*: 71 of
 its 88 table rows are byte-identical, and the 17 that are not decompose into two headers,
@@ -124,8 +128,8 @@ Set each item's Status to one of:
 rows plus P2's 18 settled across eight case passes; the two blocking rulings (P2's
 direction, P7's same-period reading) are recorded here as decisions rather than as
 questions — **done, 2026-08-15**; and test-set.md's Status block stops calling the
-labels awaiting-confirmation — **the one condition still open**. Until then FX5's scoring
-cannot run, because there is nothing settled to score against. Note what "settled" does
+labels awaiting-confirmation — **done, 2026-08-17**, its Status block and all eight Label
+cells now reading confirmed. FX5's scoring can run against these labels. Note what "settled" does
 and does not cover: five judgement calls stay open with Captain, listed at the top of this
 file, and each is a promotion that would move a published total rather than a row whose
 verdict is unknown.

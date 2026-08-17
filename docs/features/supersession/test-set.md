@@ -1,9 +1,14 @@
 # Supersession test set: measuring the failure before choosing a fix
 
-Status: test set built; staging landed under FX1; labels **drafted and awaiting
-item-by-item confirmation** in [labels.md](labels.md) — 44 contradictions, 32 drops
-and 42 controls across the seven scoring cases, of which 27 contradictions are
-still stated as current in today's articles. Both blocking rulings are settled
+Status: test set built; staging landed under FX1; labels **confirmed item by item on
+2026-08-17** in [labels.md](labels.md) — all 118 scoring rows settled across eight case
+passes, 64 confirmed and 54 amended with none rejected, plus P2's 18 counter-case rows.
+**No pass moved a total**: 44 contradictions, 32 drops and 42 controls across the seven
+scoring cases, of which 27 contradictions are still stated as current in today's articles.
+What confirmation did not settle is five judgement calls, listed at the top of
+[labels.md](labels.md) — P3 call 3, P8 call 3, P9 calls 3 and 9, and P10 call 6 — each a
+promotion whose other branch would move a published total, so each is left with Captain
+rather than taken by a pass. FX5 can score against these labels now. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -259,9 +264,9 @@ Fixture at `data/kb-supersession-fixture/` (gitignored): 38 raw documents with
 their migrated extractions, ready to compile. Regenerate with the commands in
 [Regenerating](#regenerating).
 
-Each case still needs a label before it can score anything. The label is four
-lists, drafted from the diff and from the migrated extractions, then confirmed by
-a human:
+Each case scores against a label. The label is four lists, drafted from the diff and from
+the migrated extractions, then confirmed by a human — **confirmed for all eight cases on
+2026-08-17**:
 
 - `superseded-contradiction` — asserted by the earlier version, and the later one
   asserts something incompatible about the same subject. There has to be a
@@ -293,20 +298,23 @@ holds the whole chain. In the Chain column a bare date such as `2026-04-17-`
 means the same filename under a different date prefix, in the same directory.
 Article paths are given as they stand in `~/.knowledge`; in `data/kb-knowledge`
 the same file is under the singular category directory, so
-`wiki/decisions/x.md` there is `wiki/decision/x.md`.
+`wiki/decisions/x.md` there is `wiki/decision/x.md`. Re-checked 2026-08-17 after the
+confirm pass queried it: all fourteen paths in this section resolve as written under
+`~/.knowledge/wiki/`, whose directories are plural, and the corpus copies resolve under
+the singular names — the two spellings are the two trees, not an error in this table.
 
 | # | Shape | Chain (dates) | Lines, sim | Article | Label |
 |---|---|---|---|---|---|
 | P1 | A | `raw/docs/2026-04-08-入离职-ai-岗位-it-方案.md` → `2026-04-17-` | 52→283, 0.042 | `wiki/decisions/ai-tools-onboarding-offboarding-automation.md` | adjudicated, see below |
-| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below |
-| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [drafted](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K |
-| P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [drafted](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale |
-| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [drafted](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21 ruled 2026-08-16** keeps v3's wrong date in the fixture, since the staged file is byte-identical to its corpus copy, and reports P5 as an **A2 body-date case** — v3's frontmatter being six days off its own body |
+| P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below; its 18 marked rows were confirmed 2026-08-17 (15 confirmed, 3 amended), so the counter-case evidence is settled too |
+| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [confirmed 2026-08-17](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K, all 19 rows settled (14 confirmed, 5 amended); **call 3 stays open with Captain** |
+| P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [confirmed 2026-08-17](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale, all 20 rows settled (10 confirmed, 10 amended); nine of its ten replacements land at v2 or v3 rather than v4 |
+| P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [confirmed 2026-08-17](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K, all 17 rows settled (10 confirmed, 7 amended), 273 shared endpoint rows identical on name and method with the 状态 cell differing on 22 by a glyph, after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21 ruled 2026-08-16** keeps v3's wrong date in the fixture, since the staged file is byte-identical to its corpus copy, and reports P5 as an **A2 body-date case** — v3's frontmatter being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
-| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [drafted](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
-| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [drafted](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, its 4 contradictions struck by V1 |
-| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [drafted](labels.md#p9--bybit-ai-toc-project-initiation) — **6C** / 5D / 6K, C1 struck by V2 |
-| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [drafted](labels.md#p10--2025-engineering-efficiency-report) — **7C** / **6D** / 6K, C6 reclassified as a drop by V3 |
+| P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [confirmed 2026-08-17](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale, all 14 rows settled (6 confirmed, 8 amended); v1 sits inside v2 byte-identical across all ten shared cells, so the empty drop arm is a property of the pair; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
+| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [confirmed 2026-08-17](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, all 12 rows settled (6 confirmed, 6 amended), its 4 contradictions struck by V1; the 17 rows that differ between the versions are all labelled, so its drop arm is complete at 6 — and **call 3 is escalated to Captain**, a promotion that would take the set's drop total to 33 |
+| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [confirmed 2026-08-17](labels.md#p9--bybit-ai-toc-project-initiation) — **6C** / 5D / 6K, 3 of 6 stale, all 17 rows settled (10 confirmed, 7 amended), C1 struck by V2; **calls 3 and 9 stay open with Captain** |
+| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [confirmed 2026-08-17](labels.md#p10--2025-engineering-efficiency-report) — **7C** / **6D** / 6K, 3 of 7 stale, all 19 rows settled (8 confirmed, 11 amended), C6 reclassified as a drop by V3; only 19 of v1's 171 body lines survive, so no row scores on a shared string, and **call 6 stays open with Captain** |
 
 † The `sim` value is distorted downward by `difflib`'s `autojunk` heuristic and
 should not be read as a body-similarity fraction — P8's 0.079 is 0.928 with the

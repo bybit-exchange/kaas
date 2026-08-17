@@ -76,7 +76,11 @@ drafting**, which is quoted here as the reasoning A1's criteria were written fro
 the labels now carry 44 drafted contradictions with 27 stated as current (50 and 31
 as drafted, before V1, V2 and V3 removed six), so the evidence base is no longer one
 case — but it is drafted evidence awaiting item-by-item confirmation, not adjudicated
-evidence.
+evidence. **That last clause expired on 2026-08-17**: all 118 scoring rows are now
+confirmed, 64 as written and 54 amended on evidence, with no verdict and no total moved,
+so 44 contradictions with 27 stated as current stands as confirmed rather than drafted.
+Five judgement calls remain open with Captain, each a promotion that would move one of
+those numbers up.
 
 **The fixture as built tests the path A1 can fix.** 38 documents compiled into a
 fresh KB routes each version chain into one `merge→create` call. That is very
@@ -512,7 +516,11 @@ path A.
   `superseded-drop`, `replacement`, `control` — are drafted from the diffs and the
   migrated extractions, then human-confirmed before they score anything. Drafted
   2026-08-14 in [labels.md](labels.md); the two rulings the drafts surfaced were
-  taken 2026-08-15. **P2 is withdrawn from the positives** and kept as a
+  taken 2026-08-15. **Confirmed 2026-08-17**, which closes this criterion's gate: eight
+  case passes settled all 118 scoring rows plus P2's 18 — 64 confirmed, 54 amended, none
+  rejected — and **no pass moved a total**, so the figures below are the confirmed ones.
+  Five judgement calls stay open with Captain, each a promotion whose other branch would
+  move one of those totals; they are named at the top of [labels.md](labels.md). **P2 is withdrawn from the positives** and kept as a
   counter-case, because its frontmatter date inverts its content order and scoring
   it would credit A1 for asserting a wrong order — and **ruling V10 2026-08-16 makes
   that permanent**: in the section both files date 04-17 the pair agrees verbatim on
