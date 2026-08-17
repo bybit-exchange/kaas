@@ -1,0 +1,23 @@
+internal/api/tasks.go
+  05b97127d6c705eb 14,173-177
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c96a0369b42a04c8610a307af288feecffe37988",
+  "prompts": {
+    "05b97127d6c705eb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00fad-0b5b-7cb2-8bfa-b5a5329d9847",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 1,
+      "accepted_lines": 442,
+      "overriden_lines": 0
+    }
+  }
+}
