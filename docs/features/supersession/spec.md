@@ -76,11 +76,13 @@ drafting**, which is quoted here as the reasoning A1's criteria were written fro
 the labels now carry 44 drafted contradictions with 27 stated as current (50 and 31
 as drafted, before V1, V2 and V3 removed six), so the evidence base is no longer one
 case — but it is drafted evidence awaiting item-by-item confirmation, not adjudicated
-evidence. **That last clause expired on 2026-08-17**: all 118 scoring rows are now
-confirmed, 64 as written and 54 amended on evidence, with no verdict and no total moved,
-so 44 contradictions with 27 stated as current stands as confirmed rather than drafted.
-Five judgement calls remain open with Captain, each a promotion that would move one of
-those numbers up.
+evidence. **That last clause expired on 2026-08-17**: all 118 scoring rows the
+confirm pass covered are settled, 64 as written and 54 amended on evidence, with no verdict
+and no total moved by any pass. The five judgement calls it left open — each a promotion
+whose other branch moves a published total — are **ruled the same day as V23–V27**, and
+they add ten rows: one contradiction and nine drops. So the evidence base is **45
+contradictions with 28 stated as current**, confirmed rather than drafted, and nothing is
+left with Captain.
 
 **The fixture as built tests the path A1 can fix.** 38 documents compiled into a
 fresh KB routes each version chain into one `merge→create` call. That is very
@@ -518,9 +520,12 @@ path A.
   2026-08-14 in [labels.md](labels.md); the two rulings the drafts surfaced were
   taken 2026-08-15. **Confirmed 2026-08-17**, which closes this criterion's gate: eight
   case passes settled all 118 scoring rows plus P2's 18 — 64 confirmed, 54 amended, none
-  rejected — and **no pass moved a total**, so the figures below are the confirmed ones.
-  Five judgement calls stay open with Captain, each a promotion whose other branch would
-  move one of those totals; they are named at the top of [labels.md](labels.md). **P2 is withdrawn from the positives** and kept as a
+  rejected — and **no pass moved a total**. The five judgement calls the passes left open
+  are **ruled 2026-08-17 as V23–V27**, which do move them: ten rows arrive, one
+  contradiction (P3-C9, V23) and nine drops (P8-D7 by V24, P9-D6–D8 by V26, P10-D7–D11 by
+  V27), taking the set to **45 / 41 / 42 with 28 of 40 stale**. Nothing is left with
+  Captain; the rulings and their grounds sit in labels.md's
+  [ledger](labels.md#captains-rulings-on-the-escalated-calls-2026-08-17). **P2 is withdrawn from the positives** and kept as a
   counter-case, because its frontmatter date inverts its content order and scoring
   it would credit A1 for asserting a wrong order — and **ruling V10 2026-08-16 makes
   that permanent**: in the section both files date 04-17 the pair agrees verbatim on
@@ -528,8 +533,9 @@ path A.
   and it leaves no residue in the article, so the inverted reading has nothing to score
   either; **P7's measurement-time reading
   is accepted**, so it keeps its 8 contradictions. The scoring set is therefore
-  seven drafted cases plus P6, carrying — after V1, V2, V3 and V8, below — 44
-  contradictions, 32 drops and 42 controls, of which 27 are stated as current today.
+  seven drafted cases plus P6, carrying — after V1, V2, V3 and V8, below, and V23–V27 on
+  top of them — **45 contradictions, 41 drops and 42 controls**, of which 28 are stated as
+  current today.
   Those 128 items
   were then **independently verified** in fresh contexts (111 verified, 4
   line-corrected, 13 disputed, 0 unverifiable), leaving a queue of
@@ -562,8 +568,9 @@ path A.
   `universal-transfer` abridgement to drop D6, since 跨 UID 转账 does not entail a
   destination under a third party's control and v3 asserts that nowhere else. Re-reading
   all seventeen of that case's abridged 备注 cells leaves D6 the only promotion, so the
-  current totals are **44 contradictions, 32 drops and 42 controls with 27 stale** — 27
-  unmoved, because drops do not gate. **V9 is ruled 2026-08-16** and moves no total, since
+  totals after that ruling read 44 contradictions, 32 drops and 42 controls with 27 stale —
+  27 unmoved, because drops do not gate. (V24, V26 and V27 later take the drop arm to 41
+  and V23 the contradiction arm to 45.) **V9 is ruled 2026-08-16** and moves no total, since
   D4 and D5 were already drops; what it settles is the drop arm's own measurement, the
   baseline RP1 would be judged against — **3 of P5's 6 drops are stated as current in the
   article**, and D1's residue is excluded because a declared, never-superseded source
@@ -587,12 +594,13 @@ path A.
   underneath — v3's body dates itself six days after its frontmatter, so the tie is an
   error in the metadata, filed as **V21** and **ruled 2026-08-16**. FX7's gate is
   unaffected either way, because it counts corrections carried; what the exclusion changes
-  is which stale rate is published, and V21 publishes **27 of 39 (69%)** over the five
-  gating cases. The 27-of-44 reading is retired as a headline: both readings share the
+  is which stale rate is published, and V21 publishes the rate over the five gating cases —
+  27 of 39 (69%) when it was ruled, **28 of 40 (70%)** since V23 added P3-C9. The
+  all-cases reading is retired as a headline: both readings share the
   numerator only because P5 is scored 0 of 5, which is the reading WP9's ruling found the
   payload cannot support, and against the order the payload states today P5 is 5 of 5 —
-  making the all-cases figure 32 of 44 (73%) instead. 27 of 39 is the one figure that does
-  not depend on P5. **V21 also settles the fixture's side of it**: v3 keeps its wrong date,
+  making the all-cases figure 33 of 45 (73%) instead. The five-case rate is the one figure
+  that does not depend on P5. **V21 also settles the fixture's side of it**: v3 keeps its wrong date,
   because both P5 files are byte-identical to their corpus copies and re-dating one would
   be the only place a staged document departs from what it was staged from (FX1). P5 is
   reported as an A2 body-date case instead, which makes the fixture's wrong-date record
@@ -651,6 +659,27 @@ path A.
   line skipped all 682 on the `schema_version: 1` gate. So both arms should assert that
   every article written opens at byte 0 with `---`. None of the seven is a scoring case,
   so labels.md is again unaffected.
+  **Both checks are now a script rather than a note**: `py/scripts/audit_articles.py --kb
+  <kb>` walks `wiki/` on the filesystem — not through `existing_articles()`, since the
+  index is built from the very frontmatter the second defect hides — and exits non-zero on
+  a finding. On `data/kb-knowledge` it reproduces every figure above exactly (682 articles,
+  91 packed entries in 46, 47 duplicated paths in 30, 7 unreachable), which is what
+  qualifies it to be believed on a fresh run, and it adds one datum this note did not have:
+  **8 of the 682 articles carry readable frontmatter with no `sources` key at all** — seven
+  of them `wiki/personal-growth/speech-review*`, which the speech-review flow writes rather
+  than the compile, plus `wiki/decision/rd-cycle-metrics-jira-data-quality-audit.md`. It is
+  recorded and does not fail the audit, because an article legitimately has no sources
+  until something cites it; what it means for a *fresh* run is that `derive` has nothing to
+  copy for those articles either, so a run that produces them is worth a second look. A BOM is reported apart from the seven rather than
+  with them, since every reader in the package strips it and no key is lost.
+  **One measurement caveat, found on the baseline run itself**: the fixture's cached
+  extractions are `schema_version: 1` and both arms' code read 2, so every staged document
+  is re-extracted rather than read from cache. Both arms pay the full extract cost, which
+  is what the estimate assumed anyway — but the extraction each arm scores is *fresh*, not
+  the migrated one labels.md's rows were drafted against. Where a row cites an
+  `extraction/…` line, that citation describes the stored file and not necessarily what the
+  scored run produced; every row is grounded in raw text for exactly this reason (P8 call 5
+  is the case that made the point first).
 - **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
   every case; Staleness over `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. Both staleness columns are read per claim, against
@@ -660,7 +689,8 @@ path A.
   fix withdraws the ordering claim instead of correcting it (V20, ruled 2026-08-16).
   The cases judged on this column are therefore five: P3, P4, P7, P9 and P10.
   P5's five contradictions stay in the set totals, and **V21 (ruled 2026-08-16) publishes
-  the rate over the cases that gate — 27 of 39 (69%)**, quoted with that composition
+  the rate over the cases that gate — 28 of 40 (70%) on today's rows, 27 of 39 when V21
+  was ruled and V23 not yet taken**, quoted with that composition
   attached rather than bare, since a reader has to be able to see that P5 and P8 are out
   and why. P5's own row is reported under the A2 body-date heading V21 gives it, not as a
   pending fix. Staleness (drop) is recorded on the same

@@ -1,28 +1,33 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass complete — all 118 scoring rows settled, 64 confirmed and 54
-amended, none rejected and none still reading `to confirm`**, plus P2's 18 marked
-counter-case rows, which sit outside the 118 because P2 scores nothing. All eight cases
-went through it on 2026-08-17 and **no total moved in any of them**, so the set still reads
-44 / 32 / 42 with 27 of 39 stale. All three of the conditions under
+Status: **confirm pass complete and the five escalated calls ruled** — all 118 rows the
+pass settled read 64 confirmed and 54 amended, none rejected and none still reading
+`to confirm`, plus P2's 18 marked counter-case rows, which sit outside the count because
+P2 scores nothing. All eight cases went through the pass on 2026-08-17 and **no total moved
+in any of them**; what moved the totals is Captain's rulings on the five calls the pass
+deliberately left open, **V23–V27, taken 2026-08-17**. Those add ten rows — one
+contradiction and nine drops — so the set now reads **45 / 41 / 42 with 28 of 40 stale**,
+128 scoring rows in total: 118 settled by the pass and 10 arriving by ruling with their
+evidence recorded in the calls below. That 128 is not the 128 the verification pass read —
+that was the drafted set before V1, V2 and V3 struck six rows, and the two figures coincide
+by accident. All three of the conditions under
 [How to confirm](#how-to-confirm) are met, test-set.md's Status block included, so FX5 has
-something settled to score against. What confirmation did not settle is five judgement
-calls, each a promotion whose other branch moves a published total; they are named below
-and stay with Captain.
-**P8 — 6 confirmed, 6 amended, none rejected**, holding at 0C / 6D / 6K with five of six
-drops stated as current, and it is the one case the pass could close *completely*: 71 of
+something settled to score against, and **no judgement call is left open**.
+**P8 — 6 confirmed, 6 amended, none rejected**, and **0C / 7D / 6K after V24** with six of
+seven drops stated as current, and it is the one case the pass could close *completely*: 71 of
 its 88 table rows are byte-identical, and the 17 that are not decompose into two headers,
 the four owner rows V1 struck plus one scope expansion, the four rows of the deleted
 关键资源约束 table, the three deleted milestone rows, and three items the calls had already
 set aside. **Nothing in this pair is unlabelled** — the sweep that found five unrestated
-propositions in P9 and six in P10 finds none here — so P8's drop arm is complete at 6
-rather than capped at 6. Its evidentiary position is also stronger than drafted: the
+propositions in P9 and six in P10 finds none here — so P8's drop arm is complete rather
+than capped, at 7 once V24 took the one candidate the sweep left outside the six. Its evidentiary position is also stronger than drafted: the
 article declares **only the two chain versions**, so with P3 it is one of the only two
 cases free of a co-source confound, and v2 deletes the only two in-body dates later than
 v1's frontmatter,
-so the newer body is dated *less* than the older one. **Call 3 is escalated**: V8's test,
-the one that promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」, which would make
-it a seventh drop with three article residues and move the published drop total to 33.
+so the newer body is dated *less* than the older one. **Call 3 was escalated and V24 ruled
+it**: V8's test, the one that promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」,
+which makes it a seventh drop with three article residues — D7, and the drop total moves
+to 33 on it.
 **P5 — 10 confirmed, 7 amended, none rejected**, holding at 5C / 6D / 6K with 0 of 5
 stale, and it is the case the pass could measure end to end: parsing both files into
 endpoint rows gives **278 in v1, 299 in v3, 273 shared, with name and method identical
@@ -39,31 +44,35 @@ P2P wording reaches L402 and L426. Two of the six controls also sit on abridged 
 which makes them read as over-deletion under a byte test while the control itself holds,
 and both dropped clauses are in the article (L396, L397). All five calls are answered and
 none moves a verdict.
-**P10 — 8 confirmed, 11 amended, none rejected**, holding at 7C / 6D / 6K with 3 of 7
+**P10 — 8 confirmed, 11 amended, none rejected**, and **7C / 11D / 6K after V27** with 3 of 7
 stale, and it is the case that measured the *rewrite*: only **19 of v1's 171 non-blank
 body lines survive in v2 byte-identical**, seventeen of them separators, headings and
 table rules, so no row in P10 can be scored on a shared string. Its other two arms each
-gave up something the drafts did not have. The **drop arm reads 4 of 6 stated as
-current**, and the two that are not are the quiet failures: D2's entire residue is the
-frontmatter tag `wip-limits`, and D3's is a wiki link to a page the KB does not contain.
+gave up something the drafts did not have. The **drop arm read 4 of 6 stated as
+current** and reads **6 of 11 after V27**, and two of the rest are the quiet failures: D2's
+entire residue is the frontmatter tag `wip-limits`, and D3's is a wiki link to a page the
+KB does not contain.
 **K2 is an over-deletion hit** — v1, v2 and the co-source all state the on-time rule and
 the article writes 「on-time」 39 times without ever defining it — while three of P10's six
 controls are co-asserted by that never-superseded co-source and so cannot score alone.
 Calls 2 and 3 are answered at the drafted position and call 1 is recorded as settled by
-V3, each with the pre-V3 arithmetic corrected to 4 of 8, and **call 6 is raised and left
-with Captain**: a sweep of all 152 of v1's non-surviving lines turns up **six unrestated
-propositions**, three of them stated as current in the article, and one of the six has a
-contradiction reading that would gate.
-**P9 — 10 confirmed, 7 amended, none rejected**, holding at
-6C / 5D / 6K with 3 of 6 stale, and it is the case where the pass measured what the
+V3, each with the pre-V3 arithmetic corrected to 4 of 8, and **call 6 was raised by the
+pass and ruled by V27**: a sweep of all 152 of v1's non-surviving lines turns up **six
+unrestated propositions**, three of them stated as current in the article, of which five
+are now drops D7–D11 — including the one whose contradiction reading would have gated,
+declined on V3's and V17's different-statistics ground.
+**P9 — 10 confirmed, 7 amended, none rejected**, and **6C / 8D / 6K after V26** with 3 of 6
+stale, and it is the case where the pass measured what the
 drop arm is *not* carrying: 126 of v1's 208 non-blank body lines survive in v2
 byte-identical, and re-testing the 82 that do not against V8's standard turns up
 **five unrestated v1 propositions**, three of them stated as current in the article.
-That is **call 9**, raised here and left with Captain because each promotion moves the
-published drop total. P9's **call 3** stays open too, and the pass narrowed it from
-both sides: v2 restates v1's offer nowhere (高价值 and 个人专属 are 0 hits) and re-terms
-the same capability as a paid tier, yet the contradiction still needs v2's tier table
-read as exhaustive, which is what P3 call 4 declined to do for command tables. The
+That is **call 9**, raised here and **ruled by V26**, which promoted three of the five —
+(a), (c) and (d) — held (b) out as a contradiction candidate rather than filing it as a
+drop v2 contradicts, and left (e) a note. P9's **call 3 is ruled by V25**, and the pass had
+narrowed it from both sides: v2 restates v1's offer nowhere (高价值 and 个人专属 are 0 hits)
+and re-terms the same capability as a paid tier, yet the contradiction would still need
+v2's tier table read as exhaustive, which is what P3 call 4 declined to do for command
+tables — so V25 keeps the row and re-grounds it on the re-terming, moving no total. The
 answered calls settle the mechanism question this case turns on — **colour markup
 asserts a phase where the document declares a legend** (v2 L124), which is not the
 same as reading a phase off an absent highlight, the weaker half of C6.
@@ -82,20 +91,23 @@ which is where C1's replacement figure turned into a percentage in four places.
 reader is handed is not the version that made the change. V18, V5 and V22 had each found
 that for one row; the pass found it for the other six and left only C10 genuinely v3→v4.
 That is the case for NG3's trail rather than a latest-wins flag, and it is measured on
-the one staged chain longer than a pair. **P3 — 14 confirmed, 5 amended, none rejected**, holding at 8C / 5D /
-6K with 6 of 8 stale: four amendments add article residue the drafts had under-cited,
+the one staged chain longer than a pair. **P3 — 14 confirmed, 5 amended, none rejected**, and **9C / 5D / 6K after V23**, 7 of 9
+stale against the 8C / 6-of-8 the pass left: four amendments add article residue the drafts had under-cited,
 which matters because a fix reaching only the cited lines would otherwise have scored
 as complete, and the fifth restores the half of a control's evidence that was missing.
 **P2 — 15 confirmed, 3 amended**, its C7 and C8 already settled by V10; the label
 stays in the fixture's stated direction as counter-case evidence, and confirming it
 corrected the identity claim underneath the inversion, which holds on content and not
-on bytes. Five open calls are now left for Captain — **P3 call 3**, **P8 call 3**,
-**P9 call 3**, **P9 call 9** and **P10 call 6** — and each of them has one branch that
-moves published totals, which is why none was taken in the pass. Every other call it touched was answered
+on bytes. The five calls the pass left for Captain — **P3 call 3**, **P8 call 3**,
+**P9 call 3**, **P9 call 9** and **P10 call 6** — are **ruled as V23–V27 on 2026-08-17**,
+each on the branch its own evidence supports rather than on the one that moves nothing:
+P3 call 3 promoted (V23), P8 call 3 promoted as a drop (V24), P9 call 3 kept and
+re-grounded (V25), P9 call 9 three-of-five promoted (V26), P10 call 6 five-of-six
+promoted (V27). Every other call the pass touched was answered
 at its drafted position, the branch that moves nothing: P4's call 9, P5's call 1, P7's
 call 4, P8's calls 4 and 6, P9's calls 1, 2, 4 and 5, and P10's calls 2 and 3 — plus P5's
 calls 2 to 5 and P8's calls 1 and 5, which were corrected on measurements rather than
-answered on judgement. P4, P5 and P7 leave nothing open at all. The verification queue below is
+answered on judgement. **No case leaves anything open.** The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -129,10 +141,11 @@ rows plus P2's 18 settled across eight case passes; the two blocking rulings (P2
 direction, P7's same-period reading) are recorded here as decisions rather than as
 questions — **done, 2026-08-15**; and test-set.md's Status block stops calling the
 labels awaiting-confirmation — **done, 2026-08-17**, its Status block and all eight Label
-cells now reading confirmed. FX5's scoring can run against these labels. Note what "settled" does
-and does not cover: five judgement calls stay open with Captain, listed at the top of this
-file, and each is a promotion that would move a published total rather than a row whose
-verdict is unknown.
+cells now reading confirmed. FX5's scoring can run against these labels. Note what "settled" covered and
+what it did not: the pass left five judgement calls with Captain, each a promotion that
+would move a published total rather than a row whose verdict was unknown, and all five are
+**ruled as V23–V27 on 2026-08-17**. Ten rows arrive with those rulings, so the set holds
+128 scoring rows against the 118 the pass settled.
 
 Confirming does not require reopening the fixture. Every row carries the file and
 line of both sides, plus the decisive quote, because aligning them is the
@@ -169,23 +182,25 @@ are into the fixture files named at the head of each case.
 
 | Case | Contradictions | Drops | Controls | Stale in article today | Status |
 |---|---|---|---|---|---|
-| P3 | 8 | 5 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 19 rows settled: 14 confirmed, 5 amended on evidence with no verdict moved, none rejected; calls 1, 4 and 7 answered at the drafted position and **call 3 left open**, the one promotion in this case that would move totals. **V7 ruled 2026-08-16**: D3 stays a drop and call 2's promotion is declined, so P3 holds at 8C / 5D and has no queue item left, see [P3](#p3--cht-knowledge-distillation-and-indexing) |
+| P3 | **9** | 5 | 6 | **7 of 9** | **confirmed 2026-08-17** — all 19 rows settled: 14 confirmed, 5 amended on evidence with no verdict moved, none rejected; calls 1, 4 and 7 answered at the drafted position and **call 3 ruled by Captain as V23, 2026-08-17** — promoted, the one call in this case that moves published totals, taking P3 to 9C with 7 of 9 stale and the set to 45C. **V7 ruled 2026-08-16**: D3 stays a drop and call 2's promotion is declined, so P3 holds at 9C / 5D and has nothing left open, see [P3](#p3--cht-knowledge-distillation-and-indexing) |
 | P4 | 10 | 4 | 6 | **9 of 10** | **confirmed 2026-08-17** — all 20 rows settled: 10 confirmed, 10 amended, none rejected, and no verdict moved, so it holds at 10C / 4D / 6K with 9 of 10 stale. The pass is dominated by one systematic correction: **five more rows have their replacement land mid-chain**, not at v4 — C1, C2, C4 and C5 at v2, C6 and C7 at v3 — which is the correction V18, V5 and V22 each made for a single row, and it now covers **9 of the 10** — every contradiction except C10, whose change genuinely is v3→v4. Also: **call 9 answered yes**, a heading asserts, on C2's mirrored defect; one residue moved from C5 to C4; C1's and D1's residues were under-cited; and three string hazards recorded (`service_action`, `166624305`, 「兑币的流水回滚」). Worst case in the set; **V5 ruled 2026-08-16** keeps C8 with a recorded residual, **V15 ruled 2026-08-17** relabels X1 as a drop followed by a supersession over one entity and finds the fixture unable to carry a nested supersession at all, **V22 ruled 2026-08-17** keeps C9 stale on L667 alone, the other two residues tracing to a passage v2, v3 and v4 assert identically, and **V18 ruled 2026-08-17** keeps C3 stale on four v1-exclusive strings while withdrawing R3's, which is v1's own and control K4's, see [P4](#p4--trade-rollback-trd-four-versions) |
 | P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 5C / 6D / 6K with 0 of 5 stale and 3 of 6 drops stated as current. The pass measured the pair row by row — **278 endpoint rows in v1, 299 in v3, 273 shared, name and method identical in every one** — and corrected two measurements the case rested on. The 状态 *cell* differs on **22 of the 273**, always 「🔴 **移除**」 → 「**移除**」, so a field-equality test reads 22 changed rows where the decision reads none; and five of the 17 abridged 备注 are not trailing-clause deletions, one of them (`p2p/order/finish`) a rewrite. **The article's notation blends the two versions while its figures do not**: 🔴 is 24 rows in v1 and 0 in v3, v1 being the only one of the article's 16 declared sources that marks removals with it, and it reaches the article at L386 — against which v3's fused P2P wording reaches L402 and L426. Row-level corrections: four of the five contradictions had their article side cited one line short (301 at L32/L141/L383/L564, 279 and the GET/POST split at L32 as well as L142, ~31 at four lines), two of the six controls sit on abridged cells so a byte test reads over-deletion (K2's 「等于转移持仓价值」 and K4's 「（权限提升）」, both clauses reaching the article at L397 and L396), K1 holds on content and not on bytes (「🔴 **移除**」 → 「**移除**（安全）」), and D6's two arms cannot be cited at one grain because v1 states that endpoint as a markdown pipe row and v3 as a lark table. The 280-against-278 basis is reconciled: `/v5/private` and `/v5/public/` are untabled in both files and counted in both totals. All five calls are answered, none moving a verdict, so P5 leaves nothing with Captain. **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 14 rows settled: 6 confirmed, 8 amended, none rejected, and no verdict moved, so it holds at 8C / 0D / 6K with 6 of 8 stale. The pass makes the case's structure measured rather than asserted: v1 is inside v2 **byte-identical across all ten shared table cells**, so the empty drop arm is a property of the pair — and it rests on **call 4**, now answered on arithmetic, because strikethrough is the one mechanism that could still produce a drop. Also: five of six controls are re-asserted in v2's own newest column and only **K1** holds by construction; C4 and C6 are the only rows whose cite leaves the newest column; C1's replacement figure reached the article **stripped of its unit** from a co-source (57.11 as a rate at L39, L51, L101, L479); C5's correction only half landed (25046 absent, 11362 present only in C6's framing); C8 and C5 had residues under-cited (L612; three derived pending-core lines); C3's superseded rate is stale **inside v1** and on a different basis than its replacement, so the row scores on the amount; and four string hazards recorded (`117.3` finds only the dated line; bare `3300`, `3864`, `7197`, `17054` and `1750` all miss the article's comma forms; `6.8` matches `S6.8XLARGE128`; `7C` matches inside `7197C`). **V4 ruled 2026-08-16** keeps all 8 rows scoreable and narrows the causal claim to C8; the pass narrows V4's own confound too — the co-source copies only the **Q2 half** of v1's newest column and carries the three landed figures without their units, see [P7](#p7--2026-h1-cost-progress-tracking) |
-| P8 | 0 | 6 | 6 | — | **confirmed 2026-08-17** — all 12 rows settled: 6 confirmed, 6 amended, none rejected, and no verdict moved, so it holds at 0C / 6D / 6K with five of six drops stated as current. It is the case the pass could close completely: **71 of 88 table rows are byte-identical**, and the 17 that are not decompose into two headers, the four owner rows V1 struck plus one scope expansion, the four rows of the deleted 关键资源约束 table, the three deleted milestone rows, and the three items the calls already set aside — so **nothing in this pair is unlabelled**, where the same sweep found five unrestated propositions in P9 and six in P10. The drop arm is therefore complete at 6 rather than capped at 6 (call 6). Two evidentiary points are stronger than drafted: the article declares **only the two chain versions**, so with P3 it is one of the only two cases free of a co-source confound, and v2 deletes the only two in-body dates later than v1's frontmatter (D4's 4/13–4/19 and D5's 4/14), so the newer body is dated less than the older. Row-level: K3's cite was one cell of three and all twelve cells of the 数据汇总 table are byte-identical, while the article never states its 24 + 39 split; K4 holds on content and not on bytes (v2 bolds the figure and closes a space); D1's residue is three article lines and drops its scope clause; D2 shares L161 with D1; D6's second residue at L125 was uncited; and 「安全团队」 cannot serve as D3's absence test, having a hit in v2 at L391. **Call 3 is escalated and left with Captain**: V8's test, which promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」, so on that reading it is a seventh drop with three article residues and the published drop total moves 32 → 33. **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
-| P9 | 6 | 5 | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 6C / 5D / 6K with 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Two calls are left with Captain**: call 3, where 高价值 and 个人专属 being 0 hits in v2 pull one way and P3 call 4's refusal to read omission as denial pulls the other, and **call 9, raised here** — a sweep of every v1 line absent from v2 that finds **five unrestated propositions the drop arm does not carry**, three of them stated as current in the article. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
-| P10 | 7 | 6 | 6 | 3 of 7 | **confirmed 2026-08-17** — all 19 rows settled: 8 confirmed, 11 amended, none rejected, and no verdict moved, so it holds at 7C / 6D / 6K with 3 of 7 stale. It is the case where the pass measured the **rewrite**: only **19 of v1's 171 non-blank body lines survive in v2 byte-identical** and seventeen of those are separators, headings and table rules, so no row here can be scored on a shared string and the drop arm is a judgement about propositions rather than about lines. Two findings sit on the other arms. The **drop arm reads 4 of 6 stated as current** (D1, D4, D5, D6), and the two that are not tell you where a compile loses things quietly: D2's whole residue is the frontmatter tag `wip-limits` with no body line behind it, and D3's is a link to [[Organizational Change Management for Engineering Teams]], a title no file in the KB carries. And **K2 is an over-deletion hit**, harder than P9-K5's thin carriage — three sources state the on-time rule (v1 L236, v2 L381, full L204) and the article writes 「on-time」 39 times without defining it once, while three of the six controls (K1, K2, K3) are co-asserted by the never-superseded full report and so cannot score on their own. Row-level corrections: C7's 43% is v1's arithmetic and not the unscored framing V6 set aside (v2's extremes give 41.9%); C1 holds on the rule because v1's 「约占 6.3%」 never reaches the article, which uses the co-source's 984 / 5.3%; C3's replacement reaches two lines beyond the cite (L52, L70); K1 holds on content and not on bytes (「上主网」 → 「上主网(MainNet)」); and seven cites were short of their own item (C2's L378, D2, D3, D4 and D5's second halves, K4's L79, K5's L344). Calls: **1 was settled by V3** and is recorded as such, **2 and 3 are answered no** with the pre-V3 arithmetic corrected in both (4 of 8, not 5 of 9 or 4 of 9), 4 and 5 keep their lists, and **call 6 is raised and left with Captain** — a sweep of all 152 non-surviving v1 lines that finds **six unrestated propositions the drop arm does not carry**, three of them stated as current, plus two excluded on V9's ground. **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
+| P8 | 0 | **7** | 6 | — | **confirmed 2026-08-17** — all 12 rows settled: 6 confirmed, 6 amended, none rejected, and no verdict moved; with **V24** it holds at 0C / 7D / 6K, six of seven drops stated as current. It is the case the pass could close completely: **71 of 88 table rows are byte-identical**, and the 17 that are not decompose into two headers, the four owner rows V1 struck plus one scope expansion, the four rows of the deleted 关键资源约束 table, the three deleted milestone rows, and the three items the calls already set aside — so **nothing in this pair is unlabelled**, where the same sweep found five unrestated propositions in P9 and six in P10. The drop arm is therefore complete rather than capped (call 6), at 7 once V24 promoted the one candidate outside the six. Two evidentiary points are stronger than drafted: the article declares **only the two chain versions**, so with P3 it is one of the only two cases free of a co-source confound, and v2 deletes the only two in-body dates later than v1's frontmatter (D4's 4/13–4/19 and D5's 4/14), so the newer body is dated less than the older. Row-level: K3's cite was one cell of three and all twelve cells of the 数据汇总 table are byte-identical, while the article never states its 24 + 39 split; K4 holds on content and not on bytes (v2 bolds the figure and closes a space); D1's residue is three article lines and drops its scope clause; D2 shares L161 with D1; D6's second residue at L125 was uncited; and 「安全团队」 cannot serve as D3's absence test, having a hit in v2 at L391. **Call 3 is ruled as V24, 2026-08-17**: V8's test, which promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」, so it is a seventh drop — D7, three article residues — and the published drop total moves 32 → 33. **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
+| P9 | 6 | **8** | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved; with **V26** it holds at 6C / 8D / 6K, 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Both calls it left with Captain are ruled**: **V25** keeps C6 and re-grounds it on v2's re-terming of the same capability (付费订阅 to 中间用户, L185–186) rather than on the tier table being exhaustive, which is what P3 call 4 declined to read — so no total moves; and **V26** takes three of call 9's five unrestated propositions as drops D6–D8, holding (b) out because v2 asserts A2UI in its place and leaving (e) a dimension note. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
+| P10 | 7 | **11** | 6 | 3 of 7 | **confirmed 2026-08-17** — all 19 rows settled: 8 confirmed, 11 amended, none rejected, and no verdict moved; with **V27** it holds at 7C / 11D / 6K, 3 of 7 stale. It is the case where the pass measured the **rewrite**: only **19 of v1's 171 non-blank body lines survive in v2 byte-identical** and seventeen of those are separators, headings and table rules, so no row here can be scored on a shared string and the drop arm is a judgement about propositions rather than about lines. Two findings sit on the other arms. The **drop arm reads 6 of 11 stated as current** (D1, D4, D5, D6, and V27's D9 and D11), and two of the rest tell you where a compile loses things quietly: D2's whole residue is the frontmatter tag `wip-limits` with no body line behind it, and D3's is a link to [[Organizational Change Management for Engineering Teams]], a title no file in the KB carries. And **K2 is an over-deletion hit**, harder than P9-K5's thin carriage — three sources state the on-time rule (v1 L236, v2 L381, full L204) and the article writes 「on-time」 39 times without defining it once, while three of the six controls (K1, K2, K3) are co-asserted by the never-superseded full report and so cannot score on their own. Row-level corrections: C7's 43% is v1's arithmetic and not the unscored framing V6 set aside (v2's extremes give 41.9%); C1 holds on the rule because v1's 「约占 6.3%」 never reaches the article, which uses the co-source's 984 / 5.3%; C3's replacement reaches two lines beyond the cite (L52, L70); K1 holds on content and not on bytes (「上主网」 → 「上主网(MainNet)」); and seven cites were short of their own item (C2's L378, D2, D3, D4 and D5's second halves, K4's L79, K5's L344). Calls: **1 was settled by V3** and is recorded as such, **2 and 3 are answered no** with the pre-V3 arithmetic corrected in both (4 of 8, not 5 of 9 or 4 of 9), 4 and 5 keep their lists, and **call 6, raised by the pass, is ruled as V27** — a sweep of all 152 non-surviving v1 lines that finds **six unrestated propositions**, five of them now drops D7–D11, plus two excluded on V9's ground; (f)'s contradiction reading is declined on V3's and V17's different-statistics ground, so the gating column stays at seven. **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue; **confirm pass 2026-08-17** settled its 18 marked rows, 15 confirmed and 3 amended, C7 and C8 having been settled by V10 already, and corrected the agreement to hold on content rather than on bytes, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
-Totals across the seven scoring cases: **44 contradictions, 32 drops, 42
-controls**. The published pre-A1 staleness rate is **27 of 39, 69%** — measured over
+Totals across the seven scoring cases: **45 contradictions, 41 drops, 42
+controls** — 44 / 32 / 42 as the confirm pass left them, plus V23's contradiction and the
+nine drops V24, V26 and V27 promoted. The published pre-A1 staleness rate is **28 of 40,
+70%** — measured over
 compiled output rather than argued from P1 alone, and over the five cases actually judged
-on the column (P3, P4, P7, P9, P10). P5's five contradictions are in the 44 but P5 is
+on the column (P3, P4, P7, P9, P10). P5's five contradictions are in the 45 but P5 is
 reported apart from the staleness column, permanently under V20 and as an A2 body-date
-case under **V21**, so the 44-denominator reading is retired as a headline: it shares the
-numerator only because P5 is scored 0 of 5, which is the reading V20 ruled the payload
-cannot support. Plus one non-scored trail entry (P4-X1) as evidence for NG3's trail
+case under **V21**, so the all-cases denominator is retired as a headline: at 33 of 45 it
+shares the numerator only because P5 is scored 0 of 5, which is the reading V20 ruled the
+payload cannot support. Plus one non-scored trail entry (P4-X1) as evidence for NG3's trail
 format — **a drop followed by a supersession over one entity rather than a chained
 supersession, ruled by V15 on 2026-08-17**, and the strongest thing this set can offer
 NG3, since P4 is the only staged chain longer than a pair and a nested supersession
@@ -234,10 +249,11 @@ on the reference KB. That settles the payload's claim but not P5 — ruling it f
 frontmatter date wrong by six days against its own body, so P5's staleness stays out of
 the gating count and the reason became **V21**, now **ruled 2026-08-16**: the fixture keeps
 v3 verbatim, because both its files are byte-identical to their corpus copies, and P5 is
-recorded as an A2 body-date case instead. With P5 out for good, the published rate is
-**27 of 39 (69%)** over the five gating cases. The 44-denominator reading is retired:
-27 of 44 (61%) and the payload's own 32 of 44 (73%) are the two ends of one band, and
-which end you land on depends on a measurement of P5 that V20 ruled unsupported. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
+recorded as an A2 body-date case instead. With P5 out for good, the published rate is the
+one over the five gating cases — **27 of 39 (69%)** when V21 was ruled, **28 of 40 (70%)**
+since V23 added P3-C9. The all-cases denominator is retired: on today's 45 it runs from
+28 of 45 (62%) to the payload's own 33 of 45 (73%), and which end you land on depends on a
+measurement of P5 that V20 ruled unsupported. V4 left P7 with all 8 rows, narrowing only the claim that its staleness
 demonstrates *this pair's* ordering being lost, which C8 alone supports. V5 kept P4-C8
 at **9 of 10 stale**, since the residual `系统户` prose describes a different level than
 the counterparty role the row scores. V6 kept P10-C7 on the replacement it was drafted
@@ -346,7 +362,8 @@ the drop total to 32, and V9 moved nothing at all, since D4 and D5 were already 
 drop arm — what it settled is that arm's measurement, 3 of 6 stated as current, with D1's
 co-sourced residue excluded. The rest change what a number means or correct
 the reasoning under it — V21 included, which moved no total and instead decided which
-staleness figure is published, 27 of 39 over the five gating cases, and V10, which moved
+staleness figure is published — the five gating cases' rate rather than the all-cases one —
+and V10, which moved
 no total because P2 scores nothing but retired the recipe that would have brought it
 back. **V11 is the same kind**: it moves nothing and changes which of P10's article lines
 may be scored, having found call 5's protected list wrong in three places and P10's
@@ -368,7 +385,7 @@ could have moved a total, and it did not**: P4-C9 keeps its stale verdict on L66
 byte-identical in v2, v3 and v4 — a whole-tail diff, not a line comparison — while v3
 deleted that hedge in the same edit that named TRW, so what the article repeats is a
 question v3 answered rather than one v4 stopped asking. P4 stays 9 of 10 and the published
-rate 27 of 39. **V17 is the same kind, and its caveat turned out to be an accounting rather
+rate is untouched by it (27 of 39 then, 28 of 40 after V23). **V17 is the same kind, and its caveat turned out to be an accounting rather
 than a hedge**: P10-C5's 13.8 → 15.3 and 17.8 → 19.8 set v1's ≤90 population against an
 unfiltered one, because v2's twelve monthly cycle cells are the 03-05 co-source's 全量
 column in all twelve months while the ≤120 population v2 declares for efficiency produces
@@ -409,20 +426,30 @@ where confirmation decides whether it scores.
 | **V21** | P5's frontmatter date | `data/kb-supersession-fixture/raw/docs/2026-03-13-…-v3.md`, and P5's row in test-set.md | **RULED 2026-08-16: the second option is taken — the fixture keeps v3 verbatim, P5 is recorded as an A2 body-date case, and the published stale rate becomes 27 of 39 (69%).** Raised by ruling V20. The premise verifies exactly: v3's frontmatter reads `date: 2026-03-13` (L4) while its body reads 「生成时间：2026-03-19」 (L12), against v1's 「生成时间：2026-03-13」 (L13) — six days apart, so the payload's date tie is an artifact of v3's metadata rather than a property of the corpus, and the true order 03-13 → 03-19 is not inverted by the dates the way P2's is. Only WP5's path tie-break inverts it. Five findings came with ruling it. **Fixture fidelity is measured rather than assumed, and it is what decides the first option**: both P5 files are byte-identical to their corpus copies under `data/kb-knowledge/raw/docs/`, so re-dating v3 would make P5 the one place in the fixture where a staged document departs from the document it was staged from — the property FX1–FX3 rest on. **P5 was already inside the A2 population, counted but not named**: of the 101 corpus documents whose newest body-stated date postdates their frontmatter date, 99 state it in a heading and **2 in a 生成时间 line**, and v3 is one of those two; the fixture's recorded 6 of 38 is 5 on headings alone, so the sixth was always P5. What was wrong is the descriptor rather than the count — "body heading date" has to read **body-stated date**, since the heading form alone measures 99 of 996 and not 101. **The count is a floor, and P5 is the third named fixture instance rather than the second**: N2's 04-17 file heads a section 「周例会 0428」 (L12) and its 05-06 file 「周例会 0512」 (L37), an `MMDD` form no date scan catches, which takes the fixture to at least 8 of 38 — test-set.md already names N2 as the second instance. One recorded figure does not reproduce: **36 stale by more than a week** measures 35 at more than seven days and 40 at seven or more, while 101 and 99 reproduce exactly (the original script is gone per FX1, so these are a reconstruction's numbers, stated with their thresholds). **The rate is conditional on a body date existing, and the corpus does not favour reading one**: only **505 of the 996** documents state a body date at all, so the conditional rate is 101 of 505 (20%) rather than 10.1% — and among those 505 the newest body date points **earlier** than the frontmatter date in **109** and later in 101, with 295 agreeing — so at corpus scale the two directions are near-even rather than lopsided, which is V20's finding (7 earlier of 10) reproduced at n=505 and weakened by it: earlier still leads, and no basis in the corpus says which of a document's two dates is its own. **A body-date rule would de-order two pairs to order one**: both members of N3 carry the heading 「Meeting transcript: realclaw安全评估 2026-04-10」 (L9) and both members of N4 「文字记录：…2026年4月9日」 (L9), because a transcript's heading date names the meeting rather than the document — so reading body dates collapses two pairs that frontmatter dates order correctly (03-10 → 03-11) into same-day ties, which under WP9 carry no ordering claim at all. Corpus-wide that shape dominates the population: **78 of the 101 sit under `raw/meetings`**, and 24 of them fall in 10 clusters sharing both a title and a body date | **Ruled: score P5 as an A2 body-date case, and publish 27 of 39 (69%).** The first option is rejected on the byte-identity above, the third because it loses the same Shape-B probe the second one loses while buying nothing in return. What the second option buys is exact and small: P5 is the one fixture pair a body-date rule would order, against the two it would de-order, so it gives A2's deferred question its first measured instance **and** its first measured counter-evidence. That is a reason to keep the question in A2 pending FX7 rather than to pre-empt it here, which is where V20 left it. FX3 records three wrong-date cases rather than two — P2 inverted by date, N2 dated before its own sections with its order intact, P5 tied by a date wrong by six days — and the descriptor corrections land wherever the population is quoted. **On the denominator**: the two readings share the numerator 27 only because P5 is scored 0 of 5, and that 0 is precisely the reading V20 ruled the payload cannot support. Scored against the order the payload states today P5 is 5 of 5, which makes the all-cases figure **32 of 44 (73%)**. So 27 of 44 is not the conservative reading of the pair; it is the low end of a 27–32 of 44 band (61–73%) whose position turns entirely on an unruled measurement of a case that is not judged on the column. **27 of 39 is the only figure that does not depend on P5**, and it sits inside that band, so publishing it is not taking the flattering end of it — but it is the larger number and therefore the one that argues harder for buying A1, so it is published with its composition attached rather than bare: 27 of 39 over five gating cases, with P5 and P8 named as excluded and why. 61% is retired as a headline and kept only as the set-total statement — 44 contradictions across seven cases, 39 of them judged on staleness | Applied: **no total moves** — 44/32/42 with 27 stale, and P5's 5C / 6D / 6K stay counted. Two things change. The published rate is **27 of 39 (69%)** across five gating cases (P3, P4, P7, P9, P10), and P5's exclusion now has a recorded disposition rather than a pending one: an A2 body-date case, reported apart from the gate for good. Its drop arm is unaffected — V9's 3 of 6 is measured against the labels, which take the true order from the two 生成时间 lines, and drops do not gate. The queue closes at **21 items, 14 settled and 7 open** at this ruling, none of the 7 moving a total — **V10 and V11 have since taken it to 16 settled and 5 open, and V13 to 17 and 4** |
 | **V22** | P4-C9 | P4 → contradictions table | **RULED 2026-08-17: the row stands on one residue instead of three, and a whole-tail diff is what decides it.** Raised by ruling V15. The premise verifies and then hardens past what it claimed. L425 「a **TWAP market-selling mechanism** similar to the insurance pool」 traces to L5832 「采用类似保险池twap甩卖机制进行盘口甩卖」 and L426 「either held to expiry or transferred to a PM takeover account」 to L5833 「期权仓位如何处置： 1.等交割 2.通过移仓给到PM接管户」 — pairings v2's superseded cell does not carry, since it puts 现货 with 期权 and offers no 等交割. What the item asserted line by line holds for **the whole block**: diffing v2 from its 待决策和讨论项 marker to end of file (L5531–5598) against v4's (L5804–5867) leaves exactly two differences, both v2-exclusive deletions — 「仓位强增操作，经过撮合？…」 and 「现货兑币： TR还回来？」 — and v3's tail is byte-identical to v4's, so item 5's two bullets, the junk-coin question, the worked example and its `TR:` ledger line all stand unchanged in all three versions. Those lines are control-shaped: under V19's ruled criterion the newest source speaking to them is v4, and they discriminate nothing in either direction. Four findings came with ruling it. **v3 answers the TR question rather than falling silent on it**, which is what keeps the row a contradiction rather than a drop: the edit that first writes 「给到TRW处置」 (`TRW` 0/0/1/1) deletes both of v2's TR markers — the cell's own 「这里还需要和TR讨论下」 and 「现货兑币： TR还回来？」, 1 hit each in v2 and 0 in v1, v3 and v4 — and folds 现货 into the disposal item (v2's 期权和现货 → PM against v3's 现货和持仓 → TRW). An article calling the disposal pending TR discussion is not repeating something v4 merely stopped mentioning; it is repeating what v3 recorded as settled. **The article's action-item section exhibits the append**: it is partitioned by source — one unlabelled table, then 「Additional action items from 2026-05-26 TRD」 (L654) and 「…from 2026-06-04 TRD」 (L679) — and the later block picks up the line v3 *added* to §5 (「财务资金处置」, v3 L5671 / v4 L5672, reaching article L688 with the same owner `ou_436ac3…`) while missing the line v3 *changed* in it. Additions carried, replacement missed, inside one table of one article. **That also bounds the dated-label defence** L667 might otherwise have: the labels name which document a block was read from, not when its content entered — 「财务资金处置」 is v3's and is filed under 06-04 — so 「from 2026-05-26 TRD」 makes no claim that anything in that table was later replaced, and the section it sits in is titled 「Open Action Items」. **The pair is v2 → v3, not v2 → v4**, the same line-level correction V5 made for C8, since `TRW` first appears at v3 L5705 and v4 only shifts it one line. **And P4's one co-source is silent on this row**: `处置`, `甩卖`, `保险池`, `TRW`, `系统户`, `差额` and `TR讨论` are 0 hits in `raw/docs/2026-04-20-a23-异常交易回滚-仓位字段回滚分析.md`, whose single 接管户 hit is the hedging-engine 接管价格 field (article L266's `hedging_take_over_price_x`) — so unlike P7's seven rows and P10's C4 / C7, C9 carries no co-source confound and its causal claim needs no narrowing | **Ruled: C9 stands, scored on L667 alone, with C5's kind of caveat attached.** L425–426 leave the `Article today` cell and are recorded instead as this case's presentation defect, P10-C2's shape: the article states v4's 待决策 options as settled characteristics under 「Key characteristics」, and it demonstrably knows the other form, since the junk-coin question from the same source block is filed as an open item at L685. So the article keeps the hedge v3 deleted and drops the hedge v4 still carries — wrong in both directions, and only the first is staleness. Two tests are pinned, the P7-C2 hazard: C9's is 「这里还需要和TR讨论下」 against the article's 「discuss with TR」, and **not** `PM接管户`, `等交割`, `twap`, `保险池`, `盘口`, `甩卖` or `移仓`, every one of which survives into v4 — a *count* discriminates where a presence test does not (`盘口`, `PM接管户` and `移仓` are 2 in v2 against 1 in v3 and v4). R9's test is `TRW`, and it is the cleanest string in the case: 0/0/1/1 across the chain, 0 in the co-source, 0 in the article. The source-side ambiguity stays where it was documented, [call 3](#p4-open-judgement-calls), rewritten around the diff | Applied: **no total moves** — 44/32/42 with 27 of 39 stale (69%), and P4 stays 10C / 4D / 6K at **9 of 10**. The row keeps its verdict and loses two of its three residues, its transition is corrected to v2 → v3, the v2→v3 summary gains the third deleted marker, and the hedge-dropping is recorded as a finding rather than raised as a new item. The queue closes at **22 items, 20 settled and 2 open** — V17 and V18, **neither of which can move a number**, so every item that could is now ruled. **V17 has since been ruled and moved none**, taking the queue to 21 settled and 1 open: P10-C5 stands as a level-only contradiction, and v2's efficiency cycle series turns out to be the 03-05 co-source's unfiltered column. **V18 has since closed the queue, also moving none** |
 
+Every "the set stays 44 / 32 / 42 with 27 of 39 stale" clause in the table above is a
+**ruling-time** reading: it records that the ruling in that row moved nothing, and it is
+superseded as a current figure by V23–V27, which moved ten rows. The current totals are
+the ones below and in the [Progress](#progress) table, nowhere else.
+
 **Done means**: every V-item above reads `ruled` — or, for V16, `resolved` — with the
 decision written into the row it governs, and the Progress table is recomputed from
-the survivors. **V1–V15 and V19–V22 are ruled and applied**, so the
-Progress table now reads **44 contradictions, 32 drops and 42 controls, with 27 of 39
-stale (69%)** — carried by seven cases still, but only **five of them gating**, since P8
-contributes no contradictions and P5 is not judged on the column. The drop total is 32 rather than 31 because V8 promoted
+the survivors. **V1–V15 and V19–V22 are ruled and applied**, and Captain's
+**V23–V27** on top of them, so the
+Progress table now reads **45 contradictions, 41 drops and 42 controls, with 28 of 40
+stale (70%)** — carried by seven cases still, but only **five of them gating**, since P8
+contributes no contradictions and P5 is not judged on the column. **Where the ten new rows
+sit**: V23 gives P3 its ninth contradiction, V24 gives P8 a seventh drop, V26 gives P9 its
+sixth to eighth and V27 gives P10 its seventh to eleventh — nine drops in all, which is why
+the drop arm moves 32 → 41 while the gating arm moves by one. Through the pass itself the
+drop total was 32 rather than 31 because V8 promoted
 P5's `universal-transfer` abridgement to D6, the one row of that case's seventeen where
 the dropped clause is neither entailed by what survives in its cell nor restated by v3
 elsewhere. V9 leaves it at 32 and puts a figure on what that arm has lost: **3 of P5's 6
 drops are stated as current** (D4, D5, D6), with D1's residue excluded because a
 never-superseded declared source asserts the same material. V20 leaves those totals where they are and adds one
-qualification to the headline: P5's five contradictions are counted in the 44 but P5 is
+qualification to the headline: P5's five contradictions are counted in the set total but P5 is
 not judged on the staleness column. **V21 publishes the figure that follows from it** —
-**27 of 39 (69%)** across five cases — and disposes of P5 as an A2 body-date case, the
+27 of 39 (69%) across five cases when it was ruled, **28 of 40 (70%)** since V23 — and disposes of P5 as an A2 body-date case, the
 fixture keeping v3's wrong frontmatter date because the staged file is byte-identical to
 the corpus copy it came from. **V10 leaves every number alone** — P2 has scored nothing
 since 2026-08-15 — and settles the last question about the case that was still open:
@@ -510,6 +537,31 @@ first.
 
 ---
 
+## Captain's rulings on the escalated calls, 2026-08-17
+
+These five are not queue items — the verification queue closed at 22 of 22. They are the
+judgement calls the confirm pass deliberately did not take, each because one of its
+branches moves a published total, and each is ruled here on its own evidence. Ten rows
+arrive with them: one contradiction and nine drops.
+
+| # | Call | Ruling | What it moves |
+|---|---|---|---|
+| **V23** | [P3 call 3](#p3-open-judgement-calls) — knowledge-repo naming | **Promoted to contradiction C9.** Both sides carry exclusive strings (v1's form 12 hits in v1 / 0 in v2, v2's 3 / 0), which is what P4-R3 lacked, and the article uses v1's form at three lines of which only one falls under call 2's one-defect-counted-once precedent | 44C → **45C**; P3 8C → 9C at 7 of 9 stale; headline 27 of 39 → **28 of 40 (70%)**. The only ruling of the five that touches the gate, and it raises the bar A1 must clear |
+| **V24** | [P8 call 3](#p8-open-judgement-calls) — the JIRA/GitLab MCP schedule | **Promoted to drop D7**, not to a contradiction: V1 closed that branch, and V8's two prongs hold on the drop reading. V9's exclusion does not fire, because the sibling carrying the same 「Q2 W6」 is undeclared — the V16 shape, which leaves the residue with the chain | 32D → **33D**; P8 6D → 7D, six of seven stated as current. P8 still does not gate |
+| **V25** | [P9 call 3](#p9-open-judgement-calls) — C6 | **Kept as a contradiction, re-grounded.** Demotion was declined, and the row's basis moves off "v2's tier table is exhaustive" — the inference P3 call 4 refused for command tables — onto v2's own re-terming of the same capability as 付费订阅 for 中间用户 (L185–186). The 「(phase 3)」 half, which rests on an absent highlight, is not endorsed | Nothing. P9 holds 6C, headline unchanged. What changes is what the row is tested on |
+| **V26** | [P9 call 9](#p9-open-judgement-calls) — the abridgement sweep | **Three of five promoted** — (a) 链式执行, (c) reuse-rate iteration, (d) 以BOT为例 → D6–D8. (b) is held out because v2 is *not* silent on the output side (A2UI at L157, L308), so V8's first prong fails and its honest reading is a contradiction candidate, recorded unscored. (e) is a dimension, not a proposition | 33D → **36D**; P9 5D → 8D, five of eight stated as current. Gating column untouched |
+| **V27** | [P10 call 6](#p10-open-judgement-calls) — the rewrite sweep | **Five of six promoted** → D7–D11, with (f) taken as a *drop* and its contradiction reading declined on V3's and V17's ground: v1's 交付周期 against v2's 研发周期 is different statistics over different spans. (e) is a dimension, as in V26 | 36D → **41D**; P10 6D → 11D, six of eleven stated as current. Gating column stays at nine rows, so the headline is V23's alone |
+
+Two things the five have in common, and they are why the branches went this way. **V8's
+standard is applied uniformly**: once it promoted P5-D6, every unrestated proposition the
+sweeps found is either a drop or has a stated reason not to be, and "the diff did not show
+it" stopped being one. And **the gate is only allowed to grow on affirmative evidence** —
+V23 gates on exclusive strings both sides, while every reading that would have gated on an
+*absence* (P9 call 9(b), P10 call 6(f)) is declined and recorded instead, which is the line
+P3 calls 2 and 4 drew and V3 and V17 held.
+
+---
+
 ## P3 — cht-knowledge distillation and indexing
 
 - `v1` = `data/kb-supersession-fixture/raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md`
@@ -518,7 +570,7 @@ first.
 
 The revision is an architecture change, not a polish pass: project-level cache
 becomes user-level, a resident index becomes trigger-based injection, the
-distillation command changes owner and shape. Six of the eight contradictions are
+distillation command changes owner and shape. Seven of the nine contradictions are
 still stated as current in the article today, which makes P3 the strongest pre-A1
 failure in the set after P1. Unlike P1, its items are contradictions, so they
 gate.
@@ -535,6 +587,7 @@ gate.
 | P3-C6 / R6 | Distillation is a `cht-tools` command, `/cht-tools:distill` → it is `/cht-knowledge:distill --source <path>`, run inside the knowledge-base repo | v1 L448 「## 四、蒸馏工具设计（/cht-tools:distill）」 → v2 L513, L516 | **stale** — L75, and L21/L181/L232/L262; `/cht-knowledge:distill` appears nowhere | confirmed 2026-08-17 — all four `/cht-tools:distill` hits and L232's `/distill` re-checked |
 | P3-C7 / R7 | Distillation scans 6 dimensions with 6 parallel sub-agents → an 8-agent pipeline, 5 parallel then 3 serial | v1 L464 「蒸馏工具自动扫描 6 个维度，使用并行子 Agent 提高效率：」, agents at L468–473 → v2 L109, L393, L400 | not stale — article states 5 parallel + 3 serial (L75, agent tables L79–93, restated L183); no 6-agent or 6-dimension claim anywhere in it | confirmed 2026-08-17 |
 | P3-C8 / R8 | A knowledge base is `manifest.json` plus five named files (`system-overview.md`, `proto-guide.md`, `integration-guide.md`, `data-model.md`, `error-reference.md`) → `manifest.json` plus eight numbered files `00-overview.md` … `07-usage-guide.md` | v1 L609–615 → v2 L159–167 | **stale** — article's tree is v1's five names plus `manifest.json` and two extras (L108–117), and three of the names recur at L38 with two more at L174; v2's eight numbered names are 0 hits | amended 2026-08-17 — verdict unchanged; residue outside the tree recorded, since the tree is the only place a fix would look |
+| P3-C9 / R9 | A system's knowledge base lives in a repository named `cht/ai-coding/knowledge-{system}` → repositories are named `<系统ID>-knowledge` and sit under `cht/ai-coding/knowledge/` | v1 L890, L986 → v2 L583, L586. Both sides carry exclusive strings: v1's form is 12 hits in v1 and **0** in v2, v2's is 3 hits in v2 and **0** in v1 | **stale** — the article uses v1's form throughout (L105, L190, L262) and v2's form is 0 hits there | **promoted 2026-08-17, V23** — the one call in P3 that moves published totals, and it moves them because the evidence is cleaner than several rows already labelled: exclusive strings on both sides are what P4-R3 was found to lack. Call 2's one-defect-counted-once precedent reaches **L105 only**, that being the sentence introducing C8's file tree; L190 and L262 are residue no other row cites |
 
 ### Drops (measured, not gating)
 
@@ -562,12 +615,12 @@ gate.
 Each needs a yes/no from Captain; the default if ignored is the drafted position.
 Calls 1, 4 and 7 were **answered on 2026-08-17 with the confirm pass**, all three
 keeping the drafted position; call 2 was ruled by V7; calls 5 and 6 keep their
-recorded defaults. **Call 3 is the one this batch leaves open**, because answering
-it either way moves published totals.
+recorded defaults. **Call 3 is ruled by Captain as V23, 2026-08-17** — promoted,
+which is why this case now reads 9C, and nothing in P3 is left open.
 
 1. **P3-D1, drop or contradiction? — answered no, 2026-08-17: it stays a drop.** v2 replaces the framing with 「中台有 30+ 微服务」 (v2 L20). Drafted as a drop, because repo count and microservice count are different measures that can both hold. The article merges them into one sentence (L16) and reads coherently doing so, which is the evidence that decided it: there is no incompatibility for the gate to fire on. Ruling it a replacement would have promoted it to C9.
 2. **`manifest.json` schema — promotion declined, V7 ruled 2026-08-16.** v1's manifest carries per-interface contracts (`interfaces[]` with `idempotent_key`, `timeout_ms`, `retryable_errors`, `fatal_errors`, v1 L630–646); v2's carries `version`/`createdAt`/`updatedAt`/`triggers`/`documents` and no interface data (v2 L172–192). Same subject, field sets nearly disjoint, and it was drafted as the strongest candidate for promotion. It stays out because its only asserted clash is `version` (v1 L626 `"2024-04-20"` → v2 L176 `"0.1.0"`) and the article is current on that one at L125, so C9 would gate on `interfaces[]` being *absent* from v2 — the inference calls 4 and 6 decline — while striking D3 over the same four article lines. What stands recorded is that the article carries both schemas six lines apart (L119–123, L125): one defect, counted once.
-3. **Knowledge-repo naming — still open, and "low consequence" no longer describes it.** v1 `cht/ai-coding/knowledge-{system}` (L890, L986) against v2 `<系统ID>-knowledge` under `cht/ai-coding/knowledge/` (L583, L586). **Re-verified 2026-08-17 and the evidence is cleaner than several labelled rows**: v1's form is 12 hits in v1 and **0** in v2, v2's form is 3 hits in v2 and **0** in v1 and **0** in the article, so both sides have exclusive strings — which is what P4-R3 was found to lack. The article uses v1's form throughout (L105, L190, L262) and would score stale. Two things hold it out rather than one. The one-defect-counted-once precedent from call 2 reaches **one** of the three residues, since L105 is the sentence that introduces C8's file tree, but not L190 or L262. And promotion is the only call in P3 that **moves published totals**: P3 8C → 9C and 6 of 8 → 7 of 9 stale, set totals 44C → 45C, and the headline staleness 27 of 39 (69%) → 28 of 40 (70%). Left at the drafted position pending Captain, not because the row is weak.
+3. **Knowledge-repo naming — RULED V23, 2026-08-17: promoted to C9**, and "low consequence" never described it. v1 `cht/ai-coding/knowledge-{system}` (L890, L986) against v2 `<系统ID>-knowledge` under `cht/ai-coding/knowledge/` (L583, L586). **Re-verified 2026-08-17 and the evidence is cleaner than several labelled rows**: v1's form is 12 hits in v1 and **0** in v2, v2's form is 3 hits in v2 and **0** in v1 and **0** in the article, so both sides have exclusive strings — which is what P4-R3 was found to lack. The article uses v1's form throughout (L105, L190, L262) and would score stale. Two things hold it out rather than one. The one-defect-counted-once precedent from call 2 reaches **one** of the three residues, since L105 is the sentence that introduces C8's file tree, but not L190 or L262. And promotion is the only call in P3 that **moves published totals**, which is what it did: P3 8C → 9C and 6 of 8 → 7 of 9 stale, set totals 44C → 45C, and the headline staleness 27 of 39 (69%) → 28 of 40 (70%). Ruled on the evidence rather than on the consequence — the alternative under-labels a staleness the article carries at two lines no other row reaches, and credits A1 for clearing it.
 4. **Do exhaustive command tables contradict removed commands? — answered no, 2026-08-17: they do not.** v2's 命令参考 (L461–543) reads as a complete set and omits `search`, `clean` and `update` (v1 L379/384, L388/394). Drafted as absences, and only `search` is listed, as the one with no v2 analogue. **What decided it: the table never declares itself complete** — 「完整」/「所有命令」 and every equivalent are 0 hits over that section, so treating its shape as an assertion would be labelling an inference, which is exactly what calls 2 and 6 decline to do. Ruling the other way would have moved all three up to C.
 5. **Roadmap table — left out.** v1's 实施路径 (L1088–1107) is fully replaced by v2's Roadmap (L806–826). Held out because v1's phases are plan items, not assertions about current state, and the article already uses v2's table (L252–257), so it would score as non-stale either way.
 6. **The 80K-token figure — left out, but the article is internally inconsistent here.** v1 asserts full preload costs 80K+ tokens (L843); v2 asserts full injection is ~22,000 tokens *per system* (L951). Over 30+ systems those are arithmetically incompatible, but the incompatibility is inferred rather than asserted, so it was not labelled. The article states both (L40 「80K+ tokens」, L212 table 「660K+」). Note the trap: the article also reuses 80,000 as v2's distillation *input* size (L96), a separate and correct claim that shares the number.
@@ -1588,7 +1641,8 @@ ordering heuristic reading bodies alone would be pushed the wrong way here.
 
 **None. P8 contributes no contradictions** — the four it was drafted with are struck by
 V1, ruled 2026-08-15, and kept below as a re-attribution list. P8 stays in the set as a
-case A1 must not break, carrying 6 drops and 6 controls; it does not gate under FX7.
+case A1 must not break, carrying **7 drops** (D7 promoted by V24) and 6 controls; it does
+not gate under FX7.
 
 ### Re-attribution, not contradiction — the four rows V1 struck
 
@@ -1627,9 +1681,11 @@ Three facts in v2 itself settled it:
 | P8-D4 | An AI asset convergence roadmap and freeze strategy is due in the week of 4/13–4/19 | v1 L1618, L1621 | confirmed 2026-08-17 — both cells verify, 「AI 资产收敛路线图」 and 「冻结策略」 are 0 hits in v2, and the article states it twice: Decision 4 (L49–52) and the first milestone row (L185) |
 | P8-D5 | Rockman formally joins as CTO on 4/14 | v1 L1629, L1632 | confirmed 2026-08-17 — both cells verify and 「Rockman CTO 正式入职」 and 「4/14」 are each 0 hits in v2; bare 「Rockman」 is not the test, having 2 hits there. Article L40 |
 | P8-D6 | Locking the AI Coding 20% metric definition is a Q2 milestone | v1 L1662, L1665 | amended 2026-08-17 — cells verify and 「指标定义锁死」 is 0 hits in v2; the article states it **twice**, at milestone row L194 and in prose at L125 (「the 20% metric definition currently being locked」), the second uncited. The article keeps v1's grain: an undeclared same-day sibling schedules the same lock at 「Q2 W4」 (`…cto-rockman-对齐材料.md` L1784), so the Q2 residue is v1's |
+| P8-D7 | The JIRA MCP Server and GitLab MCP Server land in **week 6** of Q2 | v1 L1684 「Q2 W6」 → v2 L1594 「Q2」; `Q2 W6` is 0 hits in v2 | **promoted 2026-08-17, V24** — V1 settled that a de-specification is not a *contradiction* and said nothing about drops, and V8's two prongs both hold here: 「Q2」 does not entail 「Q2 W6」, and the week-level string is gone from v2. **Stated as current** at article L102, L157 and L191. The residue is **not v1-exclusive corpus-wide** — an undeclared, never-superseded same-day sibling (`…2026-04-12-ai-项目全景-cto-rockman-对齐材料.md` L1816–1819) schedules it verbatim — which is the V16 shape that left the residue with the chain in P5-D4 and D6 rather than excluding it, since V9's exclusion needs a *declared* source. Promoted as a drop and not as a contradiction, the branch V1 closed |
 
-Five of the six are stated as current in the article today (L16, L94, L161, L49–52,
-L185, L40, L194) — recorded because it sizes A2's RP1 arm, not because it gates A1.
+Six of the seven are stated as current in the article today (L16, L94, L161, L49–52,
+L185, L40, L194, and D7's L102, L157, L191) — recorded because it sizes A2's RP1
+arm, not because it gates A1.
 D3 holds only in part: the article carries its 25%/≥2-month clause at L16 but never
 states the security team's headcount, and `5 people` returns no hits.
 
@@ -1666,8 +1722,9 @@ states the security team's headcount, and `5 people` returns no hits.
 
 **Confirm pass, 2026-08-17**: calls 1, 4, 5 and 6 are answered — 1 and 5 with corrections
 to their own evidence, 4 and 6 at their drafted position — and call 2 needs no answer.
-**Call 3 is escalated and left with Captain**: under the test V8 established on P5 it is a
-drop rather than a nothing, which moves the published drop total.
+**Call 3 is ruled by Captain as V24, 2026-08-17**: under the test V8 established on P5 it
+is a drop rather than a nothing, and it is promoted, taking the published drop total to 33
+and P8's arm to 7. Nothing in P8 is left open.
 
 1. **Is `Owner` → `团队` a real re-attribution or a column relabel? — RULED, neither
    scores.** The change is *selective*: rows 9, 12, 13 and 14 keep person names inside
@@ -1683,8 +1740,8 @@ drop rather than a nothing, which moves the published drop total.
 2. **The column-header change itself is deliberately not an entry.** It is the
    umbrella cause of C1–C4, but "the infra tables use an Owner column" is not
    scoreable in article prose.
-3. **Left out, wants a decision — the JIRA/GitLab MCP schedule. ESCALATED
-   2026-08-17, and left with Captain.** v1 「Q2 W6」 (L1684) → v2 「Q2」 (L1594). Q2 W6 is
+3. **The JIRA/GitLab MCP schedule — RULED V24, 2026-08-17: promoted to drop D7.**
+   v1 「Q2 W6」 (L1684) → v2 「Q2」 (L1594). Q2 W6 is
    inside Q2, so v2 de-specifies rather than contradicts; but the week-level commitment
    was removed. The article says "Q2 Week 6" in three places (L102, L157, L191).
    **What changed is that this now has a precedent pointing the other way.** V1 ruled that
@@ -1692,14 +1749,15 @@ drop rather than a nothing, which moves the published drop total.
    it said nothing about drops. **V8's two-pronged test, applied on P5 to promote D6, is
    satisfied here on both prongs**: 「Q2」 does not entail 「Q2 W6」, and `Q2 W6` is 0 hits
    in v2. On that reading it is P8-D7, a **lost** drop with three article residues, and it
-   moves the published drop total from 32 to 33. Two things Captain needs with it. The
+   moves the published drop total from 32 to 33 — the branch V24 took. Two things the
+   ruling carries with it. The
    residue is **not v1-exclusive corpus-wide**: `…2026-04-12-ai-项目全景-cto-rockman-对齐
    材料.md` L1816–1819 schedules 「JIRA MCP Server + GitLab MCP Server 上线」 at 「Q2 W6」
    verbatim, is dated the same day as v1, is never superseded and is **not** declared in
    this article's sources — the V16 shape, which left the residue with the chain in P5's
    D4 and D6. And promoting it would make P8 gate under FX7 if the promotion were to a
-   contradiction rather than a drop, which is the branch V1 already closed. Answering it
-   yes-as-drop is the only branch that changes a number.
+   contradiction rather than a drop, which is the branch V1 already closed and V24 did not
+   reopen: the promotion is to a drop, so P8 still does not gate.
 4. **Left out**: v1 「新多站点架构测试完成 (100% AI 编写)」 (L1709) → v2 adds an
    「App」 scope qualifier (L1619); the underlying project row is identical in both.
    Restatement, not change. **Confirmed**: the project row is byte-identical and still
@@ -1722,7 +1780,8 @@ drop rather than a nothing, which moves the published drop total.
    and the cap turns out not to bind**: the confirm pass swept all 17 rows that differ
    between the versions and every deletion in the pair is already one of these six, so
    the arm is *complete* at 6 rather than truncated at 6. The one candidate outside the
-   six is call 3's de-specification, which deletes a qualifier rather than a row.
+   six was call 3's de-specification, which deletes a qualifier rather than a row —
+   **V24 promoted it, so the arm is complete at 7**, three editorial acts rather than two.
 
 ---
 
@@ -1754,7 +1813,7 @@ heading renames whose content survives in another form (`### 个性化回答` �
 `### 个性化`, `### 基础交互能力` → `### 输入端`, and the four `###` Skills sections
 re-nested as bold headings under `# Agent 能力`). That is why the drop arm is short:
 most of what disappeared is re-expressed rather than dropped. What is genuinely
-unrestated, and unlabelled, is swept in call 9 below.
+unrestated is swept in call 9 below, and **V26 labelled three of it** as D6–D8.
 
 ### Contradictions and their replacements
 
@@ -1777,6 +1836,15 @@ unrestated, and unlabelled, is swept in call 9 below.
 | P9-D3 | Model selection is decided by parallel A/B testing of next-day retention, breaking ties on cost and response time | v1 L225, L227; 留存 occurs nowhere in v2, and neither does 选型 | confirmed 2026-08-17 as a drop — call 5 answered **no**, on the ground that a periodic GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. Stated as current at article L307 and L443, but only half of it: v1's 「考虑成本和响应时间」 becomes 「the faster model is preferred」 (L307), with cost demoted to a rationale for the update path (L309), so the residue carries the retention criterion and the latency tie-break and loses the cost one |
 | P9-D4 | TradeGPT will offer an A/B answer picker returning two answers in parallel, doubling as a way to test answer logic and compare models | v1 L233 | confirmed 2026-08-17 — AB直选 is 0 hits in v2, and this is P9's one drop with **no article residue**: the article's A/B material (L307, L311, L443) is all model A/B testing, which is D3's subject, not the two-answer picker |
 | P9-D5 | Regulators prohibit trading recommendations inside a CS bot, so a merged entry would fail licensing review on Local Sites and on a future licensed Global site | v1 L278, L280; neither 合规 nor 监管 occurs in v2 | confirmed 2026-08-17 — both strings verify at 0 in v2, whose own CS-merger section (L676–681) lists four fusion workstreams and no compliance constraint at all; stated as current at article L256 and L300, where it is the stated reason C7's superseded hybrid is still there |
+| P9-D6 | 链式执行 is one of the five private-Skills patterns | v1 L201; 链式 is 0 hits in v2, while the other four patterns recur there — 最新信息带数据 → L153's 活动与福利中心任务+实时数据, 横向产品推荐 → L607's 跨产品的横向推荐, 产品策略拼盘 → 资产配置助手 (L581–585), 收益率比较 → C5's row | **promoted 2026-08-17, V26** on call 9(a), the cleanest of that sweep and the closest analogue to V8's promotion. **No article residue** |
+| P9-D7 | Skills are iterated on order success rate and reuse rate, with UI work on the high-frequency scenarios | v1 L271–272; 复用率 is 0 hits in v2 | **promoted 2026-08-17, V26** on call 9(c). No article residue |
+| P9-D8 | The private-Skills reference implementation is 「以BOT为例」 | v1 L117; the phrase is 0 hits in v2 | **promoted 2026-08-17, V26** on call 9(d). **Stated as current** at article L105, L323 and L444. String hazard: bare `BOT` is not the test — it occurs at v2 L610 in the 理财和BOT sense both versions carry |
+
+Five of the eight are stated as current in the article today — D1 (L225, L291),
+D2 (L226, L291), D3 in half (L307, L443), D5 (L256, L300) and D8 (L105, L323,
+L444). D4, D6 and D7 leave no residue at all, which is what makes them the least
+informative rows in the set about A2's RP1 arm: there is nothing in the article for
+a supersession rule to have removed.
 
 ### Controls
 
@@ -1793,9 +1861,10 @@ unrestated, and unlabelled, is swept in call 9 below.
 
 Each needs a yes/no from Captain; the default if ignored is the drafted position.
 Calls 1, 2, 4 and 5 were **answered on 2026-08-17 with the confirm pass**, all four
-keeping the drafted position, and calls 6, 7 and 8 keep their recorded lists. **Two
-are left with Captain: call 3, and call 9, which this pass raised.** Each has one
-branch that moves published totals, which is why neither was taken here.
+keeping the drafted position, and calls 6, 7 and 8 keep their recorded lists. The two
+this pass left with Captain are now **ruled: call 3 as V25** — C6 stands, on a
+re-grounded basis — and **call 9 as V26**, which promotes three of its five to drops.
+Nothing in P9 is left open.
 
 1. **C3 bundles the phase-1 and phase-2 date moves — answered no, 2026-08-17: it stays bundled.** v2 states all three
    deadlines on one line (L124, verified) and two-week slips are individually low
@@ -1816,7 +1885,17 @@ branch that moves published totals, which is why neither was taken here.
    phase change at all. And the mechanism does **not** transfer to C6: there the phase-3
    reading comes from a highlight being *absent*, which is an inference from omission
    and not a stated key — recorded on C6 and on call 3.
-3. **C6 is the least certain — still open, and the pass narrowed it from both sides.** v2 never says high-value users will *not* get a
+3. **C6 was the least certain — RULED V25, 2026-08-17: the row stands as a
+   contradiction, and its basis is re-cut onto v2's re-terming rather than onto the tier
+   table being exhaustive.** That is what settles it without moving a total: read on
+   exhaustiveness the row collides with P3 call 4, which declined to treat a table's
+   omission as an assertion; read on the re-terming it rests on something v2 states
+   outright — the same capability sold as 付费订阅 to 中间用户 (L185–186) where v1 gave it
+   free to 高价值用户 as a phase-2 deliverable. Demotion was the other branch and it was
+   declined, so P9 holds at 6C / 5D before call 9 and the headline stays 28 of 40 rather
+   than falling to 26 of 38. What the ruling costs is the 「(phase 3)」 half: it rests on a
+   highlight being absent, which V25 does not endorse, so this row is tested on the
+   terms and not on the phase. The evidence below is what it was ruled on. v2 never says high-value users will *not* get a
    personal OpenClaw; the contradiction rests on reading v2's user-tier table as an
    exhaustive segmentation. If the tiers are non-exhaustive this becomes a drop —
    and the article's current "Phase 2 exception" wording (L236) is exactly the
@@ -1826,10 +1905,10 @@ branch that moves published totals, which is why neither was taken here.
    付费订阅 to 中间用户 (L185–186), where v1 gave it free to high-value users as a
    phase-2 deliverable. Against that, **P3 call 4's standard cuts the other way**: v2's
    tier list never declares itself complete, and treating omission as denial is the
-   inference that call declined for command tables. Demotion is the branch that moves
-   published totals: P9 6C / 5D → 5C / 6D, stale 3 of 6 → 2 of 5, set totals 44C / 32D →
-   43C / 33D, and the headline 27 of 39 (69%) → 26 of 38 (68%). Left at the drafted
-   position pending Captain.
+   inference that call declined for command tables — which is why V25 keeps the row on
+   the re-terming and not on the tier list. Demotion was the branch that moves published
+   totals: P9 6C / 5D → 5C / 6D, stale 3 of 6 → 2 of 5, set totals 44C / 32D → 43C / 33D,
+   and the headline down by a row on both sides. Declined.
 4. **C5's subject match is a judgement call — answered yes, 2026-08-17: same subject, kept as a contradiction.** v1's killer feature is a
    *comparison* across 理财+现货+RWA, v2's is *routing* into 5 capital-protected
    products. Treated as the same subject because both fill the phase-1 slot and v2
@@ -1880,8 +1959,15 @@ branch that moves published totals, which is why neither was taken here.
    `raw/meetings/2026-05-20-bybit-ai-toc--weekly.md` and
    `raw/docs/2026-05-29-客服top5场景对比.md`; the BabyAI merger phases,
    internal-controls workstream and top-5 CS scenarios come from those.
-9. **The abridgement sweep — raised by the confirm pass, 2026-08-17, and left open
-   because every promotion moves the drop total.** Each of v1's 82 non-blank body lines
+9. **The abridgement sweep — RULED V26, 2026-08-17: (a), (c) and (d) are promoted to
+   drops D6, D7 and D8; (b) is held out; (e) stays a note.** The split follows V8's own
+   first prong rather than the count: (b) fails it, because v2 is not silent on the output
+   side — it asserts A2UI generative layout instead — so the honest reading of that item is
+   a contradiction candidate, and it is recorded as one and left unscored rather than
+   filed as a drop it is not. (e) is a dimension rather than a proposition, the same
+   treatment P10 call 6(e) gets. The three promotions take P9's arm from 5 to 8 and the
+   published drop total from 33 to 36; the gating column is untouched, since drops do not
+   gate. Each of v1's 82 non-blank body lines
    that does not survive in v2 byte-identical was re-tested against V8's standard: does
    the later version restate the proposition anywhere. Five come out unrestated and
    none of them is labelled.
@@ -1907,11 +1993,10 @@ branch that moves published totals, which is why neither was taken here.
      rather than a proposition, so it may belong as a note rather than as a row.
 
    As drop rows all five sit on the measured arm and none touches the gating column:
-   promoting them takes the published drop total from 32 to as high as **37**, P9's arm
-   from 5 to 10, and leaves 44 contradictions and 27 of 39 stale untouched. The one
-   exception is (b) under its second reading, which would gate. Left out pending
-   Captain — recorded so that P9's short drop arm reads as a measured decision rather
-   than as an oversight.
+   promoting all of them would have taken P9's arm from 5 to 10. **V26 took three** —
+   (a), (c) and (d), now D6, D7 and D8 — leaving (b) unscored under its contradiction
+   reading, the one that would gate, and (e) as a note. The arm reads 8, and P9's short
+   drop arm is now a measured decision with its own rows rather than a gap.
 
 ---
 
@@ -1942,9 +2027,9 @@ recommendation line kept word for word. Against the two other cases measured thi
 P7, where v1 sits inside v2 cell for cell, and P9's 126 of 208 — P10 sits at the far
 end of the range: **no row here can
 be scored on a shared string**, which is why every one of them is measured on figures
-and prose, and why a six-row drop arm over a rewrite this complete is a judgement about
-propositions rather than about lines. What that judgement leaves out is swept in
-call 6.
+and prose, and why a drop arm over a rewrite this complete is a judgement about
+propositions rather than about lines. What the six-row arm left out is swept in
+call 6, and **V27 labelled five of it** as D7–D11.
 
 ### Contradictions and their replacements
 
@@ -1968,6 +2053,17 @@ call 6.
 | P10-D4 | Proposes a tech-lead quality tier of bug-association rate ≤0.3, rework ≤5%, and a per-capita monthly throughput baseline | v1 L163, L164, L166; v2's third tier is stale-requirement rate / estimation accuracy / P-1+P0 share (L322–326) | amended 2026-08-17 — the tier is three lines and the cite was one: bug-association rate at v1 L163, rework rate at L164, per-capita monthly throughput at L166, while L165's 大需求比例 belongs to call 3's redefinition and not to this row. All three are 0 hits in v2 and in the co-sources. **Stated as current, and blended**: article L150's Process Health row runs v2's three metrics (stale-requirement rate, schedule accuracy, P0/P1 share) straight into v1's three (bug association rate, rework rate, large requirement ratio) inside a single table cell, which is C2's defect one grain finer. The per-capita half has no residue at all — Decision 5's per-capita measure is work-hours from the goals co-source (its L18, L72), not v1's monthly ticket count |
 | P10-D5 | Mandates splitting any requirement whose delivery cycle exceeds 20 days, targeting ≤10 days | v1 L198–199 (L198 the ≤10-day target, L199 the mandate); v2 manages size by tiering instead (L332, L366–369) | amended 2026-08-17 — cite widened to both halves and v2's tiering located; 强制拆分 and 「20 天的大需求」 are 0 hits in v2 and in all three co-sources. **Stated as current** and almost verbatim at article L200, mandate and target together, inside Decision 7 — the strongest single residue in this case's drop arm |
 | P10-D6 | The headline engineering-time metric is *average development duration*, ~9.2 days, +54.8% from 7.3 to 11.3 | v1 L25, restated at L73 and L177; `平均开发时长` returns 0 hits in v2, which reports development duration as a median instead. **Reclassified from contradiction C6 by V3, ruled 2026-08-15** — v2's headline 中位研发周期 (L28) is a different statistic over a different span (L14 defines 研发周期 as development *plus* test), so it cannot contradict a mean development duration | confirmed 2026-08-17 — V3's reclassification and V11's residue both hold: 平均开发时长 is 0 hits in v2 and all four article lines verify. V11's string hazard is one step worse than recorded — 「9.3」 returns a hit in four of the five files but only the article's is a figure (L170), v2's being the heading number 「### 9.3」 (L360), the full report's February 39.3% and the Q1 report's ToC 19.3%. And the replacement test needs its punctuation: 「+54.8%」 is 1 hit in v1 (L25) and 1 in the article (L50), since L21 states the same increase without the sign. **Lost drop**: the article still carries v1's mean framing at L21, L50, L54 and L170. **V11 ruled 2026-08-16** confirms L170 as this row's residue against call 5, which had it protected, and records the string hazard: the article writes 「9.3 days (annual)」 where v1 writes 「~9.2 天」, a figure in no source, so an absence test on 「9.2」 reads the residue as gone. Test 「+54.8%」 (article L21, L50) instead, the one token of this family no other source carries — 「7.3 天」 and 「11.3 天」 both hit v2 (L210, L101) |
+| P10-D7 | 需求准时启动率 is a tier-1 metric, actual against planned development start, targeted at ≥70% | v1 L146; 准时启动 is 0 hits in v2 and in all three co-sources, and v2's nearest metric measures the opposite condition — 需求创建 >60天未启动率 (L324) | **promoted 2026-08-17, V27** on call 6(a), the cleanest of that sweep. No article residue |
+| P10-D8 | 需求异常结束率 is a tier-1 metric with a ≤5% target | v1 L157; 异常结束 is 0 hits in v2 and in the co-sources; the article's 「stale requirement rate」 (L150) is v2's metric, not this one | **promoted 2026-08-17, V27** on call 6(b). No article residue |
+| P10-D9 | Appraisal must avoid the Goodhart effect: no single metric, or teams split requirements to make throughput | v1 L185; Goodhart is 0 hits in v2, which replaces all four of v1's target-setting principles (v1 L182–185 → v2 L330–333) | **promoted 2026-08-17, V27** on call 6(c). **Stated as current** at article L144, where it is the stated rationale for Decision 4's layered KPI system |
+| P10-D10 | Quarter-on-quarter improvement is preferred to year-on-year comparison | v1 L183; 环比 is 0 hits in v2 and in the co-sources | **promoted 2026-08-17, V27** on call 6(d). No article residue |
+| P10-D11 | ToB's delivery cycle is volatile — a Q2 slump at 24.5 days, Q3 recovery, Q4 re-deterioration | v1 L120; 24.5 is 0 hits in v2, whose ToB trend cell reads 持续恶化 over a monotone 4.0 → 11.0 研发周期 series (L234) | **promoted 2026-08-17, V27** on call 6(f), **as a drop and not as the contradiction it could be read as**: the two versions measure different statistics — v1's 交付周期 against v2's 研发周期 — which is the ground V3 used to demote C6 and V17 used to keep C5 on level rather than trend, so nothing in v2 is incompatible with v1's series. **Stated as current** at article L287. This is the trend-axis candidate call 4 could not reach, and taking it as a drop is what keeps the gating column at 9 rows |
+
+Six of the eleven are stated as current in the article today — D1 (L96, L171),
+D4 (L150), D5 (L200), D6 (L21, L50, L54, L170), D9 (L144) and D11 (L287). D7, D8
+and D10 leave no residue, D2's whole residue is the frontmatter tag `wip-limits`
+and D3's is a link to a page the KB does not contain, so the arm splits three ways:
+six lost, two quiet failures, three clean.
 
 ### Controls
 
@@ -2098,9 +2194,9 @@ call 6.
 Each needs a yes/no from Captain; the default if ignored is the drafted position.
 Call 1 was **settled by V3 on 2026-08-15** and is no longer a question, and calls 2
 and 3 were **answered on 2026-08-17 with the confirm pass**, both keeping the drafted
-position. Calls 4 and 5 keep their recorded lists. **One is left with Captain: call 6,
-which this pass raised**, and it is left because every promotion in it moves the
-published drop total.
+position. Calls 4 and 5 keep their recorded lists. **Call 6, raised by that pass, is
+ruled by Captain as V27, 2026-08-17**: five of its six propositions are promoted to
+drops, so nothing in P10 is left open.
 
 1. **C6 was the softest entry — settled by V3, 2026-08-15: demoted, and the row is now
    drop D6.** A mean of 9.2 days and a median R&D cycle of 6.0
@@ -2168,7 +2264,8 @@ published drop total.
    *trend* axis that no rate test reaches — v1 calls ToB volatile (Q2 slump, Q3 recovery,
    Q4 re-deterioration, L120) where v2's trend cell reads 持续恶化 (L234), and the article
    states v1's shape at L287. It is filed under call 6 rather than here, because the two
-   versions measure different statistics there and the drop reading is the likelier one.
+   versions measure different statistics there and the drop reading is the likelier one —
+   **V27 took exactly that reading**, and it is now drop D11.
    Every team's Q1/Q4 on-time rate is restated downward — 16 of 16
    cells, the direction C1's widened filter predicts — while the roster change is
    **additive**: v2 has 10 rows to v1's 8, but they are v1's same eight teams in the same
@@ -2263,8 +2360,14 @@ published drop total.
    「11.3 天」, so both halves collide inside the chain's own newer version — and `grep -F
    "7.3"` additionally catches 「27.3天」 at v1 L104–105 and 27.3% at v2 L56. This is the
    P7-C2 string hazard, on the one item drafted as this case's clean test.
-6. **The rewrite sweep — raised by the confirm pass, 2026-08-17, and left open because
-   every promotion moves the drop total.** With only nineteen of v1's lines surviving into
+6. **The rewrite sweep — RULED V27, 2026-08-17: (a), (b), (c), (d) and (f) are promoted
+   to drops D7–D11; (e) stays a note.** Five of the six, and the one held back is held
+   back on its shape rather than its evidence: (e) is a dimension rather than a
+   proposition, the same treatment P9 call 9(e) gets. On (f) the ruling also declines the
+   contradiction reading, on V3's and V17's ground — different statistics over different
+   spans cannot contradict — so the gating column stays at nine rows and P10 keeps 7C.
+   The five promotions take P10's arm from 6 to 11 and the published drop total from 36 to
+   41. With only nineteen of v1's lines surviving into
    v2, the drop arm cannot be read off a diff, so all 152 of v1's non-surviving non-blank
    body lines were classified: 51 are monthly- or team-table data rows plus 8 headers over
    them, whose figures are already scored on C1–C8 and in the basis items, and the remaining
@@ -2310,11 +2413,10 @@ published drop total.
      with a four-week observation period (its L228–229), which is what article L220 carries.
      No supersession rule could have removed either, exactly as with P5-D1.
    As drop rows all six sit on the measured arm and none touches the gating column:
-   promoting them takes the published drop total from 32 to as high as **38**, P10's arm from
-   6 to 12, and leaves 44 contradictions and 27 of 39 stale untouched. The exception is (f)
-   under its second reading, which would gate. Left out pending Captain — and recorded so
-   that a six-row drop arm over a complete rewrite reads as a measured decision rather than
-   as the limit of what a diff shows.
+   promoting every one would have taken P10's arm from 6 to 12. **V27 took five**, which
+   puts the arm at 11 and the set's drop total at 41, and declined (f)'s second reading,
+   the one that would gate. What the arm now records is the rewrite rather than the limit
+   of what a diff shows.
 
 ---
 
@@ -2432,7 +2534,7 @@ back to front**, since the numbers it protected were mostly not the co-sourced o
 
 Two consequences, and they are not the same size.
 
-**For the drafted `Article today` column and the published 69% headline, the confound is
+**For the drafted `Article today` column and the published 70% headline, the confound is
 severe.** Only P3 and P8 are compiled from the chain alone — and V1 struck P8's four
 contradictions, so of the five cases that still gate after V21, only P3 does. P7 is the worst case:
 its co-source asserts the **Q2 half** of v1's 0430 column, so 7 of its 8 rows — and
@@ -2519,7 +2621,7 @@ than correcting it, so neither reading gates: P5's staleness is reported apart f
 And the shared date turns out to be an error rather than a fact about the corpus — the
 bodies are six days apart, which is **V21**, **ruled 2026-08-16** as an A2 body-date case
 with the fixture left verbatim. One consequence for this note: the published rate is now
-27 of 39 over five cases, four of which carry a co-source — so the confound described
+28 of 40 over five cases, four of which carry a co-source — so the confound described
 here reaches every case behind the headline figure but P3, and, measured row by row, not
 P4-C9 either.
 

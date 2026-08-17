@@ -3,12 +3,13 @@
 Status: test set built; staging landed under FX1; labels **confirmed item by item on
 2026-08-17** in [labels.md](labels.md) — all 118 scoring rows settled across eight case
 passes, 64 confirmed and 54 amended with none rejected, plus P2's 18 counter-case rows.
-**No pass moved a total**: 44 contradictions, 32 drops and 42 controls across the seven
-scoring cases, of which 27 contradictions are still stated as current in today's articles.
-What confirmation did not settle is five judgement calls, listed at the top of
-[labels.md](labels.md) — P3 call 3, P8 call 3, P9 calls 3 and 9, and P10 call 6 — each a
-promotion whose other branch would move a published total, so each is left with Captain
-rather than taken by a pass. FX5 can score against these labels now. Both blocking rulings are settled
+**No pass moved a total**, and the five judgement calls they left open are **ruled the same
+day as V23–V27** — P3 call 3, P8 call 3, P9 calls 3 and 9, P10 call 6, each a promotion
+whose other branch moves a published total. Those rulings add ten rows, one contradiction
+and nine drops, so the set reads **45 contradictions, 41 drops and 42 controls** across the
+seven scoring cases — of the 40 contradictions on the five cases judged on the column,
+**28 are still stated as current in today's articles (70%)**, with P5's five reported apart
+under V21 — and **nothing is left with Captain**. FX5 can score against these labels now. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -37,12 +38,14 @@ P9-C1**, which v2 preserves item-for-item in material already scored as a contro
 **V3 reclassified P10-C6 as a drop**, since it paired a mean against a median over a
 different span; and **V8 promoted P5's `universal-transfer` abridgement to a drop**, the
 one row of seventeen whose dropped clause v3 neither restates nor entails, taking the
-drop total to 32. That is why the totals read 44 and not 50. Verification also found that these articles merge more
+drop total to 32 — and to 41 once V24, V26 and V27 promoted nine more. That is why the
+contradiction total reads 45 and not 50: V1, V2 and V3 struck six, and V23 added one back
+on evidence. Verification also found that these articles merge more
 sources than the chain under test, which confounds the staleness column, so the published
 figure is motivation, not measurement — and since **V20** keeps P5 out of that column for
-good, **V21 publishes 69% (27 of 39)** over the five cases actually judged on it, retiring
-the 27-of-44 reading, which shares the numerator only because P5 is scored at a 0 of 5 the
-payload cannot support. Written 2026-08-10, labels drafted 2026-08-14, rulings and
+good, **V21 publishes the rate over the five cases actually judged on it** — 27 of 39 (69%) when
+it was ruled, **28 of 40 (70%)** since V23 — retiring the all-cases reading, which shares
+the numerator only because P5 is scored at a 0 of 5 the payload cannot support. Written 2026-08-10, labels drafted 2026-08-14, rulings and
 verification 2026-08-15 to 2026-08-16.
 Companion to [design-options.md](design-options.md), which lists the options this
 set exists to separate, and to [spec.md](spec.md), whose FX and VF criteria say
@@ -307,14 +310,14 @@ the singular names — the two spellings are the two trees, not an error in this
 |---|---|---|---|---|---|
 | P1 | A | `raw/docs/2026-04-08-入离职-ai-岗位-it-方案.md` → `2026-04-17-` | 52→283, 0.042 | `wiki/decisions/ai-tools-onboarding-offboarding-automation.md` | adjudicated, see below |
 | P2 | A | `raw/docs/2026-04-14-infra-双周会-2026_h1.md` → `2026-04-17-` | 2042→1085, 0.448† | `wiki/decisions/infra-ai-devops-roadmap-decisions.md` | [withdrawn](labels.md#p2--infra-biweekly-review-withdrawn-counter-case) — **counter-case, scores nothing**, see below; its 18 marked rows were confirmed 2026-08-17 (15 confirmed, 3 amended), so the counter-case evidence is settled too |
-| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [confirmed 2026-08-17](labels.md#p3--cht-knowledge-distillation-and-indexing) — 8C / 5D / 6K, all 19 rows settled (14 confirmed, 5 amended); **call 3 stays open with Captain** |
+| P3 | A | `raw/docs/2026-04-20-cht-knowledge-跨系统知识蒸馏与索引方案.md` → `2026-04-30-` | 1155→981, 0.096† | `wiki/concepts/cht-knowledge-plugin-system.md` | [confirmed 2026-08-17](labels.md#p3--cht-knowledge-distillation-and-indexing) — **9C** / 5D / 6K, 7 of 9 stale, all 19 rows settled (14 confirmed, 5 amended); **call 3 ruled by V23**, which promotes the knowledge-repo naming row to C9 and is the only ruling of the five that moves the gate |
 | P4 | A | `raw/docs/2026-05-19-交易回滚trd.md` → `05-26` → `06-02` → `06-04` | 4782→5860, 0.878 | `wiki/concepts/derivatives-position-field-schema.md` | [confirmed 2026-08-17](labels.md#p4--trade-rollback-trd-four-versions) — 10C / 4D / 6K, 9 of 10 stale, all 20 rows settled (10 confirmed, 10 amended); nine of its ten replacements land at v2 or v3 rather than v4 |
 | P5 | B | `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单.md` → `raw/docs/2026-03-13-bybit-trading-skill-完整-api-清单-v3.md` | 5494→6397, 0.217† | `wiki/projects/bybit-ai-trading-skill.md` | [confirmed 2026-08-17](labels.md#p5--bybit-trading-skill-api-inventory) — 5C / **6D** / 6K, all 17 rows settled (10 confirmed, 7 amended), 273 shared endpoint rows identical on name and method with the 状态 cell differing on 22 by a glyph, after **V8** promoted the unlisted `universal-transfer` abridgement to D6, with **V9** measuring that arm at 3 of 6 stated as current, **0 stale under the drafted reading**; both versions share a frontmatter date and the payload orders them backwards, so V19 held it out of the gate and V20 keeps it out — the ruled fix withdraws the ordering claim rather than correcting it. Its 5C still count in the set totals; **V21 ruled 2026-08-16** keeps v3's wrong date in the fixture, since the staged file is byte-identical to its corpus copy, and reports P5 as an **A2 body-date case** — v3's frontmatter being six days off its own body |
 | P6 | B | `raw/docs/2026-03-23-通用网关设计方案-v15.md` → `raw/docs/2026-03-30-通用网关设计方案-v17.md` | 2283→2902, 0.794 | `wiki/concepts/cgw-universal-gateway-architecture.md` | adjudicated, see below |
 | P7 | B | `raw/docs/2026-04-09-2026-h1成本进展跟进.md` → `2026-05-14-` | 544→918, 0.731 | `wiki/projects/cloud-infrastructure-cost-optimization-2026h1.md` | [confirmed 2026-08-17](labels.md#p7--2026-h1-cost-progress-tracking) — 8C / 0D / 6K, 6 of 8 stale, all 14 rows settled (6 confirmed, 8 amended); v1 sits inside v2 byte-identical across all ten shared cells, so the empty drop arm is a property of the pair; **V4 ruled**, the co-source bounds the causal claim to C8 but not the score |
-| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [confirmed 2026-08-17](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, all 12 rows settled (6 confirmed, 6 amended), its 4 contradictions struck by V1; the 17 rows that differ between the versions are all labelled, so its drop arm is complete at 6 — and **call 3 is escalated to Captain**, a promotion that would take the set's drop total to 33 |
-| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [confirmed 2026-08-17](labels.md#p9--bybit-ai-toc-project-initiation) — **6C** / 5D / 6K, 3 of 6 stale, all 17 rows settled (10 confirmed, 7 amended), C1 struck by V2; **calls 3 and 9 stay open with Captain** |
-| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [confirmed 2026-08-17](labels.md#p10--2025-engineering-efficiency-report) — **7C** / **6D** / 6K, 3 of 7 stale, all 19 rows settled (8 confirmed, 11 amended), C6 reclassified as a drop by V3; only 19 of v1's 171 body lines survive, so no row scores on a shared string, and **call 6 stays open with Captain** |
+| P8 | B | `raw/docs/2026-04-12-ai-项目全景-分类总览.md` → `2026-04-13-` | 1709→1619, 0.079† | `wiki/decisions/ai-project-portfolio-status-q2-2026.md` | [confirmed 2026-08-17](labels.md#p8--ai-project-portfolio-overview) — **0C** / 6D / 6K, all 12 rows settled (6 confirmed, 6 amended), its 4 contradictions struck by V1; the 17 rows that differ between the versions are all labelled, so its drop arm is complete — at **7D** once **V24** promoted call 3's de-specification, which takes the set's drop total to 33 |
+| P9 | B | `raw/docs/2026-04-23-bybit-ai-toc-整体立项.md` → `2026-05-11-` | 281→685, 0.168† | `wiki/projects/tradegpt-toc-product-roadmap.md` | [confirmed 2026-08-17](labels.md#p9--bybit-ai-toc-project-initiation) — **6C** / **8D** / 6K, 3 of 6 stale, all 17 rows settled (10 confirmed, 7 amended), C1 struck by V2; **call 3 ruled by V25** (C6 kept, re-grounded on v2's re-terming) and **call 9 by V26**, three of its five unrestated propositions promoted to drops |
+| P10 | B | `raw/local/2026-03-05-2025-engineering-efficiency-report.md` → `raw/local/2026-03-06-2025-engineering-efficiency-report-v2.md` | 237→392, 0.067 | `wiki/decisions/2025-engineering-efficiency-report-full-data-decisions.md` | [confirmed 2026-08-17](labels.md#p10--2025-engineering-efficiency-report) — **7C** / **11D** / 6K, 3 of 7 stale, all 19 rows settled (8 confirmed, 11 amended), C6 reclassified as a drop by V3; only 19 of v1's 171 body lines survive, so no row scores on a shared string, and **call 6 is ruled by V27**, five of its six unrestated propositions promoted to drops with the gating reading of ToB's volatility declined |
 
 † The `sim` value is distorted downward by `difflib`'s `autojunk` heuristic and
 should not be read as a body-similarity fraction — P8's 0.079 is 0.928 with the
@@ -564,13 +567,14 @@ not a fact about the corpus.
 as staged — it and v1 are byte-identical to their copies under `data/kb-knowledge/raw/docs/`,
 so re-dating either would be the only place a staged document departs from the document it
 came from — and P5 is reported as an **A2 body-date case**: its 5C testify to the
-wrong-date defect A2 has to answer instead of gating A1. **The published stale rate is
-27 of 39 (69%)**, over P3, P4, P7, P9 and P10. The 27-of-44 reading is retired as a
-headline because it is not the conservative one it looks like: both readings share the
-numerator 27 only because P5 is scored 0 of 5, the reading V20 ruled unsupported, and
-against the order the payload states today P5 is 5 of 5 — so the all-cases figure is a
-27–32 of 44 band (61–73%) whose position depends on a measurement of a case that is not
-judged. 27 of 39 is the only figure independent of P5, and it is quoted with its
+wrong-date defect A2 has to answer instead of gating A1. **The published stale rate is the
+one over the five gating cases** — P3, P4, P7, P9 and P10 — which was 27 of 39 (69%) when
+V21 was ruled and is **28 of 40 (70%)** since V23 promoted P3-C9. The all-cases reading is
+retired as a headline because it is not the conservative one it looks like: both readings
+share their numerator only because P5 is scored 0 of 5, the reading V20 ruled unsupported,
+and against the order the payload states today P5 is 5 of 5 — so the all-cases figure is a
+28–33 of 45 band (62–73%) whose position depends on a measurement of a case that is not
+judged. The five-case rate is the only figure independent of P5, and it is quoted with its
 composition attached: five gating cases, P8 out on V1 and P5 out on V21.
 
 Staleness (drop) is carried as its own column rather than left unmeasured because
@@ -610,6 +614,26 @@ One full run over the 38-document fixture: 2.09 extract + 3.22 classify + 4.73
 write = **about 10 USD**, taking one merge op per document as an upper bound.
 Baseline plus three variants is roughly 40 USD.
 
+**Measured on the FX4 baseline arm, 2026-08-17, and the estimate's own assumption is
+what it gets wrong.** Stage 1 — 18 documents, the first version of every chain — cost
+**7.01 USD over 88 calls** (3.34 extract, 0.18 classify, ~3.5 write), plus **0.88 USD** for
+a repair pass over four ops lost to transient failures. Three corrections come out of it:
+*one merge op per document is not an upper bound* — classify fans 18 documents into 26
+articles, so write ops outnumber documents rather than matching them; *the cached
+extractions save nothing*, being `schema_version: 1` where the code reads 2, so every arm
+pays full extract; and *classify per op is cheaper here than the corpus average* (0.18 for
+17 ops against the 0.0847 × 17 ≈ 1.44 the table predicts), which is what keeps the total
+near the estimate rather than far above it. On stage 1's rate a whole arm lands around
+**14–15 USD**, so baseline plus three variants is **55–60 USD** rather than 40.
+
+Two operational notes for anyone re-running it. The write phase's largest prompts — a
+three-source batch merge at 78,685 chars — **exhaust the 300 s / 610 s / 931 s timeout
+ladder**, and one did: the retry ladder is load-bearing, not decoration, and a full arm
+should be expected to lose an op or two and need a repair pass. And a repair has to run
+**before the next stage is materialised**, otherwise the failed document is composed beside
+its own successor, which collapses that chain onto the single-run `merge→create` path FX2
+staged the fixture to avoid.
+
 For comparison, converting all 996 documents cost nothing, but compiling them
 would not: about 55 extract + 84 classify + 124 write, so **200 USD and up** for
 one pass. The fixture exists to avoid that. Recompiling the whole corpus is only
@@ -645,7 +669,15 @@ uv run python scripts/stage_fixture.py --kb ../data/kb-supersession-fixture \
     --cases cases.json --out ../data/kb-supersession-staged        # plan only
 uv run python scripts/stage_fixture.py ... --stage 1               # writes stage 1
 kb-ai check --kb ../data/kb-supersession-staged                    # expect 0 missing
+uv run python scripts/audit_articles.py --kb ../data/kb-supersession-staged
 ```
+
+The audit is FX4's two article-shape checks — comma-packed and duplicated `sources`
+entries, and frontmatter that does not start at byte 0 — and it runs on whatever a compile
+just wrote, so both arms carry it. It exits non-zero on a finding. Run against
+`../data/kb-knowledge` it prints the corpus baseline the spec records: `682 articles: 91
+comma-packed entries in 46, 47 duplicated paths in 30, 7 with unreachable frontmatter, 0
+unparseable, 8 without sources`.
 
 `select_cases.py` on this corpus prints `131 chains (94 shape A, 37 shape B)` and
 the strata table above; on `data/kb-supersession-fixture` it prints `18 chains`,
