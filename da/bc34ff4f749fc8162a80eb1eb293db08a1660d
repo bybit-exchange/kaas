@@ -1,0 +1,43 @@
+web/src/pages/Tasks.tsx
+  ed821383a90b3a7f 31
+internal/api/tasks.go
+  ed821383a90b3a7f 82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "dabc34ff4f749fc8162a80eb1eb293db08a1660d",
+  "prompts": {
+    "c390724cacfabba7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00b2b-cea3-7593-b4db-098bb6107943",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 556,
+      "total_deletions": 0,
+      "accepted_lines": 636,
+      "overriden_lines": 0
+    },
+    "ed821383a90b3a7f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca96de30-8536-42fe-9654-01b143996bfc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 4,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_65cf5194933221": {
+      "author": "tom.ye1"
+    }
+  }
+}
