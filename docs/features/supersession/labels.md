@@ -1,9 +1,24 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass under way — 106 of 118 scoring rows settled, 12 still read
-`to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
-because P2 scores nothing. Seven cases are through it, all on 2026-08-17, and no total
-moved in any of them; what is left is P8's 12 rows.
+Status: **confirm pass complete on the rows — all 118 scoring rows settled, none still
+reads `to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
+because P2 scores nothing. All eight cases went through it on 2026-08-17 and no total
+moved in any of them. What "done" still needs is the last of its three conditions:
+test-set.md's Status block, which continues to call these labels awaiting-confirmation.
+**P8 — 6 confirmed, 6 amended, none rejected**, holding at 0C / 6D / 6K with five of six
+drops stated as current, and it is the one case the pass could close *completely*: 71 of
+its 88 table rows are byte-identical, and the 17 that are not decompose into two headers,
+the four owner rows V1 struck plus one scope expansion, the four rows of the deleted
+关键资源约束 table, the three deleted milestone rows, and three items the calls had already
+set aside. **Nothing in this pair is unlabelled** — the sweep that found five unrestated
+propositions in P9 and six in P10 finds none here — so P8's drop arm is complete at 6
+rather than capped at 6. Its evidentiary position is also stronger than drafted: the
+article declares **only the two chain versions**, so with P3 it is one of the only two
+cases free of a co-source confound, and v2 deletes the only two in-body dates later than
+v1's frontmatter,
+so the newer body is dated *less* than the older one. **Call 3 is escalated**: V8's test,
+the one that promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」, which would make
+it a seventh drop with three article residues and move the published drop total to 33.
 **P5 — 10 confirmed, 7 amended, none rejected**, holding at 5C / 6D / 6K with 0 of 5
 stale, and it is the case the pass could measure end to end: parsing both files into
 endpoint rows gives **278 in v1, 299 in v3, 273 shared, with name and method identical
@@ -70,13 +85,13 @@ as complete, and the fifth restores the half of a control's evidence that was mi
 **P2 — 15 confirmed, 3 amended**, its C7 and C8 already settled by V10; the label
 stays in the fixture's stated direction as counter-case evidence, and confirming it
 corrected the identity claim underneath the inversion, which holds on content and not
-on bytes. Four open calls are now left for Captain — **P3 call 3**, **P9 call 3**,
-**P9 call 9** and **P10 call 6** — and each of them has one branch that moves published
-totals, which is why none was taken in the pass. Every other call it touched was answered
+on bytes. Five open calls are now left for Captain — **P3 call 3**, **P8 call 3**,
+**P9 call 3**, **P9 call 9** and **P10 call 6** — and each of them has one branch that
+moves published totals, which is why none was taken in the pass. Every other call it touched was answered
 at its drafted position, the branch that moves nothing: P4's call 9, P5's call 1, P7's
-call 4, P9's calls 1, 2, 4 and 5, and P10's calls 2 and 3 — plus P5's calls 2 to 5, which
-were corrected on measurements rather than answered on judgement. P4, P5 and P7 leave
-nothing open at all. The verification queue below is
+call 4, P8's calls 4 and 6, P9's calls 1, 2, 4 and 5, and P10's calls 2 and 3 — plus P5's
+calls 2 to 5 and P8's calls 1 and 5, which were corrected on measurements rather than
+answered on judgement. P4, P5 and P7 leave nothing open at all. The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -105,11 +120,15 @@ Set each item's Status to one of:
 | `amended` | kept, with the correction written into the row |
 | `rejected` | struck, with the reason written into the row |
 
-**Done means**: no item still reads `to confirm`; the two blocking rulings (P2's
+**Done means**: no item still reads `to confirm` — **done, 2026-08-17**, all 118 scoring
+rows plus P2's 18 settled across eight case passes; the two blocking rulings (P2's
 direction, P7's same-period reading) are recorded here as decisions rather than as
 questions — **done, 2026-08-15**; and test-set.md's Status block stops calling the
-labels awaiting-confirmation. Until then FX5's scoring cannot run, because there is
-nothing settled to score against.
+labels awaiting-confirmation — **the one condition still open**. Until then FX5's scoring
+cannot run, because there is nothing settled to score against. Note what "settled" does
+and does not cover: five judgement calls stay open with Captain, listed at the top of this
+file, and each is a promotion that would move a published total rather than a row whose
+verdict is unknown.
 
 Confirming does not require reopening the fixture. Every row carries the file and
 line of both sides, plus the decisive quote, because aligning them is the
@@ -150,7 +169,7 @@ are into the fixture files named at the head of each case.
 | P4 | 10 | 4 | 6 | **9 of 10** | **confirmed 2026-08-17** — all 20 rows settled: 10 confirmed, 10 amended, none rejected, and no verdict moved, so it holds at 10C / 4D / 6K with 9 of 10 stale. The pass is dominated by one systematic correction: **five more rows have their replacement land mid-chain**, not at v4 — C1, C2, C4 and C5 at v2, C6 and C7 at v3 — which is the correction V18, V5 and V22 each made for a single row, and it now covers **9 of the 10** — every contradiction except C10, whose change genuinely is v3→v4. Also: **call 9 answered yes**, a heading asserts, on C2's mirrored defect; one residue moved from C5 to C4; C1's and D1's residues were under-cited; and three string hazards recorded (`service_action`, `166624305`, 「兑币的流水回滚」). Worst case in the set; **V5 ruled 2026-08-16** keeps C8 with a recorded residual, **V15 ruled 2026-08-17** relabels X1 as a drop followed by a supersession over one entity and finds the fixture unable to carry a nested supersession at all, **V22 ruled 2026-08-17** keeps C9 stale on L667 alone, the other two residues tracing to a passage v2, v3 and v4 assert identically, and **V18 ruled 2026-08-17** keeps C3 stale on four v1-exclusive strings while withdrawing R3's, which is v1's own and control K4's, see [P4](#p4--trade-rollback-trd-four-versions) |
 | P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 5C / 6D / 6K with 0 of 5 stale and 3 of 6 drops stated as current. The pass measured the pair row by row — **278 endpoint rows in v1, 299 in v3, 273 shared, name and method identical in every one** — and corrected two measurements the case rested on. The 状态 *cell* differs on **22 of the 273**, always 「🔴 **移除**」 → 「**移除**」, so a field-equality test reads 22 changed rows where the decision reads none; and five of the 17 abridged 备注 are not trailing-clause deletions, one of them (`p2p/order/finish`) a rewrite. **The article's notation blends the two versions while its figures do not**: 🔴 is 24 rows in v1 and 0 in v3, v1 being the only one of the article's 16 declared sources that marks removals with it, and it reaches the article at L386 — against which v3's fused P2P wording reaches L402 and L426. Row-level corrections: four of the five contradictions had their article side cited one line short (301 at L32/L141/L383/L564, 279 and the GET/POST split at L32 as well as L142, ~31 at four lines), two of the six controls sit on abridged cells so a byte test reads over-deletion (K2's 「等于转移持仓价值」 and K4's 「（权限提升）」, both clauses reaching the article at L397 and L396), K1 holds on content and not on bytes (「🔴 **移除**」 → 「**移除**（安全）」), and D6's two arms cannot be cited at one grain because v1 states that endpoint as a markdown pipe row and v3 as a lark table. The 280-against-278 basis is reconciled: `/v5/private` and `/v5/public/` are untabled in both files and counted in both totals. All five calls are answered, none moving a verdict, so P5 leaves nothing with Captain. **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 14 rows settled: 6 confirmed, 8 amended, none rejected, and no verdict moved, so it holds at 8C / 0D / 6K with 6 of 8 stale. The pass makes the case's structure measured rather than asserted: v1 is inside v2 **byte-identical across all ten shared table cells**, so the empty drop arm is a property of the pair — and it rests on **call 4**, now answered on arithmetic, because strikethrough is the one mechanism that could still produce a drop. Also: five of six controls are re-asserted in v2's own newest column and only **K1** holds by construction; C4 and C6 are the only rows whose cite leaves the newest column; C1's replacement figure reached the article **stripped of its unit** from a co-source (57.11 as a rate at L39, L51, L101, L479); C5's correction only half landed (25046 absent, 11362 present only in C6's framing); C8 and C5 had residues under-cited (L612; three derived pending-core lines); C3's superseded rate is stale **inside v1** and on a different basis than its replacement, so the row scores on the amount; and four string hazards recorded (`117.3` finds only the dated line; bare `3300`, `3864`, `7197`, `17054` and `1750` all miss the article's comma forms; `6.8` matches `S6.8XLARGE128`; `7C` matches inside `7197C`). **V4 ruled 2026-08-16** keeps all 8 rows scoreable and narrows the causal claim to C8; the pass narrows V4's own confound too — the co-source copies only the **Q2 half** of v1's newest column and carries the three landed figures without their units, see [P7](#p7--2026-h1-cost-progress-tracking) |
-| P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
+| P8 | 0 | 6 | 6 | — | **confirmed 2026-08-17** — all 12 rows settled: 6 confirmed, 6 amended, none rejected, and no verdict moved, so it holds at 0C / 6D / 6K with five of six drops stated as current. It is the case the pass could close completely: **71 of 88 table rows are byte-identical**, and the 17 that are not decompose into two headers, the four owner rows V1 struck plus one scope expansion, the four rows of the deleted 关键资源约束 table, the three deleted milestone rows, and the three items the calls already set aside — so **nothing in this pair is unlabelled**, where the same sweep found five unrestated propositions in P9 and six in P10. The drop arm is therefore complete at 6 rather than capped at 6 (call 6). Two evidentiary points are stronger than drafted: the article declares **only the two chain versions**, so with P3 it is one of the only two cases free of a co-source confound, and v2 deletes the only two in-body dates later than v1's frontmatter (D4's 4/13–4/19 and D5's 4/14), so the newer body is dated less than the older. Row-level: K3's cite was one cell of three and all twelve cells of the 数据汇总 table are byte-identical, while the article never states its 24 + 39 split; K4 holds on content and not on bytes (v2 bolds the figure and closes a space); D1's residue is three article lines and drops its scope clause; D2 shares L161 with D1; D6's second residue at L125 was uncited; and 「安全团队」 cannot serve as D3's absence test, having a hit in v2 at L391. **Call 3 is escalated and left with Captain**: V8's test, which promoted P5-D6, is satisfied by v1's 「Q2 W6」 → v2's 「Q2」, so on that reading it is a seventh drop with three article residues and the published drop total moves 32 → 33. **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 6C / 5D / 6K with 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Two calls are left with Captain**: call 3, where 高价值 and 个人专属 being 0 hits in v2 pull one way and P3 call 4's refusal to read omission as denial pulls the other, and **call 9, raised here** — a sweep of every v1 line absent from v2 that finds **five unrestated propositions the drop arm does not carry**, three of them stated as current in the article. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
 | P10 | 7 | 6 | 6 | 3 of 7 | **confirmed 2026-08-17** — all 19 rows settled: 8 confirmed, 11 amended, none rejected, and no verdict moved, so it holds at 7C / 6D / 6K with 3 of 7 stale. It is the case where the pass measured the **rewrite**: only **19 of v1's 171 non-blank body lines survive in v2 byte-identical** and seventeen of those are separators, headings and table rules, so no row here can be scored on a shared string and the drop arm is a judgement about propositions rather than about lines. Two findings sit on the other arms. The **drop arm reads 4 of 6 stated as current** (D1, D4, D5, D6), and the two that are not tell you where a compile loses things quietly: D2's whole residue is the frontmatter tag `wip-limits` with no body line behind it, and D3's is a link to [[Organizational Change Management for Engineering Teams]], a title no file in the KB carries. And **K2 is an over-deletion hit**, harder than P9-K5's thin carriage — three sources state the on-time rule (v1 L236, v2 L381, full L204) and the article writes 「on-time」 39 times without defining it once, while three of the six controls (K1, K2, K3) are co-asserted by the never-superseded full report and so cannot score on their own. Row-level corrections: C7's 43% is v1's arithmetic and not the unscored framing V6 set aside (v2's extremes give 41.9%); C1 holds on the rule because v1's 「约占 6.3%」 never reaches the article, which uses the co-source's 984 / 5.3%; C3's replacement reaches two lines beyond the cite (L52, L70); K1 holds on content and not on bytes (「上主网」 → 「上主网(MainNet)」); and seven cites were short of their own item (C2's L378, D2, D3, D4 and D5's second halves, K4's L79, K5's L344). Calls: **1 was settled by V3** and is recorded as such, **2 and 3 are answered no** with the pre-V3 arithmetic corrected in both (4 of 8, not 5 of 9 or 4 of 9), 4 and 5 keep their lists, and **call 6 is raised and left with Captain** — a sweep of all 152 non-surviving v1 lines that finds **six unrestated propositions the drop arm does not carry**, three of them stated as current, plus two excluded on V9's ground. **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue; **confirm pass 2026-08-17** settled its 18 marked rows, 15 confirmed and 3 amended, C7 and C8 having been settled by V10 already, and corrected the agreement to hold on content rather than on bytes, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
@@ -1527,6 +1546,40 @@ This is the case where A1's signal does all the work with no accidental help —
 is why it is worth keeping after V1 struck its contradictions. It exercises the signal
 on the drop and control columns instead.
 
+**Measured in the confirm pass, 2026-08-17.** The 71-of-88 figure verifies exactly, and
+the 212 is reproducible once its basis is named: `diff` reports 155 changed lines on v1's
+side and 65 on v2's, 220 in all, of which 8 are the frontmatter's `id`, `date`, `checksum`
+and `url` — so 212 is the body remainder. Two tighter figures are worth having beside it,
+because 212 overstates the edit by counting reserialisation: **40 of v1's 1,665 non-blank
+body lines have no counterpart anywhere in v2, and 22 of v2's are new**, and most of the
+rest of the diff is markup — v1 has nine `<lark-table>` tags and v2 has eight, one per
+table it keeps, and **every one of the eight gains `header-row="true"` and real column
+widths** where v1 has neither, while both metadata blocks move from `<quote-container>` to
+`<callout>`.
+
+**The 17 rows that are not byte-identical decompose completely, and that is the finding.**
+Two are table header rows, where `Owner` becomes `团队` (v1 L40, L216 → v2 L35, L211).
+Five are data rows, cited here by their row starts: the four owner changes V1 struck
+(v1 L83, L117, L228, L248) plus `AI Code Review CI 集成`'s scope expansion (L100,
+「中台架构组」 → 「效能 / app / 中台架构组」). Four are the deleted `关键资源约束` table — its header and D1, D2, D3.
+Three are the deleted milestone rows D4, D5, D6. The last three are the ones the calls
+already set aside: the struck Smart Router milestone losing its bold inside the
+strikethrough (v1 L1673 「~~**Q2**~~」 → v2 L1583 「~~Q2~~」), call 3's `Q2 W6` → `Q2`
+(v1 L1684 → v2 L1594), and call 4's `App` qualifier (v1 L1709 → v2 L1619). **Nothing is
+unlabelled**: the sweep that found five unrestated propositions in P9 and six in P10 finds
+none here, so P8's drop arm is complete at 6 rather than capped at 6 — see call 6 — with
+the single open question being call 3, which this pass escalates.
+
+**Two facts about P8's evidentiary position, both stronger than the draft claimed.** Its
+article declares **only the two chain versions** as sources — with P3, the only two cases
+free of a co-source confound, as
+[the co-source note](#note-co-source-assertion-confounds-the-staleness-column) records —
+so every declared residue here is attributable to the chain. And the
+ordering claim is stronger than "no accidental help": the only in-body dates later than
+v1's own frontmatter are the `4/13-4/19` and `4/14` milestone cells, and **v2 deletes both
+of them** (they are D4 and D5), so the newer body is dated *less* than the older one. An
+ordering heuristic reading bodies alone would be pushed the wrong way here.
+
 ### Contradictions and their replacements
 
 **None. P8 contributes no contradictions** — the four it was drafted with are struck by
@@ -1564,12 +1617,12 @@ Three facts in v2 itself settled it:
 
 | ID | Asserted by v1, absent from v2 | Evidence | Status |
 |---|---|---|---|
-| P8-D1 | The AI team has 6 people and is severely insufficient across CS, personalization and infrastructure | v1 L1563–1569 | to confirm |
-| P8-D2 | Infra support for AI is 3 people, spread across business lines, unsustainable | v1 L1574–1580 | to confirm |
-| P8-D3 | The security team has 5 people with 25% of capacity consumed by AI projects for two months or more | v1 L1585–1591 | to confirm |
-| P8-D4 | An AI asset convergence roadmap and freeze strategy is due in the week of 4/13–4/19 | v1 L1618, L1621 | to confirm |
-| P8-D5 | Rockman formally joins as CTO on 4/14 | v1 L1629, L1632 | to confirm |
-| P8-D6 | Locking the AI Coding 20% metric definition is a Q2 milestone | v1 L1662, L1665 | to confirm |
+| P8-D1 | The AI team has 6 people and is severely insufficient across CS, personalization and infrastructure | v1 L1563–1569 | amended 2026-08-17 — the three cells verify (L1563 「AI 团队」, L1566 「6 人」, L1569 the bottleneck clause) and the row is absent from v2. Two additions: the residue is **three article lines** (L16, L94, L161), and it is carried **without its scope clause** — the article states the headcount and 「severely understaffed」 but never the three directions, so the full proposition is only half-stated |
+| P8-D2 | Infra support for AI is 3 people, spread across business lines, unsustainable | v1 L1574–1580 | amended 2026-08-17 — cells verify (L1574, L1577, L1580) and are absent from v2; the clause reaches the article whole at L16, and **L161 is a second residue shared with D1**, where 「unsustainable」 is attached to the 6-person team instead of to infra — the two rows are not separable in the article |
+| P8-D3 | The security team has 5 people with 25% of capacity consumed by AI projects for two months or more | v1 L1585–1591 | amended 2026-08-17 — cells verify (L1585, L1588, L1591) and the half-carriage holds: article L16 states the 25% / ≥2-month clause and 「5 人」 is 0 hits. One string hazard: the absence test cannot run on 「安全团队」, which is 1 hit in v2 at L391 (「AI + 安全团队」, an unrelated project row); it has to run on 「5 人」 or 「25% 资源被 AI 项目占用」 |
+| P8-D4 | An AI asset convergence roadmap and freeze strategy is due in the week of 4/13–4/19 | v1 L1618, L1621 | confirmed 2026-08-17 — both cells verify, 「AI 资产收敛路线图」 and 「冻结策略」 are 0 hits in v2, and the article states it twice: Decision 4 (L49–52) and the first milestone row (L185) |
+| P8-D5 | Rockman formally joins as CTO on 4/14 | v1 L1629, L1632 | confirmed 2026-08-17 — both cells verify and 「Rockman CTO 正式入职」 and 「4/14」 are each 0 hits in v2; bare 「Rockman」 is not the test, having 2 hits there. Article L40 |
+| P8-D6 | Locking the AI Coding 20% metric definition is a Q2 milestone | v1 L1662, L1665 | amended 2026-08-17 — cells verify and 「指标定义锁死」 is 0 hits in v2; the article states it **twice**, at milestone row L194 and in prose at L125 (「the 20% metric definition currently being locked」), the second uncited. The article keeps v1's grain: an undeclared same-day sibling schedules the same lock at 「Q2 W4」 (`…cto-rockman-对齐材料.md` L1784), so the Q2 residue is v1's |
 
 Five of the six are stated as current in the article today (L16, L94, L161, L49–52,
 L185, L40, L194) — recorded because it sizes A2's RP1 arm, not because it gates A1.
@@ -1580,12 +1633,12 @@ states the security team's headcount, and `5 people` returns no hits.
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P8-K1 | Smart Router is a Go-native LLM routing service validated at ≥50% cost reduction | v1 L199 → v2 L160 | to confirm |
-| P8-K2 | AI Gateway covers 82.5% of 40 target scenarios (33/40) | v1 L262 → v2 L257 | to confirm |
-| P8-K3 | The portfolio totals 63 projects (24 infrastructure + 39 business) | v1 L1541 → v2 L1534 | to confirm |
-| P8-K4 | 88 AI scenarios collected company-wide, 41 pending for lack of AI team resources, cross-BU common needs recommended for central build | v1 L1598 → v2 L1541 | to confirm |
-| P8-K5 | Q1 2026 AI coding actuals: 74.89% adoption, 34.17% AI code ratio | v1 L322 → v2 L317 | to confirm |
-| P8-K6 | Bybot automatically handles 83.85% of online CS volume at an 84%+ resolution rate | v1 L654 → v2 L647 | to confirm |
+| P8-K1 | Smart Router is a Go-native LLM routing service validated at ≥50% cost reduction | v1 L199 → v2 L160 | confirmed 2026-08-17 — the two cells are byte-identical (「Go 原生 LLM 路由服务，已验证 ≥50% 降本」); article L99 and L154 |
+| P8-K2 | AI Gateway covers 82.5% of 40 target scenarios (33/40) | v1 L262 → v2 L257 | confirmed 2026-08-17 — byte-identical (「40 场景覆盖 82.5% (33/40)」); article L100 and L155, while L192 carries the 40/40 Q2 target rather than the control |
+| P8-K3 | The portfolio totals 63 projects (24 infrastructure + 39 business) | v1 L1541 → v2 L1534 | amended 2026-08-17 — the cite is one cell of the three the claim makes: 24 and 39 are v1 L1535 and L1538 → v2 L1528 and L1531. The control is stronger than drafted and its carriage weaker. **All twelve cells of the 数据汇总 table are byte-identical**, so the whole portfolio summary is a control; but the article states 63 (L2, L14, L24, L94, L162) and the 15 / 31 / 17 status split (L14) while the **24 + 39 category split is 0 hits**, so the row scores on the total |
+| P8-K4 | 88 AI scenarios collected company-wide, 41 pending for lack of AI team resources, cross-BU common needs recommended for central build | v1 L1598 → v2 L1541 | amended 2026-08-17 — the control holds on content and **not on bytes**: v2 bolds the figure and closes a space (v1 「88 个 AI 场景，其中 **41 个…」 → v2 「**88 个 AI 场景**，其中**41 个…」), and v2 also moves the callout out of the deleted 关键资源约束 and rewraps it from `<quote-container>` to `<callout>`. Article L16 and L94 carry both figures, L37 and L195 the central-build recommendation |
+| P8-K5 | Q1 2026 AI coding actuals: 74.89% adoption, 34.17% AI code ratio | v1 L322 → v2 L317 | confirmed 2026-08-17 — byte-identical (「Q1 实际 74.89% 采纳率, 34.17% 代码率」); the article carries it on a single line, L125, which with K6 is the thinnest carriage in P8 |
+| P8-K6 | Bybot automatically handles 83.85% of online CS volume at an 84%+ resolution rate | v1 L654 → v2 L647 | confirmed 2026-08-17 — byte-identical (「自动处理 83.85% 在线客服量，解决率 84%+」); article L112, also one line |
 
 ### Relocated, not dropped — the list that proves reorganisation was not read as deletion
 
@@ -1607,11 +1660,17 @@ states the security team's headcount, and `5 people` returns no hits.
 
 ### P8 open judgement calls
 
+**Confirm pass, 2026-08-17**: calls 1, 4, 5 and 6 are answered — 1 and 5 with corrections
+to their own evidence, 4 and 6 at their drafted position — and call 2 needs no answer.
+**Call 3 is escalated and left with Captain**: under the test V8 established on P5 it is a
+drop rather than a nothing, which moves the published drop total.
+
 1. **Is `Owner` → `团队` a real re-attribution or a column relabel? — RULED, neither
    scores.** The change is *selective*: rows 9, 12, 13 and 14 keep person names inside
    v2's `团队` column while rows 3, 5, 10 and 11 change to `架构`, and the header change
-   is confined to the two infra tables (the 未开始 infra table and all four business
-   tables still say `Owner`, v2 L497, L561, L707, L1150). The draft read that as
+   is confined to the two infra tables (v2 L497, L561, L707, L1150 still say `Owner` —
+   **the 未开始 infra table plus the three business tables**, not four business tables as
+   first written; v1's six `Owner` headers become two `团队` and four `Owner`). The draft read that as
    deliberate re-attribution; a mechanical relabel would have converted all of them.
    But the competing reading — an editor who started and stopped halfway — cannot be
    excluded from the text, and v2 names Lucas at both the category heading (L19) and in
@@ -1620,22 +1679,46 @@ states the security team's headcount, and `5 people` returns no hits.
 2. **The column-header change itself is deliberately not an entry.** It is the
    umbrella cause of C1–C4, but "the infra tables use an Owner column" is not
    scoreable in article prose.
-3. **Left out, wants a decision — the JIRA/GitLab MCP schedule.** v1 「Q2 W6」
-   (L1684) → v2 「Q2」 (L1594). Q2 W6 is inside Q2, so v2 de-specifies rather than
-   contradicts; but the week-level commitment was removed. The article says "Q2
-   Week 6" in three places (L102, L157, L191), so promoting this adds a third
-   stale hit.
+3. **Left out, wants a decision — the JIRA/GitLab MCP schedule. ESCALATED
+   2026-08-17, and left with Captain.** v1 「Q2 W6」 (L1684) → v2 「Q2」 (L1594). Q2 W6 is
+   inside Q2, so v2 de-specifies rather than contradicts; but the week-level commitment
+   was removed. The article says "Q2 Week 6" in three places (L102, L157, L191).
+   **What changed is that this now has a precedent pointing the other way.** V1 ruled that
+   a de-specification is not a *contradiction*, which is why this row scores nothing today;
+   it said nothing about drops. **V8's two-pronged test, applied on P5 to promote D6, is
+   satisfied here on both prongs**: 「Q2」 does not entail 「Q2 W6」, and `Q2 W6` is 0 hits
+   in v2. On that reading it is P8-D7, a **lost** drop with three article residues, and it
+   moves the published drop total from 32 to 33. Two things Captain needs with it. The
+   residue is **not v1-exclusive corpus-wide**: `…2026-04-12-ai-项目全景-cto-rockman-对齐
+   材料.md` L1816–1819 schedules 「JIRA MCP Server + GitLab MCP Server 上线」 at 「Q2 W6」
+   verbatim, is dated the same day as v1, is never superseded and is **not** declared in
+   this article's sources — the V16 shape, which left the residue with the chain in P5's
+   D4 and D6. And promoting it would make P8 gate under FX7 if the promotion were to a
+   contradiction rather than a drop, which is the branch V1 already closed. Answering it
+   yes-as-drop is the only branch that changes a number.
 4. **Left out**: v1 「新多站点架构测试完成 (100% AI 编写)」 (L1709) → v2 adds an
    「App」 scope qualifier (L1619); the underlying project row is identical in both.
-   Restatement, not change.
+   Restatement, not change. **Confirmed**: the project row is byte-identical and still
+   attributes the work to `Arkin` (v1 L898 → v2 L891), and the milestone table has no
+   owner column in either version.
 5. **Do not trust the stored extractions on ownership.** v2's extraction invents
    `owner: Frontend Team` for the multi-site item where the raw text says `Arkin`,
    same as v1, and renders v1's 「中台 / AI Infra」 as "Middle platform team" — a
    translation, not a change. The extractions did independently corroborate C1 and
-   C2, but every entry above is grounded in raw text.
+   C2, but every entry above is grounded in raw text. **Verified, with the invention
+   sharper than described**: the raw milestone row carries no owner column at all in
+   either version, and v1's extraction leaves the same task `owner: TBD`
+   (`extraction/docs/2026-04-12-…` L230) where v2's writes `owner: Frontend Team`
+   (`…2026-04-13-…` L234) — so the extraction pair *disagrees* about an owner the raw
+   pair never states, while both raws attribute the project itself to `Arkin`. The
+   translation drift is at v1 extraction L173/L210 against v2 extraction L182/L218.
 6. **Drops are at the cap of 6**, and they are two editorial acts: D1–D3 delete
    `### 关键资源约束` (v1 L1546–1594) and D4–D6 delete three milestone rows.
-   Collapse to 2 entries if scoring should count acts rather than claims.
+   Collapse to 2 entries if scoring should count acts rather than claims. **Confirmed,
+   and the cap turns out not to bind**: the confirm pass swept all 17 rows that differ
+   between the versions and every deletion in the pair is already one of these six, so
+   the arm is *complete* at 6 rather than truncated at 6. The one candidate outside the
+   six is call 3's de-specification, which deletes a qualifier rather than a row.
 
 ---
 
