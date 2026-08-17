@@ -1,0 +1,74 @@
+py/src/kb_ai/server_daemon.py
+  c390724cacfabba7 145-148,150-152,167,172,182-227
+web/src/api/upload-config.ts
+  c390724cacfabba7 5,13,16,24
+internal/api/tasks.go
+  ed821383a90b3a7f 82
+web/src/components/FileUploadZone.tsx
+  c390724cacfabba7 9-10,44,46-48,50-55,58,218
+py/pyproject.toml
+  c390724cacfabba7 9
+web/src/components/FileUploadZone.test.tsx
+  c390724cacfabba7 11,84
+internal/config/config.go
+  c390724cacfabba7 37,39
+py/src/kb_ai/convert.py
+  c390724cacfabba7 1-58
+internal/api/submit_files.go
+  c390724cacfabba7 25-30,34-35,41-42,136-140,145,149,159,168,173-177,203-207,239,345-349,358,362,371,385-389,398-404,444,459
+internal/api/api_test.go
+  c390724cacfabba7 154
+internal/bridge/api.go
+  c390724cacfabba7 41-42
+etc/kaas.toml
+  c390724cacfabba7 68,70-76
+web/src/api/upload-config.test.ts
+  c390724cacfabba7 48,59,71,84
+py/tests/test_extract_file_path.py
+  c390724cacfabba7 1-255
+web/src/i18n/strings.ts
+  c390724cacfabba7 91,233
+internal/worker/worker_test.go
+  c390724cacfabba7 32,41,265-349
+py/tests/test_convert.py
+  c390724cacfabba7 1-134
+internal/worker/worker.go
+  c390724cacfabba7 11,99-125,132,208-214
+web/src/hooks/useUploadConfig.test.ts
+  c390724cacfabba7 15
+web/src/pages/Tasks.tsx
+  ed821383a90b3a7f 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "feab66ccd99366f515308c6c0ca85ac4b9f12164",
+  "prompts": {
+    "c390724cacfabba7": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00b2b-cea3-7593-b4db-098bb6107943",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 718,
+      "overriden_lines": 0
+    },
+    "ed821383a90b3a7f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ca96de30-8536-42fe-9654-01b143996bfc",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tom.ye1",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
