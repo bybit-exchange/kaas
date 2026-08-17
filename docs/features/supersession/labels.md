@@ -1,9 +1,22 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass under way — 53 of 118 scoring rows settled, 65 still read
+Status: **confirm pass under way — 70 of 118 scoring rows settled, 48 still read
 `to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
-because P2 scores nothing. Four cases are through it, all on 2026-08-17, and no total
-moved in any of them. **P7 — 6 confirmed, 8 amended, none rejected**, holding at
+because P2 scores nothing. Five cases are through it, all on 2026-08-17, and no total
+moved in any of them. **P9 — 10 confirmed, 7 amended, none rejected**, holding at
+6C / 5D / 6K with 3 of 6 stale, and it is the case where the pass measured what the
+drop arm is *not* carrying: 126 of v1's 208 non-blank body lines survive in v2
+byte-identical, and re-testing the 82 that do not against V8's standard turns up
+**five unrestated v1 propositions**, three of them stated as current in the article.
+That is **call 9**, raised here and left with Captain because each promotion moves the
+published drop total. P9's **call 3** stays open too, and the pass narrowed it from
+both sides: v2 restates v1's offer nowhere (高价值 and 个人专属 are 0 hits) and re-terms
+the same capability as a paid tier, yet the contradiction still needs v2's tier table
+read as exhaustive, which is what P3 call 4 declined to do for command tables. The
+answered calls settle the mechanism question this case turns on — **colour markup
+asserts a phase where the document declares a legend** (v2 L124), which is not the
+same as reading a phase off an absent highlight, the weaker half of C6.
+**P7 — 6 confirmed, 8 amended, none rejected**, holding at
 8C / 0D / 6K with 6 of 8 stale, and it is the case whose *structure* the pass
 settled: v1 sits inside v2 byte-identical across all ten shared table cells, so
 the empty drop arm is a property of the pair rather than a drafting choice — and it
@@ -25,10 +38,11 @@ as complete, and the fifth restores the half of a control's evidence that was mi
 **P2 — 15 confirmed, 3 amended**, its C7 and C8 already settled by V10; the label
 stays in the fixture's stated direction as counter-case evidence, and confirming it
 corrected the identity claim underneath the inversion, which holds on content and not
-on bytes. One open call is left for Captain, **P3 call 3**, still the only one in the
-four cases that would move published totals — P4's call 9 and P7's call 4 were both
-answered at their drafted position, which is the branch that moves nothing, and P7
-leaves no call open at all. The verification queue below is
+on bytes. Three open calls are now left for Captain — **P3 call 3**, **P9 call 3** and
+**P9 call 9** — and each of them has one branch that moves published totals, which is
+why none was taken in the pass. Every other call it touched was answered at its drafted
+position, the branch that moves nothing: P4's call 9, P7's call 4 and P9's calls 1, 2, 4
+and 5. P7 and P4 leave nothing open at all. The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -103,7 +117,7 @@ are into the fixture files named at the head of each case.
 | P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 14 rows settled: 6 confirmed, 8 amended, none rejected, and no verdict moved, so it holds at 8C / 0D / 6K with 6 of 8 stale. The pass makes the case's structure measured rather than asserted: v1 is inside v2 **byte-identical across all ten shared table cells**, so the empty drop arm is a property of the pair — and it rests on **call 4**, now answered on arithmetic, because strikethrough is the one mechanism that could still produce a drop. Also: five of six controls are re-asserted in v2's own newest column and only **K1** holds by construction; C4 and C6 are the only rows whose cite leaves the newest column; C1's replacement figure reached the article **stripped of its unit** from a co-source (57.11 as a rate at L39, L51, L101, L479); C5's correction only half landed (25046 absent, 11362 present only in C6's framing); C8 and C5 had residues under-cited (L612; three derived pending-core lines); C3's superseded rate is stale **inside v1** and on a different basis than its replacement, so the row scores on the amount; and four string hazards recorded (`117.3` finds only the dated line; bare `3300`, `3864`, `7197`, `17054` and `1750` all miss the article's comma forms; `6.8` matches `S6.8XLARGE128`; `7C` matches inside `7197C`). **V4 ruled 2026-08-16** keeps all 8 rows scoreable and narrows the causal claim to C8; the pass narrows V4's own confound too — the co-source copies only the **Q2 half** of v1's newest column and carries the three landed figures without their units, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
-| P9 | 6 | 5 | 6 | 3 of 6 | to confirm — **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
+| P9 | 6 | 5 | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 6C / 5D / 6K with 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Two calls are left with Captain**: call 3, where 高价值 and 个人专属 being 0 hits in v2 pull one way and P3 call 4's refusal to read omission as denial pulls the other, and **call 9, raised here** — a sweep of every v1 line absent from v2 that finds **five unrestated propositions the drop arm does not carry**, three of them stated as current in the article. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
 | P10 | 7 | 6 | 6 | 3 of 7 | to confirm — **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue; **confirm pass 2026-08-17** settled its 18 marked rows, 15 confirmed and 3 amended, C7 and C8 having been settled by V10 already, and corrected the agreement to hold on content rather than on bytes, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
@@ -145,8 +159,8 @@ retained below as counter-case evidence.
   one case with no accidental ordering cue at all — but on the drop and control
   columns, not on the gating one.
 
-**These totals have V1–V14, V19, V20 and V21 applied; 3 rulings are
-still open, and none of them moves a number.** The
+**These totals have all 22 rulings applied and the queue is closed; V15, V17, V18 and
+V22 were the last four taken and none of them moved a number.** The
 seven rulings between V3 and V8 all left the totals where they were; **V8 is the last one
 to move any**, taking the drop total from 31 to 32. It promotes P5's unlisted
 `universal-transfer` abridgement to drop **D6**, and re-reading all seventeen of that
@@ -1531,72 +1545,132 @@ markers — the heading 「# 会议纪要 20260513」 (L656), which postdates v2
 frontmatter date of 2026-05-11, and 「ABF（6月末启动，目标7.30主网）」 (L234) — so v2
 is distinguishable from v1 by body content, not only by the date prefix.
 
+**Measured in the confirm pass, 2026-08-17.** Those two line counts are
+`select_cases.py`'s `body_lines` basis, which prepends a newline on purpose, so a
+reader checking with `wc -l` gets 288 and 692 on the whole files and 280 and 684
+after the 8-line frontmatter — one below the recorded pair, by design rather than by
+drift. On that body, **126 of v1's 208 non-blank lines survive in v2 byte-identical**
+once indentation is trimmed; that is a membership test over v1's lines and not the
+161-of-685 diff alignment in
+[the similarity note](#note-the-recorded-similarity-figures-are-distorted), which
+counts matched lines over v2's whole body including blanks. The 82 that do not are dominated by one structural
+edit — v1's 实现路径 table, which schedules every deliverable by team (L91–151), is
+replaced by v2's colour legend plus three-pillar table (L120–193) — together with
+heading renames whose content survives in another form (`### 个性化回答` →
+`### 个性化`, `### 基础交互能力` → `### 输入端`, and the four `###` Skills sections
+re-nested as bold headings under `# Agent 能力`). That is why the drop arm is short:
+most of what disappeared is re-expressed rather than dropped. What is genuinely
+unrestated, and unlabelled, is swept in call 9 below.
+
 ### Contradictions and their replacements
 
 | ID | v1 → v2 | Evidence | Article today | Status |
 |---|---|---|---|---|
 | ~~P9-C1 / R1~~ | ~~The end state is two parts (Skills for self-hosted OpenClaw users, plus an "online lobster" via the TradeGPT entry) → three pillars (问答交互 / 智能投顾 / Agent能力)~~ | ~~v1 L20 → v2 L122, L130, L133, L136~~ | **struck by V2, ruled 2026-08-15** — v2 keeps *both* parts (L175–178 and L184, the latter already scored as control **K1**), so the article's two-component framing at L21, L23–24 matches the newest source and was never stale. The pillars are a capability taxonomy on another axis; the substance now sits in control K1 below and in call 7's additive list. ID retired | — |
-| P9-C2 / R2 | Phase 3 completes end of September → end of October | v1 L140–141 → v2 L124 | not stale — L339, and L341 explicitly records the move | to confirm |
-| P9-C3 / R3 | Phases 1 and 2 complete mid-June and mid-August → end of June and end of August | v1 L108–109, L126–127 → v2 L124 | not stale — L339, L422, L461 | to confirm |
-| P9-C4 / R4 | Top-20 Q&A optimization is a phase-1 deliverable → reassigned to phase 2 | v1 L121 → v2 L156 with the legend at L124 | **stale** — L434 lists it under Phase 1 | to confirm |
-| P9-C5 / R5 | The phase-1 killer feature is a cross-product yield comparison spanning Earn, spot and RWA → yield routing limited to 5 capital-protected products across Earn, Margin Staked SOL and Spot X, over 16 auto-release scenarios | v1 L205 → v2 L161–162, L316–317, L673; the 5 products are tabulated at v2 L333–384. **Reworded on verification** — "5 capital-protected Earn products" as first drafted overstated the narrowing, since v1's 现货 leg is partly retained; only RWA and the horizontal-comparison framing are genuinely gone | not stale — no RWA or horizontal-comparison killer feature in the article | to confirm |
-| P9-C6 / R6 | Personal dedicated OpenClaw instances open to high-value TradeGPT users in phase 2 → per-user hosted OpenClaw is a paid mid-tier subscription (phase 3) | v1 L134 → v2 L185–186, L650–653 | **stale** — L236 states the phase-2 exception, L465, L339; the article carries v2's Cloud OpenClaw (L68, L234, L477) alongside without resolving | to confirm |
-| P9-C7 / R7 | The adopted Bybot/TradeGPT resolution is the hybrid keeping Bybot's own entry alive → Global keeps only the TradeGPT entry, Local keeps the CS entry | v1 L287, L281 → v2 L678, L662 | **stale** — L258, decision heading L297; v2's routing decision is appended at L260 without retracting the hybrid | to confirm |
+| P9-C2 / R2 | Phase 3 completes end of September → end of October | v1 L140–141 → v2 L124 | not stale — L339, L341 explicitly records the move, and L473's section heading states it a third time | confirmed 2026-08-17 — `September` occurs once in the article, at L341, and there as the recorded move rather than as a live claim |
+| P9-C3 / R3 | Phases 1 and 2 complete mid-June and mid-August → end of June and end of August | v1 L108–109, L126–127 → v2 L124 | not stale — L339, L422, L461 | confirmed 2026-08-17 — all three cites verify, and 「mid-June」/「mid-August」 are 0 hits in the article |
+| P9-C4 / R4 | Top-20 Q&A optimization is a phase-1 deliverable → reassigned to phase 2 | v1 L121 → v2 L156 with the legend at L124. **v2 states the item twice**: phased at L156 as 「Top 6-20 问答优化」 (light-green) and unphased at L307 as 「Top 20 问答优化」 in its own 输出端 section, so the phase move is asserted at L156 alone | **stale** — L434 lists it under Phase 1; Decision 5 (L315–316) restates the Top-20 card mechanism with no phase attached, so L434 is the whole residue | amended 2026-08-17 — verdict unchanged; v2's second, unphased statement is recorded because it is what a scorer reading v2's prose rather than its overview table would find, and it is what call 2 turns on |
+| P9-C5 / R5 | The phase-1 killer feature is a cross-product yield comparison spanning Earn, spot and RWA → yield routing limited to 5 capital-protected products across Earn, Margin Staked SOL and Spot X, over 16 auto-release scenarios | v1 L205 → v2 L161–162, L316–317, L673; the 5 products are tabulated at v2 L333–384, marked P-1 at L160 and bounded by 「限于」 at L161 and L316. **Reworded on verification** — "5 capital-protected Earn products" as first drafted overstated the narrowing, since v1's 现货 leg is partly retained; only RWA and the horizontal-comparison framing are genuinely gone | not stale — `RWA` is 0 hits in the article and it carries no horizontal-comparison killer feature; what it states is v2's narrowed form, at L60, L122–127, L355 (Decision 10) and L429 | amended 2026-08-17 — verdict unchanged; the article side was asserted without a cite and is now measured, and one string hazard comes with it: 横向 survives in v2 at L607, the AI-Marketplace 跨产品的横向推荐 both versions keep, so the absence test has to be scoped to the killer-feature slot rather than run over the file |
+| P9-C6 / R6 | Personal dedicated OpenClaw instances open to high-value TradeGPT users in phase 2 → per-user hosted OpenClaw is a paid mid-tier subscription (phase 3) | v1 L134 → v2 L185–186, L650–654 | **stale** — L236 states the phase-2 exception, L465, L339; the article carries v2's Cloud OpenClaw (L68, L234, L477) alongside without resolving | amended 2026-08-17 — verdict unchanged, and the row is re-cut onto what carries it. The *terms* half is prose: v1 gives the capability free to 高价值用户 as a phase-2 deliverable, v2 sells it as 付费订阅 to 中间用户 (L185–186), and 高价值 and 个人专属 are both 0 hits in v2, so nothing there restates v1's offer. The 「(phase 3)」 half rests on the *absence* of a highlight, the weakest of this case's three mechanisms — see call 3, which stays open. Drop-arm cite was one bullet short (L650–654) |
+| P9-C7 / R7 | The adopted Bybot/TradeGPT resolution is the hybrid keeping Bybot's own entry alive → Global keeps only the TradeGPT entry, Local keeps the CS entry | v1 L287, L281 → v2 L678, L662 | **stale** — four residues, not two: L258 prose, decision heading L297, **L298** restating the hybrid inside Decision 3's own body, and action item **L448** 「hybrid Bybot handoff button」; v2's routing decision is appended at L260 and again inside L298 without retracting the hybrid | amended 2026-08-17 — verdict unchanged; the residue was cited at two lines and is four, so a fix reaching the Key Concepts paragraph and the decision heading leaves the decision body and the action item still asserting the hybrid |
 
 ### Drops (measured, not gating)
 
 | ID | Asserted by v1, absent from v2 | Evidence | Status |
 |---|---|---|---|
-| P9-D1 | One OpenClaw per user costs 20 USD/month to run plus 20 USD/month in tokens, reaching 4M USD/month at 100K DAU | v1 L24 | to confirm |
-| P9-D2 | OpenClaw cannot be shared across users — the design is single-user and sharing risks data contamination, forcing one instance per user | v1 L25 | to confirm |
-| P9-D3 | Model selection is decided by parallel A/B testing of next-day retention, breaking ties on cost and response time | v1 L225, L227; 留存 occurs nowhere in v2 | to confirm — see call 5 |
-| P9-D4 | TradeGPT will offer an A/B answer picker returning two answers in parallel, doubling as a way to test answer logic and compare models | v1 L233 | to confirm |
-| P9-D5 | Regulators prohibit trading recommendations inside a CS bot, so a merged entry would fail licensing review on Local Sites and on a future licensed Global site | v1 L278, L280; neither 合规 nor 监管 occurs in v2 | to confirm |
+| P9-D1 | One OpenClaw per user costs 20 USD/month to run plus 20 USD/month in tokens, reaching 4M USD/month at 100K DAU | v1 L24 | confirmed 2026-08-17 — no per-instance cost figure survives in v2: `4M` is 0 hits there and its one `DAU` string is the Cumulative DAUT OKR row (L67), not a cost basis. Stated as current at article L225 and again at L291, the second time re-derived as ~40 USD per user per month |
+| P9-D2 | OpenClaw cannot be shared across users — the design is single-user and sharing risks data contamination, forcing one instance per user | v1 L25 | confirmed 2026-08-17 — 共享 and 污染 are both 0 hits in v2; stated as current at article L226 and L291 |
+| P9-D3 | Model selection is decided by parallel A/B testing of next-day retention, breaking ties on cost and response time | v1 L225, L227; 留存 occurs nowhere in v2, and neither does 选型 | confirmed 2026-08-17 as a drop — call 5 answered **no**, on the ground that a periodic GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. Stated as current at article L307 and L443, but only half of it: v1's 「考虑成本和响应时间」 becomes 「the faster model is preferred」 (L307), with cost demoted to a rationale for the update path (L309), so the residue carries the retention criterion and the latency tie-break and loses the cost one |
+| P9-D4 | TradeGPT will offer an A/B answer picker returning two answers in parallel, doubling as a way to test answer logic and compare models | v1 L233 | confirmed 2026-08-17 — AB直选 is 0 hits in v2, and this is P9's one drop with **no article residue**: the article's A/B material (L307, L311, L443) is all model A/B testing, which is D3's subject, not the two-answer picker |
+| P9-D5 | Regulators prohibit trading recommendations inside a CS bot, so a merged entry would fail licensing review on Local Sites and on a future licensed Global site | v1 L278, L280; neither 合规 nor 监管 occurs in v2 | confirmed 2026-08-17 — both strings verify at 0 in v2, whose own CS-merger section (L676–681) lists four fusion workstreams and no compliance constraint at all; stated as current at article L256 and L300, where it is the stated reason C7's superseded hybrid is still there |
 
 ### Controls
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P9-K1 | The only four OpenClaw capabilities TradeGPT lacks — heartbeat trigger, workflow orchestration, long memory, multi-chat-app adaptation — will be built in-house, and with it v1's whole two-part end state: 对自有龙虾用户 Skills at v2 L175–178 and the in-house TradeGPT agent at L184 | v1 L20, L27 → v2 L175–178, L184, L625–632 (the two-part half added by V2, which struck C1) | to confirm |
-| P9-K2 | The 26H1 Fee Conversion target is 80 Mil, 300% growth on 25H2's 19.9 Mil actual | v1 L63–72 → v2 L53–62 (L54–63 as first drafted omits the 「Fee Conversion」 label cell at L53) | to confirm |
-| P9-K3 | Agent sub-account phase 1 covers account balance cap, fund transfer, max borrow leverage and max contract leverage | v1 L186 → v2 L620 | to confirm |
-| P9-K4 | TradeGPT's private Skills may recommend on 180 days of Copy Trading leader performance while the product shows users only 90 | v1 L194 → v2 L639 | to confirm |
-| P9-K5 | The TradeGPT entry end state is a hideable persistent floating button on the right offering page-specific preset questions | v1 L266 → v2 L287 | to confirm |
-| P9-K6 | Phase-1 Skills and MCP are live, Skills covering basic query and execution across all product lines, MCP basic queries for most products | v1 L159 → v2 L593 | to confirm |
+| P9-K1 | The only four OpenClaw capabilities TradeGPT lacks — heartbeat trigger, workflow orchestration, long memory, multi-chat-app adaptation — will be built in-house, and with it v1's whole two-part end state: 对自有龙虾用户 Skills at v2 L175–178 and the in-house TradeGPT agent at L184 | v1 L20, L27 → v2 L175–178, L184, L625–632 (the two-part half added by V2, which struck C1) | amended 2026-08-17 — the control holds on content and **not on bytes**: v2 writes 「心跳机制」 (L184, L627) where v1 writes 「心跳触发机制」 (L27, L245), 1 hit in v1 against 0 in v2, so a presence test on v1's form reads this control as over-deletion. The other three capability names are byte-identical. Article carries all four at L141–146 and again at L67, L289 and L475, and the two-part end state at L21–24 |
+| P9-K2 | The 26H1 Fee Conversion target is 80 Mil, 300% growth on 25H2's 19.9 Mil actual | v1 L63–72 → v2 L53–62 (L54–63 as first drafted omits the 「Fee Conversion」 label cell at L53); the two table blocks are cell-for-cell identical | amended 2026-08-17 — the control holds and the article's rendition of it corrupts the unit: both versions state 「19.9 Mil」 and 「80 Mil」 with no currency, and the article writes them as CNY at L77, so 「80 Mil」 is 0 hits there and the control has to be scored on the numerals plus the 300%. The row below it takes the same treatment, 「2644 K」 arriving as 2,644K, which is the comma hazard P7 recorded |
+| P9-K3 | Agent sub-account phase 1 covers account balance cap, fund transfer, max borrow leverage and max contract leverage | v1 L186 → v2 L620 | confirmed 2026-08-17 — the two lines are byte-identical; the article carries all four limits at L251, with L58 and L427 restating the phase-1 set |
+| P9-K4 | TradeGPT's private Skills may recommend on 180 days of Copy Trading leader performance while the product shows users only 90 | v1 L194 → v2 L639 | confirmed 2026-08-17 — byte-identical in both; the article carries the 180-against-90 split at L103 and L325 |
+| P9-K5 | The TradeGPT entry end state is a hideable persistent floating button on the right offering page-specific preset questions | v1 L266 → v2 L287 | amended 2026-08-17 — the control stands on both cites (v2 promotes it to its own 「TradeGPT入口终态」 heading at L285), and its **article carriage is the thinnest in P9**: 「preset」 is 0 hits and no line states the hideable right-side button. What the article keeps is the persistent floating button inside the merged BYBIT AI framing (L45, which adds page-context detection) and a platform-wide action item (L476). Scored on the floating-button end state rather than on the specifics — the nearest thing in this case to an over-deletion hit |
+| P9-K6 | Phase-1 Skills and MCP are live, Skills covering basic query and execution across all product lines, MCP basic queries for most products | v1 L159 → v2 L593 | confirmed 2026-08-17 — the same paragraph byte for byte, inside a section v2 copies whole; the article carries both halves at L55–56 and L89–92 |
 
 ### P9 open judgement calls
 
-1. **C3 bundles the phase-1 and phase-2 date moves** because v2 states all three
-   deadlines on one line (L124) and two-week slips are individually low
+Each needs a yes/no from Captain; the default if ignored is the drafted position.
+Calls 1, 2, 4 and 5 were **answered on 2026-08-17 with the confirm pass**, all four
+keeping the drafted position, and calls 6, 7 and 8 keep their recorded lists. **Two
+are left with Captain: call 3, and call 9, which this pass raised.** Each has one
+branch that moves published totals, which is why neither was taken here.
+
+1. **C3 bundles the phase-1 and phase-2 date moves — answered no, 2026-08-17: it stays bundled.** v2 states all three
+   deadlines on one line (L124, verified) and two-week slips are individually low
    consequence. Split for strict one-assertion-per-entry (8 contradictions);
    collapsing C2 and C3 into one instead makes an article that gets phase 1 right
-   and phase 3 wrong score ambiguously.
-2. **C4 rests on colour markup, not prose.** 「Top 6-20 问答优化」 is phase 2 only
+   and phase 3 wrong score ambiguously. **What decided it**: nothing in the evidence
+   forces the finer grain — both halves cite the same v2 line and both are non-stale —
+   while splitting moves published totals on a grain change alone, P9 to 7C with 3 of 7
+   stale, set totals to 45C and the headline to 27 of 40 (68%).
+2. **C4 rests on colour markup, not prose — answered yes, 2026-08-17: it asserts, and C4 scores.** 「Top 6-20 问答优化」 is phase 2 only
    via the `light-green` span plus the legend at L124; the 输出端 prose (L307) gives
-   no phase. Drop C4 if colour-encoded phase assignment is too weak to score. The
-   same mechanism carries C6's phase (absence of a highlight = phase 3).
-3. **C6 is the least certain.** v2 never says high-value users will *not* get a
+   no phase. **What decided it: L124 is a declared key**, 「图例：…一期规划（6月末完成）…」,
+   so reading light-green as phase 2 reads a legend the document states rather than
+   inferring from a table's shape — which is the line P3 calls 2 and 4 drew. Dropping
+   C4 would have taken P9 to 5C at 2 of 5 stale and the headline to 26 of 38 (68%).
+   Two things the pass adds. v2 states the same item a second time, unphased, at L307,
+   so C4's assertion is L156's alone and a scorer who checks the prose section finds no
+   phase change at all. And the mechanism does **not** transfer to C6: there the phase-3
+   reading comes from a highlight being *absent*, which is an inference from omission
+   and not a stated key — recorded on C6 and on call 3.
+3. **C6 is the least certain — still open, and the pass narrowed it from both sides.** v2 never says high-value users will *not* get a
    personal OpenClaw; the contradiction rests on reading v2's user-tier table as an
    exhaustive segmentation. If the tiers are non-exhaustive this becomes a drop —
    and the article's current "Phase 2 exception" wording (L236) is exactly the
-   reconciliation someone would write under that reading.
-4. **C5's subject match is a judgement call**: v1's killer feature is a
+   reconciliation someone would write under that reading. **Re-verified 2026-08-17**:
+   高价值 and 个人专属 are both 0 hits in v2, so v2 restates v1's offer nowhere, and
+   the row does not rest on exhaustiveness alone — v2 re-terms the same capability,
+   付费订阅 to 中间用户 (L185–186), where v1 gave it free to high-value users as a
+   phase-2 deliverable. Against that, **P3 call 4's standard cuts the other way**: v2's
+   tier list never declares itself complete, and treating omission as denial is the
+   inference that call declined for command tables. Demotion is the branch that moves
+   published totals: P9 6C / 5D → 5C / 6D, stale 3 of 6 → 2 of 5, set totals 44C / 32D →
+   43C / 33D, and the headline 27 of 39 (69%) → 26 of 38 (68%). Left at the drafted
+   position pending Captain.
+4. **C5's subject match is a judgement call — answered yes, 2026-08-17: same subject, kept as a contradiction.** v1's killer feature is a
    *comparison* across 理财+现货+RWA, v2's is *routing* into 5 capital-protected
    products. Treated as the same subject because both fill the phase-1 slot and v2
    uses the exclusive 「限于」. Alternatively re-cut as a drop (RWA comparison) plus
-   a purely additive yield-routing entry.
-5. **D3 could be a contradiction** against v2's 「底层模型定期更新（GPT -> Sonnet ->
-   Haiku）」 — a predetermined migration path instead of retention-driven selection.
+   a purely additive yield-routing entry. **What decided it is a line the row cited
+   without leaning on**: v2 L673 「杀手应用，involve jerry 收益路由」 names yield routing
+   *the killer app*, which is the slot v1 L205 fills with 「一期Killing Feature」, and v2
+   marks it P-1 (L160) and bounds it with 「限于」 (L161, L316). Re-cutting it would have
+   moved totals — set 44C / 32D → 43C / 33D and the headline to 27 of 38 (71%), a rate
+   that rises because C5 is one of the non-stale rows.
+5. **D3 could be a contradiction — answered no, 2026-08-17: it stays a drop.** The candidate is v2's 「底层模型定期更新（GPT -> Sonnet ->
+   Haiku）」 (L182, L644) — a predetermined migration path instead of retention-driven selection.
    Called a drop because v2 says nothing about selection criteria. The article
    fuses both (L307, L443), which is what a failed contradiction resolution looks
-   like; reclassifying makes the stale count 5 of 8.
+   like. **What decided it: the two claims are compatible.** A periodic path ending on
+   Haiku is what a cost-and-latency tie-break produces, not a denial of it, and v2
+   states no criterion at all — 留存 and 选型 are both 0 hits there — so this is call 1's
+   ground (two things that can both hold) rather than a contradiction. **Its arithmetic
+   was also stale and is corrected**: written before V2 struck C1, it read "makes the
+   stale count 5 of 8"; on today's numbers promotion gives P9 7C / 4D at 4 of 7, set
+   totals 45C / 31D and the headline 28 of 40 (70%).
 6. **Left out**: the OKR section retitle 「TradeGPT 业务目标」 → 「Bybit AI 业务目标」
    (a real scope reframing, but all three carried numbers are byte-identical);
    TradFi, where v2 splits the capability across phases rather than contradicting
    the phase-2 completion; AI Marketplace timing (v2's 「5.30 AI Marketplace」 reads
    as a note under 收益路由, too ambiguous); 「Skills编辑后台（视业务需要而定）」, already
    conditional in v1; and the token-quota statistic, which v2's 「交易量提升Token额度」
-   presupposes.
+   presupposes. **Re-verified 2026-08-17**, with one article-facing finding on the
+   TradFi entry: v2 marks 「TradFi 行情和新闻」 light-yellow, i.e. phase 1 (L150), and
+   「股票基本面和财报信息」 light-green (L152), while the article puts both under Phase 2
+   (L466). It stays out on the drafted ground — v1 asserts the capability *completes*
+   by phase 2 (L135), which delivering one half in phase 1 satisfies — so the article
+   is behind v2 on the news half without asserting anything v1 and v2 disagree about,
+   and no contradiction row would be well posed here. The three OKR numbers under the
+   retitle re-check as byte-identical, and 「编辑后台」 is 0 hits in v2.
 7. **Additive, not superseding** (the list that proves P9 belongs with the
    positives rather than the negative controls) — and V2 moved the three-pillar
    restructure (问答交互 / 智能投顾 / Agent能力, v2 L130/L133/L136) into this list, because
@@ -1612,6 +1686,38 @@ is distinguishable from v1 by body content, not only by the date prefix.
    `raw/meetings/2026-05-20-bybit-ai-toc--weekly.md` and
    `raw/docs/2026-05-29-客服top5场景对比.md`; the BabyAI merger phases,
    internal-controls workstream and top-5 CS scenarios come from those.
+9. **The abridgement sweep — raised by the confirm pass, 2026-08-17, and left open
+   because every promotion moves the drop total.** Each of v1's 82 non-blank body lines
+   that does not survive in v2 byte-identical was re-tested against V8's standard: does
+   the later version restate the proposition anywhere. Five come out unrestated and
+   none of them is labelled.
+   - **(a) 「链式执行」**, one of v1's five private-Skills patterns (L201). The other four
+     recur in v2 — 最新信息带数据 → L153's 活动与福利中心任务+实时数据, 横向产品推荐 → L607's
+     跨产品的横向推荐, 产品策略拼盘 → 资产配置助手 (L581–585), 收益率比较 → C5 — while 链式
+     is 0 hits in v2. No article residue. This is the cleanest of the five and the
+     closest analogue to V8's promotion.
+   - **(b) Top-5 answer-card componentisation** (v1 L238–239). 卡片 in v2 is one hit and
+     in the CS-merger sense (L681), and the article states the mechanism as current at
+     L315–316 and L434. But v2 is not silent on the output side — it asserts A2UI
+     generative layout instead (L157, L308) — so this is arguably a contradiction
+     candidate rather than a drop, a second reason not to settle it here.
+   - **(c) Skills iterated on order success rate and reuse rate**, with UI work on
+     high-frequency scenarios (v1 L271–272). 复用率 is 0 hits in v2; no article residue.
+   - **(d) 「以BOT为例」**, the private-Skills reference implementation (v1 L117), 0 hits in
+     v2, which the article asserts three times (L105, L323, L444). String hazard: `BOT`
+     itself does occur in v2, at L610, in the 理财和BOT sense both versions carry.
+   - **(e) The team dimension itself.** v1's 实现路径 assigns every deliverable to
+     业务团队 or AI 团队 (L100, L103); v2 states no per-item ownership anywhere, its only
+     team words being L15's generic 各团队 and L642's TradeGPT团队/各业务线; and the article
+     tags seventeen action items *(Business team)* or *(AI team)*. This is a dimension
+     rather than a proposition, so it may belong as a note rather than as a row.
+
+   As drop rows all five sit on the measured arm and none touches the gating column:
+   promoting them takes the published drop total from 32 to as high as **37**, P9's arm
+   from 5 to 10, and leaves 44 contradictions and 27 of 39 stale untouched. The one
+   exception is (b) under its second reading, which would gate. Left out pending
+   Captain — recorded so that P9's short drop arm reads as a measured decision rather
+   than as an oversight.
 
 ---
 
