@@ -12,6 +12,7 @@ vi.mock('@/api/upload-config', async (importOriginal) => {
 
 const serverConfig: UploadConfig = {
   maxFileSize: 4096,
+  maxRichFileSize: 16384,
   maxZipFileSize: 8192,
   maxFilesPerUpload: 7,
   allowedExtensions: ['.md'],

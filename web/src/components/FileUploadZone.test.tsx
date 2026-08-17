@@ -8,6 +8,7 @@ import type { SubmitFilesResult } from '@/api/submit'
 // Deterministic upload limits — the hook itself is covered by its own test.
 const CONFIG: UploadConfig = {
   maxFileSize: 1024,
+  maxRichFileSize: 10 * 1024,
   maxZipFileSize: 2 * 1024 * 1024,
   maxFilesPerUpload: 3,
   allowedExtensions: ['.md', '.txt', '.zip'],
@@ -80,7 +81,7 @@ describe('FileUploadZone', () => {
         screen.getByText('Drag and drop files here, or click to select'),
       ).toBeInTheDocument()
       // 1024 B -> "1.0 KB", 2 MiB -> "2.0 MB"
-      expect(screen.getByText(/Max 1\.0 KB per file, 2\.0 MB for ZIP/)).toBeInTheDocument()
+      expect(screen.getByText(/Max 1\.0 KB per file, 10\.0 KB for documents, 2\.0 MB for ZIP/)).toBeInTheDocument()
       expect(screen.getByText(/Supported: \.md \.txt \.zip/)).toBeInTheDocument()
     })
 

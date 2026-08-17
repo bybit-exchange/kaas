@@ -142,7 +142,14 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     The engine writes the extraction file rather than the Go side: one markdown
     serializer, so the two ingestion routes agree by construction instead of by
     two implementations reproducing PyYAML's escaping decisions.
+
+    When file_path is set (rich document upload), the daemon converts the binary
+    to Markdown via MarkItDown, writes the .md file atomically alongside the
+    original, and uses the converted text for extraction.
     """
+    import tempfile
+    from pathlib import Path
+
     from kb_ai.core.extract import (
         extraction_to_dict,
         plan_extraction,
@@ -157,11 +164,12 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     content = _normalise_newlines(inner.get("content", ""))
     kb_dir = inner.get("kb_dir", "")
     source = inner.get("source", "")
+    file_path = inner.get("file_path", "")
     model = inner.get("model") or "claude-sonnet-4-6"
     strategy = inner.get("strategy", "chunked")
     summarize_model = inner.get("summarize_model") or os.environ.get("LLM_SUMMARIZE_MODEL") or os.environ.get("LLM_MODEL", "")
 
-    if not content:
+    if not content and not file_path:
         _respond_error(request_id, "EMPTY_CONTENT", "content must not be empty")
         return
     if not kb_dir.strip():
@@ -170,6 +178,53 @@ def _handle_extract(request_id: str, payload: dict) -> None:
     if not source.strip():
         _respond_error(request_id, "EMPTY_SOURCE", "source must not be empty")
         return
+
+    # Rich document conversion via file_path
+    if file_path:
+        from kb_ai.convert import convert_to_markdown
+
+        real_path = Path(file_path).resolve()
+        kb_path = Path(kb_dir).resolve()
+        if not real_path.is_relative_to(kb_path):
+            _respond_error(request_id, "INVALID_PATH",
+                           f"file_path is not under kb_dir: {file_path}")
+            return
+
+        if not real_path.exists():
+            _respond_error(request_id, "FILE_NOT_FOUND",
+                           f"file not found: {file_path}")
+            return
+
+        try:
+            converted = convert_to_markdown(real_path)
+        except (ValueError, RuntimeError) as e:
+            _respond_error(request_id, "CONVERSION_FAILED", str(e))
+            return
+
+        content = _normalise_newlines(converted)
+
+        # Write .md file atomically alongside the binary
+        md_path = real_path.with_suffix(".md")
+        tmp_path = None
+        try:
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(md_path.parent), suffix=".md.tmp"
+            )
+            try:
+                os.write(fd, content.encode("utf-8"))
+            finally:
+                os.close(fd)
+            os.replace(tmp_path, str(md_path))
+        except OSError as e:
+            # Clean up temp file if it was created but replace failed
+            if tmp_path:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+            _respond_error(request_id, "WRITE_FAILED",
+                           f"failed to write markdown file: {e}")
+            return
 
     store = KBStore(kb_dir)
     checksum = _compute_checksum(content)

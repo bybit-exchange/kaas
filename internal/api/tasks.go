@@ -79,6 +79,7 @@ func (s *Server) handleListTasks(w http.ResponseWriter, r *http.Request) {
 
 // terminalStatuses lists statuses from which a task may be deleted.
 var terminalStatuses = map[string]bool{
+	store.StatusPending:   true,
 	store.StatusSucceeded: true,
 	store.StatusFailed:    true,
 	store.StatusCancelled: true,

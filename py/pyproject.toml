@@ -6,6 +6,7 @@ license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "json-repair>=0.30",
+    "markitdown>=0.1.0,<1.0",
     "mcp>=1.2",
     "openai>=1.60",
     "pyyaml>=6.0",
