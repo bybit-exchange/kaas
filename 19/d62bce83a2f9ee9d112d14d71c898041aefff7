@@ -1,0 +1,27 @@
+docs/features/supersession/test-set.md
+  9cf015e6794c4bad 6-12,41-43,46-48,313,318-320,570-577,617-636,672,675-681
+docs/features/supersession/spec.md
+  9cf015e6794c4bad 598-599,602-603,662-682
+docs/features/supersession/labels.md
+  9cf015e6794c4bad 3-13,15-17,22-23,27-30,47,51-54,59-65,69-75,94-95,101-106,110,144-148,185,189-191,194-197,199,201-203,252-256,365-366,388,429-433,436-444,450,452,540-564,573,590,618-619,623,1644-1645,1684,1686-1688,1725-1727,1743-1744,1752-1753,1759-1760,1783-1784,1816,1839-1847,1864-1867,1888-1898,1908-1911,1962-1970,1996-1999,2030-2032,2056-2066,2197-2199,2267-2268,2363-2370,2416-2419,2537,2624
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "19d62bce83a2f9ee9d112d14d71c898041aefff7",
+  "prompts": {
+    "9cf015e6794c4bad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9974be13-eced-408b-8c96-6bddc432056a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 437,
+      "overriden_lines": 0
+    }
+  }
+}
