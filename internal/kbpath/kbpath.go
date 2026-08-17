@@ -24,6 +24,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/bybit-exchange/kaas/internal/fadvise"
 )
 
 // Sentinel errors callers map to their own status codes.
@@ -145,7 +147,7 @@ type Manifest struct {
 // Resolve. An absent, unreadable or malformed manifest is an error, so a caller
 // can tell "not compiled" from "cannot tell".
 func ReadManifest(dir string) (Manifest, error) {
-	raw, err := os.ReadFile(filepath.Join(dir, manifestName))
+	raw, err := fadvise.ReadFileAndEvict(filepath.Join(dir, manifestName))
 	if err != nil {
 		return Manifest{}, fmt.Errorf("kbpath: read manifest: %w", err)
 	}

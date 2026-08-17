@@ -27,6 +27,7 @@ import (
 	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/config"
 	"github.com/bybit-exchange/kaas/internal/derive"
+	"github.com/bybit-exchange/kaas/internal/fadvise"
 	"github.com/bybit-exchange/kaas/internal/frontmatter"
 	"github.com/bybit-exchange/kaas/internal/queue"
 	"github.com/bybit-exchange/kaas/internal/store"
@@ -195,7 +196,7 @@ func run(configFile string) error {
 
 	if sqlSt, ok := st.(*sqlite.Store); ok {
 		n, err := sqlSt.BackfillFileTitles(context.Background(), func(rawPath string) string {
-			data, err := os.ReadFile(rawPath)
+			data, err := fadvise.ReadFileAndEvict(rawPath)
 			if err != nil {
 				return ""
 			}

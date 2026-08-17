@@ -5,6 +5,8 @@ go 1.26.3
 require (
 	github.com/google/uuid v1.6.0
 	github.com/zeromicro/go-zero v1.10.2
+	golang.org/x/sys v0.42.0
+	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.52.0
 )
 
@@ -22,8 +24,6 @@ require (
 	go.opentelemetry.io/otel v1.40.0 // indirect
 	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.uber.org/automaxprocs v1.6.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect

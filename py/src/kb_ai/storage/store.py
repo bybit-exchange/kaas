@@ -8,6 +8,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kb_ai._fadvise import evict_after_open_read, read_text_and_evict
+
 
 # Separates the catalog line's prose summary from the identifiers a reference
 # article documents. Written by storage.index, read back by existing_articles().
@@ -167,7 +169,7 @@ class KBStore:
         """
         files = []
         for p in self._iter_raw_paths():
-            content = p.read_text()
+            content = read_text_and_evict(p)
             rel = str(p.relative_to(self.base_dir))
             files.append(RawFile(rel_path=rel, content=content, checksum=_compute_checksum(content)))
         return files
@@ -201,6 +203,7 @@ class KBStore:
                     encoded = chunk.encode("utf-8")
                     hasher.update(encoded)
                     size_bytes += len(encoded)
+                evict_after_open_read(f)
             yield RawFileMeta(
                 rel_path=str(p.relative_to(self.base_dir)),
                 checksum=hasher.hexdigest()[:16],
@@ -235,7 +238,7 @@ class KBStore:
         of this method (vs. inlining (base_dir / rel_path).read_text())
         is to give tests a stable monkeypatch point for read counting.
         """
-        return self._resolve(rel_path).read_text()
+        return read_text_and_evict(self._resolve(rel_path))
 
     def read_article(self, rel_path: str) -> str:
         return self._resolve(rel_path).read_text()

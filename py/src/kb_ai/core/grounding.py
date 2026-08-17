@@ -61,6 +61,7 @@ from dataclasses import dataclass, field
 
 import yaml
 
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai._frontmatter import split_frontmatter
 from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.store import KBStore
@@ -297,7 +298,7 @@ def check_grounding(kb_dir: str) -> GroundingCheck:
             continue
         rel_path = str(path.relative_to(store.base_dir))
         try:
-            text = path.read_text(encoding="utf-8")
+            text = read_text_and_evict(path)
         except OSError as e:
             skipped.append((rel_path, f"unreadable: {e}"))
             continue

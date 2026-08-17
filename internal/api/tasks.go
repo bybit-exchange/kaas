@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/bybit-exchange/kaas/internal/fadvise"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -169,7 +170,11 @@ func (s *Server) handleTaskContent(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusNotFound, "file not found")
 		return
 	}
-	defer f.Close()
+	// Evict before Close — fd is invalid after Close.
+	defer func() {
+		fadvise.EvictFD(f)
+		f.Close()
+	}()
 
 	fi, err := f.Stat()
 	if err != nil {

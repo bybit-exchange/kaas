@@ -608,10 +608,10 @@ def test_both_readers_report_an_unreadable_file(store, reader, monkeypatch):
     exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
                 extract_model="m")
 
-    def boom(self, *args, **kwargs):
+    def boom(path):
         raise OSError("Permission denied")
 
-    monkeypatch.setattr(Path, "read_text", boom)
+    monkeypatch.setattr(exl, "read_text_and_evict", boom)
     value, reason = reader(store, "raw/a.md")
     assert value is None
     assert reason.startswith("unreadable:")

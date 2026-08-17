@@ -30,6 +30,7 @@ from pathlib import Path
 import yaml
 
 from kb_ai._errors import ExtractionFileError
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai._frontmatter import split_frontmatter
 from kb_ai.core.extract import (
     STRATEGY_CHUNKED,
@@ -373,7 +374,7 @@ def _read(store: KBStore, raw_rel: str) -> tuple[str | None, str]:
     if not path.exists():
         return None, "missing"
     try:
-        return path.read_text(encoding="utf-8"), ""
+        return read_text_and_evict(path), ""
     except OSError as e:
         return None, f"unreadable: {e}"
 

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/fadvise"
 	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"gopkg.in/yaml.v2"
 )
@@ -19,6 +20,10 @@ import (
 // wikiCacheTTL is the maximum age of a cached wiki tree before it is
 // unconditionally rebuilt, even if the directory modtime has not changed.
 const wikiCacheTTL = 60 * time.Second
+
+// wikiHeadBytes is the maximum number of bytes read from each wiki file
+// during tree listing. 4KB is enough for frontmatter in virtually all cases.
+const wikiHeadBytes = 4096
 
 // wikiCacheEntry holds one KB's cached wiki tree with dual invalidation:
 // directory modtime change triggers an immediate rebuild; TTL expiry guarantees
@@ -259,7 +264,7 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 			return rerr
 		}
 		relSlash := filepath.ToSlash(rel)
-		content, readErr := os.ReadFile(path)
+		buf, readErr := fadvise.ReadHeadAndEvict(path, wikiHeadBytes)
 		if readErr != nil {
 			articles = append(articles, wikiArticle{
 				Path:  relSlash,
@@ -267,10 +272,17 @@ func (s *Server) handleListWiki(w http.ResponseWriter, r *http.Request) {
 			})
 			return nil
 		}
-		meta, body := parseFrontmatter(content)
+		meta, body := parseFrontmatter(buf)
 		title := meta.Title
 		if title == "" {
-			title = titleFromBytes(body, relSlash)
+			// Partial read (len==wikiHeadBytes) with zero meta: frontmatter
+			// may exceed 4KB or be unparseable. Fall back to stem to avoid
+			// misidentifying YAML comments as H1 headings.
+			if len(buf) == wikiHeadBytes && isZeroFrontmatter(meta) {
+				title = stem(rel)
+			} else {
+				title = titleFromBytes(body, relSlash)
+			}
 		}
 		articles = append(articles, wikiArticle{
 			Path:  relSlash,
@@ -368,6 +380,11 @@ type frontmatter struct {
 	Tags    []string `yaml:"tags"`
 	Sources []string `yaml:"sources"`
 	Created string   `yaml:"created"`
+}
+
+// isZeroFrontmatter reports whether meta is the zero-value (no fields parsed).
+func isZeroFrontmatter(m frontmatter) bool {
+	return m.Title == "" && len(m.Tags) == 0 && len(m.Sources) == 0 && m.Created == ""
 }
 
 // parseFrontmatter splits YAML front matter (delimited by "---") from body.
