@@ -1,0 +1,27 @@
+cmd/kaas/main.go
+  05b97127d6c705eb 30,199
+internal/worker/worker.go
+  05b97127d6c705eb 17,119
+internal/kbpath/kbpath.go
+  05b97127d6c705eb 27-28,150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "453cab6de8f02882d04c19870ee95c7fdbb09487",
+  "prompts": {
+    "05b97127d6c705eb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00fad-0b5b-7cb2-8bfa-b5a5329d9847",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 3,
+      "accepted_lines": 443,
+      "overriden_lines": 0
+    }
+  }
+}
