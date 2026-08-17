@@ -1,9 +1,25 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass under way — 70 of 118 scoring rows settled, 48 still read
+Status: **confirm pass under way — 89 of 118 scoring rows settled, 29 still read
 `to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
-because P2 scores nothing. Five cases are through it, all on 2026-08-17, and no total
-moved in any of them. **P9 — 10 confirmed, 7 amended, none rejected**, holding at
+because P2 scores nothing. Six cases are through it, all on 2026-08-17, and no total
+moved in any of them; what is left is P5's 17 rows and P8's 12.
+**P10 — 8 confirmed, 11 amended, none rejected**, holding at 7C / 6D / 6K with 3 of 7
+stale, and it is the case that measured the *rewrite*: only **19 of v1's 171 non-blank
+body lines survive in v2 byte-identical**, seventeen of them separators, headings and
+table rules, so no row in P10 can be scored on a shared string. Its other two arms each
+gave up something the drafts did not have. The **drop arm reads 4 of 6 stated as
+current**, and the two that are not are the quiet failures: D2's entire residue is the
+frontmatter tag `wip-limits`, and D3's is a wiki link to a page the KB does not contain.
+**K2 is an over-deletion hit** — v1, v2 and the co-source all state the on-time rule and
+the article writes 「on-time」 39 times without ever defining it — while three of P10's six
+controls are co-asserted by that never-superseded co-source and so cannot score alone.
+Calls 2 and 3 are answered at the drafted position and call 1 is recorded as settled by
+V3, each with the pre-V3 arithmetic corrected to 4 of 8, and **call 6 is raised and left
+with Captain**: a sweep of all 152 of v1's non-surviving lines turns up **six unrestated
+propositions**, three of them stated as current in the article, and one of the six has a
+contradiction reading that would gate.
+**P9 — 10 confirmed, 7 amended, none rejected**, holding at
 6C / 5D / 6K with 3 of 6 stale, and it is the case where the pass measured what the
 drop arm is *not* carrying: 126 of v1's 208 non-blank body lines survive in v2
 byte-identical, and re-testing the 82 that do not against V8's standard turns up
@@ -38,11 +54,11 @@ as complete, and the fifth restores the half of a control's evidence that was mi
 **P2 — 15 confirmed, 3 amended**, its C7 and C8 already settled by V10; the label
 stays in the fixture's stated direction as counter-case evidence, and confirming it
 corrected the identity claim underneath the inversion, which holds on content and not
-on bytes. Three open calls are now left for Captain — **P3 call 3**, **P9 call 3** and
-**P9 call 9** — and each of them has one branch that moves published totals, which is
-why none was taken in the pass. Every other call it touched was answered at its drafted
-position, the branch that moves nothing: P4's call 9, P7's call 4 and P9's calls 1, 2, 4
-and 5. P7 and P4 leave nothing open at all. The verification queue below is
+on bytes. Four open calls are now left for Captain — **P3 call 3**, **P9 call 3**,
+**P9 call 9** and **P10 call 6** — and each of them has one branch that moves published
+totals, which is why none was taken in the pass. Every other call it touched was answered
+at its drafted position, the branch that moves nothing: P4's call 9, P7's call 4, P9's
+calls 1, 2, 4 and 5, and P10's calls 2 and 3. P7 and P4 leave nothing open at all. The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -118,7 +134,7 @@ are into the fixture files named at the head of each case.
 | P7 | 8 | 0 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 14 rows settled: 6 confirmed, 8 amended, none rejected, and no verdict moved, so it holds at 8C / 0D / 6K with 6 of 8 stale. The pass makes the case's structure measured rather than asserted: v1 is inside v2 **byte-identical across all ten shared table cells**, so the empty drop arm is a property of the pair — and it rests on **call 4**, now answered on arithmetic, because strikethrough is the one mechanism that could still produce a drop. Also: five of six controls are re-asserted in v2's own newest column and only **K1** holds by construction; C4 and C6 are the only rows whose cite leaves the newest column; C1's replacement figure reached the article **stripped of its unit** from a co-source (57.11 as a rate at L39, L51, L101, L479); C5's correction only half landed (25046 absent, 11362 present only in C6's framing); C8 and C5 had residues under-cited (L612; three derived pending-core lines); C3's superseded rate is stale **inside v1** and on a different basis than its replacement, so the row scores on the amount; and four string hazards recorded (`117.3` finds only the dated line; bare `3300`, `3864`, `7197`, `17054` and `1750` all miss the article's comma forms; `6.8` matches `S6.8XLARGE128`; `7C` matches inside `7197C`). **V4 ruled 2026-08-16** keeps all 8 rows scoreable and narrows the causal claim to C8; the pass narrows V4's own confound too — the co-source copies only the **Q2 half** of v1's newest column and carries the three landed figures without their units, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 6C / 5D / 6K with 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Two calls are left with Captain**: call 3, where 高价值 and 个人专属 being 0 hits in v2 pull one way and P3 call 4's refusal to read omission as denial pulls the other, and **call 9, raised here** — a sweep of every v1 line absent from v2 that finds **five unrestated propositions the drop arm does not carry**, three of them stated as current in the article. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
-| P10 | 7 | 6 | 6 | 3 of 7 | to confirm — **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
+| P10 | 7 | 6 | 6 | 3 of 7 | **confirmed 2026-08-17** — all 19 rows settled: 8 confirmed, 11 amended, none rejected, and no verdict moved, so it holds at 7C / 6D / 6K with 3 of 7 stale. It is the case where the pass measured the **rewrite**: only **19 of v1's 171 non-blank body lines survive in v2 byte-identical** and seventeen of those are separators, headings and table rules, so no row here can be scored on a shared string and the drop arm is a judgement about propositions rather than about lines. Two findings sit on the other arms. The **drop arm reads 4 of 6 stated as current** (D1, D4, D5, D6), and the two that are not tell you where a compile loses things quietly: D2's whole residue is the frontmatter tag `wip-limits` with no body line behind it, and D3's is a link to [[Organizational Change Management for Engineering Teams]], a title no file in the KB carries. And **K2 is an over-deletion hit**, harder than P9-K5's thin carriage — three sources state the on-time rule (v1 L236, v2 L381, full L204) and the article writes 「on-time」 39 times without defining it once, while three of the six controls (K1, K2, K3) are co-asserted by the never-superseded full report and so cannot score on their own. Row-level corrections: C7's 43% is v1's arithmetic and not the unscored framing V6 set aside (v2's extremes give 41.9%); C1 holds on the rule because v1's 「约占 6.3%」 never reaches the article, which uses the co-source's 984 / 5.3%; C3's replacement reaches two lines beyond the cite (L52, L70); K1 holds on content and not on bytes (「上主网」 → 「上主网(MainNet)」); and seven cites were short of their own item (C2's L378, D2, D3, D4 and D5's second halves, K4's L79, K5's L344). Calls: **1 was settled by V3** and is recorded as such, **2 and 3 are answered no** with the pre-V3 arithmetic corrected in both (4 of 8, not 5 of 9 or 4 of 9), 4 and 5 keep their lists, and **call 6 is raised and left with Captain** — a sweep of all 152 non-surviving v1 lines that finds **six unrestated propositions the drop arm does not carry**, three of them stated as current, plus two excluded on V9's ground. **V3 ruled 2026-08-15**, C6 reclassified as drop D6; **V6 ruled 2026-08-16** keeps C7 on v2's 全量 basis; **V11 ruled 2026-08-16** re-cuts call 5's provenance list onto basis labelling and finds 2 of the 3 stale rows co-sourced, leaving C8 as the only evidence no other source carries; **V13 ruled 2026-08-16** confirms the half-year pair on the wording V6 added and finds the article stating its −6.0% → −4.0% change as a 「−4 to −6%」 band across both bases; **V14 ruled 2026-08-16** makes the roster change additive, caps the team family at one further scoreable row (Compliance, not Fiat Channel) and finds C8's replacement co-asserted where its superseded pair is not; **V17 ruled 2026-08-17** holds C5 as a level-only contradiction, finds v2's efficiency cycle series to be the co-source's unfiltered column and the >120 population v2 declares for efficiency to be unused, and leaves the stale count at 3, see [P10](#p10--2025-engineering-efficiency-report) |
 | ~~P2~~ | ~~8~~ | ~~6~~ | ~~6~~ | ~~7 of 8~~ | **withdrawn from the positives** — counter-case, scores nothing; **V10 ruled 2026-08-16** makes that permanent, the pair agreeing verbatim on seven of the eight rows in the section both files date 04-17 and the eighth leaving no article residue; **confirm pass 2026-08-17** settled its 18 marked rows, 15 confirmed and 3 amended, C7 and C8 having been settled by V10 already, and corrected the agreement to hold on content rather than on bytes, see [P2](#p2--infra-biweekly-review-withdrawn-counter-case) |
 
 Totals across the seven scoring cases: **44 contradictions, 32 drops, 42
@@ -147,7 +163,7 @@ retained below as counter-case evidence.
   contradictions**: V1 ruled its four to be de-specifications of one column rename,
   so it carries drops and controls only.
 - Drops are not a rounding error: 32 of them, and on P8 five of six are stated as
-  current, on P5 three of six. That is the baseline A2's RP1 arm would be measured
+  current, on P10 four of six, on P5 three of six. That is the baseline A2's RP1 arm would be measured
   against. P5's fourth residue is excluded rather than uncounted: a never-superseded
   declared source asserts the same material, so no supersession rule could have removed
   it (V9).
@@ -1733,39 +1749,58 @@ strings are in the frontmatter `id` and `title` — so ordering here genuinely
 depends on frontmatter date and filename, which makes P10 a clean test of A1's
 signal.
 
+**Measured in the confirm pass, 2026-08-17.** The ordering claim now has numbers
+behind it: `v2` occurs at frontmatter L3 and L5 and nowhere else in the file, and the
+only other year tokens in either body are the 2026 target columns (v1 L165, v2 L296),
+neither of which dates its own document. The pair is also the most complete rewrite the
+pass has measured — **19 of v1's 171 non-blank body lines survive in v2 byte-identical**, and
+seventeen of the nineteen are structure: seven `---` separators, six headings, two
+table rules and the two team-chart links v2 reuses
+(`team-quarterly-throughput.svg`, `team-quarterly-efficiency.svg`) for a team table
+whose metric has changed. The other two are `| 指标 | 全年 | H1 (1-6月) | H2 (7-12月) | 变化 |`,
+§1.1's column header, standing over six data rows of which none survives, and
+「1. **排期准确性提升**」 (v1 L193 → v2 L341), K5's own heading and the one
+recommendation line kept word for word. Against the two other cases measured this way —
+P7, where v1 sits inside v2 cell for cell, and P9's 126 of 208 — P10 sits at the far
+end of the range: **no row here can
+be scored on a shared string**, which is why every one of them is measured on figures
+and prose, and why a six-row drop arm over a rewrite this complete is a judgement about
+propositions rather than about lines. What that judgement leaves out is swept in
+call 6.
+
 ### Contradictions and their replacements
 
 | ID | v1 → v2 | Evidence | Article today | Status |
 |---|---|---|---|---|
-| P10-C1 / R1 | Excludes delivery cycles over 90 days (~6.3% of the population) → over 120 days, removing 668 items (3.6%) | v1 L235, L10 → v2 L378, L12, L263 | not stale — L17 carries v2's rule, and Decision 1 recommends 90 → 120 (L116) | to confirm |
-| P10-C2 / R2 | The 2025 sample is one population of 17,294 → two datasets, 18,445 full and 17,777 filtered, with purposes split (full for throughput, filtered for efficiency) | v1 L12 → v2 L12, L377 | not stale but blended — L30 keeps 17,294 as a live dataset row and L162 says 「17,294–17,777 data points」 | to confirm — **V13 ruled 2026-08-16** — a third blended line belongs here, the same defect at the rate level: the H1→H2 throughput change is stated as 「−4 to −6%」 (L56, L58, restated at L301), a band whose endpoints are v2's −4.0% and v1's −6.0%. Not stale under V1's precedent, and not false either — the unpublished ≤120 series' −5.4% falls inside it — what it loses is which population each endpoint names |
-| P10-C3 / R3 | Annual on-time rate ~36%, H1 41.8% → H2 28.5% (−13.3pp) → ~25%, 33.1% → 18.2% (−14.9pp) | v1 L26 → v2 L31 | not stale — L169 uses v2's value | to confirm |
-| P10-C4 / R4 | The best month of 2025 reached only 45% on-time → January was best at 35%, falling monotonically to 14.3% in October | v1 L32 → v2 L36, L51, L204 | **stale** — L84 states the 45% claim in the sentence after v2's 35%→14.3%, self-inconsistently inside one paragraph (A16) | to confirm — **V11 ruled 2026-08-16** — row kept and scored on the article's unlabelled presentation, not on the string: the full-data co-source carries 45.0% as January's ≤90 rate (L89) but never as the year's best month, and it is dated 03-05 against v2's 03-06, so V19's criterion still lands on v2 |
-| P10-C5 / R5 | Median end-to-end delivery cycle ~15 days (13.8 H1, 17.8 H2) → ~17 days (15.3, 19.8) — the pair sets v1's ≤90 population against the **unfiltered** one rather than against the ≤120 one v2 declares (V17) | v1 L24 → v2 L29; basis measured on v2 L51–62 against full L89–100 | not stale, replacement also missing — neither ~15 nor ~17 appears | to confirm — **V17 ruled 2026-08-17** — row stands, as a contradiction on level and not on trend: both versions state the same statistic over the same span (v1 L144, v2 L14–15) and their H1→H2 changes agree at +29.0% against +29.6%, while the level gap is re-basing — on the same twelve monthly cells the basis change alone accounts for all +2.0 days of H2 and +0.92 of H1's +1.5. Not to be cited as evidence of real slowdown, and the article does not cite it, running its H2 decline on 研发周期 5.0 → 8.5 instead |
-| P10-C7 / R7 | Monthly throughput peaked at 1,907 in July, bottomed at 1,081 in October, a 43% swing → 2,036 and 1,182, on v2's 全量 basis, which is the one v2 designates for throughput (L377) | v1 L50, L53, L59 → v2 L135, L138, L176 | **stale** — L60 states both extremes, and its next sentence gives the monthly average as 1,537, which is v2's 全量 figure (18,445/12) rather than v1's 1,441. The sentence pair crosses bases, so it is not a faithful report of v1 | to confirm — **V6 ruled 2026-08-16** — row kept, replacement stays 全量; the swing and the peak/trough framing are *not* scored, since v2 asserts both. **V11 ruled 2026-08-16** — both figures also occur verbatim in the full-data co-source (L95, L98), as the 剔除后 column it declares to be v1's population (L14), so the test is the article's unlabelled presentation rather than either string; the co-source is dated 03-05 against v2's 03-06 and the row scores under V4 and V19 |
-| P10-C8 / R8 | UserService's on-time rate fell 44.6% (Q1) → 22.0% (Q4) → 37.2% → 12.1% | v1 L101 → v2 L233 | **stale** — L282 | to confirm — **V14 ruled 2026-08-16** — cites confirmed, and the test belongs on the superseded side only: `37.2` is not unique to this row, since v2 states it for BigData's Q1 as well (L231) and the 2026 Q1 co-source states it twice more (L174, L176), while 「44.6」 / 「22.0」 stay v1-exclusive across all five sources per V11. The confound is the reverse of C4's and C7's — the same-day co-source reproduces **v2's** team rates as its year-ago baseline, not v1's — so this is the case's cleanest stale row under V19. Its `12.1` also has two hits in the full-data co-source (L116, L123) as a mean-vs-median gap in days, which is a different metric |
+| P10-C1 / R1 | Excludes delivery cycles over 90 days (~6.3% of the population) → over 120 days, removing 668 items (3.6%) | v1 L235, L10 → v2 L378, L12, L263 | not stale — L17 carries v2's rule, and Decision 1 recommends 90 → 120 (L116) | confirmed 2026-08-17 — both article cites verify (L17 carries v2's rule with its 668 / 3.6%, L116 recommends 90 → 120), and testing the row on the rule is what saves it, because v1's exclusion **rate** never reaches the article: 「约占 6.3%」 is v1-exclusive and 0 hits there, the article stating the ≤90 exclusion as 984 / 5.3% (L30, L119), which are the full-data co-source's figures (full L24) and not v1's. String hazard: `grep -F "6.3%"` on the article returns one hit, inside Finance's 26.3% at L285. On the replacement side only the count is this pair's — 668 is v2-exclusive across all five sources, while the 120-day threshold is co-asserted by the 03-05 full report (full L193–195), which is where the article's 「5.3% to 2.7–3.6%」 at L119 comes from |
+| P10-C2 / R2 | The 2025 sample is one population of 17,294 → two datasets, 18,445 full and 17,777 filtered, with purposes split (full for throughput, filtered for efficiency) | v1 L12 → v2 L12, L377 | not stale but blended — L30 keeps 17,294 as a live dataset row and L162 says 「17,294–17,777 data points」 | amended 2026-08-17 — verdict unchanged; the purpose split needs both appendix lines, L377 for 全量 and **L378** for 剔除版, and the cite carried only the first. Both article cites verify (L30's live 17,294 row, L162's 「17,294–17,777」), and V13's third blended line turns out to be three strings rather than one — 「−4 to −6%」 (L56), 「−4–6%」 (L58) and 「4–6%」 (L301) — so an absence test on the form V13 recorded reaches one of the three lines. Also measured: v1's other population figure, the 1,441 monthly average, is **0 hits** in the article, which states v2's 1,537 instead; that residue sits on C7. **V13 ruled 2026-08-16** — a third blended line belongs here, the same defect at the rate level: the H1→H2 throughput change is stated as 「−4 to −6%」 (L56, L58, restated at L301), a band whose endpoints are v2's −4.0% and v1's −6.0%. Not stale under V1's precedent, and not false either — the unpublished ≤120 series' −5.4% falls inside it — what it loses is which population each endpoint names |
+| P10-C3 / R3 | Annual on-time rate ~36%, H1 41.8% → H2 28.5% (−13.3pp) → ~25%, 33.1% → 18.2% (−14.9pp) | v1 L26 → v2 L31 | not stale — L169 uses v2's value | amended 2026-08-17 — verdict unchanged; the replacement reaches the article at two lines the row did not cite, L52 (33.1 / 18.2 / −14.9pp, as the H1→H2 row) and L70 (25% as the 2025 full-year figure), besides L169's baseline. The superseded side is as clean as any in the set: 41.8, 28.5 and 13.3pp are **0 hits in all five sources**, which only C8 matches here. Two string hazards come with it — 「36%」 has two article hits and neither is this metric (L238's technical share of long-cycle items, L283's Compliance prose, which is call 4's ceiling row), and 「18.2」 is triple-booked, v2's H2 rate (article L52, L84), the article's −18.2% product-prep YoY (L74) and v1's Salesforce Q1 交付周期 18.2天 (v1 L105) — so the presence test for the replacement has to run on 「33.1」 |
+| P10-C4 / R4 | The best month of 2025 reached only 45% on-time → January was best at 35%, falling monotonically to 14.3% in October | v1 L32 → v2 L36, L51, L204 | **stale** — L84 states the 45% claim in the sentence after v2's 35%→14.3%, self-inconsistently inside one paragraph (A16) | confirmed 2026-08-17 — v2's three cites verify and the self-inconsistency is exact: 「45%」 has **one** article hit, L84, in the sentence immediately after that same line's 35% → 14.3%. V11's reading re-measures too — the co-source carries 45.0% as January's ≤90 rate (full L89) and nowhere calls it the year's best month. **V11 ruled 2026-08-16** — row kept and scored on the article's unlabelled presentation, not on the string: the full-data co-source carries 45.0% as January's ≤90 rate (L89) but never as the year's best month, and it is dated 03-05 against v2's 03-06, so V19's criterion still lands on v2 |
+| P10-C5 / R5 | Median end-to-end delivery cycle ~15 days (13.8 H1, 17.8 H2) → ~17 days (15.3, 19.8) — the pair sets v1's ≤90 population against the **unfiltered** one rather than against the ≤120 one v2 declares (V17) | v1 L24 → v2 L29; basis measured on v2 L51–62 against full L89–100 | not stale, replacement also missing — neither ~15 nor ~17 appears | confirmed 2026-08-17 — the double absence verifies on eight strings, four per side: 13.8, 17.8, 「~15」 and 「15 days」 for the superseded figure, 15.3, 19.8, 「~17」 and 「17 days」 for its replacement, every one of them 0 hits in the article. One hazard the row should carry: 「29.6」 is not v2's alone, since v1 states 29.6% as April's 技术需求占比 (v1 L47), which is D1's metric, so V17's change-rate agreement has to be read off the pair and not off a string search. **V17 ruled 2026-08-17** — row stands, as a contradiction on level and not on trend: both versions state the same statistic over the same span (v1 L144, v2 L14–15) and their H1→H2 changes agree at +29.0% against +29.6%, while the level gap is re-basing — on the same twelve monthly cells the basis change alone accounts for all +2.0 days of H2 and +0.92 of H1's +1.5. Not to be cited as evidence of real slowdown, and the article does not cite it, running its H2 decline on 研发周期 5.0 → 8.5 instead |
+| P10-C7 / R7 | Monthly throughput peaked at 1,907 in July, bottomed at 1,081 in October, a 43% swing → 2,036 and 1,182, on v2's 全量 basis, which is the one v2 designates for throughput (L377) | v1 L50, L53, L59 → v2 L135, L138, L176 | **stale** — L60 states both extremes, and its next sentence gives the monthly average as 1,537, which is v2's 全量 figure (18,445/12) rather than v1's 1,441. The sentence pair crosses bases, so it is not a faithful report of v1 | amended 2026-08-17 — verdict unchanged, and one token moves from unscored to scored. V6 left the swing out with the peak/trough framing because v2 asserts both, but the **43% is v1's arithmetic and not v2's**: 「43%」 is 0 hits in v2, whose own extremes give 41.9%, so article L60 carries three v1 figures rather than two. Everything else on the row verifies — both extremes and the 1,537 average stand in consecutive sentences, 1,441 is 0 hits, and V11's co-source pair sits at full L95 and L98. **V6 ruled 2026-08-16** — row kept, replacement stays 全量; the swing and the peak/trough framing are *not* scored, since v2 asserts both. **V11 ruled 2026-08-16** — both figures also occur verbatim in the full-data co-source (L95, L98), as the 剔除后 column it declares to be v1's population (L14), so the test is the article's unlabelled presentation rather than either string; the co-source is dated 03-05 against v2's 03-06 and the row scores under V4 and V19 |
+| P10-C8 / R8 | UserService's on-time rate fell 44.6% (Q1) → 22.0% (Q4) → 37.2% → 12.1% | v1 L101 → v2 L233 | **stale** — L282 | confirmed 2026-08-17 — cites verify and V14's asymmetry re-measures exactly: 「44.6」 and 「22.0」 are 1 hit in v1 and 1 in the article (L282) against 0 in v2 and 0 in all three co-sources, while 「37.2」 is 0 hits in the article and 2 each in v2 (L231, L233) and the 2026 Q1 co-source. The cleanest stale row in the case. **V14 ruled 2026-08-16** — cites confirmed, and the test belongs on the superseded side only: `37.2` is not unique to this row, since v2 states it for BigData's Q1 as well (L231) and the 2026 Q1 co-source states it twice more (L174, L176), while 「44.6」 / 「22.0」 stay v1-exclusive across all five sources per V11. The confound is the reverse of C4's and C7's — the same-day co-source reproduces **v2's** team rates as its year-ago baseline, not v1's — so this is the case's cleanest stale row under V19. Its `12.1` also has two hits in the full-data co-source (L116, L123) as a mean-vs-median gap in days, which is a different metric |
 
 ### Drops (measured, not gating)
 
 | ID | Asserted by v1, absent from v2 | Evidence | Status |
 |---|---|---|---|
-| P10-D1 | The technical-requirement share of throughput fell from ~31% in Q1 to ~24% in Q4, squeezing technical improvement work | v1 L60; v2's monthly table has no business/technical split, and 技术需求占比 survives only as a 25–35% target (L317) | to confirm |
-| P10-D2 | Recommends WIP limits per team to cut context switching | v1 L210 | to confirm |
-| P10-D3 | Recommends an organizational-change buffer: a 2–4 week transition with lowered delivery expectations when a leader changes, plus a knowledge-transfer checklist | v1 L225 | to confirm |
-| P10-D4 | Proposes a tech-lead quality tier of bug-association rate ≤0.3, rework ≤5%, and a per-capita monthly throughput baseline | v1 L163; v2's third tier is stale-requirement rate / estimation accuracy / P-1+P0 share (L322–326) | to confirm |
-| P10-D5 | Mandates splitting any requirement whose delivery cycle exceeds 20 days, targeting ≤10 days | v1 L199; v2 manages size by tiering instead | to confirm |
-| P10-D6 | The headline engineering-time metric is *average development duration*, ~9.2 days, +54.8% from 7.3 to 11.3 | v1 L25, restated at L73 and L177; `平均开发时长` returns 0 hits in v2, which reports development duration as a median instead. **Reclassified from contradiction C6 by V3, ruled 2026-08-15** — v2's headline 中位研发周期 (L28) is a different statistic over a different span (L14 defines 研发周期 as development *plus* test), so it cannot contradict a mean development duration | to confirm — **lost drop**: the article still carries v1's mean framing at L21, L50, L54 and L170. **V11 ruled 2026-08-16** confirms L170 as this row's residue against call 5, which had it protected, and records the string hazard: the article writes 「9.3 days (annual)」 where v1 writes 「~9.2 天」, a figure in no source, so an absence test on 「9.2」 reads the residue as gone. Test 「+54.8%」 (article L21, L50) instead, the one token of this family no other source carries — 「7.3 天」 and 「11.3 天」 both hit v2 (L210, L101) |
+| P10-D1 | The technical-requirement share of throughput fell from ~31% in Q1 to ~24% in Q4, squeezing technical improvement work | v1 L60; v2's monthly table has no business/technical split, and 技术需求占比 survives only as a 25–35% target (L317) | confirmed 2026-08-17 — the measured decline is v1's alone: 「~31%」, 「~24%」, 31.1% and 23.7% are 0 hits in all three co-sources, whose only comparable series is the 2026 Q1 report's own quarters (26.7 / 25.4 / 21.8 / 25.5, its L36). **Stated as current** at article L96, both halves including the crowding-out clause, and again at L171 as the 「~24–31%」 baseline |
+| P10-D2 | Recommends WIP limits per team to cut context switching | v1 L210–212 (L210 names the mechanism, L211–212 state the limit and its purpose) | amended 2026-08-17 — cite widened to the whole item; WIP, 在制品 and 上下文切换 are 0 hits in v2 and in all three co-sources, so the recommendation is v1's alone. Its article residue is **a tag and nothing else**: `wip-limits` stands in the frontmatter tag list (L4) with no body line behind it, and no page in the KB wiki states a WIP limit at all. L294's 「context switching」 belongs to the 2026 Q1 root-cause list, not to this item |
+| P10-D3 | Recommends an organizational-change buffer: a 2–4 week transition with lowered delivery expectations when a leader changes, plus a knowledge-transfer checklist | v1 L224–226 (L225 the buffer, L226 the checklist) | amended 2026-08-17 — cite widened, since L225 carries only the buffer half; 过渡期 and 知识传承 are 0 hits in v2 and in all three co-sources. **No article residue**, and the near-miss is what makes the row worth reading: L44 names leader transitions as a *cause* (call 2's material, not this recommendation) and links [[Organizational Change Management for Engineering Teams]], a title no file in the KB carries — so the buffer and the checklist are neither restated nor relocated, and the trail out of the article ends at a link to nothing |
+| P10-D4 | Proposes a tech-lead quality tier of bug-association rate ≤0.3, rework ≤5%, and a per-capita monthly throughput baseline | v1 L163, L164, L166; v2's third tier is stale-requirement rate / estimation accuracy / P-1+P0 share (L322–326) | amended 2026-08-17 — the tier is three lines and the cite was one: bug-association rate at v1 L163, rework rate at L164, per-capita monthly throughput at L166, while L165's 大需求比例 belongs to call 3's redefinition and not to this row. All three are 0 hits in v2 and in the co-sources. **Stated as current, and blended**: article L150's Process Health row runs v2's three metrics (stale-requirement rate, schedule accuracy, P0/P1 share) straight into v1's three (bug association rate, rework rate, large requirement ratio) inside a single table cell, which is C2's defect one grain finer. The per-capita half has no residue at all — Decision 5's per-capita measure is work-hours from the goals co-source (its L18, L72), not v1's monthly ticket count |
+| P10-D5 | Mandates splitting any requirement whose delivery cycle exceeds 20 days, targeting ≤10 days | v1 L198–199 (L198 the ≤10-day target, L199 the mandate); v2 manages size by tiering instead (L332, L366–369) | amended 2026-08-17 — cite widened to both halves and v2's tiering located; 强制拆分 and 「20 天的大需求」 are 0 hits in v2 and in all three co-sources. **Stated as current** and almost verbatim at article L200, mandate and target together, inside Decision 7 — the strongest single residue in this case's drop arm |
+| P10-D6 | The headline engineering-time metric is *average development duration*, ~9.2 days, +54.8% from 7.3 to 11.3 | v1 L25, restated at L73 and L177; `平均开发时长` returns 0 hits in v2, which reports development duration as a median instead. **Reclassified from contradiction C6 by V3, ruled 2026-08-15** — v2's headline 中位研发周期 (L28) is a different statistic over a different span (L14 defines 研发周期 as development *plus* test), so it cannot contradict a mean development duration | confirmed 2026-08-17 — V3's reclassification and V11's residue both hold: 平均开发时长 is 0 hits in v2 and all four article lines verify. V11's string hazard is one step worse than recorded — 「9.3」 returns a hit in four of the five files but only the article's is a figure (L170), v2's being the heading number 「### 9.3」 (L360), the full report's February 39.3% and the Q1 report's ToC 19.3%. And the replacement test needs its punctuation: 「+54.8%」 is 1 hit in v1 (L25) and 1 in the article (L50), since L21 states the same increase without the sign. **Lost drop**: the article still carries v1's mean framing at L21, L50, L54 and L170. **V11 ruled 2026-08-16** confirms L170 as this row's residue against call 5, which had it protected, and records the string hazard: the article writes 「9.3 days (annual)」 where v1 writes 「~9.2 天」, a figure in no source, so an absence test on 「9.2」 reads the residue as gone. Test 「+54.8%」 (article L21, L50) instead, the one token of this family no other source carries — 「7.3 天」 and 「11.3 天」 both hit v2 (L210, L101) |
 
 ### Controls
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P10-K1 | The population is JIRA requirements with Actual End Date in 2025.01–2025.12 and status MainNet | v1 L10 (source/window/status part only — the >90-day clause in the same line is C1) → v2 L11 | to confirm |
-| P10-K2 | On-time means Actual End Date ≤ Planned MainNet Date, with requirements lacking a planned date excluded | v1 L236 → v2 L381 | to confirm |
-| P10-K3 | Team attribution uses the JIRA `dept_l2` field | v1 L237 → v2 L382 | to confirm |
-| P10-K4 | August 2025 is the inflection point after which efficiency deteriorated without recovering | v1 L30 → v2 L194 | to confirm |
-| P10-K5 | Three-point estimation should replace single-point estimation, with calibration workshops for the lowest on-time teams | v1 L194 → v2 L342 | to confirm |
-| P10-K6 | DORA metrics (deployment frequency, change lead time, MTTR, change failure rate) should be added long-term | v1 L221 → v2 L363 | to confirm |
+| P10-K1 | The population is JIRA requirements with Actual End Date in 2025.01–2025.12 and status MainNet | v1 L10 (source/window/status part only — the >90-day clause in the same line is C1) → v2 L11 | amended 2026-08-17 — the control holds on content and **not on bytes**: v1 L10 writes 「上主网」 where v2 L11 writes 「上主网(MainNet)」, and v1's own appendix carries the MainNet form at L233, so a presence test on v2's string against the cited line reads this control as over-deletion. Article carriage is L17. It also carries the confound this case's controls share: **three of the six (K1, K2, K3) are co-asserted by the never-superseded 03-05 full report** — this one at full L10 and L202 — so on those three the article could keep the material with no supersession rule involved, and only K4, K5 and K6 are this pair's alone |
+| P10-K2 | On-time means Actual End Date ≤ Planned MainNet Date, with requirements lacking a planned date excluded | v1 L236 → v2 L381 | amended 2026-08-17 — the control holds between the versions, and its **article carriage is the thinnest in P10**: 「Planned MainNet Date」 is 0 hits, no line states the comparison, and nothing states the exclusion of requirements without a planned date — the article's one lowercase 「planned」 (L216) is about the gap between planned and actual *cycle times*, a different claim from the co-sourced 2026 Q1 material. The article writes 「on-time」 39 times across 31 lines and defines it nowhere — three sources state the rule (v1 L236, v2 L381, full L204) and the compiled output states none of it, which makes this P10's one over-deletion hit rather than a control that passes |
+| P10-K3 | Team attribution uses the JIRA `dept_l2` field | v1 L237 → v2 L382 | confirmed 2026-08-17 — the `dept_l2` token is identical in both cited lines (only the wrapper differs: v1's 「以 JIRA 中…字段为准」 against v2's 「以…为准」), and the article carries it at L36. Co-asserted at full L205, so it sits with K1 in the confounded three |
+| P10-K4 | August 2025 is the inflection point after which efficiency deteriorated without recovering | v1 L30 **and L79** (「8月是拐点」, which is where v1 uses the word) → v2 L194 | amended 2026-08-17 — cite widened, because the drafted v1 L30 asserts simultaneous deterioration without ever calling it an inflection point, and v2 L194 asserts one: 拐点 is 1 hit in v1 at L79 and 1 in v2 at L194. Article L44 carries both halves, the August start and the absence of recovery — and its next clause is call 2's unlabelled causal attribution, so this control's residue and that open call sit in one sentence. Not co-asserted: the full report has no monthly on-time narrative |
+| P10-K5 | Three-point estimation should replace single-point estimation, with calibration workshops for the lowest on-time teams | v1 L194–195 → v2 L342, L344 (the workshop half is L195 → L344, which the drafted single-line cite left out) | amended 2026-08-17 — cite widened to both halves; 三点估算 is 1 hit in each version and 0 in all three co-sources, so this is the pair's own control. Article L201 carries both halves and blends the specifics: the 「<25%」 threshold is v1's (L195, where v2 L344 says only 低按时率团队) while the team list — Asset, Finance, Compliance — is v2's, v1 naming Asset and Compliance alone. Same defect as C2 and D4, on a control this time |
+| P10-K6 | DORA metrics (deployment frequency, change lead time, MTTR, change failure rate) should be added long-term | v1 L221 → v2 L363 | confirmed 2026-08-17 — the four metric names stand in both cited lines and all four reach article L212. The Q3 2026 date the article puts on them is neither version's: it comes from the goals co-source (its L66), which names DORA without naming a metric, so the control itself is uncontaminated |
 
 ### Measurement-basis changes — why C1–C5, C7 and C8 are contradictions rather than new figures
 
@@ -1882,19 +1917,54 @@ signal.
 
 ### P10 open judgement calls
 
-1. **C6 is the softest entry.** A mean of 9.2 days and a median R&D cycle of 6.0
+Each needs a yes/no from Captain; the default if ignored is the drafted position.
+Call 1 was **settled by V3 on 2026-08-15** and is no longer a question, and calls 2
+and 3 were **answered on 2026-08-17 with the confirm pass**, both keeping the drafted
+position. Calls 4 and 5 keep their recorded lists. **One is left with Captain: call 6,
+which this pass raised**, and it is left because every promotion in it moves the
+published drop total.
+
+1. **C6 was the softest entry — settled by V3, 2026-08-15: demoted, and the row is now
+   drop D6.** A mean of 9.2 days and a median R&D cycle of 6.0
    days are different statistics over different spans and could coexist without
-   logical conflict. Scored as a contradiction because the rule counts "a metric
-   redefined" and because v2 deliberately retires the mean. Demoting it to a drop
-   removes the gate on the single most consequential change in the revision.
-2. **Left out — the causal attribution of the Aug–Oct dip.** v1 attributes it to
+   logical conflict. It was drafted as a contradiction because the rule counts "a metric
+   redefined" and because v2 deliberately retires the mean, and the counter-argument
+   recorded here was that demoting it removes the gate on the single most consequential
+   change in the revision. **V3 took the demotion anyway**, on the ground the drafting
+   note itself supplies: v2's headline is a different statistic over a different span
+   (L28 against v1 L25), so nothing in v2 is incompatible with 9.2 days. The framing
+   above verifies — v2's annual median research-and-development cycle is 「~6 天」 at L28 —
+   what changed is the disposition, and the practical argument sits in basis item 4:
+   R6 had no replacement value to score. Kept here as the drafted reasoning, not as an
+   open question.
+2. **Left out — the causal attribution of the Aug–Oct dip. Answered no, 2026-08-17: it
+   stays out.** v1 attributes it to
    organizational restructuring and leader transitions (L82, L126–131); v2
    explains the same months with summer absence, July overdraft and the holiday
    calendar (L191–194) and asserts 「春节/国庆…并非 H2 效率下滑的主因」 (L39). Because
    v1 words it as 可能原因, this was judged neither contradiction nor drop and left
-   out. The article states v1's framing as current (L44, L299–301), so ruling it a
-   contradiction raises the stale count to 5 of 9.
-3. **Left out as derivative**: monthly average throughput 1,441 → 1,537; H1→H2
+   out. **What decided it: the two claims can both hold**, which is P9 call 1's and
+   D3's ground. v1 offers hypotheses under a 「可能原因」 heading (L81) and names no main
+   cause; v2 names one — 研发周期是效率下滑的主因 (L35) — and denies only that *holidays*
+   are it (L39), a proposition v1 never asserts. Nothing in v2 addresses the leader
+   transitions, so a contradiction row would have to be built out of v1's hedge.
+   **The article-facing finding is real even so**, and it is a blend one level up from
+   C2's: L44 states v1's hypothesis as fact and hands it to a link that resolves to
+   nothing ([[Organizational Change Management for Engineering Teams]] is a title no
+   file in the KB carries), while v2's L39 denial reaches the article nowhere and v2's
+   holiday-planning recommendation reaches it at L106 — so the compiled output keeps
+   v1's causal story and v2's remedy side by side. **Its arithmetic was stale and is
+   corrected**: written before V3 demoted C6, the entry read "raises the stale count to
+   5 of 9"; on today's seven contradictions, promotion gives P10 8C at 4 of 8, set
+   totals 45C and the headline 28 of 40 (70%).
+3. **Left out as derivative — answered no, 2026-08-17: the drafted five stay out, and so
+   does V11's sixth.**
+   **What decided it**: each is a figure whose superseded and replacement values are both
+   downstream of a basis change already scored on another row, so promoting any of them
+   would score the same measurement twice — and the two the pass re-measured behave the
+   way that reading predicts, 1,441 being 0 hits in the article (recorded on C7) and the
+   2026 on-time target reaching it as v2's ≥40% at L169. The list: monthly average
+   throughput 1,441 → 1,537; H1→H2
    change −6.0% → −4.0%; the 2026 targets (article already carries v2's ≥40%);
    dashboard alert thresholds; and the large-requirement metric redefinition.
    **Ruling V11 adds one, and unlike the others the article is stale on it**: the Q4
@@ -1902,13 +1972,26 @@ signal.
    under a 「full-data view」 label that belongs to neither figure — the full report's
    全量 Q4 rate is 26.7% (L119) and its 剔除后 is v1's 28.0% (L120). It is left out as
    C3's own metric at a finer granularity — the ground the monthly-average throughput
-   entry above is left out on; ruling it a contradiction raises the stale count to 4 of 9.
+   entry above is left out on; ruling it a contradiction raises the stale count to 4 of 8.
+   **That arithmetic is the confirm pass's correction**, 2026-08-17: V11 wrote "4 of 9"
+   against the pre-V3 denominator of eight contradictions, and on today's seven the
+   promotion reads P10 8C at 4 of 8, set totals 45C and the headline 28 of 40 (70%) —
+   the same numbers call 2's branch produces, since both add one stale row.
    **Ruling V13 corrects a second entry without moving it**: the article does carry the
    H1→H2 change, as the band 「−4 to −6%」 (L56, L58, L301) whose endpoints are v1's −6.0%
    and v2's −4.0%, so that derivative is left out as *blended* rather than as absent, and
-   the line is recorded on C2 with L162's population blend.
+   the line is recorded on C2 with L162's population blend. The pass adds that the band is
+   three different strings across those three lines, which C2's row now carries.
 4. **Team-level contradictions are a family; one is labelled.** **Rewritten by ruling
-   V14, 2026-08-16.** Every team's Q1/Q4 on-time rate is restated downward — 16 of 16
+   V14, 2026-08-16; list kept and re-verified by the confirm pass, 2026-08-17**, which
+   found the five carried rates and the eleven-team roster exactly as V14 records them and
+   took neither of the two available rows, both of which move published totals. One
+   addition: V14 cut the ceiling on the *rate* axis, and the family has a candidate on the
+   *trend* axis that no rate test reaches — v1 calls ToB volatile (Q2 slump, Q3 recovery,
+   Q4 re-deterioration, L120) where v2's trend cell reads 持续恶化 (L234), and the article
+   states v1's shape at L287. It is filed under call 6 rather than here, because the two
+   versions measure different statistics there and the drop reading is the likelier one.
+   Every team's Q1/Q4 on-time rate is restated downward — 16 of 16
    cells, the direction C1's widened filter predicts — while the roster change is
    **additive**: v2 has 10 rows to v1's 8, but they are v1's same eight teams in the same
    order (v1 L98–105) with **Trading Engine** and **Finance** inserted before Salesforce
@@ -1986,14 +2069,74 @@ signal.
      score, per V4 and V19: the co-source is dated 03-05 against v2's 03-06, so the newest
      source speaking to either claim is still v2.
 
+   **Re-verified by the confirm pass, 2026-08-17**: every co-source cite in this entry
+   holds — full L89's 45.0%, L95's 1,907, L98's 1,081, L114–115's 37.0 / 24.9, L119's
+   26.7% and L120's 28.0% — and 「9.3」 is a figure in the article alone, its hits in the
+   other three files being v2's heading number 「### 9.3」 (L360), the full report's
+   February 39.3% and the Q1 report's ToC 19.3%. The list stands as written.
+
    The fingerprint claim needed correcting too. **+54.8%** is the one token no other source
-   carries (v1 L25, article L21 and L50; 0 hits in the other four, though within v1 the `+`
-   and `%` are needed to separate it from Fiat Channel's 54.8% at L98), and on the team rows
+   carries (v1 L25; 0 hits in the other four, though within v1 the `+`
+   and `%` are needed to separate it from Fiat Channel's 54.8% at L98). **The pass narrows its
+   article side**: with the sign it is 1 hit, L50's table cell, because L21 states the same
+   increase as 「rose 54.8%」 — bare `54.8` is what reaches both lines. And on the team rows
    C8's 「44.6」 / 「22.0」 (v1 L101, article L282). The H1 7.3 / H2 11.3 pair is not
    exclusive: v2 L210 states a Q3 研发周期 of 「7.3 天」 and v2 L101 a Compliance figure of
    「11.3 天」, so both halves collide inside the chain's own newer version — and `grep -F
    "7.3"` additionally catches 「27.3天」 at v1 L104–105 and 27.3% at v2 L56. This is the
    P7-C2 string hazard, on the one item drafted as this case's clean test.
+6. **The rewrite sweep — raised by the confirm pass, 2026-08-17, and left open because
+   every promotion moves the drop total.** With only nineteen of v1's lines surviving into
+   v2, the drop arm cannot be read off a diff, so all 152 of v1's non-surviving non-blank
+   body lines were classified: 51 are monthly- or team-table data rows plus 8 headers over
+   them, whose figures are already scored on C1–C8 and in the basis items, and the remaining
+   93 were tested one by one against V8's standard — does v2 restate the proposition anywhere.
+   Most do — the metric system is rebuilt rather than dropped (开发/测试时长 → v2 L314–315,
+   工时估算准确率 → L325, 技术需求占比 → L317, P0/P1 占比 → L326, 大需求比例 → the
+   redefinition in call 3), the dashboard and its alert thresholds survive at L356–358, and
+   the team insights on BigData and Asset are restated at L251 and L246. **Six propositions
+   are unrestated and unlabelled**, and two more are excluded on V9's ground.
+   - **(a) 需求准时启动率** (v1 L146), the tier-1 metric pairing actual against planned
+     development start at ≥70%. 准时启动 is 0 hits in v2 and in all three co-sources, and
+     v2's nearest metric, 需求创建 >60天未启动率 (L324), measures the opposite condition. No
+     article residue. The cleanest of the six and the closest analogue to V8's promotion.
+   - **(b) 需求异常结束率 ≤5%** (v1 L157). 异常结束 is 0 hits in v2 and the co-sources; the
+     article's 「stale requirement rate」 (L150) is v2's metric, not this one. No residue.
+   - **(c) 避免 Goodhart 效应** (v1 L185) — do not appraise on a single metric, or teams will
+     split requirements to make throughput. Goodhart is 0 hits in v2, which replaces all four
+     of v1's target-setting principles (v1 L182–185 → v2 L330–333). **Stated as current** at
+     article L144, where it is the stated rationale for Decision 4's layered KPI system.
+   - **(d) 环比优于同比** (v1 L183), quarter-on-quarter improvement over year-on-year
+     comparison. 0 hits in v2 and the co-sources, no article residue.
+   - **(e) The team-throughput dimension.** v1's team table carries four quarterly throughput
+     columns (L96); v2's carries none, its team table having moved to 研发周期 and 按时率
+     (L228). Two of v1's four throughput claims are **stated as current** in the article —
+     SBU Business's 「125-169」 stability (v1 L111 → L279) and Salesforce's Q2 spike
+     「62 → 189」 (v1 L105 → L284) — and neither figure occurs in v2 or in any co-source.
+     String hazard: the article writes 125–169 with an en dash against v1's hyphen, so an
+     absence test on v1's form reads that residue as gone. Like P9 call 9(e) this is a
+     dimension rather than a proposition, and may belong as a note instead of a row.
+   - **(f) ToB's volatility** (v1 L120: Q2 slump at 24.5 days, Q3 recovery, Q4
+     re-deterioration). 24.5 is 0 hits in v2, whose ToB trend cell reads 持续恶化 over a
+     monotone 4.0 → 11.0 研发周期 series (L234). **Stated as current** at article L287. This is
+     the one with a second reading: as a contradiction it would gate, and it is the trend-axis
+     candidate call 4 could not reach. Against that reading, the two versions measure
+     different statistics — v1's 交付周期 against v2's 研发周期 — which is the ground V3 used
+     to demote C6 and V17 used to keep C5 on level rather than trend, so the drop reading is
+     the likelier one and neither is taken here.
+   - **Excluded on V9's ground, not uncounted**: 分团队差异化 (v1 L184) and the leader-led
+     root-cause review (v1 L201–202). Both are absent from v2 but asserted by a
+     never-superseded declared co-source — the goals report states 「不同团队不同标准 —
+     BigData（3天）和 Asset（20天）不可比」 (its L73), which is what article L179 carries, and
+     the Q1 report asks for 「组织 Root Cause 分析会：是需求拆分不够？技术债务累积？人员变动？」
+     with a four-week observation period (its L228–229), which is what article L220 carries.
+     No supersession rule could have removed either, exactly as with P5-D1.
+   As drop rows all six sit on the measured arm and none touches the gating column:
+   promoting them takes the published drop total from 32 to as high as **38**, P10's arm from
+   6 to 12, and leaves 44 contradictions and 27 of 39 stale untouched. The exception is (f)
+   under its second reading, which would gate. Left out pending Captain — and recorded so
+   that a six-row drop arm over a complete rewrite reads as a measured decision rather than
+   as the limit of what a diff shows.
 
 ---
 
@@ -2201,3 +2344,12 @@ with the fixture left verbatim. One consequence for this note: the published rat
 27 of 39 over five cases, four of which carry a co-source — so the confound described
 here reaches every case behind the headline figure but P3, and, measured row by row, not
 P4-C9 either.
+
+**It reaches the control arm too, measured in P10's confirm pass, 2026-08-17.** Three of
+that case's six controls — K1's population, K2's on-time rule and K3's team attribution —
+are asserted by the never-superseded `2026-03-05-…-report-full.md` as well as by both
+versions (its L10, L202, L204, L205), so their survival in the article says nothing
+about how supersession was handled: no rule operating on this chain could have removed
+them. Only K4, K5 and K6 are the pair's alone. The same reading cuts the other way on
+over-deletion, which is what makes K2 worth having: three sources state the on-time
+definition and the compiled article states none of it.
