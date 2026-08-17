@@ -1,9 +1,25 @@
 # FX3 labels — the supersession test set's reference standard
 
-Status: **confirm pass under way — 89 of 118 scoring rows settled, 29 still read
+Status: **confirm pass under way — 106 of 118 scoring rows settled, 12 still read
 `to confirm`**, plus P2's 18 marked counter-case rows, which sit outside the 118
-because P2 scores nothing. Six cases are through it, all on 2026-08-17, and no total
-moved in any of them; what is left is P5's 17 rows and P8's 12.
+because P2 scores nothing. Seven cases are through it, all on 2026-08-17, and no total
+moved in any of them; what is left is P8's 12 rows.
+**P5 — 10 confirmed, 7 amended, none rejected**, holding at 5C / 6D / 6K with 0 of 5
+stale, and it is the case the pass could measure end to end: parsing both files into
+endpoint rows gives **278 in v1, 299 in v3, 273 shared, with name and method identical
+in every one**, which is the case's central claim turned from an assertion into a count.
+The same parse corrects the two measurements underneath it. The 状态 **cell** differs on
+22 of the 273 — always 「🔴 **移除**」 → 「**移除**」 — so a field-equality test reads 22
+changed rows where the decision reads none, and the ⚠️ rise is +6 rather than +8, eight
+added in the new modules against two lost with the leverage tokens. **What the case gains
+is a notation finding**: 🔴 is 24 rows in v1 and 0 in v3, v1 is the only one of the
+article's 16 declared sources that marks removals with it, and it survives into the
+article at L386 — so the compiled output took its notation from the superseded version
+while taking all five figure pairs from v3, and in the other direction v3's own rewritten
+P2P wording reaches L402 and L426. Two of the six controls also sit on abridged cells,
+which makes them read as over-deletion under a byte test while the control itself holds,
+and both dropped clauses are in the article (L396, L397). All five calls are answered and
+none moves a verdict.
 **P10 — 8 confirmed, 11 amended, none rejected**, holding at 7C / 6D / 6K with 3 of 7
 stale, and it is the case that measured the *rewrite*: only **19 of v1's 171 non-blank
 body lines survive in v2 byte-identical**, seventeen of them separators, headings and
@@ -57,8 +73,10 @@ corrected the identity claim underneath the inversion, which holds on content an
 on bytes. Four open calls are now left for Captain — **P3 call 3**, **P9 call 3**,
 **P9 call 9** and **P10 call 6** — and each of them has one branch that moves published
 totals, which is why none was taken in the pass. Every other call it touched was answered
-at its drafted position, the branch that moves nothing: P4's call 9, P7's call 4, P9's
-calls 1, 2, 4 and 5, and P10's calls 2 and 3. P7 and P4 leave nothing open at all. The verification queue below is
+at its drafted position, the branch that moves nothing: P4's call 9, P5's call 1, P7's
+call 4, P9's calls 1, 2, 4 and 5, and P10's calls 2 and 3 — plus P5's calls 2 to 5, which
+were corrected on measurements rather than answered on judgement. P4, P5 and P7 leave
+nothing open at all. The verification queue below is
 **closed**: 22 of 22 settled, the last two on 2026-08-17, and a ruling settles what
 a row means rather than whether it scores. The two blocking rulings were the first
 of them (2026-08-15): P2 leaves the positives and is kept as the documented
@@ -130,7 +148,7 @@ are into the fixture files named at the head of each case.
 |---|---|---|---|---|---|
 | P3 | 8 | 5 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 19 rows settled: 14 confirmed, 5 amended on evidence with no verdict moved, none rejected; calls 1, 4 and 7 answered at the drafted position and **call 3 left open**, the one promotion in this case that would move totals. **V7 ruled 2026-08-16**: D3 stays a drop and call 2's promotion is declined, so P3 holds at 8C / 5D and has no queue item left, see [P3](#p3--cht-knowledge-distillation-and-indexing) |
 | P4 | 10 | 4 | 6 | **9 of 10** | **confirmed 2026-08-17** — all 20 rows settled: 10 confirmed, 10 amended, none rejected, and no verdict moved, so it holds at 10C / 4D / 6K with 9 of 10 stale. The pass is dominated by one systematic correction: **five more rows have their replacement land mid-chain**, not at v4 — C1, C2, C4 and C5 at v2, C6 and C7 at v3 — which is the correction V18, V5 and V22 each made for a single row, and it now covers **9 of the 10** — every contradiction except C10, whose change genuinely is v3→v4. Also: **call 9 answered yes**, a heading asserts, on C2's mirrored defect; one residue moved from C5 to C4; C1's and D1's residues were under-cited; and three string hazards recorded (`service_action`, `166624305`, 「兑币的流水回滚」). Worst case in the set; **V5 ruled 2026-08-16** keeps C8 with a recorded residual, **V15 ruled 2026-08-17** relabels X1 as a drop followed by a supersession over one entity and finds the fixture unable to carry a nested supersession at all, **V22 ruled 2026-08-17** keeps C9 stale on L667 alone, the other two residues tracing to a passage v2, v3 and v4 assert identically, and **V18 ruled 2026-08-17** keeps C3 stale on four v1-exclusive strings while withdrawing R3's, which is v1's own and control K4's, see [P4](#p4--trade-rollback-trd-four-versions) |
-| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
+| P5 | 5 | **6** | 6 | **0 of 5**, reported apart from the gate | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 5C / 6D / 6K with 0 of 5 stale and 3 of 6 drops stated as current. The pass measured the pair row by row — **278 endpoint rows in v1, 299 in v3, 273 shared, name and method identical in every one** — and corrected two measurements the case rested on. The 状态 *cell* differs on **22 of the 273**, always 「🔴 **移除**」 → 「**移除**」, so a field-equality test reads 22 changed rows where the decision reads none; and five of the 17 abridged 备注 are not trailing-clause deletions, one of them (`p2p/order/finish`) a rewrite. **The article's notation blends the two versions while its figures do not**: 🔴 is 24 rows in v1 and 0 in v3, v1 being the only one of the article's 16 declared sources that marks removals with it, and it reaches the article at L386 — against which v3's fused P2P wording reaches L402 and L426. Row-level corrections: four of the five contradictions had their article side cited one line short (301 at L32/L141/L383/L564, 279 and the GET/POST split at L32 as well as L142, ~31 at four lines), two of the six controls sit on abridged cells so a byte test reads over-deletion (K2's 「等于转移持仓价值」 and K4's 「（权限提升）」, both clauses reaching the article at L397 and L396), K1 holds on content and not on bytes (「🔴 **移除**」 → 「**移除**（安全）」), and D6's two arms cannot be cited at one grain because v1 states that endpoint as a markdown pipe row and v3 as a lark table. The 280-against-278 basis is reconciled: `/v5/private` and `/v5/public/` are untabled in both files and counted in both totals. All five calls are answered, none moving a verdict, so P5 leaves nothing with Captain. **V20 ruled 2026-08-16** — the payload stated the chain backwards off a path tie-break, which is fixed by withdrawing the ordering claim, not by correcting it; so P5 gains no basis to be scored on this column and its exclusion is now permanent. **V21 ruled 2026-08-16** gives that exclusion its disposition: v3's frontmatter date is wrong by six days against its own body, the fixture keeps the document verbatim, and P5 is recorded as an **A2 body-date case** rather than a pending fix. Its 5 contradictions still count in the set totals. **V8 ruled 2026-08-16** adds **D6**, the one abridgement of seventeen that loses a proposition v3 nowhere restates, so the drop arm reads 6 — and **V9 ruled 2026-08-16** measures that arm at **3 of 6 stated as current** (D4, D5, D6), excluding D1's co-sourced residue, without moving a total, see [P5](#p5--bybit-trading-skill-api-inventory) |
 | P7 | 8 | 0 | 6 | 6 of 8 | **confirmed 2026-08-17** — all 14 rows settled: 6 confirmed, 8 amended, none rejected, and no verdict moved, so it holds at 8C / 0D / 6K with 6 of 8 stale. The pass makes the case's structure measured rather than asserted: v1 is inside v2 **byte-identical across all ten shared table cells**, so the empty drop arm is a property of the pair — and it rests on **call 4**, now answered on arithmetic, because strikethrough is the one mechanism that could still produce a drop. Also: five of six controls are re-asserted in v2's own newest column and only **K1** holds by construction; C4 and C6 are the only rows whose cite leaves the newest column; C1's replacement figure reached the article **stripped of its unit** from a co-source (57.11 as a rate at L39, L51, L101, L479); C5's correction only half landed (25046 absent, 11362 present only in C6's framing); C8 and C5 had residues under-cited (L612; three derived pending-core lines); C3's superseded rate is stale **inside v1** and on a different basis than its replacement, so the row scores on the amount; and four string hazards recorded (`117.3` finds only the dated line; bare `3300`, `3864`, `7197`, `17054` and `1750` all miss the article's comma forms; `6.8` matches `S6.8XLARGE128`; `7C` matches inside `7197C`). **V4 ruled 2026-08-16** keeps all 8 rows scoreable and narrows the causal claim to C8; the pass narrows V4's own confound too — the co-source copies only the **Q2 half** of v1's newest column and carries the three landed figures without their units, see [P7](#p7--2026-h1-cost-progress-tracking) |
 | P8 | 0 | 6 | 6 | — | **V1 ruled 2026-08-15** — its four contradictions were de-specifications and are struck; P8 keeps its drops and controls and no longer gates, see [P8](#p8--ai-project-portfolio-overview) |
 | P9 | 6 | 5 | 6 | 3 of 6 | **confirmed 2026-08-17** — all 17 rows settled: 10 confirmed, 7 amended, none rejected, and no verdict moved, so it holds at 6C / 5D / 6K with 3 of 6 stale. Calls 1, 2, 4 and 5 are answered at the drafted position — **colour markup asserts** where the document declares a legend (v2 L124), which is what keeps C4; v2 L673 naming 收益路由 the 杀手应用 is what keeps C5; and D3 stays a drop because a GPT → Sonnet → Haiku path and a retention-plus-cost selection rule can both hold. **Two calls are left with Captain**: call 3, where 高价值 and 个人专属 being 0 hits in v2 pull one way and P3 call 4's refusal to read omission as denial pulls the other, and **call 9, raised here** — a sweep of every v1 line absent from v2 that finds **five unrestated propositions the drop arm does not carry**, three of them stated as current in the article. Measured with it: **126 of v1's 208 non-blank body lines survive in v2 byte-identical**, so the short drop arm is mostly re-expression rather than silence. Four row-level corrections: C7's hybrid residue is four article lines and not two (L258, L297, L298, L448); C4's phase move is asserted at v2 L156 alone, since L307 restates the item unphased; K1 holds on content and not on bytes (「心跳触发机制」 → 「心跳机制」); K2's figures reach the article carrying a currency the sources never state, so 「80 Mil」 is 0 hits at L77; and K5 has the case's thinnest carriage, the hideable right-side button and its preset questions both absent. **V2 ruled 2026-08-15**, C1 struck as preserved by v2, see [P9](#p9--bybit-ai-toc-project-initiation) |
@@ -997,10 +1015,43 @@ accidental-signal case, and is the more extreme of the two.
 
 There is a second, independent reason this pass is weak evidence: **the revision is
 structurally incapable of producing a hard contradiction.** Across all 273 shared
-endpoint rows there are zero changes to name, method or 状态, and all 17 body
-differences are pure trailing-clause deletions. It is additive scope plus a recount —
-the easiest supersession shape there is. Report P5 as a confounded, low-difficulty
-pass and do not aggregate its 0-of-5 with a case like P7 without that caveat.
+endpoint rows the name and the method are identical in every one, the 状态 decision is
+identical in every one, and no row reverses a call. The 17 备注 differences are
+abridgements. Two measurements first recorded here were too strong and are corrected in
+the confirm pass below: the 状态 *cell* differs on 22 rows, by the 🔴 glyph v3 stops
+using, and five of the 17 abridgements are not trailing-clause deletions. Neither
+changes the shape — it is additive scope plus a recount, the easiest supersession
+shape there is. Report P5 as a confounded, low-difficulty pass and do not aggregate
+its 0-of-5 with a case like P7 without that caveat.
+
+**Measured in the confirm pass, 2026-08-17.** Parsing both files into endpoint rows —
+lark tables and v1's 22 markdown pipe rows alike — gives **278 rows in v1 and 299 in
+v3, sharing 273 paths**, with 5 v1-only (all `spot-lever-token`) and 26 v3-only, which
+is call 2's arithmetic reproduced. It also reconciles the two bases this case is stated
+on: `/v5/private` and `/v5/public/` occur in both files outside any table, so the 280
+and 301 totals are 278 + 2 and 299 + 2, and the same two-endpoint allowance turns 256
+and 277 tabled retentions into the published 保留 258 and 279. Three arms of the
+comparison then read:
+
+- **状态**: 22 differences, every one of them 「🔴 **移除**」 → 「**移除**」. Both
+  versions carry exactly 22 removal rows, so dropping the Leverage Token module did not
+  touch the count — its five rows were 保留 and ⚠️, not 移除.
+- **⚠️**: 29 cells in v1 against 35 in v3. The composition is 8 added in v3's three new
+  modules **minus the 2 lost with the leverage tokens**, so the rise is +6 and not the
+  +8 call 2 recorded — and +6 is exactly what the two summary tables publish (~25 →
+  ~31), each of them 4 below its own cell count.
+- **备注**: 17 differences, matching call 3's list row for row.
+
+**The article's notation blends the two versions even though its figures do not.** 🔴 is
+a v1 fingerprint: 24 rows in v1, 0 in v3, and v1 is the only one of the article's 16
+declared sources that marks removals with it — the sole other source using the glyph at
+all is the design doc, twice for Critical severity and once for a 强推 recommendation. It reaches the article at L386,
+「Removed (🔴)」. In the other direction, the `p2p/order/finish` note is the one
+abridgement that is a rewrite rather than a deletion, 「释放 crypto 给买家，需人工确认法币
+到账，AI 无法判断」 → 「释放 crypto 给买家，AI 无法判断法币到账」, and the article carries
+**v3's** fused form twice (L402, L426). So the glyph is a seventh way to tell the two
+files apart — carrying no direction, unlike families 2–6, but unlike them also surviving
+into compiled output.
 
 Note also that the same-day filenames make this the one pair where `date`
 frontmatter alone cannot order the versions — the tie is broken by path, per WP5.
@@ -1009,22 +1060,22 @@ frontmatter alone cannot order the versions — the tie is broken by path, per W
 
 | ID | v1 → v3 | Evidence | Article today | Status |
 |---|---|---|---|---|
-| P5-C1 / R1 | The inventory covers 8 skill modules → 11, the new three being Copy Trading, Strategy Orders and Trading Bot | v1 L13 → v3 L12, sections L5649, L5753, L5856 | not stale — L32 states 11 modules | to confirm |
-| P5-C2 / R2 | Total audited API count 280 → 301 | v1 L5438, L5441 → v3 L6341, L6344 | not stale — L141; `280` occurs nowhere | to confirm |
-| P5-C3 / R3 | Retained endpoints 258 → 279 | v1 L5446, L5449 → v3 L6349, L6352 | not stale — L142; no `258` | to confirm |
-| P5-C4 / R4 | Retained split ~165 GET / ~93 POST → ~169 GET / ~110 POST | v1 L5454–5465 → v3 L6357–6368 | not stale — L142 | to confirm |
-| P5-C5 / R5 | Endpoints needing Mainnet confirmation ~25 → ~31 | v1 L5470, L5473 → v3 L6373, L6376 | not stale — L144, L404 | to confirm |
+| P5-C1 / R1 | The inventory covers 8 skill modules → 11, the new three being Copy Trading, Strategy Orders and Trading Bot | v1 L13 → v3 L12, sections L5649, L5753, L5856 | not stale — L32 states 11 modules | confirmed 2026-08-17 — the count has a mechanism under it, which is what makes the row testable: v1's section headings name **8 distinct `*.md` module files** and v3's name 11, the additions being `copy-trading.md`, `strategy.md` and `trading-bot.md`, exactly the three sections cited. 「8 modules」 and 「8 个 modules」 are 0 hits in the article |
+| P5-C2 / R2 | Total audited API count 280 → 301 | v1 L5438, L5441 → v3 L6341, L6344 | not stale — L141; `280` occurs nowhere | amended 2026-08-17 — verdict unchanged, both cites verify and `280` is 0 hits; the article side was cited one line short of itself, stating 301 at **four** lines (L32, L141, L383, L564), so a fix reaching L141 alone would leave three standing |
+| P5-C3 / R3 | Retained endpoints 258 → 279 | v1 L5446, L5449 → v3 L6349, L6352 | not stale — L142; no `258` | amended 2026-08-17 — verdict unchanged, cites verify and `258` is 0 hits; 279 is stated at L32 as well as at the cited L142. Both figures are their document's own arithmetic on the same allowance — 256 and 277 tabled retentions plus the two untabled WebSocket endpoints — and each equals its own GET/POST split |
+| P5-C4 / R4 | Retained split ~165 GET / ~93 POST → ~169 GET / ~110 POST | v1 L5454–5465 → v3 L6357–6368 | not stale — L142 | amended 2026-08-17 — verdict unchanged; the split is stated at L32 as well as at the cited L142, and the article drops the tildes (`169`, `110`). This is the one row whose absence test is safe in either form: `~165`, `~93`, bare `165` and bare `93` are all 0 hits in the article |
+| P5-C5 / R5 | Endpoints needing Mainnet confirmation ~25 → ~31 | v1 L5470, L5473 → v3 L6373, L6376 | not stale — L144, L404 | amended 2026-08-17 — verdict unchanged, and two hazards attach. The article states ~31 at **four** lines (L144, L162, L385, L404), two of them uncited. And the superseded side must be tested on 「~25」: bare `25` hits nine article lines (2025, 25%, and so on). Note both versions understate their own ⚠️ cells by exactly 4 — v1 tables 29 and publishes ~25, v3 tables 35 and publishes ~31 — so the row scores on the published pair and the article inherits v3's undercount |
 
 ### Drops (measured, not gating)
 
 | ID | Asserted by v1, absent from v3 | Evidence | Status |
 |---|---|---|---|
-| P5-D1 | The skill inventories a Leverage Token module (`/v5/spot-lever-token/*`, 5 endpoints under `spot.md`), Purchase and Redeem needing Mainnet confirmation | v1 L1241, endpoints L1273–1349; verified absent (`spot-lever-token`, `杠杆代币`: 0 hits in v3) | to confirm — see call 1, and **V9 ruled 2026-08-16**: the article does state this material (L413, L567) but it is **not counted as a lost drop**, two declared never-superseded sources asserting it independently |
-| P5-D2 | When cancelling all orders, take care not to cancel strategic standing orders | v1 L584; v3 L583 reduces the note to 「Mainnet 需确认」 | to confirm — **V9 ruled 2026-08-16**: **not** a lost drop, 「注意不要误取消策略性挂单」 having no residue in the article |
-| P5-D3 | Batch order placement must display all orders before confirmation | v1 L604; v3 L603 reduced | to confirm — **V9 ruled 2026-08-16**: **not** a lost drop, and the near-miss is the article's generic confirmation card (L320, L580), which is not 「展示全部订单再确认」 |
-| P5-D4 | The BybitPay Payout endpoint is essentially an alternative withdrawal channel | v1 L4744 「向任意 UID 打款，本质是另一种提现通道」 → v3 L4889 「向任意 UID 打款」. Test on 「另一种提现通道」, 0 hits in v3 — **not** on 「向任意 UID 打款」, which is v3 L4889's own surviving cell and is asserted in the same abridged form by the declared, never-superseded `…保留接口清单按场景.md` L3550 | to confirm — **V9 ruled 2026-08-16**, a **lost** drop: article L427 states it as "alternative withdrawal channel (sends funds to any UID)". The residue is not v1-exclusive corpus-wide — the undeclared, unstaged hardening plan carries the clause at L96, with a 商户 the article does not have — so this row sits on D6's footing rather than D5's, see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
-| P5-D5 | The stated *reason* for removing institutional-loan UID bind/unbind — that it affects other users' accounts — is dropped; v3 keeps the removal with no rationale | v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 → v3 L4044 「机构贷款绑定/解绑 UID」; `影响他人账户` 0 hits in v3 — **not** `影响他人`, which hits v3 L2958 「冻结子账户影响他人使用」. **Reworded on verification** — as first drafted the row folded in the surviving removal, so a grader applying the absence test to the row as written finds it present in v3 and mis-scores it | to confirm — **V9 ruled 2026-08-16**, a **lost** drop: article L402 states it as "institutional loan UID binding (affects other accounts)". The residue is a v1 fingerprint, 「影响他人账户」 being a single corpus hit, and the hardening plan drops the clause on its own line for this endpoint (plan L502) |
-| P5-D6 | Universal Transfer's stated risk — that funds can be moved to a sub-account under someone else's control — is dropped; v3 keeps the endpoint, its 移除 status and the bare 跨 UID 转账 classification | v1 L2730 「跨 UID 转账，资金可转到他人控制的子账户」 → v3 L2652 「跨 UID 转账」. Test on the full clause 「资金可转到他人控制的子账户」 or on 「他人控制」, both 0 hits in v3 — **not** on 「他人」, which hits v3 L2958 「冻结子账户影响他人使用」, a row identical in both versions | to confirm — **V8 ruled 2026-08-16**, promoted from [call 3](#p5-open-judgement-calls), and a **lost** drop: article L394 states it as 「Funds can reach accounts controlled by others」. Note the residue is not v1-exclusive corpus-wide (the undeclared hardening plan carries the clause at L116), but that document reaches neither the article nor the fixture — see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
+| P5-D1 | The skill inventories a Leverage Token module (`/v5/spot-lever-token/*`, 5 endpoints under `spot.md`), Purchase and Redeem needing Mainnet confirmation | v1 L1241, endpoints L1273–1349; verified absent (`spot-lever-token`, `杠杆代币`: 0 hits in v3) | confirmed 2026-08-17 — the five endpoints are Info, Reference, Purchase, Redeem and Order Record, and the confirmation half is corroborated by arithmetic rather than by reading: **Purchase (v1 L1315) and Redeem (v1 L1335) are the module's only two ⚠️ cells**, which is what makes v1's 29 ⚠️ cells become v3's 35 once the 8 new ones are added. See call 1, and **V9 ruled 2026-08-16**: the article does state this material (L413, L567) but it is **not counted as a lost drop**, two declared never-superseded sources asserting it independently |
+| P5-D2 | When cancelling all orders, take care not to cancel strategic standing orders | v1 L584; v3 L583 reduces the note to 「Mainnet 需确认」 | confirmed 2026-08-17 — both cells verify verbatim and 「策略性挂单」 is 1 hit in v1, 0 in v3. **V9 ruled 2026-08-16**: **not** a lost drop, 「注意不要误取消策略性挂单」 having no residue in the article |
+| P5-D3 | Batch order placement must display all orders before confirmation | v1 L604; v3 L603 reduced | confirmed 2026-08-17 — v3 L603 is the bare 「Mainnet 需确认」 and 「展示全部订单」 is 1 hit in v1, 0 in v3. **V9 ruled 2026-08-16**: **not** a lost drop, and the near-miss is the article's generic confirmation card (L320, L580), which is not 「展示全部订单再确认」 |
+| P5-D4 | The BybitPay Payout endpoint is essentially an alternative withdrawal channel | v1 L4744 「向任意 UID 打款，本质是另一种提现通道」 → v3 L4889 「向任意 UID 打款」. Test on 「另一种提现通道」, 0 hits in v3 — **not** on 「向任意 UID 打款」, which is v3 L4889's own surviving cell and is asserted in the same abridged form by the declared, never-superseded `…保留接口清单按场景.md` L3550 | confirmed 2026-08-17 — both cells verify verbatim and 「另一种提现通道」 is 1 hit in v1, 0 in v3. **V9 ruled 2026-08-16**, a **lost** drop: article L427 states it as "alternative withdrawal channel (sends funds to any UID)". The residue is not v1-exclusive corpus-wide — the undeclared, unstaged hardening plan carries the clause at L96, with a 商户 the article does not have — so this row sits on D6's footing rather than D5's, see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
+| P5-D5 | The stated *reason* for removing institutional-loan UID bind/unbind — that it affects other users' accounts — is dropped; v3 keeps the removal with no rationale | v1 L4007 「机构贷款绑定/解绑 UID，影响他人账户」 → v3 L4044 「机构贷款绑定/解绑 UID」; `影响他人账户` 0 hits in v3 — **not** `影响他人`, which hits v3 L2958 「冻结子账户影响他人使用」. **Reworded on verification** — as first drafted the row folded in the surviving removal, so a grader applying the absence test to the row as written finds it present in v3 and mis-scores it | confirmed 2026-08-17 — the cells and both string tests verify: 「影响他人账户」 1 hit in v1 and 0 in v3, 「影响他人」 2 and 1, the surviving v3 hit being L2958. **V9 ruled 2026-08-16**, a **lost** drop: article L402 states it as "institutional loan UID binding (affects other accounts)". The residue is a v1 fingerprint, 「影响他人账户」 being a single corpus hit, and the hardening plan drops the clause on its own line for this endpoint (plan L502) |
+| P5-D6 | Universal Transfer's stated risk — that funds can be moved to a sub-account under someone else's control — is dropped; v3 keeps the endpoint, its 移除 status and the bare 跨 UID 转账 classification | v1 L2730 「跨 UID 转账，资金可转到他人控制的子账户」 → v3 L2652 「跨 UID 转账」. Test on the full clause 「资金可转到他人控制的子账户」 or on 「他人控制」, both 0 hits in v3 — **not** on 「他人」, which hits v3 L2958 「冻结子账户影响他人使用」, a row identical in both versions | confirmed 2026-08-17 — the cells and both string tests verify (「资金可转到他人控制的子账户」 and 「他人控制」 are each 1 hit in v1, 0 in v3). One cite-grain note: v1 states this endpoint as a **markdown pipe row** (L2730, one of its 22) where v3 states it as a lark table, so the superseded side is a whole row and the replacement side a single cell — the two arms cannot be cited at the same grain here. **V8 ruled 2026-08-16**, promoted from [call 3](#p5-open-judgement-calls), and a **lost** drop: article L394 states it as 「Funds can reach accounts controlled by others」. Note the residue is not v1-exclusive corpus-wide (the undeclared hardening plan carries the clause at L116), but that document reaches neither the article nor the fixture — see [V16](#v16--resolved-by-investigation-no-ruling-needed) |
 
 **Three of the six are stated as current in the article today** — D4 (L427), D5 (L402)
 and D6 (L394) — which is the baseline A2's RP1 arm would be measured against for this
@@ -1044,14 +1095,19 @@ as D3's 「展示全部订单再确认」 — the batch-specific proposition is 
 
 | ID | Asserted by both | Evidence | Status |
 |---|---|---|---|
-| P5-K1 | 22 endpoints removed on security grounds, split 12 P0 and 10 P1 | v1 L5481, L5489, L5497 → v3 L6384, L6392, L6400 | to confirm |
-| P5-K2 | Move Position and its history endpoint are removed because they move positions across UIDs | v1 L970 → v3 L969 | to confirm |
-| P5-K3 | Withdraw is removed because it sends funds to external addresses | v1 L2723 → v3 L2612 | to confirm |
-| P5-K4 | Modify Master API Key is removed because the AI could grant itself Withdraw permission | v1 L3055 → v3 L2998 | to confirm |
-| P5-K5 | Upgrade to UTA is removed as irreversible | v1 L2039 → v3 L1930 | to confirm |
-| P5-K6 | Leverage above 20x triggers an extra warning beyond Mainnet confirmation | v1 L802 → v3 L801 | to confirm |
+| P5-K1 | 22 endpoints removed on security grounds, split 12 P0 and 10 P1 | v1 L5481, L5489, L5497 → v3 L6384, L6392, L6400 | amended 2026-08-17 — the three number cells verify on both sides, and the control holds on content and **not on bytes**: its row label is 「🔴 **移除**」 in v1 (L5478) and 「**移除**（安全）」 in v3 (L6381). It also holds independently of the summary tables — both versions carry exactly 22 rows whose 状态 is 移除. Article L143 states 22 with the 12 P0 / 10 P1 split |
+| P5-K2 | Move Position and its history endpoint are removed because they move positions across UIDs | v1 L970 → v3 L969 | amended 2026-08-17 — the control holds, and its cell is one of the 17 v3 abridged: 「跨 UID 移动仓位，等于转移持仓价值」 → 「跨 UID 移动仓位」, so a presence test on v1's cell reads over-deletion where the control survives. 「转移持仓价值」 is 0 hits in v3 and the article states it at L397 as 「Cross-UID position value transfer」 — the article carries the clause v3 dropped, on the very line that carries the control. Its history endpoint is abridged the same way (v1 L990 → v3 L989) |
+| P5-K3 | Withdraw is removed because it sends funds to external addresses | v1 L2723 → v3 L2612 | confirmed 2026-08-17 — the two cells are byte-identical, 「提现到外部地址，资金直接离开平台」; the article carries both halves at L393 |
+| P5-K4 | Modify Master API Key is removed because the AI could grant itself Withdraw permission | v1 L3055 → v3 L2998 | amended 2026-08-17 — K2's shape again: the cells are identical up to a parenthetical v3 drops, 「AI 可给自己加 Withdraw 权限（权限提升）」 → 「AI 可给自己加 Withdraw 权限」, with 「权限提升」 0 hits in v3 and the article stating it at L396 as 「Privilege escalation」 and restating the capability at L399. So two of P5's six controls sit on abridged cells |
+| P5-K5 | Upgrade to UTA is removed as irreversible | v1 L2039 → v3 L1930 | confirmed 2026-08-17 — byte-identical, 「不可逆操作，升级后无法回退」; the article states both clauses at L425 and lists the endpoint at L402 |
+| P5-K6 | Leverage above 20x triggers an extra warning beyond Mainnet confirmation | v1 L802 → v3 L801 | confirmed 2026-08-17 — byte-identical including the 「Mainnet 需确认；」 prefix the warning is additional to; the article states it at L407 |
 
 ### P5 open judgement calls
+
+All five were **answered on 2026-08-17 with the confirm pass**, none of them moving a
+verdict: call 1 keeps its drafted position, calls 2 and 3 are corrected on measurements
+rather than on judgements, and calls 4 and 5 keep their lists with the provenance now
+cited. **P5 leaves nothing with Captain.**
 
 1. **P5-D1: drop or contradiction?** v3 never says leverage tokens are out of
    scope — the module is simply gone. Under the stated rule that is a drop. But
@@ -1075,16 +1131,26 @@ as D3's 「展示全部订单再确认」 — the batch-specific proposition is 
    measurement**: D1's article residue is not counted among P5's lost drops either,
    because `…保留接口清单按场景.md` L514–537 lists Purchase and Redeem as retained with
    「执行前需确认」 and is never superseded, so the article is not carrying that content
-   in error.
-2. **No status flags changed anywhere.** All **273** pairable endpoint rows match on
-   name, method and 状态 — zero differences across all three fields, which is the
-   strongest single piece of evidence in this case. (251 as first drafted was wrong:
+   in error. **Answered at the drafted position in the confirm pass**, which also
+   corroborated the row's confirmation half from the other side: the module's only two
+   ⚠️ cells are Purchase (v1 L1315) and Redeem (v1 L1335), and dropping them is what
+   makes v1's 29 ⚠️ cells reach v3's 35 after the 8 additions.
+2. **No status decision changed anywhere — but the status cell did.** All **273**
+   pairable endpoint rows match on name and on method, with zero differences in either
+   field, and no row reverses a 保留 / ⚠️ / 移除 call. (251 as first drafted was wrong:
    v1 has 278 REST endpoint rows and v3 299, sharing 273 paths, since 278 − 5
-   leverage-token rows = 273.) The ⚠️ count rose only because of **eight** new
-   copy-trading / strategy / bot write endpoints. So this revision offers no
-   reversed-decision contradiction — it is additive scope plus a recount. Verified
-   mechanically: 280 distinct `/v5/...` paths in v1, 301 in v3, 5 dropped (all
-   `spot-lever-token`), 26 added, and 280 − 5 + 26 = 301.
+   leverage-token rows = 273.) **The confirm pass corrects two measurements inside this
+   call**, neither of them touching the conclusion. The 状态 *cell* differs on **22 of
+   the 273**, in every case 「🔴 **移除**」 → 「**移除**」, so an equality test on the
+   field reads 22 changed rows where a test on the decision reads none — the count of
+   removal rows is 22 in both versions. And the ⚠️ rise is **+6, not +8**: eight are
+   added in the three new modules and **two are lost with the leverage tokens**
+   (29 cells → 35), which is why both summary tables publish a 6-endpoint rise. So this
+   revision offers no reversed-decision contradiction — it is additive scope plus a
+   recount. Verified mechanically: 280 distinct `/v5/...` paths in v1, 301 in v3, 5
+   dropped (all `spot-lever-token`), 26 added, and 280 − 5 + 26 = 301 — a path basis
+   that exceeds the row basis by the two untabled WebSocket endpoints, `/v5/private`
+   and `/v5/public/`, which both documents also count inside their 保留 figures.
 3. **Note abridgement below article altitude — settled by V8, ruled 2026-08-16.**
    v3 shortens 17 备注 cells, not the 10 this call first accounted for. The seven the
    draft missed are `universal-transfer` (v1 L2730 → v3 L2652),
@@ -1125,13 +1191,38 @@ as D3's 「展示全部订单再确认」 — the batch-specific proposition is 
    lands on v1 under V16's method — the plan's own 「主账户↔任意子账户」 gloss never
    reaches the article — and the plan is not staged in the fixture, so nothing about
    this reaches the FX4 run.
+   **The 17 were reproduced mechanically in the confirm pass**, row for row against this
+   list, and the reproduction corrects the case blurb rather than the disposition:
+   **five of the 17 are not trailing-clause deletions.** `user/delete-api` loses its
+   *leading* clause (「删除主 API Key，锁死用户自己的访问」 → 「锁死用户自己的访问」),
+   `move-history` and `query-universal-transfer-list` lose a leading token (both
+   「⟨sibling⟩ 配套查询，一并移除」 → 「配套查询，一并移除」), `crypto-loan-fixed/borrow`
+   loses a *middle* clause (「固定期限借贷，产生利息负债，有清算风险」 → 「固定期限借贷，有清算
+   风险」), and `p2p/order/finish` is a **rewrite**: 「释放 crypto 给买家，需人工确认法币到账，
+   AI 无法判断」 → 「释放 crypto 给买家，AI 无法判断法币到账」. The last one is the only cell
+   in the case where v3 says something in words v1 does not use, and it is v3's form
+   that reaches the article (L402, L426) — the mirror of the 🔴 residue in call 4.
 4. **Left out**: the 🔴 glyph on removal rows (presentation), and endpoint index
    renumbering caused by the Leverage Token removal (positional artifact — a
-   grader must not match on endpoint numbers).
+   grader must not match on endpoint numbers). **Still left out after the confirm pass,
+   but it is not inert.** The glyph is not a per-row flourish: it is 24 rows in v1 and
+   **0 in v3**, a notation v3 abandons wholesale, and v1 is the only one of the
+   article's 16 declared sources that marks removals with it — the design doc is the
+   sole other user of the glyph, twice for Critical severity and once for a 强推
+   recommendation. It reaches the
+   article at L386, 「Removed (🔴)」. It asserts no proposition, so it scores nothing and
+   stays out; what it is evidence of is that the article's *notation* came from the
+   superseded version while all five of its figure pairs came from v3.
 5. **Unrelated stale content, not this chain's**: L189 「274+ API endpoints across
    7 functional modules」 and L198 「plus 7 functional modules」 come from a
    different source document. A naive whole-article number match would
-   false-positive on them.
+   false-positive on them. **Both provenances are now cited**: the 274 is
+   `raw/docs/2026-03-11-bybit-ai-trading-skill-能力清单.md` L14 (「零安装，274 个 API
+   全覆盖」) and the 7 modules is `raw/docs/2026-03-10-bybit-ai-trading-agent-设计方案.md`
+   L362 (「将 SKILL.md 拆分为路由主文件 + 7 个功能模块」), both declared sources and
+   neither superseded. Note this makes **three** module counts on three different bases
+   in one article — 7 SKILL.md files, and the chain's 8 → 11 inventory modules — so
+   「modules」 is the one noun in this case a grader must never match a number against.
 
 ---
 
