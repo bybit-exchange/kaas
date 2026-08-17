@@ -1,0 +1,29 @@
+py/src/kb_ai/distill.py
+  05b97127d6c705eb 8,78
+py/src/kb_ai/storage/index.py
+  05b97127d6c705eb 9,259,325
+py/src/kb_ai/storage/store.py
+  05b97127d6c705eb 11-12,172,206,241
+py/src/kb_ai/_fadvise.py
+  05b97127d6c705eb 45-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e6e6b28a8e3fa9649147e55e4ea543f7b3633f74",
+  "prompts": {
+    "05b97127d6c705eb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00fad-0b5b-7cb2-8bfa-b5a5329d9847",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 13,
+      "total_deletions": 6,
+      "accepted_lines": 449,
+      "overriden_lines": 0
+    }
+  }
+}
