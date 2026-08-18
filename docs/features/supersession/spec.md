@@ -638,7 +638,8 @@ path A.
   than the number, so it is now attached: an earlier note here said 22 articles, which
   does not reproduce under any of four readings tried (exact item 21, basename 25,
   comma-split 30, both 32) and is withdrawn. `91` reproduces exactly.
-  Both are old-writer output, so a fresh run should not reproduce them — but G2 is
+  Both were read as old-writer output that a fresh run would not reproduce; **the finished
+  baseline arm falsified that, and the measurement is below**. G2 is
   exactly the claim that a source is an attributable unit, so the baseline and the A1 arm
   should each be checked for comma-packed and duplicated `sources` entries. A duplicated
   entry is also the double-count failure the U1–U4 controls exist to catch, already
@@ -672,6 +673,26 @@ path A.
   until something cites it; what it means for a *fresh* run is that `derive` has nothing to
   copy for those articles either, so a run that produces them is worth a second look. A BOM is reported apart from the seven rather than
   with them, since every reader in the package strips it and no key is lost.
+  **Measured on the finished baseline arm, and it reproduced both defects** (2026-08-18, 27
+  articles in `/tmp/kaas-baseline`, pre-A1 code at `bd8252e`): `audit_articles.py` exits 1 with
+  **2 comma-packed entries in 2 articles** (`wiki/decision/bybit-ai-initiatives-architecture-decisions.md`,
+  `wiki/decision/byfi-uta-trading-chain-rollback-decisions.md`) and **1 article whose
+  frontmatter is unreachable** (`wiki/decision/engineering-efficiency-2025-improvement-decisions.md`,
+  no leading delimiter), against 0 duplicated paths, 0 unparseable and 0 without `sources`.
+  The rates do not improve on the corpus the defects were found in: **2/27 (7.4%) against
+  46/682 (6.7%)** comma-packed, **1/27 (3.7%) against 7/682 (1.0%)** unreachable. Both
+  denominators are small, so the sign is the finding and not the size.
+  **The mechanism says why, and it implicates both arms**: the packing is not code output —
+  `_apply_diff` appends one `  - <path>` line per path (`core/merge.py:756`) and cannot pack —
+  it is the full-rewrite path, where the model re-emits the whole article including its
+  frontmatter (`_merge_full_rewrite`, `core/merge.py:687`). Every packed entry here sits in an
+  article that took a `merge-batch` write, and its packed paths are one batch's source set;
+  another batch on the same article emitted separate items, so the packing is per-response and
+  not per-path. Step 2's rendered `sources:` list in `_merge_user_message` tells the model what
+  to emit without constraining it. So these are **live writer defects in both arms**, not
+  residue: the A1 arm must be audited on the same two checks rather than assumed clean, and
+  whether the writer should serialize `sources` itself instead of trusting the response is a
+  fix outside A1 — recorded here because this paragraph predicted the opposite.
   **One measurement caveat, found on the baseline run itself**: the fixture's cached
   extractions are `schema_version: 1` and both arms' code read 2, so every staged document
   is re-extracted rather than read from cache. Both arms pay the full extract cost, which
@@ -696,6 +717,28 @@ path A.
   pending fix. Staleness (drop) is recorded on the same
   runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4.
+  **Cases resolve to an arm's article by its `sources` set, never by the name this document
+  cites.** A fresh run picks its own slug: N2's scoring article is
+  `wiki/projects/zero-trust-security-platform.md` in the table above and landed as
+  `wiki/project/zero-trust-security-initiative.md` in the baseline arm, carrying both chain
+  documents. Slug choice comes out of classification, so the two arms may also diverge from
+  each other, and FX7 pairs articles across arms on the same key. Scoring a case by the cited
+  name would read a renamed article as a missing one.
+  **One article must be excluded by name and by reason, and it is not a missing one.**
+  `wiki/decision/infra-team-h1-2026-decisions.md` was written in stage 1 of the baseline arm and
+  then failed every later merge on a write timeout — three attempts in stage 2 at 79,342 prompt
+  chars, three more in each of stages 3 and 4 at 63,276 — so it sits on disk at 435 lines
+  carrying **v1 of both its chains only** (`2026-04-14-infra-双周会-2026_h1.md`,
+  `2026-04-17-效能零信任项目-周例会.md`). A scorer reading it counts a write timeout as a
+  supersession failure. Exposure is near nil, which was checked rather than assumed: those two
+  chains are **P2**, the withdrawn counter-case that scores nothing under V10, and **N2**, whose
+  scoring article is the project one above and which wrote with both versions.
+  **The exclusion cannot be assumed symmetric.** `_WRITE_CALL_TIMEOUT_S` is 300.0 in both arms,
+  but three other groups in this arm timed out and then landed on a later attempt (73,439 /
+  78,685 / 79,451 prompt chars) while this one failed at 63,276, 21% under `MAX_PROMPT_CHARS` —
+  the timeout is a lottery, not a wall, and extract calls timed out as low as 5,019 chars. If
+  the A1 arm writes the article the baseline could not, the arms differ on content A1 did not
+  cause, and the exclusion is one-armed. Check it after the A1 arm and record which.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
   *after* WP3 lands, against FX4's baseline: the same documents through the flat
   bag and through per-source blocks, article prose compared. It cannot be part of

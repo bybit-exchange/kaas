@@ -679,6 +679,12 @@ just wrote, so both arms carry it. It exits non-zero on a finding. Run against
 comma-packed entries in 46, 47 duplicated paths in 30, 7 with unreachable frontmatter, 0
 unparseable, 8 without sources`.
 
+The finished baseline arm is the comparison point for the A1 arm, and it is not clean:
+`27 articles: 2 comma-packed entries in 2, 0 duplicated paths in 0, 1 with unreachable
+frontmatter, 0 unparseable, 0 without sources` — a fresh pre-A1 run reproduces both
+defects, which is the opposite of what FX4 predicted. The spec's FX4 paragraph carries the
+rates and the mechanism.
+
 `select_cases.py` on this corpus prints `131 chains (94 shape A, 37 shape B)` and
 the strata table above; on `data/kb-supersession-fixture` it prints `18 chains`,
 which is the 10 positives, 4 negative controls and 4 duplicate controls. Staging
