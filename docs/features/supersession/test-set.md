@@ -9,7 +9,10 @@ whose other branch moves a published total. Those rulings add ten rows, one cont
 and nine drops, so the set reads **45 contradictions, 41 drops and 42 controls** across the
 seven scoring cases — of the 40 contradictions on the five cases judged on the column,
 **28 are still stated as current in today's articles (70%)**, with P5's five reported apart
-under V21 — and **nothing is left with Captain**. FX5 can score against these labels now. Both blocking rulings are settled
+under V21 — and **nothing is left with Captain on the labelling itself**. FX5 has now scored against these labels: the pre-A1
+baseline arm reads **24 of 40 (60%)** on the gating column, and
+[scoring.md](scoring.md) holds every column, the union resolution rule the arm forced,
+and seven fresh rulings it opened. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -504,9 +507,9 @@ Per case, over the produced article:
 | Correction landed | each `replacement` present and stated as current | missing |
 | Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
 | Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
-| Trail | any `superseded-contradiction` item present and marked as superseded | — |
+| Trail | any `superseded-contradiction` item present and marked as superseded — **what counts as a marker is open (V28)**, because the baseline arm marks supersession three different ways: explicit `superseded by` wording, version- or basis-labelled presentation, and an as-of date stamp with the newer value adjacent. The rubric as given to the judges counts all three and reads 18 of 45; an explicit-wording reading reads 7–11 ([scoring.md](scoring.md#ruling-queue-seven-open-items)) | — |
 | Collateral | each `control` item still present | missing |
-| Size | article bytes, against the pre-run article | growth |
+| Size | article bytes, against the pre-run article — **not measurable on either FX4 arm as scripted**, since no driver snapshots `wiki/` between stages, so nothing is a pre-run article after stage 1 | growth |
 | False positive | on N1–N4, any supersession marker at all | present |
 | Double count | on U1–U4, the duplicate contributing twice | present |
 
@@ -530,6 +533,15 @@ qualifies that last clause: P10's other same-day co-source, the `2026-03-06` Q1 
 reproduces v2's 2025 team rates as its year-ago baseline column (L173–180), so on C8 the
 *replacement* is co-asserted while only the superseded pair 「44.6」 / 「22.0」 belongs to one
 document — the reverse of C4's and C7's shape.
+
+**V9's exclusion turned out to be inert on this fixture**, found by scoring the baseline arm
+(2026-08-18): the co-sources it rests on for P5 — the 03-11 capability list, the 03-12
+retained-interface list, the hardening plan — are not staged, so both P5 articles declare
+exactly the two chain files. Every other case's declared co-sources were swept for every
+residue string and returned zero hits, including the five in P8's and P9's articles that the
+labels record as absent. So the clause changed no verdict anywhere, and P5's drops score
+unexcluded at 6 of 6 against the 3 of 6 the labels recorded for the historical article
+([scoring.md](scoring.md)).
 
 **V4 is ruled 2026-08-16 and did not need the wording**: a co-source that supplied the
 old value does not excuse the article, because supersession is a property of the compile

@@ -336,6 +336,13 @@ row says so. Listed for audit, not for decision.
 
 ### The queue — 22 items, all settled
 
+**Closed as a labelling queue, and not the last word on what a label covers.** Scoring the
+FX4 baseline arm on 2026-08-18 opened seven further rulings, listed in
+[scoring.md's queue](scoring.md#ruling-queue-seven-open-items); one of them — **V31** — is a
+scope question about **P3-C7's own wording here**, because the arm splits the two halves that
+row names, trailing the 6-agent claim while leaving 「6 个维度」 live. Those items are calls
+about how an arm's article reads, not relabellings, so no total below moves on any of them.
+
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
 score and is therefore settled below by evidence; none of the others is an agent's

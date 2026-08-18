@@ -123,7 +123,10 @@ path A.
 - **NG3. Chained supersession (A2).** With no markers there is nothing for a third
   version to nest into. Whether v3 superseding what v2 already superseded keeps or
   drops the v1 entry is A2's first open question. Fixture case P4 still runs under
-  A1, scored on Staleness with Trail expected 0. **The question has no instance in
+  A1, scored on Staleness. **Trail was expected 0 here and the baseline arm reads 1 of 10 on
+  P4** ([scoring.md](scoring.md)): A1 emits no markers, but this writer emits its own
+  unprompted, so a nonzero Trail is not evidence that A1 produced one.
+  **The question has no instance in
   this fixture, measured rather than assumed (labels.md V15, ruled 2026-08-17):** P4
   is the only staged chain longer than a pair, and inside it every predicate v3
   changes was either introduced by v2 or left untouched by it, so no nested
@@ -701,9 +704,15 @@ path A.
   `extraction/…` line, that citation describes the stored file and not necessarily what the
   scored run produced; every row is grounded in raw text for exactly this reason (P8 call 5
   is the case that made the point first).
-- **FX5.** Scoring uses test-set.md's columns. Under A1, Trail is expected 0 on
-  every case; Staleness over `superseded-contradiction`, on the merge-path stages,
-  is the discriminating column. Both staleness columns are read per claim, against
+- **FX5.** Scoring uses test-set.md's columns. **The baseline arm is scored, 2026-08-18:
+  24 of 40 (60%) on the gating column, against the 28 of 40 (70%) the label pass
+  published for the historical articles — the full record, every column and seven open
+  rulings, is in [scoring.md](scoring.md).** Staleness over
+  `superseded-contradiction`, on the merge-path stages,
+  is the discriminating column. **Trail was expected 0 before A1 and is 18 of 45 on the
+  baseline**: this writer already performs supersession unprompted, in four distinct
+  styles, so Trail does not separate a pre-A1 run from an A1 one and the D1 options
+  cannot be read off it without ruling what the column means (scoring.md's V28). Both staleness columns are read per claim, against
   the newest source in the compile set that speaks to that item (V19), and a case
   whose source order rests on a same-day tie-break is reported apart from the gate —
   P5 is the only one, and WP9 keeps it there rather than letting it in, because the
@@ -716,7 +725,14 @@ path A.
   and why. P5's own row is reported under the A2 body-date heading V21 gives it, not as a
   pending fix. Staleness (drop) is recorded on the same
   runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
-  twice on U1–U4.
+  twice on U1–U4 — **both measured at 0 on the baseline arm**.
+  **Size is not measurable as the arms are scripted.** It is defined against the pre-run
+  article, and neither the baseline driver nor `/tmp/kaas-fx4-a1arm.sh` snapshots `wiki/`
+  between stages, so after stage 1 there is no pre-run article to compare. The baseline
+  records absolute bytes only (755,700 across 27 articles). Adding
+  `cp -a $KB/wiki $LOGS/stage$stage-wiki` after each compile — about 750 KB per stage —
+  would give the A1 arm the column, but not comparably, since the baseline cannot be re-run
+  for it without paying 18 USD again.
   **Cases resolve to an arm's article by its `sources` set, never by the name this document
   cites.** A fresh run picks its own slug: N2's scoring article is
   `wiki/projects/zero-trust-security-platform.md` in the table above and landed as
@@ -724,7 +740,24 @@ path A.
   documents. Slug choice comes out of classification, so the two arms may also diverge from
   each other, and FX7 pairs articles across arms on the same key. Scoring a case by the cited
   name would read a renamed article as a missing one.
-  **One article must be excluded by name and by reason, and it is not a missing one.**
+  **Measured on the baseline arm, and the rule needed a second clause: a case usually
+  resolves to two articles.** Ten of the eighteen chains do, both carrying the whole chain,
+  because the classifier splits most chains across `decision/` and `project/` (one-to-one:
+  P2, P4, P10, N2, N3, U2–U4). **Scoring is therefore the union over a case's articles** —
+  stale if any of them states the item as current — which is arm-independent, unlike
+  designating a primary. It is not a formality: P3's two articles are stale on almost
+  disjoint rows, 5 of 9 each and 8 of 9 unioned. Two consequences the columns do not capture
+  are recorded in scoring.md: the corrections can land in an article this rule *excludes*
+  (P4's schema article declares v2–v4 only, so it does not hold the chain, and it is clean
+  exactly where the scored article is stale), and a case's two articles can state different
+  live values for one fact (P9's phase dates, P8's gateway coverage).
+  **One article carrying a whole chain is invisible to this rule**, and it is the larger of
+  P10's two: `wiki/decision/engineering-efficiency-2025-improvement-decisions.md` names both
+  chain documents in `sources:` but opens with the writer's own preamble above the delimiter,
+  so `parse_sources` returns nothing. It was resolved by hand and scored, which is what put
+  P10's trails in the record — FX4's frontmatter defect would otherwise have hidden the one
+  article in the arm that labels the basis of every figure it states.
+  **One article is excluded, and the `sources` rule does it without needing the name.**
   `wiki/decision/infra-team-h1-2026-decisions.md` was written in stage 1 of the baseline arm and
   then failed every later merge on a write timeout — three attempts in stage 2 at 79,342 prompt
   chars, three more in each of stages 3 and 4 at 63,276 — so it sits on disk at 435 lines
@@ -733,6 +766,9 @@ path A.
   supersession failure. Exposure is near nil, which was checked rather than assumed: those two
   chains are **P2**, the withdrawn counter-case that scores nothing under V10, and **N2**, whose
   scoring article is the project one above and which wrote with both versions.
+  **Scoring the arm showed the exclusion is automatic**: the article holds v1 of P2's chain and
+  v1 of N2's chain, so no full chain is contained and resolution by `sources` never reaches it.
+  The by-name clause is stronger than necessary, and no scorer has to remember it.
   **The exclusion cannot be assumed symmetric.** `_WRITE_CALL_TIMEOUT_S` is 300.0 in both arms,
   but three other groups in this arm timed out and then landed on a later attempt (73,439 /
   78,685 / 79,451 prompt chars) while this one failed at 63,276, 21% under `MAX_PROMPT_CHARS` —
