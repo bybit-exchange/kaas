@@ -66,7 +66,7 @@
   <rect x="90" y="554" width="680" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
   <text x="430" y="576" font-size="12" fill="#b45309" text-anchor="middle">2. Coequal presentation — each value attributed to its own version</text>
   <text x="430" y="596" font-size="10" fill="#b45309" text-anchor="middle" class="code">As of 20260409: 0%   ·   As of 20260514: 50%</text>
-  <text x="430" y="614" font-size="10" fill="#b45309" text-anchor="middle">clears Staleness (P7 0 of 8, P10 0 of 7, P5 0 of 5) but earns no Trail — FX7: against D1, worse than latest-wins</text>
+  <text x="430" y="614" font-size="10" fill="#b45309" text-anchor="middle">clears Staleness (P7 0 of 8, P10 0 of 7, P5 0 of 5), earns no Trail, and fails In force (V39) — nothing says which value holds</text>
 
   <rect x="90" y="651" width="680" height="72" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1"/>
   <text x="430" y="673" font-size="12" fill="#166534" text-anchor="middle">3. Directional trail in prose — the newer stands, the older is named as past</text>
