@@ -1,0 +1,21 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "0ed2690bc32f816084efb725f0079185e988d270",
+  "prompts": {
+    "cb9c7f2a2c67ac4b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0138c-2d46-7218-8d2a-7cdf9b7fc28b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 38,
+      "total_deletions": 0,
+      "accepted_lines": 534,
+      "overriden_lines": 0
+    }
+  }
+}

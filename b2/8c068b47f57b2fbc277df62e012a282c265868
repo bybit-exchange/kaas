@@ -1,0 +1,31 @@
+py/src/kb_ai/storage/extraction.py
+  05b97127d6c705eb 33,377
+py/src/kb_ai/core/people.py
+  05b97127d6c705eb 9,174
+py/src/kb_ai/core/grounding.py
+  05b97127d6c705eb 64,301
+py/src/kb_ai/derive/_status.py
+  05b97127d6c705eb 21,102
+py/tests/test_storage_extraction.py
+  05b97127d6c705eb 611,614
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b28c068b47f57b2fbc277df62e012a282c265868",
+  "prompts": {
+    "05b97127d6c705eb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a00fad-0b5b-7cb2-8bfa-b5a5329d9847",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 10,
+      "total_deletions": 6,
+      "accepted_lines": 446,
+      "overriden_lines": 0
+    }
+  }
+}
