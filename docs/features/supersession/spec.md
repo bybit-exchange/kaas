@@ -706,6 +706,12 @@ path A.
   residue: the A1 arm must be audited on the same two checks rather than assumed clean, and
   whether the writer should serialize `sources` itself instead of trusting the response is a
   fix outside A1 — recorded here because this paragraph predicted the opposite.
+  **Audited on the A1 arm, 2026-08-19, and both defects are absent**: `20 articles: 0
+  comma-packed entries in 0, 0 duplicated paths in 0, 0 with unreachable frontmatter, 0
+  unparseable, 0 without sources`. So the frontmatter defect that hid P10's chain-carrying
+  article from `parse_sources` on the baseline did not recur, and every A1 case resolved
+  mechanically. Two runs is not a rate — the defects are live in the writer and this arm
+  happened not to trip them — but the A1 arm needs no hand resolution anywhere.
   **One measurement caveat, found on the baseline run itself**: the fixture's cached
   extractions are `schema_version: 1` and both arms' code read 2, so every staged document
   is re-extracted rather than read from cache. Both arms pay the full extract cost, which
@@ -717,7 +723,15 @@ path A.
 - **FX5.** Scoring uses test-set.md's columns. **The baseline arm is scored, 2026-08-18:
   24 of 40 (60%) on the gating column, against the 28 of 40 (70%) the label pass
   published for the historical articles — the full record, every column and the seven
-  rulings it opened, all settled 2026-08-19, is in [scoring.md](scoring.md).** Staleness over
+  rulings it opened, all settled 2026-08-19, is in [scoring.md](scoring.md).**
+  **The A1 arm is scored, 2026-08-19: 19 of 40 (47.5%) on the gating column, 38 of 45
+  corrections landed, Trail 5 of 45, drops 29 of 41, collateral 41 of 42, false positives
+  and double counts both 0 — the full record is in [scoring-a1.md](scoring-a1.md).** It ran
+  at 14.3873 USD over 185 calls, four stages each finishing on its first attempt with no
+  residual. A1 improves every failure column and loses the one positive column, and four
+  rulings are open on it (V35–V38), one of which — how a chain the arm distributes across two
+  articles should resolve — moves P4 between 9 and 3 stale rows and the total between 19 and
+  13 of 40. Staleness over
   `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. **Trail was expected 0 before A1 and is 7 of 45 on the
   baseline** (18 rows carry some marking; **V28, ruled 2026-08-19**, counts only the ones that
@@ -752,6 +766,11 @@ path A.
   it (see [scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)), and re-running
   `bd8252e` would produce a different sample rather than the scored one. So Size stays
   unavailable **on the comparison** and is kept as an absolute record on the A1 arm.
+  **Recorded on the A1 arm, 2026-08-19**: 311,912 bytes over 17 articles after stage 1,
+  464,773 over 20 after stage 2, 467,981 after stage 3 and 468,024 after stage 4 — so the
+  merge stage grew the corpus 49% and the two single-document stages added 3,251 bytes
+  between them. Against the baseline's 755,700 bytes over 27 articles the figure is not
+  comparable, the article counts differing by seven.
   **Cases resolve to an arm's article by its `sources` set, never by the name this document
   cites.** A fresh run picks its own slug: N2's scoring article is
   `wiki/projects/zero-trust-security-platform.md` in the table above and landed as
@@ -794,6 +813,14 @@ path A.
   the timeout is a lottery, not a wall, and extract calls timed out as low as 5,019 chars. If
   the A1 arm writes the article the baseline could not, the arms differ on content A1 did not
   cause, and the exclusion is one-armed. Check it after the A1 arm and record which.
+  **Checked 2026-08-19: the exclusion is one-armed.** The A1 arm recorded **zero errors and
+  zero failed attempts across all 185 calls**, so no article of its 20 is frozen at v1 of its
+  chains by a write timeout, and the exclusion exists on the baseline only. Exposure stays
+  near nil for the reason already recorded — P2 scores nothing under V10 — but N2 lands in a
+  different place on this arm: its pair is **split** across `efficiency-zero-trust-initiative.md`
+  (v2 only) and `infra-security-baseline-h1-2026.md` (v1 only), so on A1 no single article holds
+  both versions of that chain either, this time by classification rather than by timeout. Both
+  are clean of supersession markers, so N2 stays a passed negative control on both arms.
 - **FX6.** The create-path prose comparison D2 committed to runs as a second arm
   *after* WP3 lands, against FX4's baseline: the same documents through the flat
   bag and through per-source blocks, article prose compared. It cannot be part of
@@ -809,6 +836,16 @@ path A.
   the verdict quotes scoring.md's figures and states that a baseline row cannot be reopened.
   Trail is read against V28's criterion on both arms, and the baseline figure it compares
   against is **7 of 45**, not the 18 the judging rubric first produced.
+  **The A1 side is measured, 2026-08-19 ([scoring-a1.md](scoring-a1.md)), and the verdict is
+  not yet written.** Two things have to be settled first. **V36** decides how a chain the arm
+  distributes across two articles resolves, which swings P4 between 9 and 3 stale rows and the
+  gating total between 19 and 13 of 40 — the difference between "A1 made the set's strongest
+  failure case worse" and "much better". And the verdict has to take a position on what the
+  arm actually did: it **shifted the failure mode** rather than removing it, attributing each
+  value to its source version instead of asserting which one is dead. That clears Staleness
+  wherever it is applied (P7 0 of 8, P10 0 of 7, P5 0 of 5) and earns no Trail, so the arm's
+  best cases read `(Staleness 0, Trail 0)` — **coequal presentation**, the shape D1 rejects in
+  terms. Whether that is A1 succeeding is a judgement about what the column was for.
 
 ### VF. Verification
 

@@ -1,5 +1,9 @@
 # FX5 scoring: the pre-A1 baseline arm
 
+**The A1 arm ran on 2026-08-19 and is scored in [scoring-a1.md](scoring-a1.md)** — 19 of 40
+on the gating column against this arm's 24 of 40, at 14.3873 USD. Read that document beside
+this one; this one is the baseline side of the FX7 comparison and does not move.
+
 Scored 2026-08-18 against the finished FX4 baseline arm in `/tmp/kaas-baseline` (27
 articles, 17.99 USD, code at `bd8252e`). Labels are the confirmed set in
 [labels.md](labels.md); columns and their definitions are
@@ -347,6 +351,14 @@ baseline** above rather than against re-readable files. Every published column, 
 per-case figure and every row-level citation is here, so the comparison holds — but a
 disagreement about a baseline row can no longer be settled by reopening the row, and the
 verdict has to say so.
+
+**That comparison is now half-done.** The A1 arm ran attended on 2026-08-19 and is scored in
+[scoring-a1.md](scoring-a1.md): gating Staleness 19 of 40 against this arm's 24, corrections
+38 of 45 against 34, drops 29 of 41 against 37, collateral 41 of 42 against 40, Trail **5 of
+45 against 7** — every failure column better and the one positive column worse. Its articles
+live in `~/kaas-arms/a1`, outside `/tmp`, with per-stage `wiki/` snapshots and an
+`arm-report.json`, so unlike this arm it can be reopened. Four rulings are open on it
+(V35–V38) and one of them, V36, moves the gating total between 19 and 13 of 40.
 
 ## What this measurement changed in other documents
 

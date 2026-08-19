@@ -509,9 +509,9 @@ Per case, over the produced article:
 | Correction landed | each `replacement` present and stated as current | missing |
 | Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
 | Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
-| Trail | any `superseded-contradiction` item present and carrying a **directional supersession statement** about that claim: the article says the older value has been replaced or has stopped being true, and which value stands now. **Ruled V28, 2026-08-19** — see [the criterion](#v28-what-counts-as-a-trail) below. Baseline arm: **7 of 45** | — |
+| Trail | any `superseded-contradiction` item present and carrying a **directional supersession statement** about that claim: the article says the older value has been replaced or has stopped being true, and which value stands now. **Ruled V28, 2026-08-19** — see [the criterion](#v28-what-counts-as-a-trail) below. Baseline arm: **7 of 45**; A1 arm: **5 of 45** ([scoring-a1.md](scoring-a1.md)) | — |
 | Collateral | each `control` item still present | missing |
-| Size | article bytes, against the pre-run article — **not measurable on either FX4 arm as scripted**, since no driver snapshots `wiki/` between stages, so nothing is a pre-run article after stage 1 | growth |
+| Size | article bytes, against the pre-run article — **not measurable on the baseline as scripted**, since its drivers never snapshotted `wiki/` between stages, so nothing is a pre-run article after stage 1. **Recorded absolutely on the A1 arm**, which snapshots per stage: 311,912 → 464,773 → 467,981 → 468,024 bytes. Not comparable across arms (20 articles against 27) | growth |
 | False positive | on N1–N4, any supersession marker at all | present |
 | Double count | on U1–U4, the duplicate contributing twice | present |
 
@@ -761,8 +761,15 @@ command rather than a shell script per stage:
 ```
 cd py
 uv run python scripts/run_fx4_arm.py --out ~/kaas-arms/a1              # plan, spends nothing
-uv run python scripts/run_fx4_arm.py --out ~/kaas-arms/a1 --execute    # ~18 USD
+uv run python scripts/run_fx4_arm.py --out ~/kaas-arms/a1 --execute    # measured 14.3873 USD
 ```
+
+The A1 arm ran this way on 2026-08-19: **14.3873 USD over 185 calls**, four stages each
+completing on its first attempt with an empty residual, against the baseline's 17.9896 USD and
+its three-pass stage 2. It needs `LLM_BASE_URL` and `LLM_API_KEY` set explicitly — the
+gateway was `https://litellm-de.yijin.io/v1` on both arms, that being the only endpoint here
+serving `claude-sonnet-4-6` — because `OPENAI_BASE_URL` on this laptop points somewhere else
+and the driver would otherwise fall back to it and fail every write.
 
 It rebuilds the cases file from the fixture and refuses to start unless the 18 chains cover
 the 38 documents exactly, waits for the gateway before every compile, retries a stage once in
@@ -783,6 +790,11 @@ The finished baseline arm is the comparison point for the A1 arm, and it is not 
 frontmatter, 0 unparseable, 0 without sources` — a fresh pre-A1 run reproduces both
 defects, which is the opposite of what FX4 predicted. The spec's FX4 paragraph carries the
 rates and the mechanism.
+
+The A1 arm **is** clean on both: `20 articles: 0 comma-packed entries in 0, 0 duplicated
+paths in 0, 0 with unreachable frontmatter, 0 unparseable, 0 without sources`. Two runs is not
+a rate, and the defects are live in the writer either way — but nothing in the A1 arm needed
+hand resolution, where the baseline's P10 article had to be found by reading.
 
 `select_cases.py` on this corpus prints `131 chains (94 shape A, 37 shape B)` and
 the strata table above; on `data/kb-supersession-fixture` it prints `18 chains`,
