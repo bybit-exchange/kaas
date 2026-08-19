@@ -22,15 +22,28 @@ def _extraction(**kwargs) -> ExtractionResult:
     return ExtractionResult(**kwargs)
 
 
-# ── _estimate_full_extraction_size ──────────────────────────────────
+def _block(extraction: ExtractionResult | None = None, *,
+           source_path: str = "raw/a.md", day: date | None = None) -> mg.SourceBlock:
+    """One source's block. Undated unless asked, so these tests render exactly
+    what they did before per-source blocks existed: a `- Source:` line and the
+    fields under it. Ordering and dates are pinned in test_core_merge_blocks.py.
+    """
+    return mg.SourceBlock(
+        source_path=source_path,
+        extraction=_extraction() if extraction is None else extraction,
+        date=day,
+    )
+
+
+# ── _estimate_block_size ──────────────────────────────────
 
 def test_estimate_size_skips_empty_fields():
     """The estimator must skip falsy fields exactly like
-    _fit_extraction_to_budget does — otherwise an empty ExtractionResult is
+    _fit_block_to_budget does — otherwise an empty ExtractionResult is
     counted as eight `- Field: []` lines the output never emits, and every merge
     reports a truncation that never happened.
     """
-    size = mg._estimate_full_extraction_size(_extraction(), "raw/a.md")
+    size = mg._estimate_block_size(_block(_extraction()))
 
     assert size == len("- Source: raw/a.md\n")
 
@@ -43,23 +56,23 @@ def test_estimate_matches_the_text_produced_with_an_ample_budget():
     """
     e = _extraction(summary="s", topics=["a", "b"], concepts=[{"title": "c"}])
 
-    assert mg._estimate_full_extraction_size(e, "raw/a.md") == len(
-        mg._fit_extraction_to_budget(e, "raw/a.md", 1_000_000))
+    assert mg._estimate_block_size(_block(e)) == len(
+        mg._fit_block_to_budget(_block(e), 1_000_000))
 
 
 def test_estimate_size_grows_with_content():
-    small = mg._estimate_full_extraction_size(_extraction(summary="s"), "raw/a.md")
-    large = mg._estimate_full_extraction_size(
-        _extraction(summary="s", topics=["a", "b"], concepts=[{"title": "c"}]), "raw/a.md")
+    small = mg._estimate_block_size(_block(_extraction(summary="s")))
+    large = mg._estimate_block_size(
+        _block(_extraction(summary="s", topics=["a", "b"], concepts=[{"title": "c"}])))
     assert large > small
 
 
-# ── _fit_extraction_to_budget ───────────────────────────────────────
+# ── _fit_block_to_budget ───────────────────────────────────────
 
 def test_fit_extraction_includes_everything_when_budget_is_ample():
-    out = mg._fit_extraction_to_budget(
-        _extraction(summary="a summary", topics=["t1"], concepts=[{"title": "c1"}]),
-        "raw/a.md", 10_000)
+    out = mg._fit_block_to_budget(
+        _block(_extraction(summary="a summary", topics=["t1"],
+                           concepts=[{"title": "c1"}])), 10_000)
 
     assert "- Source: raw/a.md" in out
     assert "- Summary: a summary" in out
@@ -68,11 +81,11 @@ def test_fit_extraction_includes_everything_when_budget_is_ample():
 
 
 def test_fit_extraction_zero_budget_is_empty():
-    assert mg._fit_extraction_to_budget(_extraction(summary="s"), "raw/a.md", 0) == ""
+    assert mg._fit_block_to_budget(_block(_extraction(summary="s")), 0) == ""
 
 
 def test_fit_extraction_tiny_budget_truncates_the_source_prefix():
-    out = mg._fit_extraction_to_budget(_extraction(summary="s"), "raw/a.md", 5)
+    out = mg._fit_block_to_budget(_block(_extraction(summary="s")), 5)
     assert out == "- Sou"
 
 
@@ -83,12 +96,12 @@ def test_fit_extraction_never_exceeds_the_budget():
         topics=[f"t{i}" for i in range(50)],
     )
     for budget in (200, 500, 1000, 5000):
-        out = mg._fit_extraction_to_budget(big, "raw/a.md", budget)
+        out = mg._fit_block_to_budget(_block(big), budget)
         assert len(out) <= budget, f"budget {budget} exceeded: {len(out)}"
 
 
 def test_fit_extraction_truncates_a_long_summary_string():
-    out = mg._fit_extraction_to_budget(_extraction(summary="s" * 10_000), "raw/a.md", 300)
+    out = mg._fit_block_to_budget(_block(_extraction(summary="s" * 10_000)), 300)
 
     assert len(out) <= 300
     assert "- Summary: sss" in out
@@ -97,7 +110,7 @@ def test_fit_extraction_truncates_a_long_summary_string():
 def test_fit_extraction_halves_list_items_to_fit():
     """List fields back off by halving rather than being dropped entirely."""
     concepts = [{"title": f"concept number {i}", "summary": "y" * 60} for i in range(16)]
-    out = mg._fit_extraction_to_budget(_extraction(concepts=concepts), "raw/a.md", 700)
+    out = mg._fit_block_to_budget(_block(_extraction(concepts=concepts)), 700)
 
     assert "- Concepts:" in out
     included = json.loads(out.split("- Concepts: ", 1)[1].strip())
@@ -110,7 +123,7 @@ def test_fit_extraction_respects_field_priority():
     """Summary outranks action_items, so a tight budget keeps the summary."""
     e = _extraction(summary="important summary",
                     action_items=[{"task": "z" * 200} for _ in range(5)])
-    out = mg._fit_extraction_to_budget(e, "raw/a.md", 120)
+    out = mg._fit_block_to_budget(_block(e), 120)
 
     assert "important summary" in out
     assert "Action Items" not in out
@@ -127,14 +140,14 @@ def test_fit_extraction_ranks_enumerations_above_the_prose_fields():
         concepts=[{"title": "c" * 200} for _ in range(5)],
         claims=[{"claim": "c" * 200} for _ in range(5)],
     )
-    out = mg._fit_extraction_to_budget(e, "raw/a.md", 150)
+    out = mg._fit_block_to_budget(_block(e), 150)
 
     assert "Recover" in out
     assert "Concepts" not in out and "Claims" not in out
 
 
 def test_fit_extraction_skips_empty_fields():
-    out = mg._fit_extraction_to_budget(_extraction(summary="s", topics=[]), "raw/a.md", 1000)
+    out = mg._fit_block_to_budget(_block(_extraction(summary="s", topics=[])), 1000)
     assert "Topics" not in out
 
 
@@ -142,19 +155,19 @@ def test_fit_extraction_drops_a_string_field_that_cannot_fit_its_own_label():
     """When the leftover budget is smaller than the `- Summary: ` label itself,
     the field is skipped entirely — emitting a bare label with an empty (or
     negatively sliced) value would ship a misleading field to the model."""
-    out = mg._fit_extraction_to_budget(_extraction(summary="s" * 100), "raw/a.md", 24)
+    out = mg._fit_block_to_budget(_block(_extraction(summary="s" * 100)), 24)
 
     assert out == "- Source: raw/a.md\n"
     assert "Summary" not in out
 
 
 def test_fit_extraction_warns_when_truncating(capsys):
-    mg._fit_extraction_to_budget(_extraction(summary="s" * 5000), "raw/a.md", 300)
+    mg._fit_block_to_budget(_block(_extraction(summary="s" * 5000)), 300)
     assert "extraction truncated" in capsys.readouterr().err
 
 
 def test_fit_extraction_silent_when_complete(capsys):
-    mg._fit_extraction_to_budget(_extraction(summary="short"), "raw/a.md", 10_000)
+    mg._fit_block_to_budget(_block(_extraction(summary="short")), 10_000)
     assert "extraction truncated" not in capsys.readouterr().err
 
 
@@ -264,11 +277,11 @@ def spy_modes(monkeypatch):
     """Record which merge mode was chosen."""
     chosen: dict = {}
 
-    def fake_rewrite(article_path, article_content, extraction, source_path, model):
+    def fake_rewrite(article_path, article_content, sources, model):
         chosen["mode"] = "rewrite"
         return "rewritten"
 
-    def fake_diff(article_path, article_content, extraction, source_path, model):
+    def fake_diff(article_path, article_content, sources, model):
         chosen["mode"] = "diff"
         return "diffed"
 
@@ -278,13 +291,13 @@ def spy_modes(monkeypatch):
 
 
 def test_small_article_uses_full_rewrite(spy_modes):
-    mg.merge_into_article("wiki/a.md", "short article", _extraction(), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", "short article", [_block()])
     assert spy_modes["mode"] == "rewrite"
 
 
 def test_large_article_uses_diff(spy_modes):
     big = "x" * mg._LARGE_ARTICLE_THRESHOLD
-    mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", big, [_block()])
     assert spy_modes["mode"] == "diff"
 
 
@@ -292,7 +305,7 @@ def test_large_article_threshold_measured_in_utf8_bytes(spy_modes):
     """A CJK article is 3 bytes per character, so the byte threshold must trip
     well before the character count would."""
     chars = mg._LARGE_ARTICLE_THRESHOLD // 3 + 10
-    mg.merge_into_article("wiki/a.md", "世" * chars, _extraction(), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", "世" * chars, [_block()])
     assert spy_modes["mode"] == "diff"
 
 
@@ -302,7 +315,7 @@ def test_article_over_prompt_budget_uses_diff(monkeypatch, spy_modes):
     monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5000)
     article = "x" * (mg._LARGE_ARTICLE_THRESHOLD - 1)
 
-    mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", article, [_block()])
 
     assert spy_modes["mode"] == "diff"
 
@@ -310,24 +323,80 @@ def test_article_over_prompt_budget_uses_diff(monkeypatch, spy_modes):
 # ── _merge_user_message ─────────────────────────────────────────────
 
 def test_merge_user_message_wraps_the_article():
-    user = mg._merge_user_message("article body", _extraction(summary="s"), "raw/a.md", 10_000)
+    user = mg._merge_user_message("article body", [_block(_extraction(summary="s"))], 10_000)
 
     assert "<article>" in user and "</article>" in user
     assert "article body" in user
-    assert "New information to merge:" in user
+    assert "New information to merge." in user
     assert "- Source: raw/a.md" in user
 
 
 def test_merge_user_message_hard_caps_at_budget():
-    user = mg._merge_user_message("x" * 5000, _extraction(summary="s" * 5000), "raw/a.md", 1000)
+    user = mg._merge_user_message("x" * 5000, [_block(_extraction(summary="s" * 5000))], 1000)
     assert len(user) == 1000
 
 
 def test_merge_user_message_reserves_a_floor_for_the_extraction():
     """Even when the article eats the whole budget, some extraction text must
     survive — otherwise the merge call carries no new information."""
-    user = mg._merge_user_message("x" * 900, _extraction(summary="new fact"), "raw/a.md", 1000)
+    user = mg._merge_user_message("x" * 900, [_block(_extraction(summary="new fact"))], 1000)
     assert len(user) == 1000
+
+
+def test_merge_user_message_dates_each_block(monkeypatch):
+    """WP1 at the merge site: `core/merge.py` rendered `- Source:` and nothing
+    else, so no date reached the writer on any route -- an article composed from
+    a plan and its revision had no way to tell which was current."""
+    user = mg._merge_user_message("article body", [
+        _block(_extraction(summary="older"), source_path="raw/a.md", day=date(2020, 1, 1)),
+        _block(_extraction(summary="newer"), source_path="raw/b.md", day=date(2021, 1, 1)),
+    ], 10_000)
+
+    assert "- Source: raw/a.md\n- Date: 2020-01-01\n- Summary: older" in user
+    assert "- Source: raw/b.md\n- Date: 2021-01-01\n- Summary: newer" in user
+
+
+def test_merge_user_message_lists_every_source_for_the_frontmatter():
+    """The merge prompt asks the model to add the source to the article's
+    `sources:` list, and the flattened payload handed it one string to copy. With
+    per-source blocks the paths are spread across N block headers, so they are
+    also named as a list -- the same thing create_new_article's header does, and
+    for the same reason: a source missing from `sources:` is a document `derive`
+    then refuses to copy into a derived KB.
+    """
+    user = mg._merge_user_message("article body", [
+        _block(_extraction(summary="older"), source_path="raw/a.md", day=date(2020, 1, 1)),
+        _block(_extraction(summary="newer"), source_path="raw/b.md", day=date(2021, 1, 1)),
+    ], 10_000)
+
+    assert "Sources:\n  - raw/a.md\n  - raw/b.md\n" in user
+
+
+def test_a_source_whose_block_was_dropped_is_still_listed():
+    """The consequence BG2 accepts, pinned rather than only described: a block the
+    budget could not hold is absent from the payload, and the article is still
+    asked to name its source. `derive` reads that key to decide which raw
+    documents a derived KB gets (derive/_sources.py), so dropping the name too
+    would cost the document its only route into one -- at the price of an article
+    naming a source the writer was shown nothing from."""
+    user = mg._merge_user_message("article body", [
+        _block(_extraction(summary="o" * 4000), source_path="raw/a.md", day=date(2020, 1, 1)),
+        _block(_extraction(summary="n" * 4000), source_path="raw/b.md", day=date(2021, 1, 1)),
+    ], 4600)
+
+    assert "Sources:\n  - raw/a.md\n  - raw/b.md\n" in user
+    assert "- Source: raw/a.md\n" not in user, "its block did not fit"
+    assert "- Source: raw/b.md\n" in user
+
+
+def test_merge_user_message_keeps_the_source_list_inside_the_budget():
+    """The list is part of the message, so the blocks' budget has to pay for it."""
+    user = mg._merge_user_message("x" * 900, [
+        _block(_extraction(summary="s" * 500), source_path="raw/a-very-long-name.md"),
+        _block(_extraction(summary="s" * 500), source_path="raw/b-very-long-name.md"),
+    ], 1000)
+
+    assert len(user) <= 1000
 
 
 # ── _apply_diff: frontmatter ────────────────────────────────────────
@@ -342,7 +411,7 @@ def test_apply_diff_refreshes_updated_and_appends_source():
         "---\n"
         "## Body\ntext\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
 
     assert f"updated: {TODAY}" in out
     assert "updated: 2024-01-01" not in out
@@ -350,11 +419,37 @@ def test_apply_diff_refreshes_updated_and_appends_source():
     assert "  - raw/new.md" in out
 
 
+def test_apply_diff_appends_every_source_as_its_own_item():
+    """The batch merge paths hand over several sources at once. Flattened, they
+    arrived comma-joined and were written as one item -- `  - raw/a.md, raw/b.md`
+    -- which no YAML reader resolves back to two paths, so the article's own
+    provenance list was unusable for exactly the multi-source articles that need
+    it most."""
+    article = "---\ntitle: A\nsources:\n  - raw/old.md\n---\nbody\n"
+
+    out = mg._apply_diff(article, {"patches": []},
+                         ["raw/a.md", "raw/b.md"], TODAY)
+
+    assert "  - raw/a.md\n" in out and "  - raw/b.md\n" in out
+    assert "raw/a.md, raw/b.md" not in out
+    assert out.index("  - raw/old.md") < out.index("  - raw/a.md")
+
+
+def test_apply_diff_appends_only_the_sources_the_article_lacks():
+    article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
+
+    out = mg._apply_diff(article, {"patches": []},
+                         ["raw/a.md", "raw/b.md"], TODAY)
+
+    assert out.count("  - raw/a.md") == 1
+    assert "  - raw/b.md" in out
+
+
 def test_apply_diff_does_not_duplicate_an_existing_source():
     article = (
         "---\ntitle: A\nupdated: 2024-01-01\nsources:\n  - raw/a.md\n---\nbody\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
 
     assert out.count("  - raw/a.md") == 1
 
@@ -363,35 +458,35 @@ def test_apply_diff_is_idempotent_for_a_repeated_source():
     """Re-merging the same source must not grow the frontmatter sources list."""
     out = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
     for _ in range(3):
-        out = mg._apply_diff(out, {"patches": []}, "raw/a.md", TODAY)
+        out = mg._apply_diff(out, {"patches": []}, ["raw/a.md"], TODAY)
 
     assert out.count("  - raw/a.md") == 1
 
 
 def test_apply_diff_adds_updated_when_missing():
     article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/b.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/b.md"], TODAY)
 
     assert f"updated: {TODAY}" in out
 
 
 def test_apply_diff_without_frontmatter_leaves_body_alone():
     article = "## Body\njust text\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
 
     assert out == article
 
 
 def test_apply_diff_handles_unterminated_frontmatter():
     article = "---\ntitle: A\nno closing delimiter\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
 
     assert out == article
 
 
 def test_apply_diff_inserts_source_when_sources_is_last_key():
     article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
 
     assert "  - raw/new.md" in out
 
@@ -400,7 +495,7 @@ def test_apply_diff_inserts_source_before_a_following_key():
     article = (
         "---\ntitle: A\nsources:\n  - raw/a.md\ncreated: 2024-01-01\n---\nbody\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
 
     lines = out.split("\n")
     assert lines.index("  - raw/new.md") < lines.index("created: 2024-01-01")
@@ -410,7 +505,7 @@ def test_apply_diff_fills_an_empty_sources_key_before_the_next_key():
     """`sources:` with no items yet: the new source must land under it rather
     than after the following key (or be dropped)."""
     article = "---\ntitle: A\nsources:\ncreated: 2024-01-01\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
 
     lines = out.split("\n")
     assert lines[lines.index("sources:") + 1] == "  - raw/new.md"
@@ -421,7 +516,7 @@ def test_apply_diff_fills_an_empty_sources_key_at_the_end_of_frontmatter():
     """`sources:` with no items as the last frontmatter key: the source is
     appended after the loop ends, so it must not be lost."""
     article = "---\ntitle: A\nupdated: 2024-01-01\nsources:\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
 
     assert "sources:\n  - raw/a.md\n---" in out
     assert f"updated: {TODAY}" in out
@@ -434,7 +529,7 @@ def test_apply_diff_appends_to_an_existing_section():
     diff = {"patches": [
         {"action": "append_to_section", "section": "## One", "content": "added line"},
     ]}
-    out = mg._apply_diff(article, diff, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
 
     assert "added line" in out
     # The addition lands inside section One, above section Two.
@@ -446,7 +541,7 @@ def test_apply_diff_creates_a_new_section_after_an_anchor():
     diff = {"patches": [
         {"action": "new_section", "after": "## One", "heading": "## Two", "content": "new body"},
     ]}
-    out = mg._apply_diff(article, diff, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
 
     assert out.index("## One") < out.index("## Two") < out.index("## Three")
 
@@ -457,7 +552,7 @@ def test_apply_diff_applies_several_patches():
         {"action": "append_to_section", "section": "## One", "content": "first"},
         {"action": "new_section", "after": "## One", "heading": "## Two", "content": "second"},
     ]}
-    out = mg._apply_diff(article, diff, "raw/a.md", TODAY)
+    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
 
     assert "first" in out and "second" in out
 
@@ -465,13 +560,13 @@ def test_apply_diff_applies_several_patches():
 def test_apply_diff_ignores_unknown_actions():
     article = "## One\nbody\n"
     out = mg._apply_diff(article, {"patches": [{"action": "delete_everything"}]},
-                         "raw/a.md", TODAY)
+                         ["raw/a.md"], TODAY)
     assert "body" in out
 
 
 def test_apply_diff_tolerates_a_missing_patches_key():
     article = "## One\nbody\n"
-    assert mg._apply_diff(article, {}, "raw/a.md", TODAY) == article
+    assert mg._apply_diff(article, {}, ["raw/a.md"], TODAY) == article
 
 
 # ── _append_to_section / _insert_section_after ───────────────────────
@@ -555,7 +650,7 @@ def test_merge_full_rewrite_strips_fencing(monkeypatch):
     monkeypatch.setattr(mg, "completion",
                         lambda **kwargs: "```markdown\n# Merged\nbody\n```")
 
-    out = mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+    out = mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
 
     assert out.startswith("# Merged")
     assert "```" not in out
@@ -570,7 +665,7 @@ def test_merge_full_rewrite_enables_prompt_caching(monkeypatch):
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+    mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
 
     assert captured["cache"] is True
 
@@ -580,7 +675,7 @@ def test_merge_diff_applies_the_returned_patches(monkeypatch):
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
     })
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
 
     assert "added" in out
 
@@ -593,7 +688,7 @@ def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
 
     assert "body" in out
 
@@ -604,7 +699,7 @@ def test_merge_diff_degrades_on_runtime_error(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
 
     assert "body" in out
 
@@ -620,7 +715,7 @@ def test_merge_diff_truncates_an_oversized_article(monkeypatch):
     monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 4000)
 
     article = "\n".join(f"## S{i}\n" + "x" * 400 for i in range(20))
-    mg._merge_diff("wiki/a.md", article, _extraction(topics=["s1"]), "raw/a.md", "m")
+    mg._merge_diff("wiki/a.md", article, [_block(_extraction(topics=["s1"]))], "m")
 
     assert len(captured["user"]) <= 4000
 
@@ -638,7 +733,8 @@ def test_create_new_article_builds_prompt_and_strips_fencing(monkeypatch):
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    out = mg.create_new_article("concept", "My Title", _extraction(topics=["t"]), "raw/a.md")
+    out = mg.create_new_article("concept", "My Title",
+                                [_block(_extraction(topics=["t"]))])
 
     assert out.startswith("---")
     assert "```" not in out
@@ -658,7 +754,7 @@ def test_create_new_article_adds_status_for_projects(monkeypatch):
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg.create_new_article("project", "P", _extraction(), "raw/a.md")
+    mg.create_new_article("project", "P", [_block()])
 
     assert "status: active" in captured["system"]
 
@@ -672,7 +768,7 @@ def test_create_new_article_omits_status_for_non_projects(monkeypatch):
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg.create_new_article("concept", "C", _extraction(), "raw/a.md")
+    mg.create_new_article("concept", "C", [_block()])
 
     assert "status: active" not in captured["system"]
 
@@ -688,9 +784,35 @@ def test_create_new_article_bounds_the_extraction(monkeypatch):
     monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 3000)
 
     huge = _extraction(summary="s" * 50_000, concepts=[{"t": "x" * 500} for _ in range(50)])
-    mg.create_new_article("concept", "T", huge, "raw/a.md")
+    mg.create_new_article("concept", "T", [_block(huge)])
 
     assert len(captured["user"]) < 10_000
+
+
+def test_create_new_article_lists_every_source_in_its_header(monkeypatch):
+    """The frontmatter format in the system prompt asks for a `sources:` list, so
+    the header names them as list items. Flattened, several sources arrived as one
+    comma-joined string, which is a single item whatever it contains."""
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured["user"] = kwargs["messages"][1]["content"]
+        return "article"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg.create_new_article("concept", "T", [
+        _block(_extraction(topics=["shared", "older"]),
+               source_path="raw/a.md", day=date(2020, 1, 1)),
+        _block(_extraction(topics=["shared", "newer"]),
+               source_path="raw/b.md", day=date(2021, 1, 1)),
+    ])
+
+    assert "- Sources:\n  - raw/a.md\n  - raw/b.md\n" in captured["user"]
+    # Tags are every block's topics, first-seen order and no repeats: the
+    # flattening this replaces returned list(set(...)), so the same input
+    # produced a different tag order run to run.
+    assert "- Tags: ['shared', 'older', 'newer']" in captured["user"]
 
 
 # ── write-phase provenance ──────────────────────────────────────────
@@ -803,7 +925,7 @@ def test_create_new_article_sends_exactly_the_prompt_that_was_hashed(monkeypatch
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg.create_new_article("project", "P", _extraction(), "raw/a.md")
+    mg.create_new_article("project", "P", [_block()])
 
     assert captured["system"] == mg._create_system("project")
 
@@ -819,7 +941,7 @@ def test_merge_full_rewrite_sends_exactly_the_prompt_that_was_hashed(monkeypatch
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+    mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
 
     assert captured["system"] == mg._merge_rewrite_system()
 
@@ -833,7 +955,7 @@ def test_merge_diff_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", fake_completion_json)
 
-    mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
 
     assert captured["system"] == mg._merge_diff_system()
 
@@ -862,9 +984,9 @@ def test_grounding_constraint_reaches_the_two_merge_paths_as_sent(monkeypatch):
     monkeypatch.setattr(mg, "completion_json",
                         lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or {"patches": []})
 
-    mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
-    mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
-    mg.create_new_article("concept", "C", _extraction(), "raw/a.md")
+    mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
+    mg.create_new_article("concept", "C", [_block()])
 
     assert len(sent) == 3
     for system in sent:
@@ -906,6 +1028,158 @@ def test_the_two_prompt_versions_are_independent(monkeypatch):
 
     assert mg.write_prompt_version() != write_before
     assert ex.extract_prompt_version() == extract_before
+
+
+# ── the source-order statement (supersession WP6) ───────────────────
+#
+# The payload now carries one dated block per source, oldest to newest, with the
+# undated ones last (WP5). Nothing told the writer that, and a sequence whose
+# meaning is never stated is a sequence the model is free to read backwards -- or
+# to read an undated block's trailing position as recency, which is a claim the
+# corpus cannot support.
+
+def test_source_order_statement_reaches_every_write_stage_prompt():
+    renderings = mg._write_stage_renderings()
+    assert renderings, "no write-stage prompts to check"
+    for name, text in renderings:
+        assert mg._SOURCE_ORDER in text, f"{name} carries no source-order statement"
+
+
+def test_source_order_statement_reaches_the_three_paths_as_sent(monkeypatch):
+    """It goes in the system prompt, not the user message (WP6), and
+    _write_stage_renderings agreeing with itself is not evidence the production
+    calls send it."""
+    sent: list[str] = []
+
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or "a")
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: sent.append(kwargs["messages"][0]["content"]) or {"patches": []})
+
+    mg._merge_full_rewrite("wiki/a.md", "old", [_block()], "m")
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
+    mg.create_new_article("concept", "C", [_block()])
+
+    assert len(sent) == 3
+    for system in sent:
+        assert mg._SOURCE_ORDER in system
+
+
+def _order_bullets(*tokens: str) -> list[str]:
+    """The `_SOURCE_ORDER` bullets naming any of ``tokens``, lowercased.
+
+    The statement now carries two disclaimers with the same vocabulary, so a check
+    run over the whole constant passes on either of them and stops detecting the
+    deletion of the other. Both disclaimer tests therefore assert inside the bullet
+    that raises their own case.
+    """
+    bullets = [b.lower() for b in mg._SOURCE_ORDER.split("\n- ")]
+    return [b for b in bullets if any(t in b for t in tokens)]
+
+
+def test_source_order_statement_gives_the_direction_and_disclaims_the_undated():
+    """Wording is load-bearing, as it is for the grounding constraint. Both halves
+    of WP6 have to be there: which way the blocks run, and that an undated block's
+    position is not an ordering claim (S5). Half of it is worse than neither --
+    "blocks are ordered" with no disclaimer invites reading the undated tail,
+    which sorts last for determinism alone, as the newest material."""
+    assert "oldest to newest" in mg._SOURCE_ORDER.lower()
+    undated = _order_bullets("undated")
+
+    assert undated, "the statement never mentions an undated block"
+    for bullet in undated:
+        assert "unknown" in bullet or "no ordering claim" in bullet, \
+            "an undated block's position is raised without disclaiming it"
+
+
+def test_source_order_statement_withdraws_the_claim_between_same_day_blocks():
+    """WP9. "The blocks run oldest to newest" is a positive ordering claim, and for
+    two blocks sharing a `- Date:` line there is nothing behind it: they render in
+    path order, which buys reproducibility and not recency. Left unqualified the
+    statement misinforms the writer about a pair in two of every five multi-source
+    articles on the reference KB, and the fixture holds a live inversion -- P5's v3
+    renders first because `-` sorts before `.`. The measurement is recorded once, in
+    `_budget_priority`'s docstring, rather than restated here.
+
+    Asserted inside the bullet that raises the case, and on the withdrawal being
+    stated positively: "no ordering claim ... so read the path order instead" would
+    satisfy a laxer check while instructing exactly the tie-breaker V20 rejected."""
+    same_day = _order_bullets("same day", "same date")
+
+    assert same_day, "the statement never mentions two sources sharing a day"
+    for bullet in same_day:
+        assert "no ordering claim" in bullet, \
+            "the same-day case is raised without withdrawing the ordering claim"
+        assert "reproducib" in bullet, \
+            "path order is offered without saying what it is there for"
+        assert "unknown" in bullet, \
+            "the withdrawal is gestured at rather than stated: nothing says which "\
+            "of the two came first is unknown"
+
+
+def test_source_order_statement_names_the_label_the_renderer_emits():
+    """The statement quotes a literal line label. Renaming it in _block_header
+    would leave the prompt describing a line no payload contains, and the
+    renderer's own tests would move in the same edit without noticing."""
+    from datetime import date as _d
+
+    assert "`- Date:`" in mg._SOURCE_ORDER
+    assert "- Date:" in mg._block_header(_block(day=_d(2020, 1, 1)))
+
+
+def test_source_order_statement_grants_no_retraction():
+    """A1 adds a signal and no action (NG1, G4). The rewrite path returns a whole
+    article and could therefore drop text if asked to, so the statement must not
+    ask: the replace primitive and the [Superseded ...] trail are A2's, and a
+    prompt that pre-empts them would also contaminate the fixture arm that decides
+    whether A2 is needed at all (FX7)."""
+    text = mg._SOURCE_ORDER.lower()
+    for word in ("supersede", "superseded", "replace", "remove", "delete", "retract"):
+        assert word not in text, f"the source-order statement asks the writer to {word}"
+
+
+def test_write_prompt_version_moves_when_the_source_order_statement_changes(monkeypatch):
+    """PV1: WP6 edits every write-stage system prompt, so the hash has to move --
+    otherwise the lag report calls articles composed under the old prompts current."""
+    before = mg.write_prompt_version()
+
+    monkeypatch.setattr(mg, "_SOURCE_ORDER", mg._SOURCE_ORDER + "\n- one more rule")
+    mg.write_prompt_version.cache_clear()
+
+    assert mg.write_prompt_version() != before
+
+
+def test_merge_rewrite_asks_for_every_source_in_the_frontmatter():
+    """The rule was written for a payload that handed the writer one flattened
+    source string to copy into `sources:`. It now gets N of them (WP3, WP4), and a
+    source missing from that list is a document `derive` will not copy into a
+    derived KB (derive/_sources.py reads exactly that key)."""
+    from kb_ai.prompts import default_registry
+
+    text = default_registry().get("merge-rewrite").render()
+
+    assert "add source to" not in text
+    # Asserted on the one rule that governs `sources:`, not on the whole prompt:
+    # "already" appears in an unrelated rule about not duplicating content, so a
+    # whole-text search would pass on a prompt that never says it here.
+    rule = next(line for line in text.splitlines() if "'sources'" in line)
+    assert "add every source" in rule
+    # Without an "unless it is already there", a revised document re-merging into
+    # an article that already names it adds a second identical item -- and a
+    # duplicate in an article's frontmatter is written once and read forever
+    # (the same reasoning _apply_diff's dedupe carries).
+    assert "already" in rule
+
+
+def test_create_prompt_asks_for_every_source_in_the_frontmatter():
+    """The same defect merge-rewrite.md carried, in the sibling path: the
+    frontmatter template shows one `sources:` item because the flattened payload
+    sent one path. `compile.py` is what writes a multi-source article's *initial*
+    list through here, and neither create nor rewrite repairs frontmatter in code
+    -- only _apply_diff does -- so completeness on this path is prompt-only."""
+    text = mg._create_system("concept")
+
+    assert "one item per path" in text
 
 
 # ── write-phase call timeout ────────────────────────────────────────
@@ -974,7 +1248,7 @@ def test_create_new_article_applies_the_write_timeout(fresh_context, monkeypatch
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg.create_new_article("concept", "T", _extraction(), "raw/a.md")
+    mg.create_new_article("concept", "T", [_block()])
 
     assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
     assert get_call_timeout() is None, "the override must not leak past the call"
@@ -993,7 +1267,7 @@ def test_merge_into_article_applies_the_write_timeout_on_the_rewrite_path(
 
     monkeypatch.setattr(mg, "completion", fake_completion)
 
-    mg.merge_into_article("wiki/a.md", "short body", _extraction(), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", "short body", [_block()])
 
     assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
     assert get_call_timeout() is None
@@ -1016,7 +1290,7 @@ def test_merge_into_article_applies_the_write_timeout_on_the_diff_path(
 
     big = "\n".join(f"## S{i}\n" + "x" * 2000 for i in range(20))
     assert len(big.encode("utf-8")) >= mg._LARGE_ARTICLE_THRESHOLD
-    mg.merge_into_article("wiki/a.md", big, _extraction(topics=["s1"]), "raw/a.md")
+    mg.merge_into_article("wiki/a.md", big, [_block(_extraction(topics=["s1"]))])
 
     assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
     assert get_call_timeout() is None

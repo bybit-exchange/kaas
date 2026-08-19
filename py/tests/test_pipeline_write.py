@@ -29,17 +29,18 @@ def writers(monkeypatch):
     """Fake create/merge article writers with a call log and a failure switch."""
     state = {"created": [], "merged": [], "fail": set(), "cancel_on": set()}
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
         if title in state["fail"]:
             raise RuntimeError(f"create failed: {title}")
         state["created"].append({"type": article_type, "title": title,
-                                 "sources": source_path})
+                                 "sources": [b.source_path for b in sources]})
         return f"---\ntitle: {title}\n---\nbody\n"
 
-    def fake_merge(art_path, old_content, extraction, source_path, model="m"):
+    def fake_merge(art_path, old_content, sources, model="m"):
         if art_path in state["fail"]:
             raise RuntimeError(f"merge failed: {art_path}")
-        state["merged"].append({"path": art_path, "sources": source_path})
+        state["merged"].append({"path": art_path,
+                                "sources": [b.source_path for b in sources]})
         return old_content + "\nmerged\n"
 
     monkeypatch.setattr(pw, "create_new_article", fake_create)
@@ -290,7 +291,7 @@ def test_write_contains_a_failing_article(store, writers):
 def test_write_labels_llm_errors_distinctly(store, writers, monkeypatch):
     from openai import APIError as LLMAPIError
 
-    def boom(article_type, title, extraction, source_path, model="m"):
+    def boom(article_type, title, sources, model="m"):
         raise LLMAPIError("rate limited", request=None, body=None)
 
     monkeypatch.setattr(pw, "create_new_article", boom)
@@ -386,7 +387,7 @@ def test_write_credits_every_batched_source_of_a_crashed_worker(store, writers, 
 def test_write_records_cancellation_as_an_item_error(store, writers, monkeypatch):
     from kb_ai._errors import PipelineCancelledError
 
-    def boom(article_type, title, extraction, source_path, model="m"):
+    def boom(article_type, title, sources, model="m"):
         raise PipelineCancelledError("client gone")
 
     monkeypatch.setattr(pw, "create_new_article", boom)
@@ -417,7 +418,7 @@ def test_write_still_reports_a_finished_write_when_cancelled_afterwards(store, w
     cancel = threading.Event()
     store.write_article("wiki/concept/topic.md", "existing")
 
-    def merge_then_cancel(art_path, old_content, extraction, source_path, model="m"):
+    def merge_then_cancel(art_path, old_content, sources, model="m"):
         # The client disconnects while this write is in flight.
         cancel.set()
         return old_content + "\nmerged\n"
@@ -439,7 +440,7 @@ def test_write_still_reports_an_error_when_cancelled_afterwards(store, writers, 
     instead of leaving the item with no result at all."""
     cancel = threading.Event()
 
-    def fail_then_cancel(article_type, title, extraction, source_path, model="m"):
+    def fail_then_cancel(article_type, title, sources, model="m"):
         cancel.set()
         raise RuntimeError("disk full")
 
@@ -534,7 +535,7 @@ def test_write_worker_does_not_share_the_callers_context(store, writers, monkeyp
     caller_ctx = get_context()
     seen = []
 
-    def recording_create(article_type, title, extraction, source_path, model="m"):
+    def recording_create(article_type, title, sources, model="m"):
         seen.append(get_context())
         return "body\n"
 
@@ -556,7 +557,7 @@ def test_write_worker_labels_its_phase_with_the_article(store, writers, monkeypa
 
     seen = {}
 
-    def recording_create(article_type, title, extraction, source_path, model="m"):
+    def recording_create(article_type, title, sources, model="m"):
         seen["phase"] = get_context().phase
         return "body\n"
 
@@ -575,7 +576,7 @@ def test_write_worker_still_sees_the_parents_cancel_event(store, writers, monkey
     ev = threading.Event()
     seen = {}
 
-    def recording_create(article_type, title, extraction, source_path, model="m"):
+    def recording_create(article_type, title, sources, model="m"):
         seen["event"] = get_context().cancel_event
         return "body\n"
 
@@ -609,7 +610,7 @@ def test_the_write_timeout_override_lands_on_the_workers_own_context(
     seen = {}
 
     @_with_write_timeout
-    def recording_create(article_type, title, extraction, source_path, model="m"):
+    def recording_create(article_type, title, sources, model="m"):
         seen["worker"] = get_context().call_timeout
         seen["caller"] = caller_ctx.call_timeout
         return "body\n"

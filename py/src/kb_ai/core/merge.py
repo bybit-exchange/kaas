@@ -4,7 +4,11 @@ import functools
 import hashlib
 import json
 import sys
+from dataclasses import dataclass
+from datetime import date as _date
+from typing import Callable, Sequence
 
+from kb_ai._frontmatter import as_day, read_document_frontmatter
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
@@ -56,8 +60,8 @@ def _with_write_timeout(fn):
     return wrapper
 
 
-# Order is survival order under a tight budget: _fit_extraction_to_budget adds
-# fields from the top and halves a list that does not fit.
+# Order is survival order under a tight budget: _fit_block_to_budget adds fields
+# from the top and halves a list that does not fit.
 #
 # enumerations sits second because it is the one field truncation cannot degrade
 # gracefully. A writer given six of eleven middleware names does not produce a
@@ -76,12 +80,155 @@ _FIELD_PRIORITY = [
 ]
 
 
-def _estimate_full_extraction_size(extraction: ExtractionResult, source_path: str) -> int:
-    """Estimate full untruncated character count of extraction text."""
-    size = len(f"- Source: {source_path}\n")
+@dataclass(frozen=True)
+class SourceBlock:
+    """One source's contribution to a write payload: what it said, and when.
+
+    The write phase used to receive one flattened ``ExtractionResult`` and one
+    source string -- for a multi-source article, every summary concatenated and
+    every list extended, under a comma-joined list of paths. Two things were
+    unrecoverable from that shape: which document made a given claim, and which
+    of them is the later one. An article composed from a plan and its revision
+    could therefore state both and contradict itself (supersession spec WP3).
+
+    ``date`` is the day the *document* names, not the day it was ingested, and
+    ``None`` means the document does not say. It is deliberately not filled in
+    from a guess: ``derive`` copies ``raw/`` (``derive/_layout.py:193``), which
+    rewrites mtime to the copy time, so mtime dates the copy and not the content
+    (spec Q2).
+    """
+
+    source_path: str
+    extraction: ExtractionResult
+    date: _date | None = None
+
+
+def _document_date(read_raw: Callable[[str], str], source_path: str) -> _date | None:
+    """The day a raw document dates itself, read at write time (spec WP2, D4).
+
+    A deliberate exception to the extraction layer's rule that the write phase
+    reads only from ``extraction/``. The alternative -- a provenance field on the
+    stored extraction -- costs a ``schema_version`` bump, and a bump refuses every
+    existing extraction file, re-extracting the whole KB at 0.0551 USD per
+    document to recover a value ``raw/`` already holds.
+
+    An unreadable document degrades to undated rather than failing the write. The
+    date is a nicety and the article is not: a document whose raw file went away
+    between the scan and the write, or that is not valid UTF-8, still deserves to
+    be composed. ValueError covers both a decoding failure and KBStore's
+    containment check, which cannot be satisfied here by returning a date anyway.
+    Reported on stderr because a date going quietly missing is the corpus defect
+    this whole increment exists to fix.
+    """
+    try:
+        content = read_raw(source_path)
+    except (OSError, ValueError) as e:
+        print(f"[merge] no date read for {source_path}: {e}", file=sys.stderr, flush=True)
+        return None
+    frontmatter, _body = read_document_frontmatter(content)
+    return as_day(frontmatter.get("date"))
+
+
+def build_source_blocks(
+    read_raw: Callable[[str], str],
+    items: Sequence[tuple[str, str, ExtractionResult]],
+) -> list[SourceBlock]:
+    """Turn (source_path, checksum, extraction) triples into ordered blocks.
+
+    Both write routes build their payload through here, so the CLI and the daemon
+    cannot disagree about ordering or duplicates (spec VF6). ``read_raw`` is
+    passed rather than a store so that this module keeps knowing nothing about
+    storage layout.
+
+    Duplicates collapse on checksum (WP7): 55 lineage groups in the corpus are
+    the same bytes ingested twice, and two blocks of one document would double
+    its claims' weight in the payload. The survivor is the first in path order,
+    so two runs over one KB name the same document as the source.
+
+    One consequence, accepted: the collapsed path is no longer named in the
+    article's ``sources:`` either, where the comma-joined item used to carry both
+    and ``derive/_sources.py`` split them apart again. So a duplicate is recorded
+    as compiled into an article the article does not name, and ``derive`` will not
+    copy that file. It costs the derived KB no content -- the bytes are identical
+    to the survivor's, which is copied -- only the second path's name. Compile
+    state still records both, because the ops bookkeeping reads the merge list
+    rather than the surviving blocks (``compile.py``).
+
+    Blocks come back oldest to newest, undated last in path order (WP5). Both
+    orders are total and path-derived, because ``compile.py`` writes article
+    groups on 16 workers and raw-scan order is not stable across ingests -- an
+    ordering that varied per run would make the payload unreproducible. Sources
+    sharing a day sit in path order for that reason alone, which is why the prompt
+    withdraws the ordering claim between them rather than letting the render imply
+    one (WP9).
+    """
+    by_checksum: dict[str, SourceBlock] = {}
+    for source_path, checksum, extraction in sorted(items, key=lambda item: item[0]):
+        if checksum in by_checksum:
+            continue
+        by_checksum[checksum] = SourceBlock(
+            source_path=source_path,
+            extraction=extraction,
+            date=_document_date(read_raw, source_path),
+        )
+
+    blocks = list(by_checksum.values())
+    dated = sorted((b for b in blocks if b.date is not None),
+                   key=lambda b: (b.date, b.source_path))
+    undated = sorted((b for b in blocks if b.date is None), key=lambda b: b.source_path)
+    return dated + undated
+
+
+def _block_header(block: SourceBlock) -> str:
+    """The ``- Source:`` line, and the ``- Date:`` line when there is one (WP1).
+
+    An undated source gets no date line at all rather than a placeholder: the
+    system prompt states that blocks run oldest to newest, that an undated source's
+    position carries no ordering claim (WP6) and that two blocks sharing a day make
+    none about each other (WP9), and a rendered "unknown"
+    would be a second, weaker statement of the same thing in the place where the
+    model is least likely to apply it.
+    """
+    header = f"- Source: {block.source_path}\n"
+    if block.date is not None:
+        header += f"- Date: {block.date.isoformat()}\n"
+    return header
+
+
+def _block_topics(blocks: Sequence[SourceBlock]) -> list[str]:
+    """Every block's topics, in first-seen order.
+
+    Deterministic where the flattening it replaces was not:
+    ``_combine_extractions`` returned ``list(set(topics))``, so the tag list a
+    create prompt carried varied between runs over identical input.
+    """
+    out: list[str] = []
+    seen: set = set()
+    for block in blocks:
+        for topic in block.extraction.topics:
+            if topic not in seen:
+                seen.add(topic)
+                out.append(topic)
+    return out
+
+
+def _min_blocks_chars(blocks: Sequence[SourceBlock]) -> int:
+    """Floor for "can a full rewrite hold the new information at all".
+
+    Per block, so that the route chosen scales with how many sources are waiting
+    rather than with one of them. It is only a routing floor: clearing it does not
+    mean every source contributes, because BG2 drops whole blocks that do not fit
+    once the rewrite path has been chosen.
+    """
+    return sum(len(block.source_path) + 50 for block in blocks)
+
+
+def _estimate_block_size(block: SourceBlock) -> int:
+    """Estimate full untruncated character count of one block's text."""
+    size = len(_block_header(block))
     for field_name, field_type in _FIELD_PRIORITY:
-        value = getattr(extraction, field_name, None)
-        # Skip falsy the same way _fit_extraction_to_budget does, otherwise the
+        value = getattr(block.extraction, field_name, None)
+        # Skip falsy the same way _fit_block_to_budget does, otherwise the
         # estimate counts lines the output never emits and every merge would
         # report a truncation that never happened.
         if not value:
@@ -93,17 +240,160 @@ def _estimate_full_extraction_size(extraction: ExtractionResult, source_path: st
     return size
 
 
-def _fit_extraction_to_budget(
-    extraction: ExtractionResult, source_path: str, budget_chars: int
-) -> str:
-    """Build extraction text fitting within budget_chars.
+def _budget_priority(blocks: Sequence[SourceBlock]) -> list[int]:
+    """Indices into ``blocks``, in the order they may claim the budget (BG1).
+
+    Dated blocks first, newest day to oldest, then the undated ones in the path order
+    WP5 already put them in. Not simply the render order reversed: WP5 sorts
+    undated blocks *last* for determinism, so reversing would put the blocks that
+    make no recency claim at the front of the queue and drop the one source we
+    know to be the newest. Measured on two 3,000-char blocks against a budget for
+    one: the undated block survived and the 2021 document was dropped.
+
+    An undated source is therefore the first to give way, including to a dated
+    source older than it may turn out to be. Ranking it above older dated blocks
+    would be a recency claim WP6 tells the model not to read into its position,
+    made on nothing; what BG1 buys is that the newest *known* source is in the
+    payload, and this is the order that pays it.
+
+    Stated as BG1's own basis: newest known *day* first, ties broken on path for
+    stability, with no claim that the block served first is the newer of a same-day
+    pair. WP9 withdraws that claim in the prompt, and priority here must not
+    reinstate it -- one of two peers is served first because a drop has to be
+    reproducible, not because it is later.
+
+    Sources sharing a day therefore break to path order, the same direction the
+    undated ones take, and both keys are read off the blocks rather than inherited
+    from the order they arrive in -- so the queue is a total order for any input, not
+    only for what ``build_source_blocks`` happens to emit. It decides real drops: on
+    the reference KB **160 of the 397 multi-source articles carry a same-day pair,
+    412 pairs** after WP7 collapses identical checksums (414 before it, and the
+    dedup removes 2 pairs because only one article holds a byte-identical duplicate
+    of its own source). Two earlier figures for this line were both measured on
+    something else: 160 of 395 predates two articles being added, and V20's recorded
+    156 of 397 / 384 pairs deduped on the *body* with frontmatter stripped, which
+    collapses 84 within-article groups of which 83 hold documents whose frontmatter
+    dates differ -- the distinction the same-day population is about, and one WP7
+    does not make, since its key is sha256 over the whole file (``storage/store.py``
+    ``_compute_checksum``, applied at ``:172``).
+    """
+    dated = sorted((i for i, b in enumerate(blocks) if b.date is not None),
+                   key=lambda i: (-blocks[i].date.toordinal(), blocks[i].source_path))
+    undated = sorted((i for i, b in enumerate(blocks) if b.date is None),
+                     key=lambda i: blocks[i].source_path)
+    return dated + undated
+
+
+def _render_blocks(blocks: Sequence[SourceBlock], budget_chars: int) -> str:
+    """Render blocks in the order given, allocating the budget newest first (BG1).
+
+    Oldest to newest is the caller's guarantee, not this function's: every
+    production payload comes from ``build_source_blocks``, which sorts (WP5), and
+    the system prompt states that order to the model (_SOURCE_ORDER).
+
+    The rendered order is therefore WP5's and does not change; only the order in which
+    blocks claim the budget does, which is ``_budget_priority``'s. Allocating in
+    render order would spend the budget on the oldest source and cut the newest,
+    which is backwards for the thing this increment exists to fix: whether a claim
+    has been superseded is a question about what the *latest* document says.
+
+    Each block is kept only if it fits whole in what is left, separator included,
+    and the first one that does not ends the walk -- so what survives is a prefix
+    of the priority order and what is dropped is whole blocks from the bottom of it
+    (BG2). A block cut down to its header and a halved list is worse than an absent
+    one: the writer cannot tell a thin source from a truncated one, and a partial
+    enumeration is what it turns into a confident wrong list (#41, #42). Stopping
+    rather than skipping to smaller blocks further down the queue is what keeps the
+    payload a run of the sources that rank highest, instead of whichever ones
+    happened to fit.
+
+    A budget too small for even the highest-priority block is spent truncating that
+    one block by field priority (BG4). The alternative is a merge that sends the
+    article and no new information, silently: it would look successful and change
+    nothing.
+
+    Every source that contributed nothing is named on stderr (BG3). The cut notice
+    in ``_fit_block_to_budget`` covers a block that was trimmed; a dropped block
+    emits no text at all, so the one source the operator most needs to know about
+    would otherwise be the only one that leaves no trace. Both callers
+    (``_merge_user_message``, ``create_new_article``) still name a dropped source
+    under ``sources:``, so ``derive`` still copies the document and compile state
+    still records it as compiled. That is deliberate -- the alternative is a
+    document no article names, which therefore never reaches a derived KB -- but it
+    does mean an article can name a source the writer was shown nothing from.
+    """
+    remaining = budget_chars
+    texts: dict[int, str] = {}
+    dropped: list[int] = []
+    priority = _budget_priority(blocks)
+
+    for position, index in enumerate(priority):
+        block = blocks[index]
+        # The separator between two blocks is part of what the caller's budget
+        # has to cover: three blocks that each fit exactly would overrun it by
+        # two. It is charged per kept block rather than deducted up front,
+        # because how many blocks survive is not known until the walk ends.
+        separator = 1 if texts else 0
+        if _estimate_block_size(block) + separator <= remaining:
+            # Clamped to the budget minus that separator rather than handed all of
+            # it, which renders the same text today: the block fits whole by the
+            # line above. It matters if the two ever disagree -- the estimator and
+            # the renderer spell the same lines out twice and could drift -- and
+            # then this cuts the block instead of overrunning the caller.
+            text = _fit_block_to_budget(block, remaining - separator)
+            texts[index] = text
+            remaining -= len(text) + separator
+            continue
+
+        if texts:
+            dropped = priority[position:]
+            break
+
+        # BG4: nothing has been kept, so this block gets what there is.
+        text = _fit_block_to_budget(block, remaining)
+        if text:
+            texts[index] = text
+            dropped = priority[position + 1:]
+        else:
+            # Too small even for a bare source line. Nothing was kept at all, so
+            # this block is named among the dropped like every other one.
+            dropped = priority[position:]
+        break
+
+    for index in sorted(dropped):  # render order, so the notices read as the payload does
+        block = blocks[index]
+        print(f"[merge] block dropped, over budget: "
+              f"{_estimate_block_size(block)} chars (source={block.source_path})",
+              file=sys.stderr, flush=True)
+
+    return "\n".join(texts[index] for index in sorted(texts))
+
+
+def _fit_block_to_budget(block: SourceBlock, budget_chars: int) -> str:
+    """Build one block's text fitting within budget_chars.
 
     Fields are added in priority order. List fields use exponential backoff
     (halving item count) when full content exceeds remaining budget.
     """
-    prefix = f"- Source: {source_path}\n"
-    if budget_chars <= len(prefix):
-        return prefix[:budget_chars] if budget_chars > 0 else ""
+    extraction = block.extraction
+    source_path = block.source_path
+    prefix = _block_header(block)
+    if budget_chars < len(prefix):
+        # Strictly under, not at: a budget of exactly the header renders the
+        # header, and `_render_blocks` hands that budget to a block it has
+        # measured as fitting whole -- an extraction with every priority field
+        # empty is nothing but its header. Rejecting it at equality dropped the
+        # date line from a block reported as kept, silently and with the rest of
+        # the budget unspent.
+        #
+        # The date line is dropped whole rather than cut: `- Date: 2020-` is a
+        # false ordering signal where a half-written source path is only
+        # cosmetic, and a prefix cut mid-line loses the newline that separates it
+        # from whatever the caller renders next.
+        source_line = f"- Source: {source_path}\n"
+        if budget_chars >= len(source_line):
+            return source_line
+        return source_line[:budget_chars] if budget_chars > 0 else ""
 
     parts: list[str] = [prefix]
     used = len(prefix)
@@ -152,7 +442,7 @@ def _fit_extraction_to_budget(
                         break
 
     result = "".join(parts)
-    full_size = _estimate_full_extraction_size(extraction, source_path)
+    full_size = _estimate_block_size(block)
     if len(result) < full_size:
         print(
             f"[merge] extraction truncated: {full_size} -> {len(result)} chars "
@@ -289,57 +579,118 @@ composition about its subject:
 """
 
 
+# Appended to all three write-stage system prompts, after the grounding block
+# (supersession spec WP6, with the same-day withdrawal of WP9).
+#
+# The same-day bullet is a withdrawal and not a tie-breaker, ruled as queue item
+# V20: two blocks sharing a day are ordered by path here, which carries no recency
+# evidence, and on the reference KB that reaches 160 of 397 multi-source articles
+# (412 pairs, measured in _budget_priority below). No signal covers that population
+# -- a filename version marker appears on 9 of the pairs and survives inspection on
+# 1 -- and reading the body's own date is A2's question, where 109 of the 505
+# documents stating one point earlier than their frontmatter against 101 later. So
+# the prompt stops claiming a relation it cannot support instead of guessing one.
+#
+# The payload changed shape under this increment: one block per source, dated
+# where the document dates itself, rendered oldest to newest with the undated ones
+# last (WP1, WP3, WP5). A sequence whose meaning is never stated is one the writer
+# is free to read either way -- and the undated tail is the trap, because it sorts
+# last for determinism and not for recency, so an unexplained order invites reading
+# the sources that make no recency claim as the newest material.
+#
+# In the system prompt rather than the user message because that is where an
+# instruction is applied reliably, and a code constant rather than a fourth prompt
+# file for _GROUNDING's reasons above: it has to reach all three system prompts,
+# one of which (_create_system) is already code, and a registry lookup would make
+# an operator's existing KAAS_PROMPTS_DIR raise NoActivePromptError on the first
+# write after upgrade.
+#
+# It states facts and asks for nothing. A1 carries the ordering signal and adds no
+# action: the merge paths cannot retract (merge-diff.md offers append_to_section
+# and new_section) and the rewrite path must not start, since it returns a whole
+# article and would be the one place A1 could destroy correct content (NG1, G4).
+# Telling the writer what to *do* about a contradiction is A2's replace primitive
+# and its [Superseded ...] trail — and saying it here would also spend the fixture
+# arm that exists to decide whether A2 is needed (FX7).
+#
+# Two known approximations in what it asserts, both narrower than the statement and
+# neither worth A1's scope to close. "One block per source" is one block per source
+# the budget kept: BG2 drops whole blocks the `Sources:` list still names. And
+# `_fit_block_to_budget`'s bare-source-line branch can emit a dated block's header
+# without its `- Date:` line, which reads here as a source making no ordering claim
+# -- the inverse of what that document says. It needs a source path longer than the
+# 200-character floor both callers apply, and the corpus maximum is 148.
+_SOURCE_ORDER = """
+Source order — the material you were given is one block per source document:
+- The blocks run oldest to newest. A block's `- Date:` line is the day that source
+  document is dated, which is not the day it was ingested or compiled.
+- Two blocks sharing the same day carry no ordering claim relative to each other.
+  They sit in path order for reproducibility, not because the one that appears
+  first is the earlier document: which of them came first that day is unknown.
+- A block with no `- Date:` line is undated. Undated blocks come last for
+  reproducibility, not because they are recent: where such a source sits among the
+  others is unknown, and its position carries no ordering claim to read.
+"""
+
+
 def _merge_rewrite_system() -> str:
-    """The rewrite path's system prompt, file plus grounding constraint.
+    """The rewrite path's system prompt: file, grounding constraint, source order.
 
     One function for the three callers that need it -- the budget calculation in
     merge_into_article, the send in _merge_full_rewrite, and the hash in
     _write_stage_renderings. Composed rather than sent verbatim, so a budget
-    computed from the file alone would under-reserve by the grounding block and a
-    hash over the file alone would not move when that block is edited.
+    computed from the file alone would under-reserve by the appended blocks and a
+    hash over the file alone would not move when one of them is edited.
     """
-    return default_registry().get("merge-rewrite").render() + "\n" + _GROUNDING
+    return (default_registry().get("merge-rewrite").render()
+            + "\n" + _GROUNDING + _SOURCE_ORDER)
 
 
 def _merge_diff_system() -> str:
-    """The diff path's system prompt, file plus grounding constraint.
+    """The diff path's system prompt: file, grounding constraint, source order.
 
     .content, not .render(): merge-diff.md holds literal `{...}` JSON example
     braces, which str.format would read as placeholders.
     """
-    return default_registry().get("merge-diff").content + "\n" + _GROUNDING
+    return (default_registry().get("merge-diff").content
+            + "\n" + _GROUNDING + _SOURCE_ORDER)
 
 
 @_with_write_timeout
 def merge_into_article(
     article_path: str,
     article_content: str,
-    extraction: ExtractionResult,
-    source_path: str,
+    sources: Sequence[SourceBlock],
     model: str = "claude-sonnet-4-6",
 ) -> str:
+    """Merge ``sources`` into an existing article, by rewrite or by diff.
+
+    ``sources`` is expected oldest to newest with the undated last -- what
+    ``build_source_blocks`` returns (WP5). The system prompt tells the model the
+    blocks arrive in that order (_SOURCE_ORDER), so a caller that sorts differently
+    makes the payload say something untrue rather than merely unordered.
+    """
     if len(article_content.encode("utf-8")) >= _LARGE_ARTICLE_THRESHOLD:
-        return _merge_diff(article_path, article_content, extraction, source_path, model)
+        return _merge_diff(article_path, article_content, sources, model)
 
     # Budget-aware: check if full rewrite fits.
     # Registry caches per-process, so this call here + same call inside
     # _merge_full_rewrite both hit the cache after the first lookup.
     full_rewrite_system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(full_rewrite_system) - _SAFETY_MARGIN
-    min_extraction_chars = len(source_path) + 50
-    if len(article_content) + min_extraction_chars > budget:
-        return _merge_diff(article_path, article_content, extraction, source_path, model)
+    if len(article_content) + _min_blocks_chars(sources) > budget:
+        return _merge_diff(article_path, article_content, sources, model)
 
-    return _merge_full_rewrite(article_path, article_content, extraction, source_path, model)
+    return _merge_full_rewrite(article_path, article_content, sources, model)
 
 
 def _merge_full_rewrite(
     article_path: str, article_content: str,
-    extraction: ExtractionResult, source_path: str, model: str,
+    sources: Sequence[SourceBlock], model: str,
 ) -> str:
     system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
-    user = _merge_user_message(article_content, extraction, source_path, budget)
+    user = _merge_user_message(article_content, sources, budget)
 
     text = completion(model=model, messages=[
         {"role": "system", "content": system},
@@ -350,7 +701,7 @@ def _merge_full_rewrite(
 
 def _merge_diff(
     article_path: str, article_content: str,
-    extraction: ExtractionResult, source_path: str, model: str,
+    sources: Sequence[SourceBlock], model: str,
 ) -> str:
     from datetime import date
     today = date.today().isoformat()
@@ -358,13 +709,15 @@ def _merge_diff(
     system = _merge_diff_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
 
-    # If article exceeds 70% of budget, apply section-based truncation
+    # If article exceeds 70% of budget, apply section-based truncation. Scored
+    # against every block's topics, not one source's: with several sources the
+    # sections worth keeping are the ones any of them touches.
     article_budget = int(budget * 0.7)
     if len(article_content) > article_budget:
         article_content = _truncate_article_by_sections(
-            article_content, extraction.topics, article_budget)
+            article_content, _block_topics(sources), article_budget)
 
-    user = _merge_user_message(article_content, extraction, source_path, budget)
+    user = _merge_user_message(article_content, sources, budget)
 
     try:
         raw = completion_json(model=model, messages=[
@@ -374,24 +727,37 @@ def _merge_diff(
     except (json.JSONDecodeError, RuntimeError):
         raw = {"patches": []}
 
-    return _apply_diff(article_content, raw, source_path, today)
+    return _apply_diff(article_content, raw, [b.source_path for b in sources], today)
 
 
-def _merge_user_message(article_content: str, extraction: ExtractionResult,
-                        source_path: str, budget_chars: int) -> str:
+def _merge_user_message(article_content: str, sources: Sequence[SourceBlock],
+                        budget_chars: int) -> str:
     header = "Existing article:\n<article>\n"
-    footer = "\n</article>\n\nNew information to merge:\n"
-    extraction_budget = max(budget_chars - len(header) - len(article_content) - len(footer), 0)
-    extraction_text = _fit_extraction_to_budget(extraction, source_path, max(extraction_budget, 200))
+    # The paths are named as a list as well as inside each block, because
+    # merge-rewrite.md asks the model to add the source to the article's
+    # `sources:` list and the flattened payload handed it one string to copy.
+    # Spread across N block headers, a path can go unlisted -- and a source
+    # missing from `sources:` is a document `derive` then refuses to copy into a
+    # derived KB (derive/_sources.py reads exactly that key). The diff path gets
+    # the same guarantee in code (_apply_diff) and the create path in its own
+    # header, so this is the third of three, not a new idea.
+    source_list = "".join(f"  - {block.source_path}\n" for block in sources)
+    footer = f"\n</article>\n\nNew information to merge.\nSources:\n{source_list}\n"
+    blocks_budget = max(budget_chars - len(header) - len(article_content) - len(footer), 0)
+    blocks_text = _render_blocks(sources, max(blocks_budget, 200))
 
-    user = header + article_content + footer + extraction_text
+    user = header + article_content + footer + blocks_text
     # Final guard: hard truncate if still over budget (extreme edge case)
     if len(user) > budget_chars:
         user = user[:budget_chars]
     return user
 
 
-def _apply_diff(article_content: str, diff: dict, source_path: str, today: str) -> str:
+def _apply_diff(article_content: str, diff: dict, source_paths: list[str],
+                today: str) -> str:
+    # list[str] rather than Sequence[str]: a bare `str` satisfies the wider type
+    # and would append one frontmatter item per character, to a file that is then
+    # written to disk and read back by derive as one source path per character.
     lines = article_content.split("\n")
 
     if lines and lines[0].strip() == "---":
@@ -402,15 +768,19 @@ def _apply_diff(article_content: str, diff: dict, source_path: str, today: str) 
                 break
         if end_idx:
             fm_lines = lines[1:end_idx]
-            source_line = f"  - {source_path}"
-            # Compare normalized on both sides -- existing_sources is stripped,
-            # so an indented source_line would never match.
-            source_key = source_line.strip()
             # Scope note: this collects every "  - " item in the frontmatter, not
             # only the ones under sources:. A same-named item under another list
             # key would suppress the source append. create_new_article emits
             # flow-style tags, so no other key produces "  - " items today.
             existing_sources = {fl.strip() for fl in fm_lines if fl.startswith("  - ")}
+            # One line per source, where the flattened payload wrote a single
+            # comma-joined item ("  - raw/a.md, raw/b.md") that no YAML reader
+            # resolves back to a list of paths. Compared normalized on both sides
+            # -- existing_sources is stripped, so an indented line never matches
+            # -- and deduplicated among themselves, since a duplicate item in an
+            # article's frontmatter is written once and read forever.
+            new_sources = list(dict.fromkeys(
+                f"  - {p}" for p in source_paths if f"- {p}" not in existing_sources))
             new_fm = []
             found_updated = False
             found_sources = False
@@ -425,17 +795,15 @@ def _apply_diff(article_content: str, diff: dict, source_path: str, today: str) 
                     new_fm.append(fl)
                     next_is_source = (fm_idx + 1 < len(fm_lines) and fm_lines[fm_idx + 1].startswith("  - "))
                     if not next_is_source:
-                        if source_key not in existing_sources:
-                            new_fm.append(source_line)
+                        new_fm.extend(new_sources)
                         found_sources = False
                 else:
                     if found_sources:
-                        if source_key not in existing_sources:
-                            new_fm.append(source_line)
+                        new_fm.extend(new_sources)
                         found_sources = False
                     new_fm.append(fl)
-            if found_sources and source_key not in existing_sources:
-                new_fm.append(source_line)
+            if found_sources:
+                new_fm.extend(new_sources)
             if not found_updated:
                 new_fm.append(f"updated: {today}")
             lines = ["---"] + new_fm + lines[end_idx:]
@@ -572,13 +940,21 @@ def write_prompt_version() -> str:
     a write-prompt edit must not move the extraction's version, or every document
     would re-extract at full cost over a prompt extraction never used.
 
-    Reported, never gated. Both merge paths are additive -- merge-diff.md offers
-    only append_to_section and new_section, and merge-rewrite.md says nothing
-    about supersession -- so re-composing an article layers new content on top of
-    the old rather than replacing it. Feeding this into the composition gate would
-    inflate every article on a prompt edit and pay the full write phase to do it.
-    Until a supersession path exists, an operator reading the count is the useful
-    thing.
+    Reported, never gated (spec D5, PV1). Both merge paths are additive --
+    merge-diff.md offers only append_to_section and new_section, and merge-rewrite.md
+    says nothing about supersession -- so re-composing an article layers new content
+    on top of the old rather than replacing it. Feeding this into the composition
+    gate would inflate every article on a prompt edit and pay the full write phase
+    to do it.
+
+    The write prompts now state how the payload's source blocks are ordered
+    (_SOURCE_ORDER, WP6), which is what makes this value move for every existing
+    KB, so the first report after the upgrade names every article. That is noise
+    rather than spend, because nothing acts on it -- and it does not make gating any
+    more attractive: an article that exists is re-composed through the merge paths,
+    which are still the additive ones. A re-composition that could act on the
+    ordering, rather than merely be told it, needs the replace primitive and the
+    trail that A2 specifies.
 
     Memoized for the same reason as its extraction counterpart (B12): the registry
     caches lazily per name, so a long-lived daemon could otherwise hold
@@ -623,12 +999,17 @@ updated: {{date}}
 {_section_guidance(article_type)}
 
 Write a well-structured article following the section guidance above.
-{_GROUNDING}
+{_GROUNDING}{_SOURCE_ORDER}
 
 The `summary` line is the article's entry in the knowledge-base catalog, which is
 the only surface a reader searches before opening anything. Write one sentence
 under 150 characters naming the specific things covered here — subsystems, key
 parameters, decisions — not a restatement of the title.
+
+The `sources:` list carries every path given under `- Sources:` above,
+one item per path — the template shows a single item because that is the shape of
+an item, not the count. A source left out of that list is a document no derived
+knowledge base will copy.
 
 Use [[wikilinks]] for references to related concepts.
 Return the complete article including frontmatter."""
@@ -638,27 +1019,37 @@ Return the complete article including frontmatter."""
 def create_new_article(
     article_type: str,
     title: str,
-    extraction: ExtractionResult,
-    source_path: str,
+    sources: Sequence[SourceBlock],
     model: str = "claude-sonnet-4-6",
 ) -> str:
-    from datetime import date
-    today = date.today().isoformat()
+    """Compose a new article from ``sources``.
+
+    Same ordering expectation as ``merge_into_article``: oldest to newest, undated
+    last, as ``build_source_blocks`` returns them (WP5), because the system prompt
+    states that order to the model (_SOURCE_ORDER).
+    """
+    today = _date.today().isoformat()
 
     system = _create_system(article_type)
 
+    # Rendered as a YAML list rather than the comma-joined string the flattened
+    # payload sent, because the frontmatter format in the system prompt asks for
+    # a list and one item holding "raw/a.md, raw/b.md" is not one. Every source is
+    # named here as well as in its own block: the blocks are the knowledge, and
+    # this is the frontmatter the article is required to carry.
+    source_list = "\n".join(f"  - {block.source_path}" for block in sources)
     user_header = f"""Create article:
 - Title: {title}
 - Type: {article_type}
-- Source: {source_path}
+- Sources:
+{source_list}
 - Created/Updated: {today}
-- Tags: {extraction.topics}
+- Tags: {_block_topics(sources)}
 
 Knowledge to include:
 """
     budget = MAX_PROMPT_CHARS - len(system) - len(user_header) - _SAFETY_MARGIN
-    extraction_text = _fit_extraction_to_budget(extraction, source_path, max(budget, 200))
-    user = user_header + extraction_text
+    user = user_header + _render_blocks(sources, max(budget, 200))
 
     text = completion(model=model, messages=[
         {"role": "system", "content": system},

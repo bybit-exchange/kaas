@@ -23,9 +23,8 @@ from openai import APIError as LLMAPIError
 from kb_ai._context import adopt_context, cancellable, contextual_submit, get_context
 from kb_ai._errors import PipelineCancelledError
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
-from kb_ai.commands.compile import _combine_extractions
 from kb_ai.core.extract import ExtractionResult
-from kb_ai.core.merge import create_new_article, merge_into_article
+from kb_ai.core.merge import build_source_blocks, create_new_article, merge_into_article
 
 if TYPE_CHECKING:
     from kb_ai.storage.store import KBStore
@@ -52,7 +51,7 @@ def _process_article(
     adopt_context(get_context(), phase=f"write:{art_path}", content_hash="")
 
     t_art = time.time()
-    all_sources = [(ref, ext) for _ch, ref, ext, _action, _det in ops]
+    all_sources = [(ref, ch, ext) for ch, ref, ext, _action, _det in ops]
     all_hashes = [ch for ch, _ref, _ext, _action, _det in ops]
     first_create = next((det for _ch, _ref, _ext, action, det in ops if action == "create"), None)
 
@@ -61,11 +60,14 @@ def _process_article(
 
     try:
         with cancellable(cancel_event):
+            # One block per source, ordered oldest to newest, for whichever branch
+            # runs: both writers take the same payload, so building it once here
+            # keeps the two routes' orderings from drifting apart.
+            sources = build_source_blocks(store.read_raw, all_sources)
             if action == "merge":
                 # Article exists -- merge all sources in one LLM call
-                combined, merge_refs = _combine_extractions(all_sources)
                 old_content = store.read_article(art_path)
-                new_content = merge_into_article(art_path, old_content, combined, ", ".join(merge_refs), model=model)
+                new_content = merge_into_article(art_path, old_content, sources, model=model)
                 store.write_article(art_path, new_content)
                 with write_lock:
                     for ch in all_hashes:
@@ -81,8 +83,7 @@ def _process_article(
                     article_type = first_create.type or article_type
                     title = first_create.title or title
 
-                combined, merge_refs = _combine_extractions(all_sources)
-                new_content = create_new_article(article_type, title, combined, ", ".join(merge_refs), model=model)
+                new_content = create_new_article(article_type, title, sources, model=model)
                 store.write_article(art_path, new_content)
                 with write_lock:
                     for ch in all_hashes:

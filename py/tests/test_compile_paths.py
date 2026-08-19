@@ -11,6 +11,7 @@ Every LLM seam is monkeypatched; the store is a real KBStore on tmp_path.
 from __future__ import annotations
 
 import json
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -62,13 +63,15 @@ def fakes(monkeypatch):
     def fake_classify(extraction, existing, model="m", categories=None):
         return json.loads(json.dumps(state["classification"]))   # deep copy per call
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if title in state["fail_write"]:
             raise RuntimeError(f"write failed for {title}")
         state["created"].append((article_type, title, source_path))
         return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
 
-    def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+    def fake_merge(article_path, article_content, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if article_path in state["fail_write"]:
             raise RuntimeError(f"merge failed for {article_path}")
         state["merged"].append((article_path, source_path))
@@ -190,7 +193,8 @@ def test_compile_still_merges_when_a_create_failed_but_the_article_exists(
     kb_two.write_article("wiki/concept/target.md", "prior body\n")
     calls: list[str] = []
 
-    def first_merge_fails(article_path, article_content, extraction, source_path, model="m"):
+    def first_merge_fails(article_path, article_content, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         calls.append(source_path)
         if len(calls) == 1:
             raise RuntimeError(f"merge failed for {source_path}")
@@ -275,10 +279,10 @@ def test_compile_skips_merge_ops_completed_in_a_prior_run(kb_two, fakes):
 def test_compile_logs_a_group_error_when_an_article_task_raises(kb_two, fakes, monkeypatch):
     """An exception outside _process_article's per-op try blocks must be caught
     by the executor loop so the remaining phases (state save, index) still run."""
-    def boom(items):
-        raise RuntimeError("combine blew up")
+    def boom(read_raw, items):
+        raise RuntimeError("block building blew up")
 
-    monkeypatch.setattr(cm, "_combine_extractions", boom)
+    monkeypatch.setattr(cm, "build_source_blocks", boom)
     kb_two.write_article("wiki/concept/target.md", "prior body\n")
     fakes["classification"] = merges("wiki/concept/target.md")
 
@@ -288,7 +292,7 @@ def test_compile_logs_a_group_error_when_an_article_task_raises(kb_two, fakes, m
     assert "timing" in out, "compile still completed through the index phase"
     assert kb_two.load_compile_state() == {}
     log = log_of(kb_two)
-    assert "[group-error] wiki/concept/target.md: combine blew up" in log
+    assert "[group-error] wiki/concept/target.md: block building blew up" in log
     assert "Compile done: 0 compiled" in log
 
 
@@ -332,7 +336,8 @@ def test_write_worker_labels_its_phase_with_the_article(kb_one, fakes, monkeypat
 
     seen = {}
 
-    def recording_create(article_type, title, extraction, source_path, model="m"):
+    def recording_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         seen["phase"] = get_context().phase
         return "body\n"
 
@@ -349,7 +354,8 @@ def test_merge_worker_labels_its_phase_with_the_article(kb_one, fakes, monkeypat
 
     seen = {}
 
-    def recording_merge(article_path, article_content, extraction, source_path, model="m"):
+    def recording_merge(article_path, article_content, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         seen["phase"] = get_context().phase
         return article_content
 
@@ -417,7 +423,8 @@ def test_write_worker_nests_its_op_tracker_under_the_parents(kb_one, fakes, monk
     req = CostTracker()
     set_request_tracker(req)
 
-    def costing_create(article_type, title, extraction, source_path, model="m"):
+    def costing_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         from kb_ai.llm import get_request_tracker
         get_request_tracker().record("m", prompt_tokens=10, completion_tokens=5, cost=0.5)
         return "body\n"
@@ -440,7 +447,8 @@ def test_llm_warning_from_a_write_worker_reaches_the_compile_log(
     just stopped advancing with no explanation."""
     from kb_ai.llm._infra import emit_alert
 
-    def stalling_create(article_type, title, extraction, source_path, model="m"):
+    def stalling_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         emit_alert("op=write model=m attempt=1/3 elapsed=901.7s", "m", 1,
                    "api_timeout_error")
         return "body\n"
@@ -515,3 +523,88 @@ def test_a_stalled_write_is_attributable_and_capped(kb_one, fakes, monkeypatch):
     # And the run still reports the failure rather than swallowing it.
     assert out["compiled"] == 0
     assert len(out["errors"]) == 1
+
+
+# ── duplicate documents in one merge batch (WP7) ─────────────────────
+
+def test_compile_completes_every_duplicate_source_behind_one_block(tmp_path, fakes):
+    """Two ingests of the same bytes collapse into ONE block in the payload, and
+    both documents' ops are still completed by the call that carries it.
+
+    The bookkeeping reads the merge list, not the surviving blocks, for exactly
+    this reason: taking it from the blocks would leave the collapsed document
+    uncompiled, and every later run would retry an op that can never be recorded.
+    """
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/a.md", "one body, ingested twice")
+    store.write_raw("raw/copy-of-a.md", "one body, ingested twice")
+    store.write_article("wiki/concept/target.md", "---\ntitle: T\n---\nprior body\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert fakes["merged"] == [("wiki/concept/target.md", "raw/a.md")], \
+        "one block, naming the first document in path order"
+    assert out["compiled"] == 2, "both documents' ops are completed by that call"
+    assert set(store.load_compile_state()) == {"raw/a.md", "raw/copy-of-a.md"}
+    assert out["errors"] == []
+
+
+def test_compile_completes_every_duplicate_source_on_the_create_path(tmp_path, fakes):
+    """The same guarantee where the article does not exist yet: merge→create
+    composes from one block and still completes both documents' ops."""
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/a.md", "one body, ingested twice")
+    store.write_raw("raw/copy-of-a.md", "one body, ingested twice")
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert fakes["created"] == [("concept", "Target", "raw/a.md")]
+    assert out["compiled"] == 2
+    assert set(store.load_compile_state()) == {"raw/a.md", "raw/copy-of-a.md"}
+    assert "[merge→create] wiki/concept/target.md ← 2 sources" in log_of(store)
+
+
+# ── the single-source call sites date their block too (WP2) ───────────
+
+def test_compile_dates_the_block_on_the_single_source_create_path(tmp_path, fakes, monkeypatch):
+    """compile.py's create ops build a one-block payload of their own, and a
+    block built without reading raw/ is silently undated -- the writer is then
+    back to having no ordering signal on the path that composes from scratch."""
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/only.md", "---\ntitle: Only\ndate: 2020-01-01\n---\nbody\n")
+    seen: list = []
+
+    def recording_create(article_type, title, sources, model="m"):
+        seen.extend(sources)
+        return "---\ntitle: A\n---\nbody\n"
+
+    monkeypatch.setattr(cm, "create_new_article", recording_create)
+    fakes["classification"] = {"merge_into": [], "create_new": [
+        {"path": "wiki/concept/a.md", "type": "concept", "title": "A"}]}
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert out["errors"] == []
+    assert [(b.source_path, b.date) for b in seen] == [("raw/only.md", date(2020, 1, 1))]
+
+
+def test_compile_dates_the_block_on_the_single_merge_path(tmp_path, fakes, monkeypatch):
+    """Same for one source merging into an article that already exists."""
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/only.md", "---\ntitle: Only\ndate: 2021-06-01\n---\nbody\n")
+    store.write_article("wiki/concept/target.md", "---\ntitle: T\n---\nprior body\n")
+    seen: list = []
+
+    def recording_merge(article_path, article_content, sources, model="m"):
+        seen.extend(sources)
+        return article_content + "\nmerged\n"
+
+    monkeypatch.setattr(cm, "merge_into_article", recording_merge)
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert out["errors"] == []
+    assert [(b.source_path, b.date) for b in seen] == [("raw/only.md", date(2021, 6, 1))]

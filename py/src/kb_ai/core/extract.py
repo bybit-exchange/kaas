@@ -60,7 +60,8 @@ class ExtractionResult:
     # because the other seven all reward compression, and an enumeration is the one
     # shape where compression is the loss -- a model asked for prose about a
     # struct wrote about its timeout handling and dropped eight of eleven field
-    # names, unrecoverably, since the write phase never re-reads raw (issue #41).
+    # names, unrecoverably: the write phase reads raw only for a document's date
+    # (core/merge.py's _document_date), never for its content (issue #41).
     enumerations: list = field(default_factory=list)
     topics: list = field(default_factory=list)
     source_path: str = ""
@@ -787,26 +788,6 @@ def extract_knowledge_chunked(
     merged.summary = " ".join(summaries)
     merged.topics = list(set(merged.topics))
     return merged
-
-
-def _combine_extractions(items: list[tuple[str, ExtractionResult]]) -> tuple[ExtractionResult, list[str]]:
-    combined = ExtractionResult()
-    summaries: list[str] = []
-    rels: list[str] = []
-    for rel, extraction in items:
-        if extraction.summary:
-            summaries.append(extraction.summary)
-        combined.concepts.extend(extraction.concepts)
-        combined.entities.extend(extraction.entities)
-        combined.decisions.extend(extraction.decisions)
-        combined.action_items.extend(extraction.action_items)
-        combined.claims.extend(extraction.claims)
-        combined.enumerations.extend(extraction.enumerations)
-        combined.topics.extend(extraction.topics)
-        rels.append(rel)
-    combined.summary = "\n".join(summaries)
-    combined.topics = list(set(combined.topics))
-    return combined, rels
 
 
 # ── the extraction strategy router ──────────────────────────────────
