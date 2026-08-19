@@ -1,0 +1,23 @@
+docs/features/supersession/assets/supersession-content-iteration.svg
+  c9f2133548918fc7 69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "10a5a6586cc6cacef3e58a1cedc99168b536e2a2",
+  "prompts": {
+    "c9f2133548918fc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63a85fc2-3f2a-4954-8245-e23c4e352b4d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
