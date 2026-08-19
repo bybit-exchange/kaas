@@ -6,6 +6,7 @@ from datetime import datetime
 
 import yaml
 
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai._frontmatter import split_frontmatter
 from kb_ai.storage import extraction
 from kb_ai.storage.store import KEYS_MARKER, ArticleMeta, KBStore
@@ -255,7 +256,7 @@ def build_document_catalog(store: KBStore, *,
     catalog: list[ArticleMeta] = []
     without_extraction = 0
     for path in store._iter_raw_paths():
-        content = path.read_text()
+        content = read_text_and_evict(path)
         fm, body = _document_frontmatter(content)
         rel_path = str(path.relative_to(store.base_dir))
 
@@ -321,7 +322,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
     tags_map: dict[str, list[dict]] = {}
 
     for md_file in store.wiki_dir.rglob("*.md"):
-        content = md_file.read_text()
+        content = read_text_and_evict(md_file)
         split = split_frontmatter(content)
         if split is None:
             continue

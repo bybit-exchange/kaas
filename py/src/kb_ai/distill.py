@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai.commands.compile import compile_kb
 from kb_ai.core.extract import (
     EXTRACT_STRATEGIES,
@@ -74,7 +75,7 @@ def ingest_paths(paths: list[str], kb_dir: str) -> IngestReport:
                 report.skipped.append(str(file))
                 continue
             try:
-                content = file.read_text(encoding="utf-8")
+                content = read_text_and_evict(file)
             except (UnicodeDecodeError, OSError):
                 report.skipped.append(str(file))
                 continue

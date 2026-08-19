@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai.derive._layout import MANIFEST_NAME, read_manifest
 from kb_ai.storage import extraction
 from kb_ai.storage.store import KBStore, _compute_checksum
@@ -98,7 +99,7 @@ def check_extractions(kb_dir: str) -> ExtractionCheck:
             missing.append((rel_path, reason))
             continue
         recorded = header.get("source_checksum")
-        actual = _compute_checksum(path.read_text())
+        actual = _compute_checksum(read_text_and_evict(path))
         if recorded == actual:
             matches.append(rel_path)
         else:

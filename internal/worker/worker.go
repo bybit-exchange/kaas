@@ -14,6 +14,7 @@ import (
 
 	"github.com/bybit-exchange/kaas/internal/bridge"
 	"github.com/bybit-exchange/kaas/internal/circuit"
+	"github.com/bybit-exchange/kaas/internal/fadvise"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -115,7 +116,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 	if rich {
 		req.FilePath = task.RawPath
 	} else {
-		content, readErr := os.ReadFile(task.RawPath)
+		content, readErr := fadvise.ReadFileAndEvict(task.RawPath)
 		if readErr != nil {
 			w.fail(ctx, task, fmt.Sprintf("read raw %q: %v", task.RawPath, readErr))
 			return

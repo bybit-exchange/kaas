@@ -6,6 +6,7 @@ from pathlib import Path
 
 import yaml
 
+from kb_ai._fadvise import read_text_and_evict
 from kb_ai._frontmatter import split_frontmatter
 from kb_ai.storage.index import SUMMARY_MAX_CHARS
 from kb_ai.storage.store import KBStore
@@ -170,7 +171,7 @@ def update_people_stubs(store: KBStore, people_cfg: list[dict]) -> None:
         if rel_parts and rel_parts[0] == "people":
             continue
 
-        content = md_file.read_text()
+        content = read_text_and_evict(md_file)
         title = _article_title(md_file, content)
         rel_path = str(md_file.relative_to(store.base_dir))
 
