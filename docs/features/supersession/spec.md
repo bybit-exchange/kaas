@@ -123,9 +123,13 @@ path A.
 - **NG3. Chained supersession (A2).** With no markers there is nothing for a third
   version to nest into. Whether v3 superseding what v2 already superseded keeps or
   drops the v1 entry is A2's first open question. Fixture case P4 still runs under
-  A1, scored on Staleness. **Trail was expected 0 here and the baseline arm reads 1 of 10 on
-  P4** ([scoring.md](scoring.md)): A1 emits no markers, but this writer emits its own
-  unprompted, so a nonzero Trail is not evidence that A1 produced one.
+  A1, scored on Staleness. **Trail was expected 0 here and it is 0 of 10 on P4** under V28
+  (ruled 2026-08-19): the one marker the arm produced there falls outside the ruled criterion —
+  P4's recorded behaviour is coequal presentation, naming the conflict and refusing to order it
+  ([scoring.md](scoring.md#the-ruling-queue--all-seven-settled)).
+  The caution the expectation needed still stands elsewhere — this writer emits directional
+  trails unprompted on 7 of 45 rows, so a nonzero Trail anywhere is not evidence that A1
+  produced one.
   **The question has no instance in
   this fixture, measured rather than assumed (labels.md V15, ruled 2026-08-17):** P4
   is the only staged chain longer than a pair, and inside it every predicate v3
@@ -706,13 +710,18 @@ path A.
   is the case that made the point first).
 - **FX5.** Scoring uses test-set.md's columns. **The baseline arm is scored, 2026-08-18:
   24 of 40 (60%) on the gating column, against the 28 of 40 (70%) the label pass
-  published for the historical articles — the full record, every column and seven open
-  rulings, is in [scoring.md](scoring.md).** Staleness over
+  published for the historical articles — the full record, every column and the seven
+  rulings it opened, all settled 2026-08-19, is in [scoring.md](scoring.md).** Staleness over
   `superseded-contradiction`, on the merge-path stages,
-  is the discriminating column. **Trail was expected 0 before A1 and is 18 of 45 on the
-  baseline**: this writer already performs supersession unprompted, in four distinct
-  styles, so Trail does not separate a pre-A1 run from an A1 one and the D1 options
-  cannot be read off it without ruling what the column means (scoring.md's V28). Both staleness columns are read per claim, against
+  is the discriminating column. **Trail was expected 0 before A1 and is 7 of 45 on the
+  baseline** (18 rows carry some marking; **V28, ruled 2026-08-19**, counts only the ones that
+  state which value is dead, and the criterion is in
+  [test-set.md](test-set.md#v28-what-counts-as-a-trail)). This writer already trails
+  unprompted, so Trail does not separate a pre-A1 run from an A1 one on its own — but with
+  V28 written it does separate the D1 options, which the permissive rubric could not: P5's
+  basis-labelled columns forge the `(Staleness 0, Trail 1)` signature while deciding nothing,
+  and P7's as-of stamps score `(1, 1)`, which is no option at all.
+  Both staleness columns are read per claim, against
   the newest source in the compile set that speaks to that item (V19), and a case
   whose source order rests on a same-day tie-break is reported apart from the gate —
   P5 is the only one, and WP9 keeps it there rather than letting it in, because the
@@ -726,13 +735,18 @@ path A.
   pending fix. Staleness (drop) is recorded on the same
   runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4 — **both measured at 0 on the baseline arm**.
-  **Size is not measurable as the arms are scripted.** It is defined against the pre-run
-  article, and neither the baseline driver nor `/tmp/kaas-fx4-a1arm.sh` snapshots `wiki/`
-  between stages, so after stage 1 there is no pre-run article to compare. The baseline
+  **Size is not measurable as the arms were scripted.** It is defined against the pre-run
+  article, and neither the baseline driver nor the A1 driver snapshotted `wiki/` between
+  stages, so after stage 1 there is no pre-run article to compare. The baseline
   records absolute bytes only (755,700 across 27 articles). Adding
   `cp -a $KB/wiki $LOGS/stage$stage-wiki` after each compile — about 750 KB per stage —
-  would give the A1 arm the column, but not comparably, since the baseline cannot be re-run
-  for it without paying 18 USD again.
+  gives the A1 arm the column, but not comparably: **the baseline is unrecoverable, not
+  merely expensive.** `/tmp` was cleared on 2026-08-19, taking the 27 articles, the logs and
+  all four drivers with it (see
+  [scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)), and re-running `bd8252e`
+  would produce a different sample rather than the scored one. The column stays unavailable on
+  the comparison and the snapshot lines are worth adding to the A1 driver anyway, as an
+  absolute record.
   **Cases resolve to an arm's article by its `sources` set, never by the name this document
   cites.** A fresh run picks its own slug: N2's scoring article is
   `wiki/projects/zero-trust-security-platform.md` in the table above and landed as
@@ -785,6 +799,11 @@ path A.
   what makes A2 optional rather than assumed. Staleness (drop) moving is reported
   as a finding about A2's RP1 arm and does not enter the verdict either way, so a
   run that clears the contradictions and leaves every drop stale still passes.
+  **The baseline side of the comparison is a written record, not a readable tree** — its
+  articles are gone ([scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)), so
+  the verdict quotes scoring.md's figures and states that a baseline row cannot be reopened.
+  Trail is read against V28's criterion on both arms, and the baseline figure it compares
+  against is **7 of 45**, not the 18 the judging rubric first produced.
 
 ### VF. Verification
 

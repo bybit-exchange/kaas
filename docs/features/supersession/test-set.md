@@ -12,7 +12,9 @@ seven scoring cases — of the 40 contradictions on the five cases judged on the
 under V21 — and **nothing is left with Captain on the labelling itself**. FX5 has now scored against these labels: the pre-A1
 baseline arm reads **24 of 40 (60%)** on the gating column, and
 [scoring.md](scoring.md) holds every column, the union resolution rule the arm forced,
-and seven fresh rulings it opened. Both blocking rulings are settled
+and the seven rulings it opened — **all settled 2026-08-19**, one of them (V28, on what
+counts as a Trail) against its drafted position. That arm's articles no longer exist, so
+scoring.md is the only record of them. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -507,7 +509,7 @@ Per case, over the produced article:
 | Correction landed | each `replacement` present and stated as current | missing |
 | Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
 | Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
-| Trail | any `superseded-contradiction` item present and marked as superseded — **what counts as a marker is open (V28)**, because the baseline arm marks supersession three different ways: explicit `superseded by` wording, version- or basis-labelled presentation, and an as-of date stamp with the newer value adjacent. The rubric as given to the judges counts all three and reads 18 of 45; an explicit-wording reading reads 7–11 ([scoring.md](scoring.md#ruling-queue-seven-open-items)) | — |
+| Trail | any `superseded-contradiction` item present and carrying a **directional supersession statement** about that claim: the article says the older value has been replaced or has stopped being true, and which value stands now. **Ruled V28, 2026-08-19** — see [the criterion](#v28-what-counts-as-a-trail) below. Baseline arm: **7 of 45** | — |
 | Collateral | each `control` item still present | missing |
 | Size | article bytes, against the pre-run article — **not measurable on either FX4 arm as scripted**, since no driver snapshots `wiki/` between stages, so nothing is a pre-run article after stage 1 | growth |
 | False positive | on N1–N4, any supersession marker at all | present |
@@ -600,6 +602,68 @@ the D1 options, and no single score can.
 - latest-wins: Staleness 0, Trail 0
 - current-plus-trail: Staleness 0, Trail 1
 - article family: two articles, and Trail is not applicable
+- coequal presentation: Trail 0, and **Staleness either way** — the shape the baseline
+  arm produces most often, and the one D1's option list never named. The article states
+  both values and asserts no order between them. Whether it also scores stale depends on
+  how it labels them: a named basis makes the two figures different claims and clears
+  the column (P5 0 of 5, P10 0 of 7), while an unlabelled "the article retains both"
+  leaves the old value stated as current (P4 7 of 10). So this one shape spans both
+  Staleness readings while producing no trail, which is why the pair above needs V28's
+  criterion under it to mean anything.
+
+#### V28: what counts as a Trail
+
+**Ruled 2026-08-19.** The column requires a directional statement. Naming the word
+`superseded` is not required — P10's "Note: An earlier version of this report applied
+a 90-day exclusion threshold and reported 17,294 requirements" qualifies, and D1's
+bracketed format is the shape A1 ships — but asserting *which value is dead* is.
+
+Two behaviours the baseline arm exhibits do **not** satisfy the column:
+
+- **Version- or basis-labelled parallel presentation.** P5's table columns headed
+  `v3 document` and `Earlier document`; P10's second article pairing every v1 section
+  with a v2 section, basis named in each heading.
+- **An as-of date stamp with the newer value adjacent.** P7's
+  `### Q2 Status as of 20260430` / `as of 20260514` blocks, preserved unmerged.
+
+Both leave the older value asserted and the ordering to the reader, which is the shape
+D1 rejects in terms — "an article that states both as current is the bug this feature
+exists to fix", the old sentence "replaced by the pair, not kept alongside it"
+([design-options.md](design-options.md#d1--the-body-states-the-current-claim-plus-a-superseded-trail)).
+What each tier does to the discriminator is different, and the baseline's own per-case
+numbers are what rule it out:
+
+- **The basis-labelled tier forges the signature.** P5 reads Staleness 0 of 5 with
+  Trail 4 of 5 — `(0, 1)`, current-plus-trail exactly — while doing nothing D1 asked
+  for. Counting it means the column certifies parallel presentation as the decided
+  option.
+- **The as-of tier produces a reading no option has.** P7 reads Staleness 5 of 8 with
+  Trail 6 of 8: `(1, 1)`. A marker that leaves the claim stale on the same rows it marks
+  is not a trail in D1's sense — the old value is still being asserted, just stamped.
+
+Counting either would leave `(Staleness, Trail)` unable to name the shape in front of
+it, which is the only thing the pair is for. The strict reading is what keeps the column
+load-bearing.
+
+**The information is kept, not discarded**: the two weaker tiers are counted in their
+own right in [scoring.md](scoring.md#the-ruling-queue--all-seven-settled), because
+"the baseline performs no supersession" would be a false claim about this arm and FX7
+must not be able to make it. On the baseline the three tiers decompose as **7
+directional + 4 basis-labelled + 7 as-of stamped = the 18 the judging rubric counted**.
+
+#### V34: compound claims score on the main proposition
+
+**Ruled 2026-08-19**, one rule over controls, drops and replacements alike. Where a
+labelled item is a conjunction, the column scores its **main proposition** — the claim
+the row was labelled to test — and not each conjunct. A control is present if its
+proposition survives; a replacement lands if its proposition lands.
+
+Losing a conjunct is still an observation, and is recorded per row rather than dropped,
+on the same reasoning as V28: P8-K1's `Go 原生 LLM 路由服务` descriptor going missing
+while its ≥50% cost-reduction figure survives is worth knowing, and it is not what K1
+was written to detect. Scoring every conjunct would make Collateral a wording-drift
+meter — it would read 34 of 42 where the propositions read 40 — and collateral damage
+to a descriptor cannot be told apart from a legitimate rewrite at that grain.
 
 For D2 the discriminating column is Correction landed on every case with a
 non-empty `replacement` list, with False positive held at 0 on N1–N4. P1 is not

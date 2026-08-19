@@ -337,11 +337,17 @@ row says so. Listed for audit, not for decision.
 ### The queue — 22 items, all settled
 
 **Closed as a labelling queue, and not the last word on what a label covers.** Scoring the
-FX4 baseline arm on 2026-08-18 opened seven further rulings, listed in
-[scoring.md's queue](scoring.md#ruling-queue-seven-open-items); one of them — **V31** — is a
-scope question about **P3-C7's own wording here**, because the arm splits the two halves that
-row names, trailing the 6-agent claim while leaving 「6 个维度」 live. Those items are calls
-about how an arm's article reads, not relabellings, so no total below moves on any of them.
+FX4 baseline arm on 2026-08-18 opened seven further rulings, **all settled 2026-08-19** and
+listed in [scoring.md's queue](scoring.md#the-ruling-queue--all-seven-settled); one of them —
+**V31** — was a scope question about **P3-C7's own wording here**, because the arm splits the
+two halves that row names, trailing the 6-agent claim while leaving 「6 个维度」 live. It is
+ruled at the drafted position on the evidence in this file: L595 reaches its "not stale"
+verdict by testing both halves ("no 6-agent **or 6-dimension** claim anywhere in it"), so both
+are in scope. Those items are calls about how an arm's article reads, not relabellings, so no
+total below moved on any of them. **This file's evidence base is intact** where the arm's is
+not — the historical articles it scored are in `data/kb-knowledge/wiki`, while the arm's 27
+articles are gone (see
+[scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)).
 
 Ordered by how much they move the measurement. Owner is the Captain for all of them
 except **V16**, which asked whether a document was read rather than how a row should
