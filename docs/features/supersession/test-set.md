@@ -738,9 +738,16 @@ precede it.
 
 The case selection and the staging are mechanical and cost nothing:
 
+Mind which KB `select_cases.py` is pointed at — the two invocations answer different
+questions, and reading one for the other is what produced the retracted claim that
+`cases.json` was unrecoverable. `--kb ../data/kb-knowledge` surveys the corpus (131
+candidates, the strata table below); `--kb ../data/kb-supersession-fixture` rebuilds the
+fixture's own case list (the curated 18), which is the one an arm consumes.
+
 ```
 cd py
-uv run python scripts/select_cases.py --kb ../data/kb-knowledge --out cases.json
+uv run python scripts/select_cases.py --kb ../data/kb-knowledge --out corpus-chains.json
+uv run python scripts/select_cases.py --kb ../data/kb-supersession-fixture --out cases.json
 uv run python scripts/stage_fixture.py --kb ../data/kb-supersession-fixture \
     --cases cases.json --out ../data/kb-supersession-staged        # plan only
 uv run python scripts/stage_fixture.py ... --stage 1               # writes stage 1

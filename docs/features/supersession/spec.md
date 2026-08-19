@@ -504,7 +504,7 @@ path A.
 ### FX. Fixture and scoring
 
 - **FX1.** The `/tmp/supersession/` scripts move to `py/scripts/` with tests — but
-  only the two that will run again. What landed is `select_cases.py`, which finds the
+  only the ones that will run again. Two landed first: `select_cases.py`, which finds the
   chains and stratifies them, and `stage_fixture.py`, which builds FX2's stages.
   Two more followed for the same reason and one of them the hard way: `audit_articles.py`
   (FX4's article-shape checks) and `run_fx4_arm.py`, which drives a whole arm. **The arm

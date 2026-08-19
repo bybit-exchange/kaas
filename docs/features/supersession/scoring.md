@@ -60,7 +60,7 @@ P5, reported apart under V21: **0 of 5**, and not by luck — see
 | Collateral | **40 of 42** present | P10-K2 missing in both articles; P7-K2 counted missing on a split conjunction (target survives, "still 0%" does not); everything else carried |
 | False positive | **0 of 4** | N1–N4 all clean |
 | Double count | **0 of 4** | U1–U4 all clean, no marker between byte-identical documents |
-| Size | **not measurable** | no per-stage `wiki/` snapshot exists; see [Size](#size-is-unmeasurable-on-both-arms-as-scripted) |
+| Size | **not measurable on this arm** | no per-stage `wiki/` snapshot was taken, and the A1 driver now takes them; see [Size](#size-is-unmeasurable-on-the-baseline-and-the-a1-arm-records-it-anyway) |
 
 P1 (drop, does not gate): **stale**, four occurrences of the ~140-user figure across
 its two articles, correction landed, no trail. Confound-free — both articles declare
@@ -149,15 +149,16 @@ Every case's co-sources were swept for every residue string rather than assumed:
 
 Net: the exclusion clause changed no verdict anywhere in the arm.
 
-### Size is unmeasurable on both arms as scripted
+### Size is unmeasurable on the baseline, and the A1 arm records it anyway
 
-FX5 measures Size "against the pre-run article". Neither the baseline driver nor
-`/tmp/kaas-fx4-a1arm.sh` snapshots `wiki/` between stages, so no pre-run article exists
-for any stage after the first. Absolute bytes are recorded (755,700 across 27 articles)
-and growth is not. Two lines in the A1 script (`cp -a $KB/wiki $LOGS/stage$stage-wiki`
-after each compile, about 750 KB per stage) would make the column available for that
-arm; it stays unavailable for the baseline either way, so the arms would not be
-comparable on it.
+FX5 measures Size "against the pre-run article". Neither of the shell drivers snapshotted
+`wiki/` between stages, so for this arm no pre-run article exists for any stage after the
+first: absolute bytes are recorded (755,700 across 27 articles) and growth is not.
+`py/scripts/run_fx4_arm.py` copies `wiki/` to `logs/stage<N>-wiki` after every stage,
+about 750 KB each, so the A1 arm gets the column — **but the arms are still not
+comparable on it**, the baseline's snapshots not existing and its articles being gone.
+Size therefore stays out of the FX7 comparison and is kept as an absolute record on the
+A1 side.
 
 ### The write history is clean, and it was checked rather than assumed
 
@@ -309,7 +310,7 @@ What survives, and it is enough to run the A1 arm:
 
 | Artifact | State |
 |---|---|
-| `data/kb-supersession-fixture/` | present, 38 raw documents — the staged corpus itself |
+| `data/kb-supersession-fixture/` | present, 38 raw documents — the staged corpus itself, and **now the last unversioned load-bearing artifact on this branch**: `data/` is gitignored, so if it goes the way `/tmp` went, the A1 arm is unrunnable and the 18-chains-over-38-documents claim is unverifiable. It holds internal corpus and cannot be committed, so it needs a backup outside this checkout, recorded in the ledger |
 | `data/kb-knowledge/` | present, 997 raw / 682 wiki — the source corpus, and the articles [labels.md](labels.md) scored, so **the label pass's evidence base is intact** |
 | `py/scripts/stage_fixture.py`, `select_cases.py`, `audit_articles.py` | committed |
 | `bd8252e` | in git, so the pre-A1 worktree is recreatable |

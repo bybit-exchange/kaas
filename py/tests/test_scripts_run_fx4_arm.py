@@ -25,6 +25,15 @@ import run_fx4_arm as arm  # noqa: E402
 _FIXTURE = Path(__file__).resolve().parents[2] / "data" / "kb-supersession-fixture"
 
 
+@pytest.fixture(autouse=True)
+def tmpdir_is_not_the_refused_one(monkeypatch):
+    """pytest's ``tmp_path`` lives under ``$TMPDIR``, which the driver refuses on
+    purpose. Drop that entry so the rest of the suite can use ``tmp_path``; the
+    rule itself is covered by the test that names it, which puts one back.
+    """
+    monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", "/private/tmp"))
+
+
 def write(path: Path, text: str = "body\n") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -163,49 +172,81 @@ def test_a_probe_that_raises_counts_as_down_rather_than_crashing_the_arm():
 
 # ── what counts as a stage that has to be retried ─────────────────────
 
-def test_a_stage_that_compiled_everything_cleanly_is_done():
-    assert not arm.stage_needs_retry(ok(18), compiled_so_far=18, staged=18)
+def test_a_stage_whose_every_member_is_recorded_compiled_is_done():
+    assert not arm.stage_needs_retry(ok(18), missing=[])
 
 
-def test_a_stage_that_left_documents_uncompiled_is_retried():
+def test_a_stage_with_a_member_the_kb_never_recorded_is_retried():
     """Stage 2's real history: 18 staged, 16 compiled across three passes."""
-    assert arm.stage_needs_retry(ok(14), compiled_so_far=14, staged=18)
-
-
-def test_errors_are_a_retry_even_when_the_count_is_complete():
-    assert arm.stage_needs_retry(ok(18, errors=["boom"]), compiled_so_far=18,
-                                 staged=18)
+    assert arm.stage_needs_retry(ok(14), missing=["raw/a.md", "raw/b.md"])
 
 
 def test_a_protocol_failure_is_a_retry():
     assert arm.stage_needs_retry({"ok": False, "error": {"code": "X"}},
-                                 compiled_so_far=0, staged=18)
+                                 missing=[])
 
 
-def test_progress_is_counted_across_a_stage_attempts_not_within_one():
-    """A retry compiles only what is left, so its own ``compiled`` is small by
-    construction -- reading it alone would retry a stage that had just finished.
+def test_errors_about_other_documents_do_not_retry_a_finished_stage():
+    """A compile recomposes earlier stages' residual too, so its ``errors`` list
+    can be entirely about documents this stage never staged. An error on a member
+    of this stage leaves that member missing, which is what forces the retry --
+    so ``missing`` is the trigger and the errors are recorded rather than acted on.
     """
-    assert not arm.stage_needs_retry(ok(4), compiled_so_far=18, staged=18)
+    assert not arm.stage_needs_retry(ok(18, errors=[{"file": "raw/old.md"}]),
+                                     missing=[])
+
+
+def test_progress_is_read_by_name_so_a_retry_does_not_look_like_a_shortfall():
+    """A retry compiles only what is left, so its own ``compiled`` is small by
+    construction -- reading it would retry a stage that had just finished.
+    """
+    assert not arm.stage_needs_retry(ok(4), missing=[])
+
+
+def test_the_shortfall_is_the_members_the_state_has_no_compiled_at_for():
+    state = {"raw/a.md": {"compiled_at": "2026-08-19T00:00:00"},
+             # completed some ops and then failed: the shape gate 2 re-queues
+             "raw/b.md": {"completed_ops": ["wiki/x.md"]},
+             "raw/c.md": {"compiled_at": None}}
+
+    assert arm.stage_shortfall(["raw/a.md", "raw/b.md", "raw/c.md", "raw/d.md"],
+                               state) == ["raw/b.md", "raw/c.md", "raw/d.md"]
 
 
 # ── the run: sequence, retry-in-place, residual, spend ────────────────
 
-def hooks(events, responses, wait=True):
-    """Record the order of everything the arm does, and answer its compiles."""
+def hooks(events, responses, *, compiled=None, wait=True):
+    """Record the order of everything the arm does, and answer its compiles.
+
+    ``compiled`` is what the KB's compile state reports after each attempt, as a
+    list of path lists. That -- not the compile's own count -- is what decides
+    whether a stage finished, so the fake has to model it.
+    """
+    recorded: set[str] = set()
+    progress = list(compiled or [])
+
+    def compile_stage(stage, attempt):
+        events.append(f"compile{stage}.{attempt}")
+        if progress:
+            recorded.update(progress.pop(0))
+        return responses.pop(0)
+
     return arm.Hooks(
-        materialize=lambda stage, members: events.append(f"stage{stage}", ),
+        materialize=lambda stage, members: events.append(f"stage{stage}"),
         wait=lambda: (events.append("wait"), wait)[1],
-        compile=lambda stage, attempt: (events.append(f"compile{stage}.{attempt}"),
-                                        responses.pop(0))[1],
+        compile=compile_stage,
         snapshot=lambda stage: events.append(f"snap{stage}"),
+        compile_state=lambda: {rel: {"compiled_at": "2026-08-19T00:00:00"}
+                               for rel in recorded},
     )
 
 
 def test_each_stage_is_staged_waited_compiled_and_snapshotted_in_that_order():
     events: list[str] = []
     report = arm.run_arm([["raw/a1.md"], ["raw/a2.md"]],
-                         hooks(events, [ok(1), ok(1)]), log=lambda _m: None)
+                         hooks(events, [ok(1), ok(1)],
+                               compiled=[["raw/a1.md"], ["raw/a2.md"]]),
+                         log=lambda _m: None)
 
     assert events == ["stage1", "wait", "compile1.1", "snap1",
                       "stage2", "wait", "compile2.1", "snap2"]
@@ -218,39 +259,80 @@ def test_a_failed_stage_is_retried_before_the_next_stage_is_staged():
     """
     events: list[str] = []
     arm.run_arm([["raw/a1.md", "raw/b1.md"], ["raw/a2.md"]],
-                hooks(events, [ok(1), ok(1), ok(1)]), log=lambda _m: None)
+                hooks(events, [ok(1), ok(1), ok(1)],
+                      compiled=[["raw/a1.md"], ["raw/b1.md"], ["raw/a2.md"]]),
+                log=lambda _m: None)
 
     assert events == ["stage1", "wait", "compile1.1", "wait", "compile1.2",
                       "snap1", "stage2", "wait", "compile2.1", "snap2"]
 
 
 def test_a_retry_that_finishes_the_stage_leaves_no_residual():
-    """The stage's progress is the sum of its attempts. Reading the retry's own
-    ``compiled`` instead would record a residual for a stage that had completed --
-    and stage 2 of the baseline arm took three passes, so this is the normal case.
-    """
     report = arm.run_arm([["raw/a1.md", "raw/b1.md"]],
-                         hooks([], [ok(1), ok(1)]), log=lambda _m: None)
+                         hooks([], [ok(1), ok(1)],
+                               compiled=[["raw/a1.md"], ["raw/b1.md"]]),
+                         log=lambda _m: None)
 
     assert report["stages"][0]["compiled"] == 2
     assert report["residual"] == []
 
 
+def test_a_stage_is_not_done_because_another_stages_leftovers_compiled():
+    """The defect a count-based completion test has, and it is not hypothetical.
+    ``compiled`` is KB-wide: gate 2 (compile.py:312-317) re-queues every document
+    whose state carries no ``compiled_at``, so stage 3's compile also recomposes
+    stage 2's residual. The baseline left 2 documents residual in stage 2 and
+    stages 3 and 4 stage exactly 1 document each -- so a count of 3 against 1
+    staged would declare stage 3 done on another stage's work, with no retry and
+    nothing in the report.
+    """
+    events: list[str] = []
+    report = arm.run_arm(
+        [["raw/p3.md"]],
+        hooks(events, [ok(3), ok(2)],
+              compiled=[["raw/left1.md", "raw/left2.md"], ["raw/left1.md"]]),
+        attempts=2, log=lambda _m: None)
+
+    assert events.count("compile1.1") == 1 and events.count("compile1.2") == 1
+    assert report["residual"] == [{"stage": 1, "staged": 1, "compiled": 0,
+                                   "missing": ["raw/p3.md"], "failures": []}]
+
+
 def test_one_retry_only_and_the_shortfall_is_recorded_not_raised():
     events: list[str] = []
     report = arm.run_arm([["raw/a1.md", "raw/b1.md"]],
-                         hooks(events, [ok(0), ok(1)]), log=lambda _m: None)
+                         hooks(events, [ok(0), ok(1)], compiled=[[], ["raw/a1.md"]]),
+                         attempts=2, log=lambda _m: None)
 
     assert events.count("compile1.1") == 1 and events.count("compile1.2") == 1
-    assert report["residual"] == [{"stage": 1, "staged": 2, "compiled": 1}]
+    assert report["residual"] == [{"stage": 1, "staged": 2, "compiled": 1,
+                                   "missing": ["raw/b1.md"], "failures": []}]
     assert report["stages"][0]["attempts"] == 2
+
+
+def test_the_attempt_ceiling_is_configurable_because_the_baseline_needed_three():
+    """Stage 2 of the baseline reached 16 of 18 over three passes (5.99 + 2.36 +
+    0.03 USD), driven by hand from three separate recovery scripts. Giving the A1
+    arm strictly fewer attempts than the baseline got would confound FX7, so the
+    ceiling is a recorded knob rather than a constant.
+    """
+    events: list[str] = []
+    arm.run_arm([["raw/a1.md"]], hooks(events, [ok(0), ok(0), ok(1)],
+                                       compiled=[[], [], ["raw/a1.md"]]),
+                attempts=3, log=lambda _m: None)
+
+    assert [e for e in events if e.startswith("compile")] == ["compile1.1",
+                                                             "compile1.2",
+                                                             "compile1.3"]
 
 
 def test_spend_accumulates_over_every_attempt_of_every_stage():
     report = arm.run_arm([["raw/a1.md", "raw/b1.md"], ["raw/a2.md"]],
                          hooks([], [ok(1, cost=2.5, calls=30),
                                     ok(1, cost=0.5, calls=6),
-                                    ok(1, cost=1.0, calls=12)]),
+                                    ok(1, cost=1.0, calls=12)],
+                               compiled=[["raw/a1.md"], ["raw/b1.md"],
+                                         ["raw/a2.md"]]),
                          log=lambda _m: None)
 
     assert report["cost_usd"] == pytest.approx(4.0)
@@ -265,16 +347,48 @@ def test_an_endpoint_that_never_returns_aborts_before_spending():
     assert events == ["stage1", "wait"]
     assert report["blocked_at_stage"] == 1
     assert report["cost_usd"] == 0.0
+    assert report["residual"] == [{"stage": 1, "staged": 1, "compiled": 0,
+                                   "missing": ["raw/a1.md"], "failures": []}]
 
 
 def test_a_protocol_failure_leaves_the_error_on_the_stage_record():
     report = arm.run_arm([["raw/a1.md"]],
                          hooks([], [{"ok": False, "error": {"code": "NO_KEY"}},
                                     {"ok": False, "error": {"code": "NO_KEY"}}]),
-                         log=lambda _m: None)
+                         attempts=2, log=lambda _m: None)
 
     assert report["stages"][0]["failures"] == ["NO_KEY", "NO_KEY"]
-    assert report["residual"] == [{"stage": 1, "staged": 1, "compiled": 0}]
+    assert report["residual"] == [{"stage": 1, "staged": 1, "compiled": 0,
+                                   "missing": ["raw/a1.md"],
+                                   "failures": ["NO_KEY", "NO_KEY"]}]
+
+
+def test_a_stage_that_recovered_records_its_failures_without_a_shortfall():
+    """A residual keyed on a shortfall must not claim one that did not happen: the
+    first attempt's failure is worth keeping, and ``missing`` empty is what says
+    the stage finished anyway.
+    """
+    report = arm.run_arm([["raw/a1.md"]],
+                         hooks([], [{"ok": False, "error": {"code": "TIMEOUT"}},
+                                    ok(1)], compiled=[[], ["raw/a1.md"]]),
+                         log=lambda _m: None)
+
+    assert report["residual"] == []
+    assert report["stages"][0] == {"stage": 1, "staged": 1, "compiled": 1,
+                                   "attempts": 2, "failures": ["TIMEOUT"],
+                                   "missing": [], "errors": []}
+
+
+def test_per_document_compile_errors_are_kept_on_the_stage_record():
+    """The baseline's write history had to be reconstructed by hand from driver log
+    lines, because only counts were kept. These entries carry file and reason.
+    """
+    failure = {"file": "raw/a1.md", "error": "write timeout after 3 attempts"}
+    report = arm.run_arm([["raw/a1.md"]],
+                         hooks([], [ok(0, errors=[failure]), ok(0, errors=[failure])]),
+                         attempts=2, log=lambda _m: None)
+
+    assert report["stages"][0]["errors"] == [failure, failure]
 
 
 # ── the real side effects ──────────────────────────────────────────────
@@ -353,6 +467,39 @@ def test_unparseable_stdout_is_a_failure_the_stage_can_retry(tmp_path,
     assert runner(1, 2)["error"]["code"] == "UNPARSEABLE_RESPONSE"
 
 
+def test_a_base_url_with_no_scheme_stops_the_arm_instead_of_waiting_it_out(
+        monkeypatch):
+    """A config error is not an outage: waiting the deadline out for it would burn
+    fifteen minutes and then abort with a misleading reason.
+    """
+    with pytest.raises(SystemExit):
+        arm._endpoint_probe("gw.example/v1", "k")()
+
+
+def test_a_half_written_state_file_reads_as_nothing_compiled(tmp_path):
+    """The safe direction: an unreadable state file retries the stage rather than
+    declaring it finished on no evidence.
+    """
+    (tmp_path / ".compile-state.json").write_text('{"raw/a.md": ', encoding="utf-8")
+
+    assert arm._compile_state_reader(tmp_path)() == {}
+
+
+def test_a_state_file_holding_a_list_is_not_read_as_a_map(tmp_path):
+    (tmp_path / ".compile-state.json").write_text("[]", encoding="utf-8")
+
+    assert arm._compile_state_reader(tmp_path)() == {}
+
+
+def test_the_state_reader_returns_what_the_compile_recorded(tmp_path):
+    (tmp_path / ".compile-state.json").write_text(
+        json.dumps({"raw/a.md": {"compiled_at": "2026-08-19T00:00:00"}}),
+        encoding="utf-8")
+
+    assert arm.stage_shortfall(["raw/a.md", "raw/b.md"],
+                               arm._compile_state_reader(tmp_path)()) == ["raw/b.md"]
+
+
 def test_each_stage_snapshot_is_a_separate_copy_of_wiki(tmp_path):
     """Size is defined against the pre-run article, so one snapshot per stage is
     the whole point -- a single directory overwritten each time measures nothing.
@@ -389,11 +536,14 @@ def test_the_plan_names_every_stage_and_spends_nothing(tmp_path, capsys):
                           encoding="utf-8")
 
     code = arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
-                     "--cases", str(cases_path)])
+                     "--cases", str(cases_path), "--workers", "4"])
 
     out = capsys.readouterr()
     assert code == 0
     assert "stage 1: +1 document" in out.out and "stage 2: +1 document" in out.out
+    # The printed command has to be the command --execute runs: an operator who
+    # pastes it without a worker count gets compile.py's default of 16 instead.
+    assert '"workers": 4' in out.out
     assert not (tmp_path / "arm").exists()
 
 
@@ -447,12 +597,199 @@ def test_an_executed_arm_leaves_its_cases_file_and_its_report_on_disk(
     assert json.loads((logs / "arm-report.json").read_text())["cost_usd"] == 3.5
 
 
-def test_the_out_directory_may_not_be_under_tmp(tmp_path):
-    """The one lesson the lost arm cost 18 USD to learn."""
+@pytest.mark.parametrize("out", ["/tmp/kaas-a1", "/private/tmp/kaas-a1",
+                                 "/tmp/./kaas-a1", "/tmp/../tmp/kaas-a1",
+                                 "../../../../../../../../tmp/kaas-a1"])
+def test_the_out_directory_may_not_be_under_tmp(tmp_path, out):
+    """The one lesson the lost arm cost 18 USD to learn. The relative spelling is
+    the one a literal prefix check misses, and it names the same directory.
+    """
     write(tmp_path / "raw" / "a1.md")
     cases_path = tmp_path / "cases.json"
     cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
 
     with pytest.raises(SystemExit):
-        arm.main(["--fixture", str(tmp_path), "--out", "/tmp/kaas-a1",
+        arm.main(["--fixture", str(tmp_path), "--out", out,
                   "--cases", str(cases_path)])
+
+
+def test_the_out_directory_may_not_be_the_per_user_temp_directory(tmp_path,
+                                                                  monkeypatch):
+    """macOS clears ``$TMPDIR`` on its own schedule, which is the same failure the
+    ``/tmp`` clear already cost this branch once.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", str(tmp_path)))
+
+    with pytest.raises(SystemExit):
+        arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                  "--cases", str(cases_path)])
+
+
+def test_a_directory_that_merely_starts_with_the_same_letters_is_fine(tmp_path):
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+
+    assert arm.main(["--fixture", str(tmp_path), "--out", "/tmpfoo/arm",
+                     "--cases", str(cases_path)]) == 0
+
+
+# ── the executed arm, wired for real ──────────────────────────────────
+
+def execute(tmp_path, monkeypatch, *, responses, extra=()):
+    """Run ``main --execute`` with only the gateway faked out.
+
+    Everything else is real: the fixture is staged by ``stage_fixture.materialize``
+    into a real KB, the snapshots are real copies, and the compile state is a real
+    file. An argument swapped between ``fixture`` and ``kb`` would copy an empty KB
+    over the fixture, which no test with ``run_arm`` monkeypatched can see.
+    """
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_endpoint_probe", lambda *_a: (lambda: True))
+
+    kb = tmp_path / "arm" / "kb"
+    answers = list(responses)
+
+    def fake_compile(_cmd, **_kwargs):
+        """Stand in for the compile: write what a compile would leave behind."""
+        if _cmd[0] == "git":  # _arm_config reads the arm's own SHA
+            return subprocess.CompletedProcess(_cmd, 0, stdout="abc1234\n",
+                                               stderr="")
+        response, compiled = answers.pop(0)
+        state = json.loads((kb / ".compile-state.json").read_text()) \
+            if (kb / ".compile-state.json").exists() else {}
+        for rel in compiled:
+            state[rel] = {"checksum": "c", "compiled_at": "2026-08-19T00:00:00"}
+            (kb / "wiki").mkdir(parents=True, exist_ok=True)
+            (kb / "wiki" / "article.md").write_text(
+                f"sources: {sorted(state)}\n", encoding="utf-8")
+        (kb / ".compile-state.json").write_text(json.dumps(state),
+                                                encoding="utf-8")
+        return subprocess.CompletedProcess(_cmd, 0, stdout=json.dumps(response),
+                                           stderr="")
+
+    monkeypatch.setattr(arm.subprocess, "run", fake_compile)
+    code = arm.main(["--fixture", str(tmp_path / "fixture"),
+                     "--out", str(tmp_path / "arm"), "--execute", *extra])
+    return code, tmp_path / "arm"
+
+
+def fixture_of(tmp_path, *rels):
+    for rel in rels:
+        write(tmp_path / "fixture" / rel, f"---\ntitle: {rel}\n---\nbody\n")
+    cases = tmp_path / "cases.json"
+    cases.write_text(json.dumps([case(list(rels))]), encoding="utf-8")
+    return ["--cases", str(cases)]
+
+
+def test_an_executed_arm_stages_each_version_into_the_kb_the_last_stage_wrote(
+        tmp_path, monkeypatch):
+    """FX2's whole point: stage 2 must merge into the article stage 1 wrote, so the
+    KB accumulates rather than being rebuilt, and the fixture is never written to.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md", "raw/a2.md")
+
+    code, out = execute(tmp_path, monkeypatch, extra=cases_arg, responses=[
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 1.0, "calls": 5}}},
+         ["raw/a1.md"]),
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 2.0, "calls": 7}}},
+         ["raw/a2.md"]),
+    ])
+
+    assert code == 0
+    assert sorted(p.name for p in (out / "kb" / "raw").iterdir()) == ["a1.md",
+                                                                     "a2.md"]
+    assert sorted(p.name for p in (tmp_path / "fixture" / "raw").iterdir()) == [
+        "a1.md", "a2.md"]  # the fixture is read-only to an arm
+    assert (out / "logs" / "stage1-wiki").is_dir()
+    assert (out / "logs" / "stage2-wiki" / "article.md").read_text() != \
+        (out / "logs" / "stage1-wiki" / "article.md").read_text()
+
+
+def test_the_report_describes_the_arm_and_not_only_its_totals(tmp_path,
+                                                              monkeypatch):
+    """FX7 compares the A1 arm against a written baseline whose worker count and
+    models are unrecoverable. This arm's own record has to be self-describing.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+
+    _code, out = execute(tmp_path, monkeypatch, extra=[*cases_arg, "--workers", "4"],
+                         responses=[
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 1.0, "calls": 5}}},
+         ["raw/a1.md"]),
+    ])
+
+    report = json.loads((out / "logs" / "arm-report.json").read_text())
+    assert report["config"]["workers"] == 4
+    assert report["config"]["attempts"] == arm._ATTEMPTS_PER_STAGE
+    assert report["config"]["repo_head"]  # the code that wrote the articles
+    assert report["config"]["fixture"].endswith("fixture")
+
+
+def test_the_report_survives_a_stage_that_never_finishes(tmp_path, monkeypatch):
+    """Written per stage, not once at the end: a crash or a Ctrl-C mid-arm must not
+    take the record of the stages already paid for.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md", "raw/a2.md")
+    monkeypatch.setattr(arm, "run_arm", _exploding_run_arm)
+
+    with pytest.raises(RuntimeError):
+        execute(tmp_path, monkeypatch, extra=cases_arg, responses=[])
+
+    report = json.loads(
+        (tmp_path / "arm" / "logs" / "arm-report.json").read_text())
+    assert report["stages"][0]["compiled"] == 1
+    assert report["cost_usd"] == 1.25
+
+
+def _exploding_run_arm(_staged, _hooks, *, attempts=2, log=print, on_stage=None):
+    """One stage lands and is checkpointed, then the arm dies."""
+    report = {"stages": [{"stage": 1, "staged": 1, "compiled": 1, "attempts": 1,
+                          "failures": [], "missing": [], "errors": []}],
+              "cost_usd": 1.25, "calls": 9, "residual": [],
+              "blocked_at_stage": None}
+    if on_stage:
+        on_stage(report)
+    raise RuntimeError("endpoint died mid-arm")
+
+
+def test_a_second_run_into_a_used_directory_is_refused(tmp_path, monkeypatch):
+    """``materialize`` is additive and the report is written by name, so a re-run
+    resumes on top of old state, overwrites the previous report and merges into the
+    old snapshots -- silently, and after the first run's spend is already gone.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+    (tmp_path / "arm" / "kb" / "raw").mkdir(parents=True)
+    write(tmp_path / "arm" / "kb" / "raw" / "a1.md")
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+
+    def must_not_run(*_a, **_kw):
+        raise AssertionError("a used --out must be refused before any spend")
+
+    monkeypatch.setattr(arm, "run_arm", must_not_run)
+
+    assert arm.main(["--fixture", str(tmp_path / "fixture"), *cases_arg,
+                     "--out", str(tmp_path / "arm"), "--execute"]) == 1
+
+
+def test_resume_is_how_a_blocked_arm_is_continued(tmp_path, monkeypatch):
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+    (tmp_path / "arm" / "kb" / "raw").mkdir(parents=True)
+    write(tmp_path / "arm" / "kb" / "raw" / "a1.md")
+
+    code, _out = execute(tmp_path, monkeypatch, extra=[*cases_arg, "--resume"],
+                         responses=[
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 0.1, "calls": 2}}},
+         ["raw/a1.md"]),
+    ])
+
+    assert code == 0
