@@ -27,6 +27,7 @@ So three numbers decide it, and the rest of the record is context:
 | Staleness, gating (lower is better) | 24 of 40 (60%) | **19 of 40 (47.5%)** | improved by 5 rows, **not cleared** |
 | False positives, N1–N4 | 0 of 4 | **0 of 4** | negatives not tripped |
 | Double counts, U1–U4 | 0 of 4 | **0 of 4** | negatives not tripped |
+| In force, gating (V39, ruled after this verdict) | n/a, articles gone | **28 of 40** (18 same-article, 10 split) | not an input — **and it agrees**, see [the bound](#what-the-arm-did-instead-of-clearing-the-column) |
 
 Nineteen labelled contradictions still state a superseded value as current in the articles
 A1 produced. That is the whole verdict on the gate: an article that says the 2026 phase 3
@@ -127,19 +128,40 @@ each correctly sourced, with nothing saying which is in force — so against D1 
 than the shape NG2 warned about, on the same rows the column scores clean.
 
 **So the 5-row improvement is partly an artefact of what the column measures**, and how much
-of it cannot be established now. If a basis-labelled parallel presentation counted as stale,
-A1's total would rise to roughly 36 of 40 and the baseline's to roughly 34: the arms become
-indistinguishable and the advantage disappears. That estimate is read off the two scoring
-records and not off the articles — P7's eight rows are all dated snapshots, P10's seven clean
-rows are all inside version-labelled sections, P5's five sit in one `Version Comparison`
-table, and P3 has two named-basis rows among its four clean ones.
+of it cannot be established as a comparison. If a basis-labelled parallel presentation counted
+as stale, A1's total would rise to roughly 36 of 40 and the baseline's to roughly 34: the arms
+become indistinguishable and the advantage disappears. That estimate was read off the two
+scoring records and not off the articles — P7's eight rows are all dated snapshots, P10's seven
+clean rows are all inside version-labelled sections, P5's five sit in one `Version Comparison`
+table, and P3 has two named-basis rows among its four clean ones. **A1's half of it has since
+been measured on the articles and is 32 of 40, not 36** (V39, below); the baseline's 34 is
+still the estimate written here.
 
-**It cannot be settled.** The A1 arm's articles survive in `~/kaas-arms/a1` and could be
-re-read; the baseline's
+**It cannot be settled as a comparison.** The A1 arm's articles survive in `~/kaas-arms/a1`
+and could be re-read; the baseline's
 [no longer exist](scoring.md#the-scored-arm-no-longer-exists-on-disk). A criterion that can
-only be applied to one side of a comparison cannot be applied to the comparison, so it is
-recorded as a bound on the figure rather than raised as a ruling. It is also the case for A2's
-arm: that is where both sides can be read against one rubric.
+only be applied to one side of a comparison cannot be applied to the comparison. It is also
+the case for A2's arm: that is where both sides can be read against one rubric.
+
+**Ruled the same day as V39, and the shape of the ruling is what protects this verdict.**
+The bound became a **new column rather than a stricter Staleness**
+([the criterion](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing)):
+`In force` fails a row whose two values are both stated with nothing resolving which one
+holds. Re-reading Staleness would have thrown away the one measured comparison this branch
+owns; adding a column keeps 24 against 19 intact and states the gap where the gap is.
+Measured on the A1 arm's surviving articles, In force reads **28 of 40** — 18 inside a single
+article, 10 across a chain the classifier split — and the strict `Staleness ∪ In force`
+reading is **32 of 40**, replacing the "roughly 36" estimated above. The baseline stays
+`n/a` on that column for good.
+
+Two things follow for this verdict, and neither changes it:
+
+- **The pass/fail answer is unchanged and now doubly supported.** A1 fails both gating
+  columns. The second column agrees about the answer and disagrees about the margin.
+- **The five-row Staleness advantage is confirmed as partly an artefact of the rubric, and
+  the artefact is now visible instead of estimated.** Thirteen rows are clean on Staleness and
+  fail In force — P10's seven, P7's four, two of P3's — which are exactly the rows this section
+  argued were clean for the wrong reason.
 
 ## What A2 has to answer, taken from the failure map
 
@@ -151,11 +173,12 @@ prescribes a mechanism:
    Related line. P4's three writer-owned survivors are DDL cells copied verbatim from a v2
    table into a table headed v3. A replace primitive that reaches prose and not these three
    surfaces leaves most of the remaining failure standing.
-2. **Self-contradiction inside one article, which has no column.** P3-C1, C4, C5 and C6 each
-   state the correct value in one place and the superseded one in another, both in the
-   present tense, with no ordering between them. The baseline's dominant failure was stating
-   the old value; this arm's is stating both. `Staleness` records it as one stale row and
-   cannot see that the correct value is also there.
+2. **Self-contradiction inside one article, which had no column and now has one.** P3-C1, C4,
+   C5 and C6 each state the correct value in one place and the superseded one in another, both
+   in the present tense, with no ordering between them. The baseline's dominant failure was
+   stating the old value; this arm's is stating both. `Staleness` records it as one stale row
+   and cannot see that the correct value is also there — **V39's `In force` can**, and it
+   fails C1 and C5 despite each carrying a correct directional statement.
 3. **Version-split chains, which A1 does not own and A2 does not either as specified.**
    Eleven of the nineteen rows are here, and in these two cases a trail is *impossible* —
    16 of the 45 contradiction rows sit in chains no single article sees both halves of. A2's
@@ -200,8 +223,12 @@ and it has no owner on this branch.
   to reason over exactly the dates and per-source blocks A1 introduces — and it improved
   four columns while regressing none, at 3.6 USD less than the baseline, in four clean
   stages, with both FX4 write defects absent.
-- **A2's rubric needs work before its arm runs, not after.** Coequal presentation with a
-  named basis currently scores clean on the gating column. If A2 ships D1's trail and is
-  scored on the same column against the same rubric, its result will not be distinguishable
-  from A1's on the rows that matter most. The place to fix that is
-  [test-set.md's Scoring table](test-set.md#scoring), before spending on a second arm.
+- **A2's rubric needed work before its arm ran, and it is done.** Coequal presentation with a
+  named basis scored clean on the gating column, so had A2 shipped D1's trail and been scored
+  on the same two columns, its result would not have been distinguishable from A1's on the rows
+  that matter most. Fixed in
+  [test-set.md's Scoring table](test-set.md#scoring) on 2026-08-19 as **V39**, before any spend
+  on a second arm: `In force` is a third gating column, it fails both varieties of coequal
+  presentation, and it fails a row where the article states the direction in one place and
+  asserts the superseded value as current in another — which is also the answer to item 2 of
+  the failure map above. A2's arm is scored on Staleness, In force and Trail, all three.

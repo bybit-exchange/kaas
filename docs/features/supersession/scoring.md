@@ -65,6 +65,7 @@ P5, reported apart under V21: **0 of 5**, and not by luck — see
 | False positive | **0 of 4** | N1–N4 all clean |
 | Double count | **0 of 4** | U1–U4 all clean, no marker between byte-identical documents |
 | Size | **not measurable on this arm** | no per-stage `wiki/` snapshot was taken, and the A1 driver now takes them; see [Size](#size-is-unmeasurable-on-the-baseline-and-the-a1-arm-records-it-anyway) |
+| In force (V39) | **permanently unscorable on this arm** | the column was ruled 2026-08-19, after [this arm's articles were deleted](#the-scored-arm-no-longer-exists-on-disk). It asks whether both values of a contradiction are stated with nothing resolving which holds, which cannot be answered from a scored record — only from the article. The A1 arm reads 28 of 40 ([scoring-a1.md](scoring-a1.md#in-force-measured-2026-08-19-on-the-surviving-articles)); the estimate for this arm is that a strict reading puts it near 34 of 40, and **it stays an estimate**. This is the one place where the `/tmp` clear cost the comparison a column rather than a row |
 
 P1 (drop, does not gate): **stale**, four occurrences of the ~140-user figure across
 its two articles, correction landed, no trail. Confound-free — both articles declare
@@ -231,7 +232,10 @@ endpoints.
 
 ## Failure modes the label set has no column for
 
-Recorded because each was found in the arm and none of them scores:
+Recorded because each was found in the arm and none of them scores. **One has since acquired
+a column**: intra-article self-contradiction is a failure of
+[V39's `In force`](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing), ruled
+2026-08-19 — too late to score this arm, which is why the row stays here.
 
 | Mode | Instance |
 |---|---|
@@ -314,7 +318,7 @@ What survives, and it is enough to run the A1 arm:
 
 | Artifact | State |
 |---|---|
-| `data/kb-supersession-fixture/` | present, 38 raw documents — the staged corpus itself, and **now the last unversioned load-bearing artifact on this branch**: `data/` is gitignored, so if it goes the way `/tmp` went, the A1 arm is unrunnable and the 18-chains-over-38-documents claim is unverifiable. It holds internal corpus and cannot be committed, so it needs a backup outside this checkout, recorded in the ledger |
+| `data/kb-supersession-fixture/` | present, 38 raw documents — the staged corpus itself, and the last unversioned load-bearing artifact on this branch: `data/` is gitignored, so if it goes the way `/tmp` went, the A1 arm is unrunnable and the 18-chains-over-38-documents claim is unverifiable. It holds internal corpus and cannot be committed. **Backed up 2026-08-19** to `~/kaas-arm-backups/2026-08-19/`, together with the A1 arm, both verified byte-for-byte against disk; the copies are on the same laptop, which covers a volatile-directory sweep and not disk loss |
 | `data/kb-knowledge/` | present, 997 raw / 682 wiki — the source corpus, and the articles [labels.md](labels.md) scored, so **the label pass's evidence base is intact** |
 | `py/scripts/stage_fixture.py`, `select_cases.py`, `audit_articles.py` | committed |
 | `bd8252e` | in git, so the pre-A1 worktree is recreatable |
@@ -364,11 +368,13 @@ than optional. V36 scores a distributed chain on the union; its alternative tota
 not the 13 recorded here before it was ruled, which had applied the alternative to P4 and not
 to P9.
 
-**This arm's loss now bounds a question rather than only a re-read.** A1's advantage on the
+**This arm's loss now costs a column rather than only a re-read.** A1's advantage on the
 gating column rests on basis-labelled coequal presentation scoring clean; under a strict
-reading both arms land near 34–36 of 40. That criterion can be applied to the A1 arm's
-surviving articles and never to these, so it cannot be applied to the comparison — which is
-the verdict's strongest argument for settling the rubric before A2's arm is bought.
+reading both arms land near 34–36 of 40. The rubric was settled on that point before A2's arm
+was bought — **V39, ruled 2026-08-19, adds `In force` as a third gating column** — and it was
+added *beside* Staleness rather than replacing it precisely so that this arm's published
+figures survive their articles. The A1 arm is scored on it at 28 of 40 and this arm cannot be:
+the strict reading is a measurement on one side and an estimate on the other, permanently.
 
 ## What this measurement changed in other documents
 

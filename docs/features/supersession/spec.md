@@ -3,7 +3,10 @@
 Date: 2026-08-12
 Slug: `supersession`
 Status: A1 implemented and measured; **FX7 is decided against it, so A2 is required rather
-than optional** — the verdict is [verdict-fx7.md](verdict-fx7.md). D1–D5 settled (D1 and D2 in
+than optional** — the verdict is [verdict-fx7.md](verdict-fx7.md). The one precondition that
+verdict named for A2's arm is closed: **the scoring rubric gained a third gating column,
+`In force`, ruled as V39 on 2026-08-19**, so a trail and a basis-labelled parallel
+presentation no longer score alike. D1–D5 settled (D1 and D2 in
 [design-options.md](design-options.md) on 2026-08-10; the trigger condition, the
 A1/A2 split, D3, D4 and D5 on 2026-08-12). A2 is sketched in
 [Non-goals](#non-goals) and specified separately.
@@ -738,7 +741,10 @@ path A.
   rulings it opened, all settled 2026-08-19, is in [scoring.md](scoring.md).**
   **The A1 arm is scored, 2026-08-19: 19 of 40 (47.5%) on the gating column, 38 of 45
   corrections landed, Trail 5 of 45, drops 29 of 41, collateral 41 of 42, false positives
-  and double counts both 0 — the full record is in [scoring-a1.md](scoring-a1.md).** It ran
+  and double counts both 0 — the full record is in [scoring-a1.md](scoring-a1.md).**
+  **It is also scored on the column V39 added the same day: In force 28 of 40**, 18 of them
+  inside a single article and 10 across a chain the classifier split, which makes the strict
+  `Staleness ∪ In force` reading 32 of 40 on this arm and leaves the baseline unscorable there. It ran
   at 14.3873 USD over 185 calls, four stages each finishing on its first attempt with no
   residual. A1 improves every failure column and loses the one positive column. **The four
   rulings it opened (V35–V38) are all settled 2026-08-19, every one at its drafted position**,
@@ -844,7 +850,9 @@ path A.
   Per-source blocks alter every new article, not only corrections.
 - **FX7.** A1 is judged on Staleness over `superseded-contradiction` across FX4's
   baseline and the post-A1 run. Clearing those positives without tripping N1–N4 is
-  what makes A2 optional rather than assumed. Staleness (drop) moving is reported
+  what makes A2 optional rather than assumed. **Since V39 (2026-08-19) clearing the positives
+  means both gating columns — Staleness and In force — and the A1 verdict below was taken on
+  Staleness alone**, which cost it nothing: A1 fails both. Any later arm is judged on both. Staleness (drop) moving is reported
   as a finding about A2's RP1 arm and does not enter the verdict either way, so a
   run that clears the contradictions and leaves every drop stale still passes.
   **The baseline side of the comparison is a written record, not a readable tree** — its
@@ -868,12 +876,22 @@ path A.
   it is applied (P7 0 of 8, P10 0 of 7, P5 0 of 5) and earns no Trail, so the arm's best cases
   read `(Staleness 0, Trail 0)` — **coequal presentation**, the shape D1 rejects in terms and
   worse against D1 than the latest-wins NG2 predicted, because the reader is left both values.
-  How much of the five-row improvement that costs cannot be established: if a basis-labelled
-  presentation counted as stale both arms land near 34–36 of 40, and the criterion can be
-  applied to this arm's surviving articles but not to the baseline's, so it cannot be applied
-  to the comparison. **That asymmetry is the strongest argument for A2's arm**, where both
-  sides can be read against one rubric — and fixing the rubric belongs before that spend, not
-  after it.
+  How much of the five-row improvement that costs cannot be established as a comparison: if a
+  basis-labelled presentation counted as stale both arms land near 34–36 of 40, and the
+  criterion can be applied to this arm's surviving articles but not to the baseline's.
+  **That asymmetry is the strongest argument for A2's arm**, where both sides can be read
+  against one rubric — and the rubric was fixed before that spend rather than after it.
+  **The fix is V39, ruled 2026-08-19**: test-set.md's Scoring table gains a third gating
+  column, `In force`, which fails a row whose two values are both stated with nothing
+  resolving which one holds
+  ([the criterion](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing)).
+  It was added as a column rather than as a re-reading of Staleness, deliberately: re-reading
+  Staleness would have replaced a measured comparison with a one-sided one. So every published
+  Staleness figure stands, the A1 arm is scored on the new column at **28 of 40** — 18 inside
+  one article and 10 across a split chain, with the strict `Staleness ∪ In force` reading at
+  32 of 40 — and the baseline is **permanently `n/a`** there. **The verdict does not move**:
+  the second gating column agrees with the first that A1 does not clear the positives, and
+  disagrees only about the margin.
 
 ### VF. Verification
 

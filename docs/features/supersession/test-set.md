@@ -17,7 +17,13 @@ counts as a Trail) against its drafted position. That arm's articles no longer e
 scoring.md is the only record of them. **The A1 arm is scored too — 19 of 40, in
 [scoring-a1.md](scoring-a1.md), with its own four rulings (V35–V38) all settled at their
 drafts — and FX7 is decided: [verdict-fx7.md](verdict-fx7.md) finds that A1 does not clear
-the positives, so A2 is required rather than optional.** Both blocking rulings are settled
+the positives, so A2 is required rather than optional.** That verdict named one thing to fix
+before A2's arm is bought, and it is fixed: **the Scoring table has a third gating column,
+`In force`, ruled as [V39](#v39-in-force--what-it-takes-to-leave-one-value-standing) on
+2026-08-19**, because Staleness and Trail together certified coequal presentation — the shape
+D1 rejects in terms — as a clean latest-wins result. A1 fails the new column at **28 of 40**
+(18 inside one article, 10 across chains the classifier split), which agrees with the verdict
+about the answer and not about the margin. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -513,6 +519,7 @@ Per case, over the produced article:
 | Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
 | Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
 | Trail | any `superseded-contradiction` item present and carrying a **directional supersession statement** about that claim: the article says the older value has been replaced or has stopped being true, and which value stands now. **Ruled V28, 2026-08-19** — see [the criterion](#v28-what-counts-as-a-trail) below. Baseline arm: **7 of 45**; A1 arm: **5 of 45** ([scoring-a1.md](scoring-a1.md)) | — |
+| In force | any `superseded-contradiction` item where **both** its values are stated across the case's articles and nothing resolves which one holds now. **Ruled V39, 2026-08-19** — see [the criterion](#v39-in-force--what-it-takes-to-leave-one-value-standing) below. A1 arm: **28 of 40**, decomposing 18 inside one article and 10 across a split chain; the baseline is permanently unscorable on this column, its articles being gone. **Quote this figure with the column name attached** — `28 of 40` is also the pre-A1 staleness rate the label pass published, and the two numbers coincide by accident | present — this column gates alongside Staleness |
 | Collateral | each `control` item still present | missing |
 | Size | article bytes, against the pre-run article — **not measurable on the baseline as scripted**, since its drivers never snapshotted `wiki/` between stages, so nothing is a pre-run article after stage 1. **Recorded absolutely on the A1 arm**, which snapshots per stage: 311,912 → 464,773 → 467,981 → 468,024 bytes. Not comparable across arms (20 articles against 27) | growth |
 | False positive | on N1–N4, any supersession marker at all | present |
@@ -599,31 +606,46 @@ it is the only number that says whether A2's RP1 arm is worth building: if A1's
 explicit ordering signal happens to clear the drops as well, that arm gets
 cheaper, and nobody learns that from a run that does not look.
 
-Staleness and Trail are separate columns on purpose: that pair is what separates
-the D1 options, and no single score can.
+Staleness, Trail and In force are separate columns on purpose: that triple is what
+separates the D1 options, and no single score can.
 
-- latest-wins: Staleness 0, Trail 0
-- current-plus-trail: Staleness 0, Trail 1
-- article family: two articles, and Trail is not applicable
-- coequal presentation: Trail 0, and **Staleness either way** — the shape the baseline
-  arm produces most often, and the one D1's option list never named. The article states
-  both values and asserts no order between them. Whether it also scores stale depends on
-  how it labels them: a named basis makes the two figures different claims and clears
-  the column (P5 0 of 5, P10 0 of 7), while an unlabelled "the article retains both"
-  leaves the old value stated as current (P4 7 of 10). So this one shape spans both
-  Staleness readings while producing no trail, which is why the pair above needs V28's
-  criterion under it to mean anything.
+| Shape | Staleness | Trail | In force |
+|---|---|---|---|
+| latest-wins | 0 | 0 | clean |
+| current-plus-trail | 0 | 1 | clean |
+| article family | two articles, and Trail is not applicable | — | clean per article |
+| coequal presentation, basis labelled | **0** | 0 | **fails** |
+| coequal presentation, unlabelled | 1 | 0 | **fails** |
 
-  **The A1 arm makes this the load-bearing shape rather than an incidental one**, and it is
-  the finding [verdict-fx7.md](verdict-fx7.md) turns on. A1 moved coequal presentation from
-  its unlabelled variety to its labelled one — attributing each value to its source version —
-  which is what takes P7 from 5 of 8 to 0 of 8 and holds P10 at 0 of 7. The arm's three best
-  cases read `(Staleness 0, Trail 0)`, so **the column now certifies as clean the shape D1
-  exists to reject**, and A1's five-row advantage over the baseline rests on that reading. It
-  cannot be re-scored the other way: the A1 arm's articles survive and the baseline's do not,
-  so a stricter criterion could only be applied to one side. **Fixing this table is a
-  precondition for A2's arm, not a follow-up to it** — under a strict reading both arms land
-  near 34–36 of 40 and the columns stop separating them at all.
+**The pair was Staleness and Trail until 2026-08-19, and the pair could not name the
+row in front of it.** Coequal presentation — the article states both values and asserts
+no order between them — is the shape D1's option list never named and the shape both arms
+produce most often. Under the two columns alone it spans both Staleness readings while
+producing no trail: a named basis makes the two figures different claims and clears the
+gating column (P5 0 of 5, P10 0 of 7), while an unlabelled "the article retains both"
+leaves the old value stated as current (P4 7 of 10). So one shape read as two different
+results, and its labelled variety read as the same result as latest-wins. **In force is
+the third column, ruled as V39**, and it is what makes the triple a discriminator: it
+fails on both varieties of coequal presentation and on nothing else.
+
+**The A1 arm makes coequal presentation the load-bearing shape rather than an incidental
+one**, and it is the finding [verdict-fx7.md](verdict-fx7.md) turns on. A1 moved it from the
+unlabelled variety to the labelled one — attributing each value to its source version —
+which is what takes P7 from 5 of 8 to 0 of 8 and holds P10 at 0 of 7. The arm's three best
+cases read `(Staleness 0, Trail 0)`, so under the two-column rubric **the gating column
+certified as clean the shape D1 exists to reject**, and A1's five-row advantage over the
+baseline rested on that reading. That is what V39 answers, and it was ruled **before A2's
+arm was bought rather than after**: had A2 shipped D1's trail and been scored on the same two
+columns, its result would not have been distinguishable from A1's on the rows that matter
+most.
+
+**V39 does not restate the gating column, and that is deliberate.** Staleness keeps its
+ruled definition and every published figure with it — 24 of 40 on the baseline, 19 of 40 on
+A1 — because re-reading "stated as current" to charge a basis label would replace a measured
+comparison with a one-sided one. The baseline's articles are gone, so a stricter Staleness
+could only ever be applied to the arm that survives. In force is scored on the A1 arm
+(28 of 40) and is **permanently `n/a` on the baseline**, which is a gap the column states
+rather than hides.
 
 #### V28: what counts as a Trail
 
@@ -657,7 +679,9 @@ numbers are what rule it out:
 
 Counting either would leave `(Staleness, Trail)` unable to name the shape in front of
 it, which is the only thing the pair is for. The strict reading is what keeps the column
-load-bearing.
+load-bearing. **The pair still could not name it**, which is what
+[V39](#v39-in-force--what-it-takes-to-leave-one-value-standing) answers: excluding both tiers
+from Trail says what they are not, and the third column says what they are.
 
 **The information is kept, not discarded**: the two weaker tiers are counted in their
 own right in [scoring.md](scoring.md#the-ruling-queue--all-seven-settled), because
@@ -679,22 +703,83 @@ was written to detect. Scoring every conjunct would make Collateral a wording-dr
 meter — it would read 34 of 42 where the propositions read 40 — and collateral damage
 to a descriptor cannot be told apart from a legitimate rewrite at that grain.
 
+#### V39: In force — what it takes to leave one value standing
+
+**Ruled 2026-08-19**, and it is a ruling about the rubric rather than about a case. The
+column asks one question per `superseded-contradiction` row: **is the reader left with one
+value in force?** A row fails when both values are stated and nothing resolves which holds.
+
+The three ways a row passes:
+
+- **Only one value is stated.** Either one. A row carrying the superseded value alone passes
+  In force and fails Staleness; a row carrying the replacement alone passes both. Which value
+  survived is Staleness's question, not this column's.
+- **Both are stated and a directional statement resolves them** — V28's criterion verbatim,
+  so a trail is what resolves a row and no second notion of marking is introduced. P7-C8's
+  「Progress: 50% (as of 20260514; previously 0%)」 is the shape.
+- **Neither value is stated.** The item is not in the article, so there is nothing to be in
+  force. Recorded as absent and not counted as a failure — P4-C10, where both `60%` and `90%`
+  are 0 hits, is the only instance on the A1 arm.
+
+What fails, and it is one thing stated two ways: **both values present, no directional
+statement**. Two tiers of labelling do not rescue it, on V28's own reasoning — they "leave
+the older value asserted and the ordering to the reader":
+
+- **Basis- or version-labelled parallel presentation.** P10's `### V1 Metrics` against
+  `### V2 Metrics`; P5's `Earlier doc (2026-03-13)` / `v3 doc (2026-03-13)` columns; P3-C7's
+  "The earlier distillation design described six scan dimensions" beside the live 8-agent
+  pipeline.
+- **Dated pairs and as-of series.** P7's four progress snapshots, P7-C2's tense-marked
+  「As of 20260430 … had completed 17.6w … As of 20260514 … has completed 44.4w」. **V37 ruled
+  that an as-of stamp does not make a row stale and V38 that a tense-marked dated pair is not
+  a trail; V39 is where those two rulings meet** — such a row is neither stale nor trailed,
+  and before this column it scored as a clean latest-wins result, which it is not.
+
+**Self-contradiction fails too, and this column is the first that can see it.** Where an
+article states the direction in one place and asserts the superseded value as current in
+another, nothing is in force: P3-C1 carries a correct directional statement at L75 and a
+present-tense Key Decision asserting the old cache path at L124–126, and P3-C5 does the same
+at L104–106 against L181–185. Both hold `Trail 1` and both fail In force. The 2026-08-18 pass
+recorded self-contradiction as the failure mode with no column; this is the column.
+
+**A row failing across two articles is reported apart from the one failing inside one.** When
+a chain is split by version, each article can be internally consistent and the case still
+leaves the reader two unordered values — P4's five split rows and all five of P9's. No write
+prompt reaches those: the article asserting the older value never received the newer one, and
+[NG6](spec.md#non-goals) puts classification upstream of this feature. **The gate reads the
+same-article count**; the split count is reported beside it and is the classifier's, exactly
+as the FX7 verdict decomposes Staleness.
+
+**What the column does not do** is re-open Staleness. A row can be clean on Staleness and fail
+In force (13 of the A1 arm's 40), which is the intended reading and not a contradiction: the
+article does not state the superseded value *as current*, and it does not state it as dead
+either. Reading the two columns together gives the strict figure this branch previously carried
+as an estimate — Staleness ∪ In force is **32 of 40 on the A1 arm**, against the "roughly 36"
+that [verdict-fx7.md](verdict-fx7.md) read off the scoring records before the column existed.
+The baseline's "roughly 34" stays an estimate for good.
+
 For D2 the discriminating column is Correction landed on every case with a
 non-empty `replacement` list, with False positive held at 0 on N1–N4. P1 is not
 one of them: a dropped claim has nothing to replace it with, so its Correction
 landed is vacuous and it scores only under Staleness (drop). Path A leaves the
 ordering judgement to the model; path B hands it an explicit claim; path C removes
 the question by recomposing.
-Path A is worth shipping first if and only if it clears the positives without
-tripping the negatives.
+A path is worth shipping first if and only if it clears the positives without tripping the
+negatives, and **clearing the positives means both gating columns**: no `superseded-contradiction`
+item left stated as current (Staleness), and none left with two values and nothing in force
+inside one article (In force, same-article count, ruled V39). Trail is the discriminator
+between the D1 options and does not gate on its own.
 
 **Measured on both arms, and the answer is written into
 [verdict-fx7.md](verdict-fx7.md) (2026-08-19): A1 does not clear them.** It holds the
-negatives at 0 of 4 and 0 of 4 and takes the gating column from 24 to **19 of 40**, better
+negatives at 0 of 4 and 0 of 4 and takes Staleness from 24 to **19 of 40**, better
 than the baseline on every reading of every ruling and clean on none — so D2's condition
 fires and A2 is bought. The gate as phrased here has no threshold under it, and none was
 needed: the band across all four rulings is 8–22 of 40, which does not reach zero at either
-end.
+end. **In force was added after the verdict and does not change it**: A1 fails that column
+too, 18 of 40 inside one article with 10 more across split chains, so the second gating
+column agrees with the first about the answer and disagrees about the margin. The column
+exists for A2's arm, where both sides can be read against one rubric.
 
 Deciding "stated as current" versus "marked as superseded" needs an adjudicator.
 For a set this size, an LLM judge over (labelled item, article) with the human

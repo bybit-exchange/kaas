@@ -74,6 +74,7 @@ No article is unclaimed by some chain.
 | Staleness (gating) | **5 of 9** | 8 of 9 | C1, C4, C5, C6, C9 stale |
 | Correction landed | **8 of 9** | 8 of 9 | C9 missing |
 | Trail (V28 directional) | **3 of 9** | 4 of 9 | C1, C5, C8 |
+| In force (V39) | **6 of 9 fail** | n/a | C1, C2, C4, C5, C6, C7 — all six inside one article, and C1 and C5 fail while carrying a trail |
 | Staleness (drop) | **5 of 5** | 4 of 5 | worse: D4 and D5 leave live residue the baseline had none of |
 | Collateral | **6 of 6** | 6 of 6 | — |
 
@@ -137,6 +138,7 @@ article held the whole chain and was invisible. Here **no article holds the chai
 | Staleness (gating) | **9 of 10** | **3 of 10** | 7 of 10 | union: C1–C9. Reference alone: C6, C7, C9 |
 | Correction landed | **6 of 10** | 6 of 10 | 3 of 10 | missing: C6, C7, C9, C10 |
 | Trail (V28 directional) | **1 of 10** | 1 of 10 | 0 of 10 (its single marker is in the as-of tier V28 excludes) | C1 |
+| In force (V39) | **6 of 10 fail** | 1 of 10 fail | n/a | C1–C5 fail **across the two articles**, C8 fails inside the newest-half one. C6, C7 and C9 pass on one value only; C10 states neither |
 | Staleness (drop) | **4 of 4** | 0 of 4 | 3 of 4 | D1–D4, all in the old-half article |
 | Collateral | **6 of 6** | 6 of 6 | 6 of 6 | — |
 
@@ -208,6 +210,7 @@ result in the set**.
 | Staleness (gating) | **0 of 8** | 5 of 8 | see the open call — C4 and C6 turn on it |
 | Correction landed | **6 of 8** | 6 of 8 | missing: C4, C6 |
 | Trail (V28 directional) | **1 of 8** | 0 of 8 under V28 (its 6 markers are the as-of tier) | C8 |
+| In force (V39) | **4 of 8 fail** | n/a | C1, C2, C3, C5 — every row where both snapshots are on the page. C4 and C6 pass on the superseded figure alone, C7 on the replacement alone, C8 on its trail |
 | Staleness (drop) | — | — | P7 has no drop rows |
 | Collateral | **5 of 6** | 5 of 6 | K2 missing in both, the same split conjunction |
 
@@ -256,6 +259,7 @@ versions of the chain.
 | Staleness (gating) | **5 of 6** | **0 of 6** | 5 of 6 | 4 of 6 | C2, C3, C4, C6, C7 |
 | Correction landed | **6 of 6** | 6 of 6 | 0 of 6 | 5 of 6 | — |
 | Trail (V28 directional) | **0 of 6** | 0 of 6 | 0 of 6 | 1 of 6 | **impossible by construction** — see below |
+| In force (V39) | **5 of 6 fail** | 0 of 6 fail | 0 of 6 fail | n/a | C2, C3, C4, C6, C7 fail **across the two articles**, none inside either. C5 passes: v1's framing is asserted nowhere |
 | Staleness (drop) | **7 of 8** | 0 of 8 | 7 of 8 | 8 of 8 | only D7 leaves no residue |
 | Collateral | **6 of 6** | — | — | 6 of 6 | — |
 
@@ -301,6 +305,7 @@ article runs `### V1 Metrics` against `### V2 Metrics`, `### V1 Framework` again
 | Staleness (gating) | **0 of 7** | 0 of 7 | same result by the same mechanism, but on one article instead of two |
 | Correction landed | **7 of 7** | 7 of 7 | and two of them the baseline lost outright: C5's ~17-day pair (both sides were absent there) and C8's 37.2 / 12.1 |
 | Trail (V28 directional) | **0 of 7** | 2 of 7 | the arm's labelling is basis attribution end to end; nothing says a value has been replaced |
+| In force (V39) | **7 of 7 fail** | n/a | every row — this is the case that defines the failing shape, all seven inside one article |
 | Staleness (drop) | **5 of 11** | 9 of 11 | D2, D3, D5, D9, D10 |
 | Collateral | **6 of 6** | 5 of 6 | **K2 recovered** — the baseline's one over-deletion hit in this case |
 
@@ -343,6 +348,7 @@ option list did not name until this branch added it.
 | Staleness | **0 of 5** | 0 of 5 |
 | Correction landed | **5 of 5** | 5 of 5 |
 | Trail (V28 directional) | **0 of 5** | 0 of 5 (its 4 markers are the basis-labelled tier) |
+| In force (V39) | **5 of 5 fail** | n/a — reported apart from the gate under V21 in any case |
 | Staleness (drop) | **1 of 6** | 6 of 6 |
 | Collateral | **6 of 6** | 6 of 6 |
 
@@ -444,22 +450,24 @@ arm that attributes claims to source documents by date. Recorded here rather tha
 
 ### Contradiction rows (45)
 
-| Case | rows | stale | correction landed | trail |
-|---|---|---|---|---|
-| P3 | 9 | 5 | 8 | 3 |
-| P4 | 10 | **9** (3 in the newest-half article) | 6 | 1 |
-| P5 (apart, V21) | 5 | 0 | 5 | 0 |
-| P7 | 8 | 0 | 6 | 1 |
-| P8 | 0 | — | — | — |
-| P9 | 6 | **5** (0 in the v2-only article) | 6 | 0 |
-| P10 | 7 | 0 | 7 | 0 |
-| **Total** | **45** | **19** | **38** | **5** |
+| Case | rows | stale | correction landed | trail | in force, fail (same article / split) |
+|---|---|---|---|---|---|
+| P3 | 9 | 5 | 8 | 3 | 6 (6 / 0) |
+| P4 | 10 | **9** (3 in the newest-half article) | 6 | 1 | 6 (1 / 5) |
+| P5 (apart, V21) | 5 | 0 | 5 | 0 | 5 (5 / 0) |
+| P7 | 8 | 0 | 6 | 1 | 4 (4 / 0) |
+| P8 | 0 | — | — | — | — |
+| P9 | 6 | **5** (0 in the v2-only article) | 6 | 0 | 5 (0 / 5) |
+| P10 | 7 | 0 | 7 | 0 | 7 (7 / 0) |
+| **Total** | **45** | **19** | **38** | **5** | **33 (23 / 10)** |
 
 **The gating column — the five cases that gate (P3, P4, P7, P9, P10), 40 rows:**
 
 | | A1 arm | baseline arm |
 |---|---|---|
 | Staleness (gating, lower is better) | **19 of 40 (47.5%)** | 24 of 40 (60%) |
+| In force, V39 (gating, lower is better) | **28 of 40 — 18 inside one article, 10 across a split chain** | n/a, the articles are gone |
+| Staleness ∪ In force (the strict reading, A1 side only) | **32 of 40** | ~34 of 40, an estimate that stays one |
 | Correction landed (of 45) | **38 of 45** | 34 of 45 |
 | Trail, V28 directional (of 45) | **5 of 45** | 7 of 45 |
 | Staleness (drop) (of 41) | **29 of 41** | 37 of 41 |
@@ -472,9 +480,11 @@ arm that attributes claims to source documents by date. Recorded here rather tha
 Per-case gating detail: P3 5 of 9 (baseline 8), P4 **9 of 10** (baseline 7), P7 **0 of 8**
 (baseline 5), P9 **5 of 6** (baseline 4), P10 0 of 7 (baseline 0).
 
-**A1 improves every failure column and loses the one positive column.** Staleness 24 → 19,
-drops 37 → 29, corrections 34 → 38, collateral 40 → 41, and Trail 7 → 5. It also did it for
-3.6 USD less, in four clean stages, with both FX4 defects gone.
+**A1 improves every failure column the two arms share, and loses the one positive column.**
+Staleness 24 → 19, drops 37 → 29, corrections 34 → 38, collateral 40 → 41, and Trail 7 → 5.
+It also did it for 3.6 USD less, in four clean stages, with both FX4 defects gone. **The one
+column it fails outright is In force, and no arm shares it** — the baseline cannot be scored
+on a column ruled after its articles were deleted.
 
 ### What actually changed, and why Trail went down
 
@@ -502,6 +512,49 @@ That single behaviour explains the whole result:
 So `(Staleness, Trail)` reads `(0, 0)` on the three cases where the arm is at its best. That
 is **coequal presentation** — the shape D1's option list did not name until V28's ruling added
 it, and the shape D1 rejects in terms.
+
+### In force, measured 2026-08-19 on the surviving articles
+
+The two columns above cannot tell that `(0, 0)` apart from latest-wins, which is why
+[V39](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing) added a third. It
+asks whether the reader is left with one value in force, and it was measured row by row
+against the arm's articles in `~/kaas-arms/a1/kb/wiki` rather than derived from the rows above.
+**28 of the 40 gating rows fail: 18 inside a single article, 10 across a chain the classifier
+split.** With P5's five, 33 of 45.
+
+The twelve rows that pass, by the reason they pass:
+
+| Reason a row passes | rows | which |
+|---|---|---|
+| only the replacement is stated | 3 | P3-C3, P7-C7, P9-C5 |
+| only the superseded value is stated | 6 | P3-C9 (`<系统ID>-knowledge` 0 hits), P4-C6 (`设置时间(ms)` 0 hits in both articles), P4-C7, P4-C9 (`TRW` 0 hits in both), P7-C4, P7-C6 — every one of these is either stale or a lost correction, counted there |
+| a directional statement resolves both | 2 | P3-C8 (L299), P7-C8 (「previously 0%」) |
+| neither value is stated | 1 | P4-C10, `60%` and `90%` both absent |
+
+Presence was checked on the files, not taken from the row notes: `11,362` and `25,046` appear
+in P7's article in comma form (which is why C5 fails rather than passing on one value), the
+only `7C` match in it is inside `7197C` (so C6 genuinely states one figure), all seven of
+P10's pairs are present on both sides, and P4-C6's nanoseconds appear three times in the
+old-half article and six in the newest-half one with no millisecond form in either.
+
+Three things the column says that no other column here does:
+
+1. **P10 and P5 go from the cleanest results in the set to complete failures** — 7 of 7 and 5
+   of 5 — while their Staleness stays 0. Nothing about the articles changed; the rubric now
+   reads the version-labelled table as two unordered values instead of as a resolved one.
+2. **A trail does not guarantee a pass.** P3-C1 and P3-C5 each carry a correct directional
+   statement *and* assert the superseded value as current elsewhere in the same article, so
+   they fail. Self-contradiction, the failure mode the 2026-08-18 pass recorded as having no
+   column, is 2 of the 18 same-article failures and is countable for the first time.
+3. **The split rows are the classifier's and are reported apart.** All ten are P4's five and
+   P9's five, in cases where no article ever held both values, so the gate reads 18 of 40 and
+   the 10 sit beside it under [NG6](spec.md#non-goals) — the same decomposition the FX7 verdict
+   applies to Staleness.
+
+Read with Staleness, the strict figure this branch previously carried as an estimate is now
+measured on this side: **Staleness ∪ In force is 32 of 40**, where the estimate had said
+roughly 36. Thirteen rows are clean on Staleness and fail In force; fifteen fail both; four
+fail Staleness alone.
 
 ### Two structural regressions, both from the classifier and not the writer
 
@@ -543,18 +596,32 @@ the baseline's 24 of 40 and its Trail is at or below the baseline's 7 of 45. The
 sensitivity band is 8–22 of 40, and it is tabulated in
 [verdict-fx7.md](verdict-fx7.md#the-verdict-does-not-depend-on-any-of-the-four-rulings).
 
+**A fifth ruling came out of this pass and is not in the queue above, because it is about the
+rubric rather than about a row.** The `(0, 0)` finding — the arm's best cases producing the
+shape D1 rejects while both columns read clean — was raised here as a bound and ruled as
+**V39** in [test-set.md](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing),
+which adds the In force column measured above. It changes no figure in the queue and no
+conclusion in the verdict; it changes what a future arm can be scored on.
+
 ## What this pass does not settle
 
 **The FX7 verdict is written, and it is in [verdict-fx7.md](verdict-fx7.md): A1 does not
 clear the positives, so A2 is required rather than optional.** What this document contributes
-to it is the measurement and one finding no column covers — **A1 shifted the failure mode
-rather than removing it.** The baseline stated superseded values as current, unlabelled. This
-arm states them with their source attached, which clears the gating column while producing
-exactly the coequal presentation D1 exists to reject.
+to it is the measurement and one finding that no column covered when it was made — **A1
+shifted the failure mode rather than removing it.** The baseline stated superseded values as
+current, unlabelled. This arm states them with their source attached, which clears the gating
+column while producing exactly the coequal presentation D1 exists to reject. That finding is
+what V39 turned into a column, so it is covered from 2026-08-19 onward and was not covered when
+the verdict was taken.
 
-What that costs the comparison is bounded but not measurable, and the verdict says why: if a
-basis-labelled parallel presentation counted as stale, both arms land near 34–36 of 40 and
-A1's five-row advantage disappears. The estimate can be read off the two scoring records, but
-it cannot be settled — this arm's articles can be re-read against a new criterion and the
-baseline's cannot, so the criterion cannot be applied to the comparison at all. It is
-recorded as the bound on the figure rather than raised as a fifth ruling.
+What that costs the comparison is bounded and half of it is now measured. The bound was
+recorded first as an estimate — if a basis-labelled parallel presentation counted as stale,
+both arms land near 34–36 of 40 and A1's five-row advantage disappears — and it became
+[V39](test-set.md#v39-in-force--what-it-takes-to-leave-one-value-standing), ruled the same
+day as a **new column rather than a redefinition of Staleness**. That distinction is the whole
+of what could be salvaged: redefining the gating column would have replaced a measured
+comparison with a one-sided one, since this arm's articles can be re-read and the baseline's
+cannot. So In force is measured here at **28 of 40**, the strict reading is **32 of 40** on
+this side, and the baseline's "roughly 34" stays an estimate for good. The comparison on that
+axis is not available and no arithmetic makes it available; what the column buys is a rubric
+A2's arm can be scored against on both sides.
