@@ -748,6 +748,22 @@ kb-ai check --kb ../data/kb-supersession-staged                    # expect 0 mi
 uv run python scripts/audit_articles.py --kb ../data/kb-supersession-staged
 ```
 
+An **arm** is that loop over all four stages with the compiles actually run, and it is one
+command rather than a shell script per stage:
+
+```
+cd py
+uv run python scripts/run_fx4_arm.py --out ~/kaas-arms/a1              # plan, spends nothing
+uv run python scripts/run_fx4_arm.py --out ~/kaas-arms/a1 --execute    # ~18 USD
+```
+
+It rebuilds the cases file from the fixture and refuses to start unless the 18 chains cover
+the 38 documents exactly, waits for the gateway before every compile, retries a stage once in
+place before the next stage is staged, records the residual instead of aborting, and copies
+`wiki/` to `logs/stage<N>-wiki` after each stage so Size has a basis. `--out` may not be under
+`/tmp`, which is where the baseline arm was lost. The baseline arm is the same command with
+`--repo` pointed at a `bd8252e` worktree.
+
 The audit is FX4's two article-shape checks — comma-packed and duplicated `sources`
 entries, and frontmatter that does not start at byte 0 — and it runs on whatever a compile
 just wrote, so both arms carry it. It exits non-zero on a finding. Run against
@@ -765,7 +781,10 @@ rates and the mechanism.
 the strata table above; on `data/kb-supersession-fixture` it prints `18 chains`,
 which is the 10 positives, 4 negative controls and 4 duplicate controls. Staging
 that fixture plans four stages of 18, 18, 1 and 1 documents — the last two are P4's
-four-version chain, which is the case the single-run fixture never reached.
+four-version chain, which is the case the single-run fixture never reached. **Those two
+counts are why the arm's cases file needs no copy kept**: it is the fixture-scoped run, so
+losing the file costs a re-run of a script that reads 38 files, not a rebuild by hand.
+`run_fx4_arm.py` regenerates it and proves the coverage on every invocation.
 
 **The conversion is not regenerable and does not need to be.** The two scripts that
 built `data/kb-knowledge` from `~/.knowledge` — a copy plus a re-serialization of
@@ -773,5 +792,5 @@ the legacy extract cache, and a one-shot conformance pass — ran once against a
 gitignored KB with absolute paths baked in, and both have since been deleted. They
 are recorded here rather than kept as code: repeating them would mean re-doing a
 migration whose output is on disk and verified by `kb-ai check`. What the fixture
-needs going forward is selection and staging, and those are the two scripts that
-landed with tests.
+needs going forward is selection, staging, auditing and a driver to run an arm, and
+those four are the scripts that landed with tests.

@@ -313,12 +313,25 @@ What survives, and it is enough to run the A1 arm:
 | `data/kb-knowledge/` | present, 997 raw / 682 wiki — the source corpus, and the articles [labels.md](labels.md) scored, so **the label pass's evidence base is intact** |
 | `py/scripts/stage_fixture.py`, `select_cases.py`, `audit_articles.py` | committed |
 | `bd8252e` | in git, so the pre-A1 worktree is recreatable |
-| `cases.json` | **gone and not regenerable as-is** — `select_cases.py` emits 131 candidates, not the curated 18; it has to be rebuilt from test-set.md and checked against the fixture's 38 files |
-| the four drivers | **gone**, reconstructible from the policy recorded in the ledger's 2026-08-18 entries |
+| `cases.json` | gone, and **it regenerates exactly** — corrected 2026-08-19, having first been recorded here as unrecoverable |
+| the four drivers | gone, and **replaced** by `py/scripts/run_fx4_arm.py`, which carries their policy under test |
+
+**The `cases.json` loss was overstated and the correction is worth stating plainly**, because
+the number that justified it was measured against the wrong KB. `select_cases.py` emits 131
+candidates against `data/kb-knowledge`; run against **the fixture** it emits the curated 18
+chains over all 38 documents, with no orphan and no missing member, and the stage plan comes
+back 18 / 18 / 1 / 1 — the split `stage_fixture.py` and the baseline arm both used. So the file
+is derived, deterministic and free rather than curated by hand, and the driver rebuilds it on
+every run instead of trusting a copy. `py/tests/test_scripts_run_fx4_arm.py` pins the rebuild
+against the real fixture, so a fixture edit that breaks the coverage fails a test rather than
+an arm.
 
 The drivers were never committed, which is what made a `/tmp` clear lossy. **Both of those
-change before the A1 arm runs**: the driver is committed under `py/scripts/`, and no arm
-writes its KB or its logs to `/tmp` again.
+change before the A1 arm runs, and both have**: `run_fx4_arm.py` is committed with the policy
+its predecessors carried only in shell — wait for the endpoint before every compile, one retry
+per stage taken in place, the residual recorded rather than raised — plus the two things their
+absence cost. It refuses an `--out` under `/tmp`, and it snapshots `wiki/` per stage, which is
+what Size was never measurable without.
 
 FX7 is still runnable and its shape changes: it compares the A1 arm against the **written
 baseline** above rather than against re-readable files. Every published column, every

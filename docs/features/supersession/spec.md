@@ -506,6 +506,12 @@ path A.
 - **FX1.** The `/tmp/supersession/` scripts move to `py/scripts/` with tests — but
   only the two that will run again. What landed is `select_cases.py`, which finds the
   chains and stratifies them, and `stage_fixture.py`, which builds FX2's stages.
+  Two more followed for the same reason and one of them the hard way: `audit_articles.py`
+  (FX4's article-shape checks) and `run_fx4_arm.py`, which drives a whole arm. **The arm
+  driver is here because its shell predecessors were not.** Four scripts under `/tmp` ran the
+  baseline arm and were never committed; `/tmp` was cleared on 2026-08-19 and took them, so
+  the rule this criterion states — a script that will run again is versioned and tested —
+  now covers the thing that spends the money, not only the things that prepare it.
   The corpus conversion and the conformance pass are not ported: both ran once
   against a gitignored KB with absolute paths, their output is on disk and verified
   by `kb-ai check`, and the scripts themselves are gone. test-set.md's Regenerating
@@ -735,18 +741,17 @@ path A.
   pending fix. Staleness (drop) is recorded on the same
   runs and gates nothing. False positives stay at 0 on N1–N4 and no duplicate contributes
   twice on U1–U4 — **both measured at 0 on the baseline arm**.
-  **Size is not measurable as the arms were scripted.** It is defined against the pre-run
-  article, and neither the baseline driver nor the A1 driver snapshotted `wiki/` between
-  stages, so after stage 1 there is no pre-run article to compare. The baseline
-  records absolute bytes only (755,700 across 27 articles). Adding
-  `cp -a $KB/wiki $LOGS/stage$stage-wiki` after each compile — about 750 KB per stage —
-  gives the A1 arm the column, but not comparably: **the baseline is unrecoverable, not
-  merely expensive.** `/tmp` was cleared on 2026-08-19, taking the 27 articles, the logs and
-  all four drivers with it (see
-  [scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)), and re-running `bd8252e`
-  would produce a different sample rather than the scored one. The column stays unavailable on
-  the comparison and the snapshot lines are worth adding to the A1 driver anyway, as an
-  absolute record.
+  **Size was not measurable as the arms were scripted, and is now recorded per stage rather
+  than compared.** It is defined against the pre-run article, and neither of the shell drivers
+  snapshotted `wiki/` between stages, so after stage 1 there was no pre-run article to compare;
+  the baseline records absolute bytes only (755,700 across 27 articles). The replacement driver
+  (`py/scripts/run_fx4_arm.py`, committed 2026-08-19) copies `wiki/` to
+  `logs/stage<N>-wiki` after every stage, about 750 KB each, so the A1 arm gets the column —
+  **but not comparably, because the baseline is unrecoverable rather than merely expensive.**
+  `/tmp` was cleared on 2026-08-19, taking the 27 articles, the logs and all four drivers with
+  it (see [scoring.md](scoring.md#the-scored-arm-no-longer-exists-on-disk)), and re-running
+  `bd8252e` would produce a different sample rather than the scored one. So Size stays
+  unavailable **on the comparison** and is kept as an absolute record on the A1 arm.
   **Cases resolve to an arm's article by its `sources` set, never by the name this document
   cites.** A fresh run picks its own slug: N2's scoring article is
   `wiki/projects/zero-trust-security-platform.md` in the table above and landed as
