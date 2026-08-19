@@ -48,6 +48,7 @@ worktree of ``bd8252e``; the default is this checkout, which is the A1 arm.
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
 import shutil
@@ -347,6 +348,20 @@ def _model_catalog(base_url: str, api_key: str) -> object | None:
     ``/models`` behind a 404 or answers it with HTML is not a gateway missing the
     write model, and refusing on that would stop an arm whose every write would
     have succeeded.
+
+    ``http.client.HTTPException`` is in the cutset because four of its members --
+    ``InvalidURL``, ``IncompleteRead``, ``BadStatusLine``, ``LineTooLong`` -- are
+    neither ``OSError`` nor ``ValueError``, and two of those are reachable through
+    a URL ``unusable_base_url`` accepts: ``http://host:abc/v1`` (nonnumeric port)
+    and a control character in the *path*, which the netloc check does not see.
+
+    Both endpoints this feature runs against were measured on 2026-08-19 rather
+    than assumed, because the whole guard rests on ``/models`` being answerable:
+    LiteLLM (``litellm-de.yijin.io/v1``) returns 200 with 30 ids, no wildcard entry
+    and ``claude-sonnet-4-6`` spelled exactly, so it cannot be falsely refused; the
+    MiniMax endpoint the ``OPENAI_*`` fallback points at returns 200 in 0.26 s with
+    8 ids, none of them Claude, so the incident this guard exists for is caught
+    rather than degraded to a warning.
     """
     url = base_url.rstrip("/") + "/models"
     request = urllib.request.Request(
@@ -354,7 +369,9 @@ def _model_catalog(base_url: str, api_key: str) -> object | None:
     try:
         with urllib.request.urlopen(request, timeout=20) as response:
             return json.loads(response.read())
-    except (OSError, ValueError):  # transport, HTTP status, and unparseable JSON
+    # Transport, HTTP status, unparseable JSON, and the malformed-response family
+    # that belongs to none of those.
+    except (OSError, ValueError, http.client.HTTPException):
         return None
 
 
@@ -587,6 +604,23 @@ def main(argv: list[str] | None = None) -> int:
     # that reads like a writer failure. KaaS falls back to OPENAI_BASE_URL, which
     # on the laptop that ran both arms serves MiniMax models and no Claude model,
     # so this is a configuration mistake one env var away at all times.
+    #
+    # Two failures with the same signature are deliberately NOT covered here, and
+    # both are recorded rather than guessed at:
+    #
+    # - A summarize model this gateway does not serve. compile.py:822-824 takes it
+    #   from LLM_SUMMARIZE_MODEL/LLM_MODEL and compile.py:228 makes it mandatory
+    #   only when extract_strategy is not chunked, so checking it unconditionally
+    #   would refuse an arm over a model no chunked run ever calls -- the false
+    #   refusal this guard is written to avoid -- and checking it conditionally
+    #   means restating compile.py's strategy rule here, where it would drift.
+    # - A key this gateway rejects. A 401 on /models lands in the warn branch by
+    #   design, because a completion-only key that cannot list models is a real
+    #   configuration and refusing it would be the same false refusal.
+    #
+    # Both would be answered by probing with a 1-token completion instead, which
+    # tests the thing rather than a proxy for it. Not taken now: it spends, and the
+    # measured catalogs (see _model_catalog) already catch the recorded incident.
     wanted = sorted(set(_models(args.model).values()))
     served = served_model_ids(_model_catalog(base_url, api_key))
     if served is None:

@@ -12,6 +12,7 @@ against confounds FX7.
 """
 from __future__ import annotations
 
+import http.client
 import json
 import subprocess
 import sys
@@ -38,6 +39,22 @@ def tmpdir_is_not_the_refused_one(monkeypatch):
     rule itself is covered by the test that names it, which puts one back.
     """
     monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", "/private/tmp"))
+
+
+@pytest.fixture(autouse=True)
+def no_ambient_gateway(monkeypatch):
+    """No test inherits the developer's gateway.
+
+    ``main --execute`` reads these four and then reaches the network, and on the
+    laptop this driver was written for ``OPENAI_BASE_URL`` is the MiniMax endpoint
+    the guard exists to refuse -- with a live key. So the incident configuration is
+    ambient during a bare ``pytest`` run, and a test that forgets to set them would
+    silently make a real request against it. Every test that needs credentials sets
+    its own; nothing here relies on the environment having them.
+    """
+    for name in ("LLM_BASE_URL", "LLM_API_KEY",
+                 "OPENAI_BASE_URL", "OPENAI_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
 
 
 def write(path: Path, text: str = "body\n") -> None:
@@ -508,6 +525,11 @@ def test_the_model_catalog_is_read_from_the_endpoint_the_arm_will_use(monkeypatc
     urllib.error.HTTPError("u", 404, "Not Found", {}, None),
     urllib.error.URLError("no route"),
     ValueError("not json"),
+    # Neither OSError nor ValueError, and two of this family are reachable through
+    # a URL unusable_base_url accepts: a nonnumeric port, and a control character
+    # in the path (the shape check only inspects the netloc).
+    http.client.InvalidURL("nonnumeric port: 'abc'"),
+    http.client.IncompleteRead(b"{\"data\":"),
 ])
 def test_a_gateway_that_will_not_answer_the_question_reads_as_unknown(monkeypatch,
                                                                      failure):
@@ -599,6 +621,7 @@ def test_a_gateway_serving_nothing_is_read_as_serving_nothing():
     {},                                  # no data key
     {"data": {}},                        # data is not a list
     {"data": [{"name": "claude"}]},      # entries carry no id
+    {"data": [{"id": 123}]},             # id is not a name
     {"data": ["claude-sonnet-4-6"]},     # entries are not objects
     [],                                  # payload is not an object
     "claude-sonnet-4-6",
@@ -736,6 +759,52 @@ def test_execute_refuses_a_gateway_that_does_not_serve_the_write_model(
     assert "claude-sonnet-4-6" in message  # what it needs
     assert "MiniMax-M2" in message         # what it found, so the fix is obvious
     assert not (tmp_path / "arm" / "kb").exists()
+
+
+def test_the_model_the_arm_was_told_to_use_is_the_one_checked(tmp_path,
+                                                              monkeypatch, capsys):
+    """``--model`` decides what the compile is sent, so checking the default
+    instead would fail both ways: it would refuse an arm whose overridden model the
+    gateway does serve, and pass one whose overridden model it does not -- which is
+    the whole incident, with an extra flag in front of it.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    # Serves the default and nothing else.
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: {
+        "data": [{"id": "claude-sonnet-4-6"}]})
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: pytest.fail(
+        "the override, not the default, is what the compile will be sent"))
+
+    code = arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                     "--cases", str(cases_path), "--execute",
+                     "--model", "claude-opus-5"])
+
+    assert code == 1
+    assert "claude-opus-5" in capsys.readouterr().err
+
+
+def test_a_gateway_serving_nothing_is_refused_by_name(tmp_path, monkeypatch,
+                                                      capsys):
+    """The empty catalog is the one shape whose only purpose is to refuse, so the
+    path through main needs its own test -- and the message has to say something
+    rather than trail off after "It serves: ".
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: {"data": []})
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: pytest.fail(
+        "a gateway serving no models cannot write an article"))
+
+    assert arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                     "--cases", str(cases_path), "--execute"]) == 1
+    assert "nothing" in capsys.readouterr().err
 
 
 def test_a_gateway_that_cannot_be_asked_warns_and_runs_anyway(tmp_path,
@@ -1020,6 +1089,8 @@ def test_execute_refuses_a_base_url_that_cannot_be_reached_by_shape(tmp_path,
     cases_arg = fixture_of(tmp_path, "raw/a1.md")
     monkeypatch.setenv("LLM_BASE_URL", "htp://gw.example")
     monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: pytest.fail(
+        "a URL this broken must not be handed to a request at all"))
     monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: pytest.fail(
         "an unusable base URL must be caught before the arm starts"))
 
@@ -1075,12 +1146,18 @@ def test_a_second_run_into_a_used_directory_is_refused(tmp_path, monkeypatch):
     """``materialize`` is additive and the report is written by name, so a re-run
     resumes on top of old state, overwrites the previous report and merges into the
     old snapshots -- silently, and after the first run's spend is already gone.
+
+    It also pins the *order* of the two refusals: a mistake this local must not cost
+    a round trip to the gateway, and this is the one ``--execute`` test whose whole
+    point is reaching neither.
     """
     cases_arg = fixture_of(tmp_path, "raw/a1.md")
     (tmp_path / "arm" / "kb" / "raw").mkdir(parents=True)
     write(tmp_path / "arm" / "kb" / "raw" / "a1.md")
     monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
     monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: pytest.fail(
+        "a used --out must be refused before the gateway is asked anything"))
 
     def must_not_run(*_a, **_kw):
         raise AssertionError("a used --out must be refused before any spend")
