@@ -1,0 +1,40 @@
+py/scripts/run_fx4_arm.py
+  c9f2133548918fc7 51,351-364,372-374,607-623
+py/tests/test_scripts_run_fx4_arm.py
+  c9f2133548918fc7 15,44-59,528-532,624,764-809,1092-1093,1149-1152,1159-1160
+docs/features/supersession/scoring.md
+  c9f2133548918fc7 343,348-352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c6f129e6400cbcaaf2a2db20d79b3a5cc6361c8e",
+  "prompts": {
+    "09bbf56af72d466c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e1547abc-933e-4a84-94d4-9a2d189e617e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "c9f2133548918fc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63a85fc2-3f2a-4954-8245-e23c4e352b4d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1300,
+      "total_deletions": 1860,
+      "accepted_lines": 118,
+      "overriden_lines": 0
+    }
+  }
+}
