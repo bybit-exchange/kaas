@@ -1,0 +1,25 @@
+py/tests/test_scripts_audit_articles.py
+  9cf015e6794c4bad 1-262
+py/scripts/audit_articles.py
+  9cf015e6794c4bad 1-180
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "a2122af1f559f944c3acc84477891458a96966b0",
+  "prompts": {
+    "9cf015e6794c4bad": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9974be13-eced-408b-8c96-6bddc432056a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2295,
+      "total_deletions": 4812,
+      "accepted_lines": 442,
+      "overriden_lines": 0
+    }
+  }
+}
