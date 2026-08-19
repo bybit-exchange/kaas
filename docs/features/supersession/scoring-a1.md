@@ -1,5 +1,10 @@
 # FX5 scoring: the A1 arm
 
+**All four rulings this pass opened are settled at their drafted positions
+([the queue](#the-ruling-queue--all-four-settled)), so the gating figure is 19 of 40 flat,
+and the FX7 verdict is written in [verdict-fx7.md](verdict-fx7.md) — A1 does not clear the
+positives, so A2 is required rather than optional.**
+
 Scored 2026-08-19 against the A1 arm in `~/kaas-arms/a1` (20 articles, 14.3873 USD, code
 at `033517c`). Labels are the confirmed set in [labels.md](labels.md); columns and their
 definitions are [test-set.md's Scoring table](test-set.md#scoring); the criterion is
@@ -115,6 +120,9 @@ This follows V34's main-proposition rule rather than adding to it, but V34 was r
 conjunctions, not over residue, so the extension should be ruled explicitly. Scoring the
 other way moves P3 staleness from 5 of 9 to 6 of 9.
 
+**Ruled at this position 2026-08-19 as V35** ([the queue](#the-ruling-queue--all-four-settled)).
+P3 holds at 5 of 9.
+
 ### P4 — trade-rollback TRD, four versions
 
 **The arm split the four versions into an old-half article and a new-half article, and that
@@ -184,6 +192,12 @@ This needs a ruling, and it decides the direction of P4's contribution to FX7: 9
 A1 made the gating column worse, 3 of 10 says it made it much better, and both are
 measurements of the same arm.
 
+**Ruled at this position 2026-08-19 as V36** ([the queue](#the-ruling-queue--all-four-settled)).
+P4 is scored on the union at 9 of 10 with the newest-half article's 3 of 10 reported beside
+it. It decides P4's characterisation and not the FX7 verdict, which fails the gate on every
+reading — the alternative total is **8 of 40**, since scoring newest-half articles only takes
+P9 to 0 of 6 as well.
+
 ### P7 — 2026 H1 cost progress tracking
 
 `project/cloud-cost-optimization-h1-2026.md`, one article, 29,604 bytes, and **the cleanest
@@ -226,6 +240,9 @@ present-tense status does not make a row historical. That dissent was about an O
 Items table; these two are inside status sections whose headings carry the date. If Captain
 rules with V33's dissent instead, **P7 reads 2 of 8** rather than 0 of 8 — still the largest
 single-case improvement in the arm, so the ruling changes the figure and not the direction.
+
+**Ruled at this position 2026-08-19 as V37** ([the queue](#the-ruling-queue--all-four-settled)).
+P7 holds at 0 of 8.
 
 ### P9 — Bybit AI ToC project initiation
 
@@ -503,25 +520,41 @@ Against that, the arm's own **resolution is much cleaner** — 14 of 18 chains r
 article against the baseline's 8, and no article needed hand resolution — so the split is
 concentrated, not pervasive.
 
-## Open calls for Captain — four, and one of them decides P4's direction
+## The ruling queue — all four settled
 
-| # | Call | Drafted position | What it moves |
-|---|---|---|---|
-| V35 | **Name-residue versus proposition-residue.** Does residue that only reuses a superseded version's *name*, while the proposition is stated in its newer form, make a row stale? | No — it is recorded, not scored (V34's main-proposition rule extended from conjunctions to residue) | P3 5 of 9 → 6 of 9 if ruled the other way |
-| V36 | **How a chain the arm distributes should resolve.** The baseline's precedent excludes an article that does not declare the whole chain; applied literally it excludes *both* of P4's articles and P4 becomes unscoreable | Score the union of the articles declaring any part of the chain, and report the newest-half article's figure beside it | **P4 9 of 10 against 3 of 10** — i.e. whether A1 made the gating column worse or much better on the set's strongest failure case. Total gating: 19 of 40 against 13 of 40 |
-| V37 | **Does an accurate as-of stamp defeat Staleness when nothing newer is offered?** P7-C4 and P7-C6 state only the superseded figure, correctly dated | Not stale; what those rows lose is the correction, already counted | P7 0 of 8 → 2 of 8; total gating 19 → 21 of 40 |
-| V38 | **Is a version-labelled time series a Trail?** P7's 「had completed 17.6w … has completed 44.4w」 marks order by tense inside one sentence, but V28 excludes as-of stamped pairs | No — a Trail needs an explicit replacement claim (「previously 0%」 qualifies, an as-of pair does not) | Trail 5 of 45 → as high as 20 of 45 if dated pairs count, which would recreate exactly the problem V28 was ruled to prevent |
+Same convention as [scoring.md's queue](scoring.md#the-ruling-queue--all-seven-settled): each
+item was Captain's call and the default if ignored was the drafted position, which is what
+the numbers above already used. **All four are ruled 2026-08-19, every one at its draft**, so
+no figure in this document moves and the published gating rate is **19 of 40**.
 
-None of the four changes the direction of the headline comparison: on every drafted or
-alternative reading, A1's Staleness is lower than the baseline's 24 of 40 and its Trail is at
-or below the baseline's 7 of 45.
+Unlike the baseline's queue, none of these closes for want of evidence: this arm's articles
+live in `~/kaas-arms/a1` and can be reopened. They are ruled on their merits.
+
+| # | Location | The call | Drafted | Ruled | What settled it |
+|---|---|---|---|---|---|
+| **V35** | P3-C5 and P3-C8, [the open call](#open-call-drafted-name-residue-versus-proposition-residue) | Does residue that only reuses a superseded version's *name*, while the proposition itself is stated in its newer form, make a row stale? C5's L185 restates the proposition (one install completes setup) and C8's L508–510 only reuse three filenames over a tree that is v2's | No — name residue is recorded, not scored | **Ruled at the draft, 2026-08-19.** P3 holds at **5 of 9** and the total at 19 of 40 | It extends V34's main-proposition rule from conjunctions to residue rather than adding a rule: a name reused under a proposition stated in its v2 form asserts nothing about the superseded version. Scoring it the other way would have taken P3 to 6 of 9 and the total to 20 |
+| **V36** | P4 and P9, [the open call](#open-call-drafted-how-a-chain-the-arm-distributes-should-resolve) | How does a chain the arm distributes across two articles resolve? The baseline's precedent excludes an article that does not declare the whole chain, which applied literally excludes *both* of P4's articles and makes the set's strongest failure case unscoreable | Score the union of the articles declaring any part of the chain, and report the newest-half article's figure beside it | **Ruled at the draft, 2026-08-19 — union, with the per-article figure reported beside it.** P4 stays **9 of 10**, P9 **5 of 6**, and the total **19 of 40** | The union is what the KB tells a reader who queries it, since that reader gets both articles; the per-article figure is what the writer earned. Reporting both is what makes the split visible as a classification failure rather than a write failure. **The alternative was recorded wrongly on this branch and is corrected here**: scoring the newest-half article only gives 8 of 40, not the 13 of 40 four documents carried, because the same rule applies to P9 (5 → 0) and not to P4 alone (9 → 3) |
+| **V37** | P7-C4 and P7-C6 | Does an accurate as-of stamp defeat Staleness when the article offers nothing newer? Both rows state only the superseded figure, correctly stamped "As of 20260430", inside status sections whose headings carry the date | Not stale — the column measures a claim stated *as current*, and a dated status line does not state it as current; what those rows lose is the correction, already counted against them | **Ruled at the draft, 2026-08-19.** P7 holds at **0 of 8** and the total at 19 of 40 | V33's dissent pointed the other way from an Open Action Items table, which asserts its rows are outstanding now; these two sit under dated status headings instead, so the framing is historical rather than present-tense. Ruling with the dissent would have taken P7 to 2 of 8 and the total to 21 |
+| **V38** | P7-C2, and the whole dated-pair tier | Is a version-labelled time series a Trail? 「As of 20260430, low-load governance **had completed** 17.6w … As of 20260514, low-load governance **has completed** 44.4w」 marks order by tense inside one sentence, where V28 excludes as-of stamped pairs | No — a Trail needs an explicit replacement claim; 「previously 0%」 qualifies and an as-of pair does not | **Ruled at the draft, 2026-08-19.** Trail holds at **5 of 45** | Counting tense-marked dated pairs would take Trail from 5 to as many as 20 of 45 and recreate precisely what V28 was ruled to prevent — a column that certifies parallel presentation as the decided option. The tense carries ordering; it does not say the older value has stopped being true |
+
+None of the four changed the direction of the headline comparison, and the verdict does not
+depend on any of them: on every drafted or alternative reading A1's Staleness is lower than
+the baseline's 24 of 40 and its Trail is at or below the baseline's 7 of 45. The full
+sensitivity band is 8–22 of 40, and it is tabulated in
+[verdict-fx7.md](verdict-fx7.md#the-verdict-does-not-depend-on-any-of-the-four-rulings).
 
 ## What this pass does not settle
 
-The FX7 verdict itself is not written here. It needs V36 in particular — P4 contributes
-either 9 or 3 stale rows depending on the ruling — and it needs a position on the finding this
-pass produced that no column covers: **A1 shifted the failure mode rather than removing it.**
-The baseline stated superseded values as current, unlabelled. This arm states them with their
-source attached, which clears the gating column while producing exactly the coequal
-presentation D1 exists to reject. Whether that counts as A1 succeeding is a judgement about
-what the column was for, not a measurement.
+**The FX7 verdict is written, and it is in [verdict-fx7.md](verdict-fx7.md): A1 does not
+clear the positives, so A2 is required rather than optional.** What this document contributes
+to it is the measurement and one finding no column covers — **A1 shifted the failure mode
+rather than removing it.** The baseline stated superseded values as current, unlabelled. This
+arm states them with their source attached, which clears the gating column while producing
+exactly the coequal presentation D1 exists to reject.
+
+What that costs the comparison is bounded but not measurable, and the verdict says why: if a
+basis-labelled parallel presentation counted as stale, both arms land near 34–36 of 40 and
+A1's five-row advantage disappears. The estimate can be read off the two scoring records, but
+it cannot be settled — this arm's articles can be re-read against a new criterion and the
+baseline's cannot, so the criterion cannot be applied to the comparison at all. It is
+recorded as the bound on the figure rather than raised as a fifth ruling.

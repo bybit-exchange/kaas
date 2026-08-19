@@ -2,7 +2,8 @@
 
 Date: 2026-08-12
 Slug: `supersession`
-Status: aligned for A1. D1–D5 settled (D1 and D2 in
+Status: A1 implemented and measured; **FX7 is decided against it, so A2 is required rather
+than optional** — the verdict is [verdict-fx7.md](verdict-fx7.md). D1–D5 settled (D1 and D2 in
 [design-options.md](design-options.md) on 2026-08-10; the trigger condition, the
 A1/A2 split, D3, D4 and D5 on 2026-08-12). A2 is sketched in
 [Non-goals](#non-goals) and specified separately.
@@ -18,6 +19,11 @@ identifier means two things across the feature's documents.
 
 A project plan exists as v1 and v2. Compiling both should leave an article that
 states v2. Today the article can state both and contradict itself.
+
+One scored row, end to end — the two documents, the payload A1 renders from them,
+and the four shapes the body comes out in, worst to target:
+
+![How one claim iterates through a compile](assets/supersession-content-iteration.svg)
 
 [design-options.md](design-options.md) analyses the gap and settles two decisions:
 the article body states the current claim plus a `[Superseded …]` trail (D1), and
@@ -120,6 +126,12 @@ path A.
   its best output is correct current state with no trail, which is *latest-wins*,
   the option D1 rejected. **A1 does not satisfy D1**, and a clean A1 score must not
   be read as D1 delivered.
+  **Measured, and the prediction was optimistic about the shape rather than the score**
+  ([verdict-fx7.md](verdict-fx7.md)): the arm's best output is not latest-wins but **coequal
+  presentation** — both values stated, each attributed to its source version, neither
+  retracted. Latest-wins leaves a reader one value; this leaves them two and no statement of
+  which is in force, so against D1 it is worse than what this non-goal warned about, on
+  exactly the rows the gating column scores clean (P7 0 of 8, P10 0 of 7, P5 0 of 5).
 - **NG3. Chained supersession (A2).** With no markers there is nothing for a third
   version to nest into. Whether v3 superseding what v2 already superseded keeps or
   drops the v1 entry is A2's first open question. Fixture case P4 still runs under
@@ -728,10 +740,14 @@ path A.
   corrections landed, Trail 5 of 45, drops 29 of 41, collateral 41 of 42, false positives
   and double counts both 0 — the full record is in [scoring-a1.md](scoring-a1.md).** It ran
   at 14.3873 USD over 185 calls, four stages each finishing on its first attempt with no
-  residual. A1 improves every failure column and loses the one positive column, and four
-  rulings are open on it (V35–V38), one of which — how a chain the arm distributes across two
-  articles should resolve — moves P4 between 9 and 3 stale rows and the total between 19 and
-  13 of 40. Staleness over
+  residual. A1 improves every failure column and loses the one positive column. **The four
+  rulings it opened (V35–V38) are all settled 2026-08-19, every one at its drafted position**,
+  so the figure is 19 of 40 flat with no band under it
+  ([the queue](scoring-a1.md#the-ruling-queue--all-four-settled)). V36 — how a chain the arm
+  distributes across two articles resolves — is scored on the union, so P4 contributes 9 stale
+  rows with its newest-half article's 3 reported beside it; the alternative reading totals
+  **8 of 40**, not the 13 this bullet published before V36 was ruled, since scoring newest-half
+  articles only takes P9 to 0 of 6 as well. Staleness over
   `superseded-contradiction`, on the merge-path stages,
   is the discriminating column. **Trail was expected 0 before A1 and is 7 of 45 on the
   baseline** (18 rows carry some marking; **V28, ruled 2026-08-19**, counts only the ones that
@@ -836,16 +852,28 @@ path A.
   the verdict quotes scoring.md's figures and states that a baseline row cannot be reopened.
   Trail is read against V28's criterion on both arms, and the baseline figure it compares
   against is **7 of 45**, not the 18 the judging rubric first produced.
-  **The A1 side is measured, 2026-08-19 ([scoring-a1.md](scoring-a1.md)), and the verdict is
-  not yet written.** Two things have to be settled first. **V36** decides how a chain the arm
-  distributes across two articles resolves, which swings P4 between 9 and 3 stale rows and the
-  gating total between 19 and 13 of 40 — the difference between "A1 made the set's strongest
-  failure case worse" and "much better". And the verdict has to take a position on what the
-  arm actually did: it **shifted the failure mode** rather than removing it, attributing each
-  value to its source version instead of asserting which one is dead. That clears Staleness
-  wherever it is applied (P7 0 of 8, P10 0 of 7, P5 0 of 5) and earns no Trail, so the arm's
-  best cases read `(Staleness 0, Trail 0)` — **coequal presentation**, the shape D1 rejects in
-  terms. Whether that is A1 succeeding is a judgement about what the column was for.
+  **The verdict is written, 2026-08-19, in [verdict-fx7.md](verdict-fx7.md): A1 does not clear
+  the positives, so A2 is required rather than optional.** The gate is
+  [test-set.md's](test-set.md#scoring) — path A ships first if and only if it clears the
+  positives without tripping the negatives — and A1 leaves **19 of 40** contradictions stated
+  as current while holding the negatives at 0 of 4 and 0 of 4. **The answer does not depend on
+  V35–V38**: the sensitivity band across every drafted and alternative reading is 8–22 of 40
+  against the baseline's 24, so A1 is better on every reading and clean on none.
+  Two findings carry into A2 rather than into this verdict. First, **11 of the 19 rows are
+  version-split chains**, where no article sees both values — a classification behaviour NG6
+  puts upstream of this feature, and now the largest single contributor to the gating column
+  with no owner on this branch. The writer-owned rate is 8 of 40 against the baseline's 24.
+  Second, the arm **shifted the failure mode** rather than removing it, attributing each value
+  to its source version instead of asserting which one is dead. That clears Staleness wherever
+  it is applied (P7 0 of 8, P10 0 of 7, P5 0 of 5) and earns no Trail, so the arm's best cases
+  read `(Staleness 0, Trail 0)` — **coequal presentation**, the shape D1 rejects in terms and
+  worse against D1 than the latest-wins NG2 predicted, because the reader is left both values.
+  How much of the five-row improvement that costs cannot be established: if a basis-labelled
+  presentation counted as stale both arms land near 34–36 of 40, and the criterion can be
+  applied to this arm's surviving articles but not to the baseline's, so it cannot be applied
+  to the comparison. **That asymmetry is the strongest argument for A2's arm**, where both
+  sides can be read against one rubric — and fixing the rubric belongs before that spend, not
+  after it.
 
 ### VF. Verification
 
@@ -926,7 +954,15 @@ have is any way to notice: the writer is told a date and never the text the date
 from. Whether the answer is a body-date consistency
 check, an RP-style report, or nothing at all is A2's question, and it needs the
 FX7 run first — if A1 clears the positives with this defect present, the defect is
-not what is costing accuracy.
+not what is costing accuracy. **The run happened and did not clear them**
+([verdict-fx7.md](verdict-fx7.md), 19 of 40), so this question stays open on its merits
+rather than being closed by A1's result. What the verdict adds is that the defect is not
+where the failure concentrated either: of the 19 stale rows, 11 are version-split chains and
+8 are articles that held both values, and no row was traced to a wrong frontmatter date.
+None of the five gating cases is one of the fixture's three wrong-date instances — P2 is
+withdrawn under V10, N2 carries its order intact, and P5 is reported apart under V21 — so the
+defect had no route into the published figure to begin with, and A1's failures are not
+evidence about it in either direction.
 
 Ruling V21 measured what a body-date rule would be worth, and the answer is why the
 question stays here rather than being answered early. The rate is conditional on a body

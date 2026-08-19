@@ -14,7 +14,10 @@ baseline arm reads **24 of 40 (60%)** on the gating column, and
 [scoring.md](scoring.md) holds every column, the union resolution rule the arm forced,
 and the seven rulings it opened — **all settled 2026-08-19**, one of them (V28, on what
 counts as a Trail) against its drafted position. That arm's articles no longer exist, so
-scoring.md is the only record of them. Both blocking rulings are settled
+scoring.md is the only record of them. **The A1 arm is scored too — 19 of 40, in
+[scoring-a1.md](scoring-a1.md), with its own four rulings (V35–V38) all settled at their
+drafts — and FX7 is decided: [verdict-fx7.md](verdict-fx7.md) finds that A1 does not clear
+the positives, so A2 is required rather than optional.** Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -611,6 +614,17 @@ the D1 options, and no single score can.
   Staleness readings while producing no trail, which is why the pair above needs V28's
   criterion under it to mean anything.
 
+  **The A1 arm makes this the load-bearing shape rather than an incidental one**, and it is
+  the finding [verdict-fx7.md](verdict-fx7.md) turns on. A1 moved coequal presentation from
+  its unlabelled variety to its labelled one — attributing each value to its source version —
+  which is what takes P7 from 5 of 8 to 0 of 8 and holds P10 at 0 of 7. The arm's three best
+  cases read `(Staleness 0, Trail 0)`, so **the column now certifies as clean the shape D1
+  exists to reject**, and A1's five-row advantage over the baseline rests on that reading. It
+  cannot be re-scored the other way: the A1 arm's articles survive and the baseline's do not,
+  so a stricter criterion could only be applied to one side. **Fixing this table is a
+  precondition for A2's arm, not a follow-up to it** — under a strict reading both arms land
+  near 34–36 of 40 and the columns stop separating them at all.
+
 #### V28: what counts as a Trail
 
 **Ruled 2026-08-19.** The column requires a directional statement. Naming the word
@@ -673,6 +687,14 @@ ordering judgement to the model; path B hands it an explicit claim; path C remov
 the question by recomposing.
 Path A is worth shipping first if and only if it clears the positives without
 tripping the negatives.
+
+**Measured on both arms, and the answer is written into
+[verdict-fx7.md](verdict-fx7.md) (2026-08-19): A1 does not clear them.** It holds the
+negatives at 0 of 4 and 0 of 4 and takes the gating column from 24 to **19 of 40**, better
+than the baseline on every reading of every ruling and clean on none — so D2's condition
+fires and A2 is bought. The gate as phrased here has no threshold under it, and none was
+needed: the band across all four rulings is 8–22 of 40, which does not reach zero at either
+end.
 
 Deciding "stated as current" versus "marked as superseded" needs an adjudicator.
 For a set this size, an LLM judge over (labelled item, article) with the human

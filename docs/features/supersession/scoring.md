@@ -357,8 +357,18 @@ verdict has to say so.
 38 of 45 against 34, drops 29 of 41 against 37, collateral 41 of 42 against 40, Trail **5 of
 45 against 7** — every failure column better and the one positive column worse. Its articles
 live in `~/kaas-arms/a1`, outside `/tmp`, with per-stage `wiki/` snapshots and an
-`arm-report.json`, so unlike this arm it can be reopened. Four rulings are open on it
-(V35–V38) and one of them, V36, moves the gating total between 19 and 13 of 40.
+`arm-report.json`, so unlike this arm it can be reopened. **The four rulings it opened
+(V35–V38) are all settled at their drafts, so 19 of 40 is flat**, and FX7 is decided in
+[verdict-fx7.md](verdict-fx7.md): A1 does not clear the positives, so A2 is required rather
+than optional. V36 scores a distributed chain on the union; its alternative totals 8 of 40,
+not the 13 recorded here before it was ruled, which had applied the alternative to P4 and not
+to P9.
+
+**This arm's loss now bounds a question rather than only a re-read.** A1's advantage on the
+gating column rests on basis-labelled coequal presentation scoring clean; under a strict
+reading both arms land near 34–36 of 40. That criterion can be applied to the A1 arm's
+surviving articles and never to these, so it cannot be applied to the comparison — which is
+the verdict's strongest argument for settling the rubric before A2's arm is bought.
 
 ## What this measurement changed in other documents
 
@@ -392,4 +402,5 @@ on P3 is 5 of 9 rather than 8 of 9. That is a product decision, not a scoring on
 it is out of A1's scope.
 
 FX7 compares this arm against the A1 arm on the same column. Nothing here is a verdict
-on A1.
+on A1 — that is [verdict-fx7.md](verdict-fx7.md), which quotes this document's figures as
+the baseline side and states that a row of them cannot be reopened.
