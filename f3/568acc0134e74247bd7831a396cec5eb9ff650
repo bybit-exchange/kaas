@@ -1,0 +1,29 @@
+docs/features/supersession/scoring.md
+  c9f2133548918fc7 343-348
+docs/features/supersession/test-set.md
+  c9f2133548918fc7 885-890
+py/scripts/run_fx4_arm.py
+  c9f2133548918fc7 174-194,341-360,462-463,470-472,486,585-603,608
+py/tests/test_scripts_run_fx4_arm.py
+  c9f2133548918fc7 482-526,584-614,713-790,801,874-878,883
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "f3568acc0134e74247bd7831a396cec5eb9ff650",
+  "prompts": {
+    "c9f2133548918fc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63a85fc2-3f2a-4954-8245-e23c4e352b4d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 240,
+      "total_deletions": 3094,
+      "accepted_lines": 240,
+      "overriden_lines": 0
+    }
+  }
+}
