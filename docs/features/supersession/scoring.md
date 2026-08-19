@@ -329,10 +329,18 @@ an arm.
 
 The drivers were never committed, which is what made a `/tmp` clear lossy. **Both of those
 change before the A1 arm runs, and both have**: `run_fx4_arm.py` is committed with the policy
-its predecessors carried only in shell — wait for the endpoint before every compile, one retry
-per stage taken in place, the residual recorded rather than raised — plus the two things their
-absence cost. It refuses an `--out` under `/tmp`, and it snapshots `wiki/` per stage, which is
-what Size was never measurable without.
+its predecessors carried only in shell — wait for the endpoint before every compile, retry a
+stage in place before the next is staged, the residual recorded rather than raised — plus the
+two things their absence cost. It refuses an `--out` under `/tmp`, and it snapshots `wiki/`
+per stage, which is what Size was never measurable without.
+
+**The A1 arm's retry budget is 3 attempts per stage, not the "one retry" the policy was
+written as**, and that is deliberate: this baseline got three passes at stage 2 (5.99 + 2.36 +
+0.03 USD) driven by hand from three separate recovery scripts, so an A1 arm capped at two
+attempts would be compared against an arm that had more. `--attempts` sets it and the arm's
+`arm-report.json` records it, along with the models, the worker count, the repo SHA and the
+extract strategy — everything that decides what the articles look like and that this document
+cannot recover for the baseline side.
 
 FX7 is still runnable and its shape changes: it compares the A1 arm against the **written
 baseline** above rather than against re-readable files. Every published column, every

@@ -3,16 +3,19 @@
 The driver this covers replaces four shell scripts that were never committed and
 were lost when ``/tmp`` was cleared on 2026-08-19, taking the scored baseline arm
 with them (docs/features/supersession/scoring.md). So the policy those scripts
-carried is what these tests pin: wait for the endpoint before every compile, one
-retry per stage taken *in place* before the next stage is staged, a residual
-recorded rather than raised, and a ``wiki/`` snapshot per stage so Size has a
-basis at all.
+carried is what these tests pin: wait for the endpoint before every compile, retry
+a stage *in place* before the next one is staged, a residual recorded rather than
+raised, and a ``wiki/`` snapshot per stage so Size has a basis at all. The retry
+ceiling is 3 rather than the policy's "one retry" -- the baseline got three passes
+at stage 2 by hand, and an arm given fewer attempts than the arm it is compared
+against confounds FX7.
 """
 from __future__ import annotations
 
 import json
 import subprocess
 import sys
+import tempfile
 import urllib.error
 from pathlib import Path
 
@@ -23,6 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import run_fx4_arm as arm  # noqa: E402
 
 _FIXTURE = Path(__file__).resolve().parents[2] / "data" / "kb-supersession-fixture"
+# Captured at import, before the autouse fixture below narrows it, so the
+# production value can be asserted on.
+_SHIPPED_VOLATILE = tuple(arm._VOLATILE)
 
 
 @pytest.fixture(autouse=True)
@@ -326,6 +332,48 @@ def test_the_attempt_ceiling_is_configurable_because_the_baseline_needed_three()
                                                              "compile1.3"]
 
 
+def test_the_report_is_checkpointed_after_every_stage():
+    """Asserted on the real ``run_arm``, not on a stub that calls the callback
+    itself: the record of a stage already paid for must reach disk before the next
+    stage can lose it.
+    """
+    seen = []
+    arm.run_arm([["raw/a1.md"], ["raw/a2.md"]],
+                hooks([], [ok(1), ok(1)], compiled=[["raw/a1.md"], ["raw/a2.md"]]),
+                on_stage=lambda report: seen.append(len(report["stages"])),
+                log=lambda _m: None)
+
+    assert seen == [1, 2]
+
+
+def test_a_stage_blocked_between_attempts_still_snapshots_what_it_wrote():
+    """An arm blocked mid-stage has articles on disk from its earlier attempts --
+    the 2026-08-18 shape exactly -- and Size is the reason the snapshots exist.
+    """
+    events: list[str] = []
+    waits = [True, False]
+    stage_hooks = hooks(events, [ok(0)], compiled=[[]])
+    stage_hooks.wait = lambda: (events.append("wait"), waits.pop(0))[1]
+
+    arm.run_arm([["raw/a1.md"]], stage_hooks, attempts=2, log=lambda _m: None)
+
+    assert events == ["stage1", "wait", "compile1.1", "wait", "snap1"]
+
+
+def test_an_attempt_index_travels_with_every_recorded_error():
+    """Otherwise "one document failed twice" and "two documents failed" serialise
+    identically, which is the ambiguity that made the baseline's write history a
+    hand reconstruction.
+    """
+    report = arm.run_arm(
+        [["raw/a1.md"]],
+        hooks([], [ok(0, errors=[{"file": "raw/a1.md", "error": "timeout"}]),
+                   ok(0, errors=[{"file": "raw/a1.md", "error": "timeout"}])]),
+        attempts=2, log=lambda _m: None)
+
+    assert [e["attempt"] for e in report["stages"][0]["errors"]] == [1, 2]
+
+
 def test_spend_accumulates_over_every_attempt_of_every_stage():
     report = arm.run_arm([["raw/a1.md", "raw/b1.md"], ["raw/a2.md"]],
                          hooks([], [ok(1, cost=2.5, calls=30),
@@ -388,7 +436,8 @@ def test_per_document_compile_errors_are_kept_on_the_stage_record():
                          hooks([], [ok(0, errors=[failure]), ok(0, errors=[failure])]),
                          attempts=2, log=lambda _m: None)
 
-    assert report["stages"][0]["errors"] == [failure, failure]
+    assert report["stages"][0]["errors"] == [{"attempt": 1, **failure},
+                                             {"attempt": 2, **failure}]
 
 
 # ── the real side effects ──────────────────────────────────────────────
@@ -441,7 +490,7 @@ def test_the_compile_response_is_the_last_line_of_stdout(tmp_path, monkeypatch):
             stderr="phase log\n")
 
     monkeypatch.setattr(arm.subprocess, "run", run)
-    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, workers=4)
+    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, 4, arm._models("m"))
 
     assert runner(1, 1) == {"ok": True, "data": {"compiled": 3}}
     assert (tmp_path / "stage1-attempt1.stderr.log").read_text() == "phase log\n"
@@ -452,7 +501,7 @@ def test_a_compile_that_printed_nothing_is_a_failure_not_a_crash(tmp_path,
     monkeypatch.setattr(arm.subprocess, "run",
                         lambda _cmd, **_kw: subprocess.CompletedProcess(
                             _cmd, 1, stdout="", stderr="killed\n"))
-    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, workers=4)
+    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, 4, arm._models("m"))
 
     assert runner(2, 1)["error"]["code"] == "NO_RESPONSE"
 
@@ -462,18 +511,29 @@ def test_unparseable_stdout_is_a_failure_the_stage_can_retry(tmp_path,
     monkeypatch.setattr(arm.subprocess, "run",
                         lambda _cmd, **_kw: subprocess.CompletedProcess(
                             _cmd, 0, stdout="Traceback…\n", stderr=""))
-    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, workers=4)
+    runner = arm._compile_runner(tmp_path, tmp_path / "kb", tmp_path, 4, arm._models("m"))
 
     assert runner(1, 2)["error"]["code"] == "UNPARSEABLE_RESPONSE"
 
 
-def test_a_base_url_with_no_scheme_stops_the_arm_instead_of_waiting_it_out(
-        monkeypatch):
-    """A config error is not an outage: waiting the deadline out for it would burn
-    fifteen minutes and then abort with a misleading reason.
+@pytest.mark.parametrize("url", ["gw.example/v1", "https//gw.example",
+                                 "htp://gw.example", "http:/gw.example",
+                                 "http://gw .example", "", "ftp://gw.example/v1"])
+def test_an_unusable_base_url_is_rejected_before_the_arm_waits_on_it(url):
+    """A config error is not an outage, and the exception classes do not separate
+    them: measured, ``gw.example/v1`` raises ValueError, ``htp://gw.example``
+    raises URLError (an OSError, so ``wait_for_endpoint`` reads it as an outage and
+    burns the 900 s deadline before aborting with a misleading reason), and
+    ``http://gw .example`` raises http.client.InvalidURL, which is neither and
+    would crash the arm. So the URL is checked once, up front, by shape.
     """
-    with pytest.raises(SystemExit):
-        arm._endpoint_probe("gw.example/v1", "k")()
+    assert arm.unusable_base_url(url)
+
+
+@pytest.mark.parametrize("url", ["https://gw.example/v1", "http://127.0.0.1:4000/v1",
+                                 "https://gw.example/v1/"])
+def test_a_usable_base_url_passes(url):
+    assert arm.unusable_base_url(url) is None
 
 
 def test_a_half_written_state_file_reads_as_nothing_compiled(tmp_path):
@@ -628,6 +688,15 @@ def test_the_out_directory_may_not_be_the_per_user_temp_directory(tmp_path,
                   "--cases", str(cases_path)])
 
 
+def test_the_shipped_refusal_list_includes_the_per_user_temp_directory():
+    """Asserted on the value the script ships with, not the narrowed one the
+    autouse fixture installs -- otherwise the rule above is pinned by a fixture
+    rather than by the driver.
+    """
+    assert tempfile.gettempdir() in _SHIPPED_VOLATILE
+    assert "/tmp" in _SHIPPED_VOLATILE
+
+
 def test_a_directory_that_merely_starts_with_the_same_letters_is_fine(tmp_path):
     write(tmp_path / "raw" / "a1.md")
     cases_path = tmp_path / "cases.json"
@@ -639,7 +708,8 @@ def test_a_directory_that_merely_starts_with_the_same_letters_is_fine(tmp_path):
 
 # ── the executed arm, wired for real ──────────────────────────────────
 
-def execute(tmp_path, monkeypatch, *, responses, extra=()):
+def execute(tmp_path, monkeypatch, *, responses, extra=(), git_sha="abc1234",
+            record_bodies=None):
     """Run ``main --execute`` with only the gateway faked out.
 
     Everything else is real: the fixture is staged by ``stage_fixture.materialize``
@@ -657,8 +727,10 @@ def execute(tmp_path, monkeypatch, *, responses, extra=()):
     def fake_compile(_cmd, **_kwargs):
         """Stand in for the compile: write what a compile would leave behind."""
         if _cmd[0] == "git":  # _arm_config reads the arm's own SHA
-            return subprocess.CompletedProcess(_cmd, 0, stdout="abc1234\n",
+            return subprocess.CompletedProcess(_cmd, 0, stdout=f"{git_sha}\n",
                                                stderr="")
+        if record_bodies is not None:
+            record_bodies.append(json.loads(_kwargs["input"]))
         response, compiled = answers.pop(0)
         state = json.loads((kb / ".compile-state.json").read_text()) \
             if (kb / ".compile-state.json").exists() else {}
@@ -728,9 +800,87 @@ def test_the_report_describes_the_arm_and_not_only_its_totals(tmp_path,
 
     report = json.loads((out / "logs" / "arm-report.json").read_text())
     assert report["config"]["workers"] == 4
-    assert report["config"]["attempts"] == arm._ATTEMPTS_PER_STAGE
-    assert report["config"]["repo_head"]  # the code that wrote the articles
+    # 3, not the constant: the choice is that an arm compared against one which
+    # got three hand-driven passes must not be given fewer.
+    assert report["config"]["attempts"] == 3
+    assert report["config"]["repo_head"] == "abc1234"  # the code that wrote them
     assert report["config"]["fixture"].endswith("fixture")
+    # The models the compile was actually told to use, not an environment variable
+    # it ignores: run_compile defaults all three to claude-sonnet-4-6 and reads
+    # LLM_MODEL only for the summarize fallback, so recording that would publish a
+    # model that wrote nothing.
+    assert report["config"]["models"] == {"extract_model": "claude-sonnet-4-6",
+                                          "compile_model": "claude-sonnet-4-6",
+                                          "write_model": "claude-sonnet-4-6"}
+
+
+def test_the_compile_is_told_which_models_to_use_rather_than_inheriting_them(
+        tmp_path, monkeypatch):
+    """So the report's model record is the truth and the arm is reproducible: the
+    same three names go into the request body that go into the config block.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+    bodies: list[dict] = []
+
+    _code, out = execute(tmp_path, monkeypatch,
+                         extra=[*cases_arg, "--model", "claude-opus-5"],
+                         responses=[
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 1.0, "calls": 5}}},
+         ["raw/a1.md"]),
+    ], record_bodies=bodies)
+
+    assert bodies[0]["write_model"] == "claude-opus-5"
+    assert bodies[0]["extract_model"] == "claude-opus-5"
+    report = json.loads((out / "logs" / "arm-report.json").read_text())
+    assert set(report["config"]["models"].values()) == {"claude-opus-5"}
+
+
+def test_an_arm_may_not_run_with_no_attempts(tmp_path):
+    """``--attempts 0`` would snapshot every stage, call nothing, and write a report
+    claiming a full four-stage residual at 0.00 USD -- a completed-looking arm that
+    never ran.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+
+    for bad in (["--attempts", "0"], ["--workers", "0"]):
+        with pytest.raises(SystemExit):
+            arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                      "--cases", str(cases_path), *bad])
+
+
+def test_execute_refuses_a_base_url_that_cannot_be_reached_by_shape(tmp_path,
+                                                                   monkeypatch):
+    """Checked in main, before any hook is built, so the arm fails in a second
+    with the reason rather than after the 900 s wait with the wrong one.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+    monkeypatch.setenv("LLM_BASE_URL", "htp://gw.example")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: pytest.fail(
+        "an unusable base URL must be caught before the arm starts"))
+
+    assert arm.main(["--fixture", str(tmp_path / "fixture"), *cases_arg,
+                     "--out", str(tmp_path / "arm"), "--execute"]) == 1
+
+
+def test_an_unknown_repo_head_is_recorded_as_unknown(tmp_path, monkeypatch):
+    """A detached or missing checkout must not make the report silently claim a
+    SHA, since ``repo_head`` is what pins which code wrote the articles.
+    """
+    cases_arg = fixture_of(tmp_path, "raw/a1.md")
+
+    _code, out = execute(tmp_path, monkeypatch, extra=cases_arg, git_sha="",
+                         responses=[
+        ({"ok": True, "data": {"compiled": 1, "errors": [],
+                               "cost": {"total_cost_usd": 1.0, "calls": 5}}},
+         ["raw/a1.md"]),
+    ])
+
+    report = json.loads((out / "logs" / "arm-report.json").read_text())
+    assert report["config"]["repo_head"] == "unknown"
 
 
 def test_the_report_survives_a_stage_that_never_finishes(tmp_path, monkeypatch):

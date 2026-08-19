@@ -56,6 +56,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import Counter
 from dataclasses import dataclass
@@ -83,6 +84,10 @@ _WAIT_INTERVAL_S = 15.0
 # so giving the A1 arm strictly fewer attempts than the arm it is compared against
 # would confound FX7. Three by default, and recorded in the report either way.
 _ATTEMPTS_PER_STAGE = 3
+# run_compile's own default for all three write-path gates (compile.py:806-808),
+# which is therefore what the baseline arm ran. Named here because the driver now
+# sends it explicitly rather than inheriting it.
+_MODEL = "claude-sonnet-4-6"
 
 
 def rebuild_cases(fixture_kb: Path) -> list[dict]:
@@ -144,6 +149,26 @@ def wait_for_endpoint(probe: Callable[[], bool], *, deadline_s: float,
         if clock() - start + interval_s > deadline_s:
             return False
         sleep(interval_s)
+
+
+def unusable_base_url(base_url: str) -> str | None:
+    """Why this gateway URL cannot be reached, or None if its shape is fine.
+
+    Checked by shape rather than by trying it, because the failures do not raise a
+    single class: a missing scheme is a ``ValueError``, a misspelled scheme is a
+    ``URLError`` (an ``OSError``, indistinguishable from an outage to the wait, so a
+    typo costs the full deadline and then aborts with the wrong reason), and a space
+    in the host is an ``http.client.InvalidURL``, which is neither and would crash
+    an arm mid-run.
+    """
+    parts = urllib.parse.urlsplit(base_url.strip())
+    if parts.scheme not in ("http", "https"):
+        return f"scheme must be http or https, got {parts.scheme or 'none'!r}"
+    if not parts.netloc:
+        return "no host"
+    if any(c.isspace() for c in parts.netloc):
+        return "whitespace in the host"
+    return None
 
 
 def stage_shortfall(members: list[str], state: dict) -> list[str]:
@@ -225,6 +250,11 @@ def run_arm(staged: list[list[str]], hooks: Hooks, *,
                 report["blocked_at_stage"] = stage
                 log(f"stage {stage}: endpoint never came back, arm stopped "
                     f"after {report['cost_usd']:.4f} USD")
+                # Snapshot anyway: an arm blocked between attempts has articles
+                # on disk from the attempts that did run, and Size is why the
+                # snapshots exist at all.
+                if attempt > 1:
+                    hooks.snapshot(stage)
                 close_stage(record)
                 return report
 
@@ -234,7 +264,13 @@ def run_arm(staged: list[list[str]], hooks: Hooks, *,
             cost = data.get("cost") or {}
             report["cost_usd"] += float(cost.get("total_cost_usd") or 0.0)
             report["calls"] += int(cost.get("calls") or 0)
-            record["errors"].extend(data.get("errors") or [])
+            # Stamped with the attempt, or "one document failed twice" and "two
+            # documents failed" serialise identically -- the ambiguity that made
+            # the baseline's write history a hand reconstruction.
+            record["errors"].extend({"attempt": attempt, **entry}
+                                    if isinstance(entry, dict)
+                                    else {"attempt": attempt, "error": entry}
+                                    for entry in (data.get("errors") or []))
             if not response.get("ok"):
                 code = (response.get("error") or {}).get("code") or "UNKNOWN"
                 record["failures"].append(code)
@@ -261,32 +297,41 @@ def _endpoint_probe(base_url: str, api_key: str) -> Callable[[], bool]:
     An HTTP error is an answer -- 401 from a key the arm will not use still proves
     the endpoint is serving -- so only a transport failure counts as down, and that
     one propagates for ``wait_for_endpoint`` to catch as the OSError it is.
+
+    The URL's shape is not this function's problem; ``unusable_base_url`` settles it
+    before the arm starts, because the exception classes cannot. Measured: a missing
+    scheme raises ``ValueError``, a misspelled one (``htp://``) raises ``URLError``
+    -- an ``OSError``, so the wait would read a typo as a 15-minute outage -- and a
+    space in the host raises ``http.client.InvalidURL``, which is neither.
     """
     url = base_url.rstrip("/") + "/models"
 
     def probe() -> bool:
+        request = urllib.request.Request(
+            url, headers={"Authorization": f"Bearer {api_key}"})
         try:
-            request = urllib.request.Request(
-                url, headers={"Authorization": f"Bearer {api_key}"})
             with urllib.request.urlopen(request, timeout=20):
                 return True
         except urllib.error.HTTPError:
             return True
-        except ValueError as exc:
-            # A base URL with no scheme is a configuration error, not an outage:
-            # waiting out the deadline for it would burn 15 minutes and then abort.
-            raise SystemExit(f"LLM_BASE_URL is not a usable URL ({url}): {exc}")
     return probe
 
 
-def _compile_runner(repo: Path, kb: Path, logs: Path,
-                    workers: int) -> Callable[[int, int], dict]:
+def _compile_runner(repo: Path, kb: Path, logs: Path, workers: int,
+                    models: dict) -> Callable[[int, int], dict]:
     """Run the compile out of process, against whichever checkout ``repo`` is.
 
     Out of process because the baseline arm is the pre-A1 code in a worktree, and
     the point of an arm is which code wrote the articles.
+
+    The three models are sent explicitly rather than left to ``run_compile``'s
+    defaults. Not to change them -- the default is what the baseline ran -- but so
+    the arm's own report can state which models wrote its articles instead of
+    recording an environment variable the compile ignores: ``LLM_MODEL`` reaches
+    only the summarize fallback (``compile.py:822-824``), never the extract,
+    classify or write model.
     """
-    body = json.dumps({"data_dir": str(kb), "workers": workers})
+    body = json.dumps({"data_dir": str(kb), "workers": workers, **models})
 
     def compile_stage(stage: int, attempt: int) -> dict:
         # Deliberately no timeout: a stage's writes climb a 300 s per-call ladder
@@ -331,7 +376,8 @@ def _snapshotter(kb: Path, logs: Path) -> Callable[[int], None]:
     """``cp -a`` per stage, ~750 KB each, which is what Size is defined against.
 
     Neither FX4 driver did this, so after stage 1 there was no pre-run article to
-    compare and the column was unmeasurable on both arms.
+    compare, so the column was unmeasurable on the baseline and is now recorded
+    absolutely here (it stays out of the FX7 comparison, the baseline having none).
     """
     def snapshot(stage: int) -> None:
         wiki = kb / "wiki"
@@ -390,12 +436,20 @@ def _arm_config(args: argparse.Namespace, fixture: Path, kb: Path) -> dict:
         "workers": args.workers,
         "attempts": args.attempts,
         "resumed": bool(args.resume),
-        # Read from the environment the compile subprocess inherits, not from a
-        # copy of compile.py's defaults, which would go stale.
+        # What the compile is told, so this is what wrote the articles.
+        "models": _models(args.model),
+        # And what it inherits. KB_WORKERS is here because chunk-level extraction
+        # reads it independently of --workers (core/extract.py), so the recorded
+        # concurrency would otherwise be half the story.
         "env": {name: os.environ.get(name) or ""
-                for name in ("LLM_MODEL", "LLM_EXTRACT_STRATEGY",
-                             "LLM_SUMMARIZE_MODEL", "LLM_BASE_URL")},
+                for name in ("LLM_EXTRACT_STRATEGY", "LLM_SUMMARIZE_MODEL",
+                             "LLM_BASE_URL", "KB_WORKERS")},
     }
+
+
+def _models(model: str) -> dict:
+    """One name for all three write-path models, which is how both arms ran."""
+    return {"extract_model": model, "compile_model": model, "write_model": model}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -414,6 +468,10 @@ def main(argv: list[str] | None = None) -> int:
                              "concurrency changes how often writes time out")
     parser.add_argument("--attempts", type=int, default=_ATTEMPTS_PER_STAGE,
                         help="attempts per stage before the residual is recorded")
+    parser.add_argument("--model", default=_MODEL,
+                        help="the model all three write-path gates use; sent "
+                             "explicitly so the report records what wrote the "
+                             "articles")
     parser.add_argument("--resume", action="store_true",
                         help="continue into an --out that already holds a KB")
     parser.add_argument("--execute", action="store_true",
@@ -425,6 +483,13 @@ def main(argv: list[str] | None = None) -> int:
     if volatile:
         parser.error(f"--out resolves into {volatile}, which is cleared without "
                      "warning: that is what destroyed the baseline arm")
+    # --attempts 0 would call no compile, snapshot every stage and write a report
+    # claiming a full residual at 0.00 USD: an arm that never ran, looking finished.
+    if args.attempts < 1:
+        parser.error("--attempts must be at least 1")
+    if args.workers < 1:
+        parser.error("--workers must be at least 1 (0 would silently take "
+                     "compile.py's own default of 16)")
 
     fixture = Path(args.fixture)
     cases = (json.loads(Path(args.cases).read_text(encoding="utf-8"))
@@ -453,6 +518,13 @@ def main(argv: list[str] | None = None) -> int:
     if not base_url or not api_key:
         print("set LLM_BASE_URL and LLM_API_KEY: the arm reaches the gateway "
               "through them and an unset key fails every write", file=sys.stderr)
+        return 1
+    # Before any hook is built, because the wait cannot tell a typo'd scheme from
+    # an outage and would spend the whole deadline on it.
+    unusable = unusable_base_url(base_url)
+    if unusable:
+        print(f"LLM_BASE_URL is not reachable as written ({base_url!r}): "
+              f"{unusable}", file=sys.stderr)
         return 1
 
     # Staging is additive and the logs are written by name, so a second run into a
@@ -483,7 +555,8 @@ def main(argv: list[str] | None = None) -> int:
         wait=lambda: wait_for_endpoint(probe, deadline_s=_WAIT_DEADLINE_S,
                                        interval_s=_WAIT_INTERVAL_S,
                                        sleep=time.sleep, clock=time.monotonic),
-        compile=_compile_runner(Path(args.repo), kb, logs, args.workers),
+        compile=_compile_runner(Path(args.repo), kb, logs, args.workers,
+                                _models(args.model)),
         snapshot=_snapshotter(kb, logs),
         compile_state=_compile_state_reader(kb),
     )
