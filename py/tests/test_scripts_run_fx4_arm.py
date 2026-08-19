@@ -33,12 +33,25 @@ _SHIPPED_VOLATILE = tuple(arm._VOLATILE)
 
 
 @pytest.fixture(autouse=True)
-def tmpdir_is_not_the_refused_one(monkeypatch):
-    """pytest's ``tmp_path`` lives under ``$TMPDIR``, which the driver refuses on
-    purpose. Drop that entry so the rest of the suite can use ``tmp_path``; the
-    rule itself is covered by the test that names it, which puts one back.
+def tmpdir_is_not_the_refused_one(monkeypatch, tmp_path):
+    """Drop whichever refused roots ``tmp_path`` happens to live under.
+
+    The driver refuses an ``--out`` inside a volatile directory, and pytest's
+    scratch directory is inside one -- so the suite cannot use ``tmp_path`` at all
+    unless the rule is narrowed for it. **Which entry to drop is platform-specific
+    and must be computed, not written down**: on macOS ``tmp_path`` is under
+    ``$TMPDIR`` (``/var/folders/…``) and dropping that one entry is enough, while on
+    Linux ``tempfile.gettempdir()`` *is* ``/tmp``, so a hardcoded
+    ``("/tmp", "/private/tmp")`` still refuses every scratch path and 17 tests fail
+    with ``SystemExit: 2``. That is what CI caught on this branch's first run.
+
+    Every test that exercises the rule itself installs its own list, so nothing
+    here is pinned by this fixture.
     """
-    monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", "/private/tmp"))
+    scratch = tmp_path.resolve()
+    monkeypatch.setattr(arm, "_VOLATILE", tuple(
+        entry for entry in _SHIPPED_VOLATILE
+        if not scratch.is_relative_to(Path(entry).resolve())))
 
 
 @pytest.fixture(autouse=True)
@@ -884,13 +897,18 @@ def test_an_executed_arm_leaves_its_cases_file_and_its_report_on_disk(
 @pytest.mark.parametrize("out", ["/tmp/kaas-a1", "/private/tmp/kaas-a1",
                                  "/tmp/./kaas-a1", "/tmp/../tmp/kaas-a1",
                                  "../../../../../../../../tmp/kaas-a1"])
-def test_the_out_directory_may_not_be_under_tmp(tmp_path, out):
+def test_the_out_directory_may_not_be_under_tmp(tmp_path, monkeypatch, out):
     """The one lesson the lost arm cost 18 USD to learn. The relative spelling is
     the one a literal prefix check misses, and it names the same directory.
+
+    Installs the list rather than inheriting the autouse fixture's, which on Linux
+    has dropped ``/tmp`` -- that is where the scratch directory lives there, and a
+    test of this rule must not depend on where pytest put its files.
     """
     write(tmp_path / "raw" / "a1.md")
     cases_path = tmp_path / "cases.json"
     cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", "/private/tmp"))
 
     with pytest.raises(SystemExit):
         arm.main(["--fixture", str(tmp_path), "--out", out,
@@ -921,10 +939,15 @@ def test_the_shipped_refusal_list_includes_the_per_user_temp_directory():
     assert "/tmp" in _SHIPPED_VOLATILE
 
 
-def test_a_directory_that_merely_starts_with_the_same_letters_is_fine(tmp_path):
+def test_a_directory_that_merely_starts_with_the_same_letters_is_fine(tmp_path,
+                                                                     monkeypatch):
+    """Also installs the list: with ``/tmp`` dropped this would pass for the wrong
+    reason and stop proving that the check is on path components, not on a prefix.
+    """
     write(tmp_path / "raw" / "a1.md")
     cases_path = tmp_path / "cases.json"
     cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setattr(arm, "_VOLATILE", ("/tmp", "/private/tmp"))
 
     assert arm.main(["--fixture", str(tmp_path), "--out", "/tmpfoo/arm",
                      "--cases", str(cases_path)]) == 0
