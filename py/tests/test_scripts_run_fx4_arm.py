@@ -479,6 +479,51 @@ def test_a_transport_failure_propagates_so_the_wait_can_catch_it(monkeypatch):
         arm._endpoint_probe("https://gw.example/v1", "k")()
 
 
+def test_the_model_catalog_is_read_from_the_endpoint_the_arm_will_use(monkeypatch):
+    seen = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+        def read(self):
+            return b'{"data": [{"id": "claude-sonnet-4-6"}]}'
+
+    def urlopen(request, timeout=None):
+        seen["url"] = request.full_url
+        seen["auth"] = request.get_header("Authorization")
+        return Response()
+
+    monkeypatch.setattr(arm.urllib.request, "urlopen", urlopen)
+
+    assert arm._model_catalog("https://gw.example/v1/", "k") == {
+        "data": [{"id": "claude-sonnet-4-6"}]}
+    assert seen == {"url": "https://gw.example/v1/models", "auth": "Bearer k"}
+
+
+@pytest.mark.parametrize("failure", [
+    urllib.error.HTTPError("u", 404, "Not Found", {}, None),
+    urllib.error.URLError("no route"),
+    ValueError("not json"),
+])
+def test_a_gateway_that_will_not_answer_the_question_reads_as_unknown(monkeypatch,
+                                                                     failure):
+    """Unlike the probe, this must not propagate. It runs once before the arm
+    starts, and a gateway that is briefly down, hides ``/models`` behind a 404 or
+    answers it with HTML is not a gateway missing the model -- ``wait_for_endpoint``
+    owns outages, and refusing here on no evidence would block a working arm.
+    """
+    def urlopen(_request, timeout=None):
+        raise failure
+
+    monkeypatch.setattr(arm.urllib.request, "urlopen", urlopen)
+
+    assert arm._model_catalog("https://gw.example/v1", "k") is None
+
+
 def test_the_compile_response_is_the_last_line_of_stdout(tmp_path, monkeypatch):
     """The protocol prints one JSON line, but the compile logs whatever a model
     wrote before it -- and one of those lines can itself be JSON.
@@ -534,6 +579,37 @@ def test_an_unusable_base_url_is_rejected_before_the_arm_waits_on_it(url):
                                  "https://gw.example/v1/"])
 def test_a_usable_base_url_passes(url):
     assert arm.unusable_base_url(url) is None
+
+
+def test_the_catalog_names_the_models_the_gateway_serves():
+    catalog = {"object": "list", "data": [{"id": "claude-sonnet-4-6"},
+                                          {"id": "gpt-4o-mini"}]}
+
+    assert arm.served_model_ids(catalog) == ["claude-sonnet-4-6", "gpt-4o-mini"]
+
+
+def test_a_gateway_serving_nothing_is_read_as_serving_nothing():
+    """Distinct from an unreadable answer: an empty list is an answer, and it
+    cannot serve the write model, so the arm must refuse rather than continue.
+    """
+    assert arm.served_model_ids({"data": []}) == []
+
+
+@pytest.mark.parametrize("catalog", [
+    {},                                  # no data key
+    {"data": {}},                        # data is not a list
+    {"data": [{"name": "claude"}]},      # entries carry no id
+    {"data": ["claude-sonnet-4-6"]},     # entries are not objects
+    [],                                  # payload is not an object
+    "claude-sonnet-4-6",
+    None,
+])
+def test_a_payload_that_is_not_a_model_list_reads_as_unknown_not_as_empty(catalog):
+    """The difference decides whether the arm aborts. An unrecognised shape means
+    this gateway does not answer the question, which is not evidence that it
+    cannot serve the model -- so it must not read as "serves nothing".
+    """
+    assert arm.served_model_ids(catalog) is None
 
 
 def test_a_half_written_state_file_reads_as_nothing_compiled(tmp_path):
@@ -634,6 +710,84 @@ def test_execute_refuses_without_gateway_credentials(tmp_path, monkeypatch):
     assert not (tmp_path / "arm").exists()
 
 
+def test_execute_refuses_a_gateway_that_does_not_serve_the_write_model(
+        tmp_path, monkeypatch, capsys):
+    """The MiniMax hour, made unrepeatable. ``OPENAI_BASE_URL`` on the laptop that
+    ran both arms points at a gateway serving eight MiniMax models and no Claude
+    model, and KaaS falls back to that pair when ``LLM_*`` is unset. An arm launched
+    there 400s on every call and reports a full residual at 0.00 USD, which reads
+    like a catastrophic writer failure rather than a misconfiguration.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setenv("LLM_BASE_URL", "https://api.minimax.io/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: {
+        "data": [{"id": "MiniMax-M2"}, {"id": "MiniMax-Text-01"}]})
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: pytest.fail(
+        "the arm must not spend against a gateway missing its write model"))
+
+    code = arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                     "--cases", str(cases_path), "--execute"])
+
+    assert code == 1
+    message = capsys.readouterr().err
+    assert "claude-sonnet-4-6" in message  # what it needs
+    assert "MiniMax-M2" in message         # what it found, so the fix is obvious
+    assert not (tmp_path / "arm" / "kb").exists()
+
+
+def test_a_gateway_that_cannot_be_asked_warns_and_runs_anyway(tmp_path,
+                                                              monkeypatch, capsys):
+    """The check is a guard, not a gate on the arm's right to run: a gateway that
+    does not expose ``/models`` would otherwise be unusable for an arm even though
+    every write would have succeeded.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: None)
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: {
+        "stages": [], "cost_usd": 1.0, "calls": 4, "residual": [],
+        "blocked_at_stage": None})
+
+    code = arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+                     "--cases", str(cases_path), "--execute"])
+
+    assert code == 0
+    assert "could not" in capsys.readouterr().err  # said so rather than stayed silent
+    config = json.loads(
+        (tmp_path / "arm" / "logs" / "arm-report.json").read_text())["config"]
+    assert config["models_verified"] is False
+
+
+def test_a_verified_gateway_records_that_it_was_verified(tmp_path, monkeypatch):
+    """Which the report needs for the same reason it records the models: an arm
+    that produced a residual has to be readable as a writer failure or as a
+    gateway that was never confirmed to serve the model.
+    """
+    write(tmp_path / "raw" / "a1.md")
+    cases_path = tmp_path / "cases.json"
+    cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
+    monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
+    monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: {
+        "data": [{"id": "claude-sonnet-4-6"}]})
+    monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: {
+        "stages": [], "cost_usd": 1.0, "calls": 4, "residual": [],
+        "blocked_at_stage": None})
+
+    arm.main(["--fixture", str(tmp_path), "--out", str(tmp_path / "arm"),
+              "--cases", str(cases_path), "--execute"])
+
+    config = json.loads(
+        (tmp_path / "arm" / "logs" / "arm-report.json").read_text())["config"]
+    assert config["models_verified"] is True
+
+
 def test_an_executed_arm_leaves_its_cases_file_and_its_report_on_disk(
         tmp_path, monkeypatch):
     """The loss this driver exists to prevent. Both files are the arm's record, so
@@ -644,6 +798,7 @@ def test_an_executed_arm_leaves_its_cases_file_and_its_report_on_disk(
     cases_path.write_text(json.dumps([case(["raw/a1.md"])]), encoding="utf-8")
     monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
     monkeypatch.setenv("LLM_API_KEY", "k")
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: None)
     monkeypatch.setattr(arm, "run_arm", lambda *_a, **_kw: {
         "stages": [], "cost_usd": 3.5, "calls": 40, "residual": [],
         "blocked_at_stage": 2})
@@ -716,10 +871,16 @@ def execute(tmp_path, monkeypatch, *, responses, extra=(), git_sha="abc1234",
     into a real KB, the snapshots are real copies, and the compile state is a real
     file. An argument swapped between ``fixture`` and ``kb`` would copy an empty KB
     over the fixture, which no test with ``run_arm`` monkeypatched can see.
+
+    The faked gateway answers no model list -- which is the honest stand-in for a
+    host that does not exist, keeps these tests off the network, and lets the one
+    that overrides ``--model`` run unchanged. Both branches of the model check have
+    their own tests above.
     """
     monkeypatch.setenv("LLM_BASE_URL", "https://gw.example/v1")
     monkeypatch.setenv("LLM_API_KEY", "k")
     monkeypatch.setattr(arm, "_endpoint_probe", lambda *_a: (lambda: True))
+    monkeypatch.setattr(arm, "_model_catalog", lambda *_a: None)
 
     kb = tmp_path / "arm" / "kb"
     answers = list(responses)

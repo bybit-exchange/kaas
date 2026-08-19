@@ -171,6 +171,27 @@ def unusable_base_url(base_url: str) -> str | None:
     return None
 
 
+def served_model_ids(catalog: object) -> list[str] | None:
+    """The model names an OpenAI-shaped ``/models`` payload lists, or None.
+
+    None means the payload does not answer the question -- not that the gateway
+    serves nothing. The difference decides whether an arm aborts, and only one of
+    the two readings is evidence: an empty ``data`` list is a gateway saying it
+    serves no models, while HTML, a bare string or entries without an ``id`` is a
+    gateway that was asked something else.
+    """
+    if not isinstance(catalog, dict):
+        return None
+    entries = catalog.get("data")
+    if not isinstance(entries, list):
+        return None
+    ids = [entry["id"] for entry in entries
+           if isinstance(entry, dict) and isinstance(entry.get("id"), str)]
+    if entries and not ids:
+        return None
+    return ids
+
+
 def stage_shortfall(members: list[str], state: dict) -> list[str]:
     """This stage's documents the KB does not record as compiled, by name.
 
@@ -317,6 +338,26 @@ def _endpoint_probe(base_url: str, api_key: str) -> Callable[[], bool]:
     return probe
 
 
+def _model_catalog(base_url: str, api_key: str) -> object | None:
+    """This gateway's ``/models`` payload, or None if it will not answer.
+
+    Every failure reads as None, unlike ``_endpoint_probe``, which lets transport
+    errors propagate for the wait to retry. This one runs once before the arm
+    starts and blocks nothing on its own: a gateway that is briefly down, hides
+    ``/models`` behind a 404 or answers it with HTML is not a gateway missing the
+    write model, and refusing on that would stop an arm whose every write would
+    have succeeded.
+    """
+    url = base_url.rstrip("/") + "/models"
+    request = urllib.request.Request(
+        url, headers={"Authorization": f"Bearer {api_key}"})
+    try:
+        with urllib.request.urlopen(request, timeout=20) as response:
+            return json.loads(response.read())
+    except (OSError, ValueError):  # transport, HTTP status, and unparseable JSON
+        return None
+
+
 def _compile_runner(repo: Path, kb: Path, logs: Path, workers: int,
                     models: dict) -> Callable[[int, int], dict]:
     """Run the compile out of process, against whichever checkout ``repo`` is.
@@ -418,13 +459,17 @@ def _volatile(out: Path) -> str | None:
     return None
 
 
-def _arm_config(args: argparse.Namespace, fixture: Path, kb: Path) -> dict:
+def _arm_config(args: argparse.Namespace, fixture: Path, kb: Path, *,
+                models_verified: bool) -> dict:
     """What the arm was, in the arm's own record.
 
     FX7 compares this arm against a baseline whose worker count, models and
     extract strategy are unrecoverable, and the baseline's write history had to be
     reconstructed by hand from driver log lines. Everything that decides what the
     articles look like is written down here instead.
+
+    ``models_verified`` is False when the gateway would not list its models, which
+    is the one case where a residual could be the gateway rather than the writer.
     """
     head = subprocess.run(["git", "-C", args.repo, "rev-parse", "HEAD"],
                           capture_output=True, text=True)
@@ -438,6 +483,7 @@ def _arm_config(args: argparse.Namespace, fixture: Path, kb: Path) -> dict:
         "resumed": bool(args.resume),
         # What the compile is told, so this is what wrote the articles.
         "models": _models(args.model),
+        "models_verified": models_verified,
         # And what it inherits. KB_WORKERS is here because chunk-level extraction
         # reads it independently of --workers (core/extract.py), so the recorded
         # concurrency would otherwise be half the story.
@@ -536,11 +582,30 @@ def main(argv: list[str] | None = None) -> int:
               "state and overwrites its report).", file=sys.stderr)
         return 1
 
+    # A gateway serving a catalog that lacks the write model fails every call with
+    # a 400, so the arm "completes" with a full residual at 0.00 USD and a report
+    # that reads like a writer failure. KaaS falls back to OPENAI_BASE_URL, which
+    # on the laptop that ran both arms serves MiniMax models and no Claude model,
+    # so this is a configuration mistake one env var away at all times.
+    wanted = sorted(set(_models(args.model).values()))
+    served = served_model_ids(_model_catalog(base_url, api_key))
+    if served is None:
+        print(f"warning: could not read the model list from {base_url} — running "
+              f"unverified, and the report records that", file=sys.stderr)
+    else:
+        missing = [model for model in wanted if model not in served]
+        if missing:
+            print(f"{base_url} does not serve {', '.join(missing)}. It serves: "
+                  f"{', '.join(served) or 'nothing'}. Every write would 400 and "
+                  f"the arm would report a full residual at 0.00 USD.",
+                  file=sys.stderr)
+            return 1
+
     kb.mkdir(parents=True, exist_ok=True)
     logs.mkdir(parents=True, exist_ok=True)
     (logs / "cases.json").write_text(json.dumps(cases, ensure_ascii=False,
                                                 indent=1), encoding="utf-8")
-    config = _arm_config(args, fixture, kb)
+    config = _arm_config(args, fixture, kb, models_verified=served is not None)
     report_path = logs / "arm-report.json"
 
     def checkpoint(report: dict) -> None:

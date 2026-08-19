@@ -340,7 +340,12 @@ change before the A1 arm runs, and both have**: `run_fx4_arm.py` is committed wi
 its predecessors carried only in shell — wait for the endpoint before every compile, retry a
 stage in place before the next is staged, the residual recorded rather than raised — plus the
 two things their absence cost. It refuses an `--out` under `/tmp`, and it snapshots `wiki/`
-per stage, which is what Size was never measurable without.
+per stage, which is what Size was never measurable without. **A third guard was added
+2026-08-19, after the arm ran**: the driver reads the gateway's model list before spending and
+refuses a gateway that does not serve the write model, since KaaS falls back to
+`OPENAI_BASE_URL` — MiniMax on this laptop — where every call 400s and the arm reports a full
+residual at 0.00 USD. That is the failure this document would have had to tell apart from a
+writer collapse, by hand, from log lines.
 
 **The A1 arm's retry budget is 3 attempts per stage, not the "one retry" the policy was
 written as**, and that is deliberate: this baseline got three passes at stage 2 (5.99 + 2.36 +

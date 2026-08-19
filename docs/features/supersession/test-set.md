@@ -882,8 +882,12 @@ It rebuilds the cases file from the fixture and refuses to start unless the 18 c
 the 38 documents exactly, waits for the gateway before every compile, retries a stage once in
 place before the next stage is staged, records the residual instead of aborting, and copies
 `wiki/` to `logs/stage<N>-wiki` after each stage so Size has a basis. `--out` may not be under
-`/tmp`, which is where the baseline arm was lost. The baseline arm is the same command with
-`--repo` pointed at a `bd8252e` worktree.
+`/tmp`, which is where the baseline arm was lost. **It also asks the gateway for its model list
+before spending and refuses one that does not serve the write model** — the MiniMax fallback
+above is otherwise a 400 on every call, which arrives as a full residual at 0.00 USD and reads
+like a writer failure. A gateway that will not answer that question is a warning rather than a
+refusal, and `arm-report.json` records `models_verified` either way. The baseline arm is the
+same command with `--repo` pointed at a `bd8252e` worktree.
 
 The audit is FX4's two article-shape checks — comma-packed and duplicated `sources`
 entries, and frontmatter that does not start at byte 0 — and it runs on whatever a compile
