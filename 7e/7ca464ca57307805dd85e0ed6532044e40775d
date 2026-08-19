@@ -1,0 +1,23 @@
+py/tests/test_scripts_run_fx4_arm.py
+  c9f2133548918fc7 36-49,51-54,900,903-906,911,942-946,950
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "7e7ca464ca57307805dd85e0ed6532044e40775d",
+  "prompts": {
+    "c9f2133548918fc7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "63a85fc2-3f2a-4954-8245-e23c4e352b4d",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 910,
+      "total_deletions": 1887,
+      "accepted_lines": 236,
+      "overriden_lines": 0
+    }
+  }
+}
