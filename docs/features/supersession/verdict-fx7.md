@@ -218,7 +218,11 @@ and it has no owner on this branch.
 ## Consequence
 
 - **A2 is required, not optional.** D2's condition is met on the measurement FX7 was written
-  to take.
+  to take. **Specified 2026-08-20 in [spec-a2.md](spec-a2.md)**, which takes the failure map
+  below as its scope: D6 leaves version-split chains to the classifier and restates the gate
+  to the same-article count (V40), D8 makes the primitive anchored rather than section-level
+  so it reaches item 1's three surfaces, and item 2's self-contradiction is what V39's column
+  already scores.
 - **A1 ships as it stands.** It is a strict prerequisite for A2 — the replace primitive has
   to reason over exactly the dates and per-source blocks A1 introduces — and it improved
   four columns while regressing none, at 3.6 USD less than the baseline, in four clean

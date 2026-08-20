@@ -9,7 +9,8 @@ verdict named for A2's arm is closed: **the scoring rubric gained a third gating
 presentation no longer score alike. D1–D5 settled (D1 and D2 in
 [design-options.md](design-options.md) on 2026-08-10; the trigger condition, the
 A1/A2 split, D3, D4 and D5 on 2026-08-12). A2 is sketched in
-[Non-goals](#non-goals) and specified separately.
+[Non-goals](#non-goals) below and **specified in [spec-a2.md](spec-a2.md)** (2026-08-20),
+which takes D6–D10 and restates this feature's gate as V40.
 
 **On identifiers.** `A1` and `A2` always mean the two increments of build path A.
 `D1`–`D5` always mean the design decisions carried from
@@ -137,7 +138,10 @@ path A.
   exactly the rows the gating column scores clean (P7 0 of 8, P10 0 of 7, P5 0 of 5).
 - **NG3. Chained supersession (A2).** With no markers there is nothing for a third
   version to nest into. Whether v3 superseding what v2 already superseded keeps or
-  drops the v1 entry is A2's first open question. Fixture case P4 still runs under
+  drops the v1 entry is A2's first open question. **Answered as D10 on 2026-08-20**
+  ([spec-a2.md](spec-a2.md#d10--chained-trails-accumulate-newest-first)): the entries
+  accumulate, newest first, with no cap — and answered by reasoning rather than by
+  evidence, because V15 measured that this fixture holds no instance to label. Fixture case P4 still runs under
   A1, scored on Staleness. **Trail was expected 0 here and it is 0 of 10 on P4** under V28
   (ruled 2026-08-19): the one marker the arm produced there falls outside the ruled criterion —
   P4's recorded behaviour is coequal presentation, naming the conflict and refusing to order it
@@ -948,9 +952,11 @@ path A.
 
 ## Open questions
 
-None blocking A1. Carried to A2: the trail format for chained supersession (NG3),
-and whether A2 needs raw text at write time in order to act on dropped claims
-(RP1).
+None blocking A1. Two were carried to A2 and **both are decided there on 2026-08-20**
+([spec-a2.md](spec-a2.md#decisions-taken)): the trail format for chained supersession is
+D10 — accumulate, newest first, no cap — and A2 does **not** take raw text at write time,
+because D7 keeps the trigger at explicit contradiction and leaves dropped claims to the
+RP1–RP3 report.
 
 Opened by FX3's drafting, and not blocking because A1 is no worse than the
 pipeline it replaces: **a frontmatter `date` can be wrong rather than merely
