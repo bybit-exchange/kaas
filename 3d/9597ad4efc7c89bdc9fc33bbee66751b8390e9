@@ -1,0 +1,44 @@
+docs/features/supersession/verdict-fx7.md
+  1b0968fb3d5f69d1 216-220,227-228
+docs/features/supersession/spec.md
+  1b0968fb3d5f69d1 13-15,861-863
+docs/features/supersession/test-set.md
+  1b0968fb3d5f69d1 26-32,525,656-666,785-793,804-807,813-852
+docs/features/supersession/scoring-a1.md
+  1b0968fb3d5f69d1 468-469
+docs/features/supersession/spec-a2.md
+  1b0968fb3d5f69d1 17,364-366,508-510
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3d9597ad4efc7c89bdc9fc33bbee66751b8390e9",
+  "prompts": {
+    "1b0968fb3d5f69d1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f8789aff-5c9e-440c-ba95-ec99b7beb781",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 98,
+      "total_deletions": 20,
+      "accepted_lines": 95,
+      "overriden_lines": 0
+    },
+    "f2c35ad081622ce6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c1ae6e35-23ee-46ad-8bd7-e30c642df158",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 7,
+      "total_deletions": 7,
+      "accepted_lines": 26332,
+      "overriden_lines": 0
+    }
+  }
+}
