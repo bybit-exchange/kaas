@@ -10,7 +10,9 @@ presentation no longer score alike. D1–D5 settled (D1 and D2 in
 [design-options.md](design-options.md) on 2026-08-10; the trigger condition, the
 A1/A2 split, D3, D4 and D5 on 2026-08-12). A2 is sketched in
 [Non-goals](#non-goals) below and **specified in [spec-a2.md](spec-a2.md)** (2026-08-20),
-which takes D6–D10 and restates this feature's gate as V40.
+which takes D6–D10 and restates this feature's gate as **V40, ruled 2026-08-20**: both
+gating columns read the same-article count, so a row left stale only because the classifier
+split a chain across two articles is reported apart from the gate.
 
 **On identifiers.** `A1` and `A2` always mean the two increments of build path A.
 `D1`–`D5` always mean the design decisions carried from
@@ -856,7 +858,9 @@ path A.
   baseline and the post-A1 run. Clearing those positives without tripping N1–N4 is
   what makes A2 optional rather than assumed. **Since V39 (2026-08-19) clearing the positives
   means both gating columns — Staleness and In force — and the A1 verdict below was taken on
-  Staleness alone**, which cost it nothing: A1 fails both. Any later arm is judged on both. Staleness (drop) moving is reported
+  Staleness alone**, which cost it nothing: A1 fails both. Any later arm is judged on both, and
+  **since V40 (2026-08-20) on the same-article half of each** — A1's 8 of 40 and 18 of 40, both
+  still failing. Staleness (drop) moving is reported
   as a finding about A2's RP1 arm and does not enter the verdict either way, so a
   run that clears the contradictions and leaves every drop stale still passes.
   **The baseline side of the comparison is a written record, not a readable tree** — its

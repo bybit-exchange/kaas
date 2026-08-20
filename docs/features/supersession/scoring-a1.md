@@ -465,7 +465,8 @@ arm that attributes claims to source documents by date. Recorded here rather tha
 
 | | A1 arm | baseline arm |
 |---|---|---|
-| Staleness (gating, lower is better) | **19 of 40 (47.5%)** | 24 of 40 (60%) |
+| Staleness (gating, lower is better) | **19 of 40 (47.5%)** — 8 inside one article, 11 only because a second article holds the older half of a split chain | 24 of 40 (60%), its own split unrecoverable |
+| Staleness, same-article ([V40](test-set.md#v40-the-gate-reads-the-same-article-count-on-both-columns), ruled 2026-08-20 — this is what the gate reads from now on, and it moves neither published figure) | **8 of 40** | not published; partitioned by *A1's* split it is 13 of 24 on the three unsplit cases |
 | In force, V39 (gating, lower is better) | **28 of 40 — 18 inside one article, 10 across a split chain** | n/a, the articles are gone |
 | Staleness ∪ In force (the strict reading, A1 side only) | **32 of 40** | ~34 of 40, an estimate that stays one |
 | Correction landed (of 45) | **38 of 45** | 34 of 45 |

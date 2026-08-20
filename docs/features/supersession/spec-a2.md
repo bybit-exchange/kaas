@@ -14,7 +14,7 @@ that no identifier means two things across the feature's documents. `G6`–`G10`
 design decisions carried from [design-options.md](design-options.md). `RA`, `TR`, `SG`, `GT`,
 `FA` and `VA` are new families and appear nowhere in A1. `P1`–`P10`, `N1`–`N4` and `U1`–`U4`
 are still the fixture cases from [test-set.md](test-set.md), and `V1`–`V39` are the rulings
-already taken; this spec opens `V40`.
+already taken; this spec opens `V40`, which is ruled here as GT1 and landed in test-set.md.
 
 ## Background
 
@@ -361,8 +361,9 @@ A2's arm will report whether any instance arose rather than confirming the forma
 
 ### GT. The gate
 
-- **GT1. Ruling V40, ruled 2026-08-20 with D6 and written into test-set.md in step 5 of the
-  sequencing — it is decided here and not yet landed there.** The Staleness half of
+- **GT1. Ruling V40, ruled 2026-08-20 with D6 and now landed in
+  [test-set.md](test-set.md#v40-the-gate-reads-the-same-article-count-on-both-columns) with
+  GT2–GT4, which was step 5 of the sequencing.** The Staleness half of
   [test-set.md's](test-set.md#scoring) gate reads
   the **same-article count**, exactly as V39 already scoped `In force`. A row that is stale
   only because a second article holds the older half of a chain is reported apart and
@@ -504,8 +505,9 @@ A2's arm will report whether any instance arose rather than confirming the forma
 3. **The rewrite-path guard.** SG1 with VA4.
 4. **Reports.** SG2, SG3, SG4 and PV6, surfaced through the compile report beside the revised
    and lineage reports (`compile.py:190`, `:722-739`), with VA8.
-5. **The ruling.** GT1 written into test-set.md as V40, with GT2–GT4. Costs no spend and is
-   the precondition for the arm meaning anything, so it can run in parallel from the start.
+5. **The ruling — landed 2026-08-20.** GT1 written into test-set.md as V40, with GT2–GT4.
+   Cost no spend and is the precondition for the arm meaning anything, which is why it ran
+   first rather than in parallel.
 6. **The arm.** FA1–FA7, then `verdict-a2.md` (FA8).
 
 Steps 1 and 5 are independent of everything else. Step 2 is the point of no return for

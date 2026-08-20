@@ -213,14 +213,19 @@ would happen.
 
 **Nothing here judges the classifier.** Version-splitting decided 11 of the 19 rows and is
 outside this feature (NG6). It is now the largest single contributor to the gating column
-and it has no owner on this branch.
+and it has no owner on this branch. **The gate has since stopped counting those rows** —
+[V40](test-set.md#v40-the-gate-reads-the-same-article-count-on-both-columns), ruled
+2026-08-20 — so the next arm is judged on the writer-owned 8 of 40 this decomposition names.
+That is a change after the fact and it moves nothing here: the gate this verdict applied was
+the whole 19, and 8 does not clear either.
 
 ## Consequence
 
 - **A2 is required, not optional.** D2's condition is met on the measurement FX7 was written
   to take. **Specified 2026-08-20 in [spec-a2.md](spec-a2.md)**, which takes the failure map
   below as its scope: D6 leaves version-split chains to the classifier and restates the gate
-  to the same-article count (V40), D8 makes the primitive anchored rather than section-level
+  to the same-article count (V40, ruled into test-set.md on 2026-08-20), D8 makes the
+  primitive anchored rather than section-level
   so it reaches item 1's three surfaces, and item 2's self-contradiction is what V39's column
   already scores.
 - **A1 ships as it stands.** It is a strict prerequisite for A2 — the replace primitive has

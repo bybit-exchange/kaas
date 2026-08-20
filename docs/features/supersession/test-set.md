@@ -23,7 +23,13 @@ before A2's arm is bought, and it is fixed: **the Scoring table has a third gati
 2026-08-19**, because Staleness and Trail together certified coequal presentation — the shape
 D1 rejects in terms — as a clean latest-wins result. A1 fails the new column at **28 of 40**
 (18 inside one article, 10 across chains the classifier split), which agrees with the verdict
-about the answer and not about the margin. Both blocking rulings are settled
+about the answer and not about the margin. **A2's spec then restated the gate itself, ruled
+here as [V40](#v40-the-gate-reads-the-same-article-count-on-both-columns) on 2026-08-20: both
+gating columns read the same-article count**, since 11 of A1's 19 stale rows exist only
+because a second article holds the older half of a split chain and no write prompt reaches
+them. It moves no published figure — the baseline's 24 of 40 and A1's 19 of 40 stand, with
+A1's writer-owned **8 of 40** stated beside them — and it does not rescue A1, which fails both
+columns on the narrower count too. Both blocking rulings are settled
 (2026-08-15): **P2 is withdrawn** from the positives and kept as a counter-case,
 because its frontmatter date inverts its content order, and **P7's
 measurement-time reading is accepted**, so it keeps its 8 contradictions.
@@ -516,7 +522,7 @@ Per case, over the produced article:
 | Metric | Measured as | Failure |
 |---|---|---|
 | Correction landed | each `replacement` present and stated as current | missing |
-| Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise | present — this is the gating column |
+| Staleness | any `superseded-contradiction` item present and stated as current, where the newest source in the compile set that speaks to that item asserts otherwise. **The gate reads the same-article count — ruled [V40](#v40-the-gate-reads-the-same-article-count-on-both-columns), 2026-08-20** — so a row stale only because a second article holds the older half of a chain is reported apart and attributed to classification. Baseline arm: **24 of 40**; A1 arm: **19 of 40**, of which **8 are writer-owned** ([scoring-a1.md](scoring-a1.md)). The published figures are the undecomposed ones and V40 does not move them | present — this is the gating column |
 | Staleness (drop) | any `superseded-drop` item present and stated as current, on the same reading of "newest", **excluding residues that a never-superseded source in the same compile set asserts independently** (ruling V9, on P5-D1) | recorded, does not gate (Q1 sends these to the RP1–RP3 report) |
 | Trail | any `superseded-contradiction` item present and carrying a **directional supersession statement** about that claim: the article says the older value has been replaced or has stopped being true, and which value stands now. **Ruled V28, 2026-08-19** — see [the criterion](#v28-what-counts-as-a-trail) below. Baseline arm: **7 of 45**; A1 arm: **5 of 45** ([scoring-a1.md](scoring-a1.md)) | — |
 | In force | any `superseded-contradiction` item where **both** its values are stated across the case's articles and nothing resolves which one holds now. **Ruled V39, 2026-08-19** — see [the criterion](#v39-in-force--what-it-takes-to-leave-one-value-standing) below. A1 arm: **28 of 40**, decomposing 18 inside one article and 10 across a split chain; the baseline is permanently unscorable on this column, its articles being gone. **Quote this figure with the column name attached** — `28 of 40` is also the pre-A1 staleness rate the label pass published, and the two numbers coincide by accident | present — this column gates alongside Staleness |
@@ -647,6 +653,17 @@ could only ever be applied to the arm that survives. In force is scored on the A
 (28 of 40) and is **permanently `n/a` on the baseline**, which is a gap the column states
 rather than hides.
 
+**[V40](#v40-the-gate-reads-the-same-article-count-on-both-columns) is not the exception to
+that**, ruled a day later and easy to mistake for one. It restates which rows the gate reads —
+the same-article ones — and leaves the criterion and every published figure exactly where V39
+left them. Re-reading "stated as current" would have been one-sided — it would have re-scored
+the surviving arm against a criterion the deleted one can never be held to. Narrowing the
+scope is not, because it re-scores nothing: the baseline's 24 of 40 stays published
+undecomposed, its own routing being unrecoverable, and what V40 fixes is what the **next**
+arm's gate reads. The one decomposition of a baseline figure that exists partitions it by
+*A1's* split, not the baseline's — 13 of the 24 on the three unsplit cases — and it is
+[the verdict's](verdict-fx7.md) comparison, not a same-article count for that arm.
+
 #### V28: what counts as a Trail
 
 **Ruled 2026-08-19.** The column requires a directional statement. Naming the word
@@ -765,10 +782,15 @@ landed is vacuous and it scores only under Staleness (drop). Path A leaves the
 ordering judgement to the model; path B hands it an explicit claim; path C removes
 the question by recomposing.
 A path is worth shipping first if and only if it clears the positives without tripping the
-negatives, and **clearing the positives means both gating columns**: no `superseded-contradiction`
-item left stated as current (Staleness), and none left with two values and nothing in force
-inside one article (In force, same-article count, ruled V39). Trail is the discriminator
-between the D1 options and does not gate on its own.
+negatives, and **since [V40](#v40-the-gate-reads-the-same-article-count-on-both-columns) that
+is four figures on the arm's own rows**: same-article Staleness over
+`superseded-contradiction` is **0**, same-article `In force` is **0**, false positives on
+N1–N4 are **0 of 4**, and double counts on U1–U4 are **0 of 4**. Both gating columns are read
+on the same-article count and both publish their split count beside it — V39 scoped `In
+force` that way and V40 scopes Staleness the same way, for the same reason. Trail is the
+discriminator between the D1 options and does not gate on its own, which is why V40 also puts
+a **D1 conformance reading beside the gate** instead of folding it in: the four figures cannot
+tell D1 from latest-wins.
 
 **Measured on both arms, and the answer is written into
 [verdict-fx7.md](verdict-fx7.md) (2026-08-19): A1 does not clear them.** It holds the
@@ -779,11 +801,55 @@ needed: the band across all four rulings is 8–22 of 40, which does not reach z
 end. **In force was added after the verdict and does not change it**: A1 fails that column
 too, 18 of 40 inside one article with 10 more across split chains, so the second gating
 column agrees with the first about the answer and disagrees about the margin. The column
-exists for A2's arm, where both sides can be read against one rubric.
+exists for A2's arm, where both sides can be read against one rubric. **V40 does not reopen
+that answer either**, and it is worth saying because a narrower gate could look like a
+reprieve: A1's writer-owned Staleness is 8 of 40 and its same-article `In force` 18 of 40, so
+it fails both columns on the same-article count as well.
 
 Deciding "stated as current" versus "marked as superseded" needs an adjudicator.
 For a set this size, an LLM judge over (labelled item, article) with the human
 labels as the reference is affordable; the labels themselves stay human-owned.
+
+#### V40: the gate reads the same-article count on both columns
+
+**Ruled 2026-08-20 with [D6](spec-a2.md#resolved-questions)**, and like V39 it is a ruling
+about the rubric rather than about a case. **The Staleness half of the gate reads the
+same-article count**, exactly as V39 already scoped `In force`: a row that is stale only
+because a second article holds the older half of a chain is reported apart and attributed to
+classification.
+
+**Grounds.** 11 of A1's 19 stale rows and 10 of its 28 `In force` rows exist only in an
+article whose own sources never contradict the value it states — P4's and P9's version-split
+chains, where the article asserting the older value never received the newer one. No write
+prompt can retract a value its article never received, so a gate that counts those rows is not
+a measurement of a writer-side increment; it is a measurement of the classifier with a
+writer-side increment in the denominator. [NG6](spec.md#non-goals) puts classification
+upstream of this feature and [D6](spec-a2.md#resolved-questions) keeps it there, so the rows
+have no owner on the write side — the gate stops counting rows no writer reaches, and says so
+rather than dropping them.
+
+**What V40 does not do.** It moves no published figure, and it does not touch the criterion
+V39 declined to re-read: "stated as current" still means what it meant, and a basis label
+still does not charge the column. The baseline's **24 of 40** and A1's **19 of 40** stand as
+published, with the same-article decomposition stated beside them rather than replacing them —
+A1's writer-owned Staleness is **8 of 40** and its same-article `In force` is **18 of 40**
+([scoring-a1.md](scoring-a1.md)). That 8 is reached twice from opposite directions, by
+row-grain decomposition and by V36's newest-half reading of a distributed chain, which is
+[the verdict's](verdict-fx7.md) cross-check and not a second measurement. This is V39's shape
+deliberately: a scope is added, and no measured comparison is re-read after the fact.
+
+**The same-article denominator is measured on the arm being scored, not inherited.**
+Classification may split differently than it did at `033517c`, so an arm publishes its own
+same-article and split counts over the 40 gating rows **before either column is read**.
+Carrying A1's split forward would quietly re-score the next arm's rows against A1's routing,
+and the split is the one input to this gate that the code under test does not control.
+
+**A D1 conformance reading is published beside the gate**, because the gate alone cannot tell
+D1 from the option D1 rejected. V39 gives a row three ways to pass `In force` — a directional
+statement resolves both values (current-plus-trail, which is D1), only one value is stated
+(latest-wins), or neither is (P4-C10 is A1's only instance) — so an arm reports, of the rows
+that pass, how many pass each way. **An arm that clears both columns with Trail near 0 has
+shipped latest-wins**, which is a result worth knowing and is not D1 delivered.
 
 ## Cost
 
