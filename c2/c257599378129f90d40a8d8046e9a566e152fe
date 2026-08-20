@@ -1,0 +1,27 @@
+py/tests/test_retrieve.py
+  2b8d7613f5fc9527 191-205,225-226,228
+py/src/kb_ai/retrieval/retrieve.py
+  2b8d7613f5fc9527 29,101-109,134,154-166,177-178
+internal/api/chat_timestamps_test.go
+  2b8d7613f5fc9527 60-72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c2c257599378129f90d40a8d8046e9a566e152fe",
+  "prompts": {
+    "2b8d7613f5fc9527": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2f964a2-df18-4eaa-b6e2-933e6a5da35a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 58,
+      "total_deletions": 9,
+      "accepted_lines": 58,
+      "overriden_lines": 0
+    }
+  }
+}
