@@ -211,6 +211,20 @@ A2's arm will report whether any instance arose rather than confirming the forma
   `was` and the date on `by`'s block — not written by the model — so D1's four format rules
   are mechanical rather than hoped for. The model supplies the judgement; the format is the
   code's.
+  **`replacement` may be empty; `was` may not.** An empty or absent `replacement` withdraws
+  the claim instead of restating it, and the trail left in its place is what makes that
+  deletion recoverable — this is D1's argument applied to the case where nothing stands now,
+  not an exception to it. An empty or absent `was` is refused, because it deletes the *record*
+  rather than the claim: with both empty the value leaves the article with nothing saying it
+  was ever there, and G7 is the whole reason D1 chose a trail over a deletion. So the field
+  carrying the old value is the one the action cannot omit. "Empty" is tested after stripping
+  whitespace, because the guard is about the record and a `was` that renders as blank is not
+  one.
+  **A withdrawn claim is final on this path.** RA5 excludes trail text from anchor matching, so
+  a position left holding only trail blocks cannot be reached by any later `supersede` — a
+  further supersession of it reports `anchor not found` rather than chaining under TR4. This is
+  RA5 working as written rather than a defect, and it is recorded here so that a reader meeting
+  it does not file it as one.
 - **RA2.** `anchor` must occur **exactly once** in the article body. Zero occurrences is a
   no-op and a report; two or more is a no-op and a report, because the action cannot say
   which one it meant. No normalization of any kind — not whitespace, not case, not
@@ -268,10 +282,25 @@ A2's arm will report whether any instance arose rather than confirming the forma
   already followed by one or more trail blocks, the new block is inserted **before** them, so
   the entries read newest to oldest. No cap.
 - **TR5.** The rendered block is single-line. Where the insertion point is inside a table row
-  — the containing line begins with `|` — any `|` in `was` is escaped as `\|` so the row's
-  column count survives. A `was` containing a newline is refused and reported rather than
-  escaped, because a multi-line value in a table cell has no correct rendering and the caller
-  can restate it.
+  — the containing line begins with `|`, leading whitespace ignored, since an indented row is
+  still a row — the guard covers **everything the action writes into that row**, not only the
+  trail: any `|` in `was` *and* any `|` in `replacement` is escaped as `\|` so the row's column
+  count survives. Escaping only `was` would leave the same corruption reachable through the
+  other half of the same edit, and D8 chose anchored replacement precisely so that the
+  neighbouring cells survive on a column already reading 41 of 42 (Collateral).
+  A newline is refused rather than escaped, because it has no escape — it splits the row in
+  two — and a multi-line value in a table cell has no correct rendering, so the caller can
+  restate it. This covers all three of the action's text fields, at the scope each one needs:
+  a `was` containing a newline is refused **everywhere**, since TR1 makes the trail single-line
+  on every surface; a `replacement` containing one is refused **only inside a row**, since in
+  prose a multi-line replacement is ordinary content; and an `anchor` containing one is refused
+  **when any line it touches is a table row**, judged on the whole span rather than on where it
+  starts, since an anchor reaching from prose into a row corrupts the row just the same. The
+  `anchor` case is the one that fails two criteria at once and so cannot be left to the report:
+  a multi-line anchor across two rows merges them, and the trail's single `was` would then
+  stand as the record for every claim the merged rows held, so TR5's column count and G7's
+  record fail together. These two are the refusals that depend on where the anchor turned out
+  to be, and so the ones reported after anchor resolution rather than before it.
 - **TR6.** On the rewrite path the model writes the trail text itself, and this asymmetry is
   stated rather than papered over. Code validates every trail block in the output — the
   bracket shape, a resolvable date, and a `by` path that is one of this payload's sources —
@@ -291,8 +320,17 @@ A2's arm will report whether any instance arose rather than confirming the forma
   A1's NG7 ("whether an article can shrink") is answered here by *yes*, so the column stops
   being a growth meter.
 - **SG3.** Every refused or no-op `supersede` is reported: the article, the reason (anchor
-  not found, anchor ambiguous, `by` not in payload, `by` undated, no strictly-newest block,
-  `was` contains a newline), and the anchor's first 80 characters. This is G3's shape — an
+  not found, anchor ambiguous, anchor spans a table row boundary, `replacement` contains a
+  newline in a table row, `by` not in payload, `by` undated, no strictly-newest block, `by` is
+  not the newest dated block, `was` is empty, `was` contains a newline), and the anchor's first
+  80 characters folded onto one line so that one refusal cannot print as two.
+
+  RA3's **ordering** pair is reported apart because the two point an operator at different
+  things: a payload with no strict maximum is WP9 saying no order exists, where a `by` that is
+  dated but beaten by a single newer block is the writer naming the wrong document, and one
+  reason covering both would report the second as the first. Where a payload is both — every
+  block undated — the specific reason wins, since that is the one an operator can act on.
+  This is G3's shape — an
   ordering judgement that cannot be safely acted on is reported to an operator instead of
   being acted on — and it is the report that says whether the prompt is producing actions the
   code then throws away.
@@ -396,13 +434,17 @@ A2's arm will report whether any instance arose rather than confirming the forma
 ### VA. Verification
 
 - **VA1.** `_apply_diff` with a `supersede` action: exact single match; zero matches is a
-  no-op and reports; two matches is a no-op and reports; the anchor inside a table row
-  escapes `|`; an anchor that would match text inside an existing trail block does not match
-  (RA5); supersede applies before an `append_to_section` whose content would have created a
-  second match (RA4).
+  no-op and reports; two matches is a no-op and reports; an empty and an absent `replacement`
+  each leave the trail alone in the claim's place (RA1); the anchor inside a table row escapes
+  `|` in both `was` and `replacement` without double-escaping one already escaped, a
+  `replacement` containing a newline is refused there but allowed in prose, and an `anchor`
+  spanning a row boundary is refused whether it starts in the row or reaches into it (TR5); an
+  anchor that would match text inside an existing trail block does not match (RA5); supersede
+  applies before an `append_to_section` whose content would have created a second match (RA4).
 - **VA2.** Trail rendering: the exact D1 format; the date taken from `by`'s block and not
   from today; a `by` absent from the payload refused; chained insertion putting the new block
-  before existing ones (TR4); a `was` containing a newline refused (TR5).
+  before existing ones (TR4); a `was` containing a newline refused (TR5); an empty, absent or
+  whitespace-only `was` refused with and without a replacement beside it (RA1).
 - **VA3.** The order guard (RA3), one case each: all blocks undated, all dated blocks
   sharing one day, a strictly-newest block present, `by` naming a dated but not-newest block,
   and the single-block payload that passes vacuously — asserted as passing, so the limit

@@ -35,6 +35,14 @@ def _block(extraction: ExtractionResult | None = None, *,
     )
 
 
+def _blocks(*source_paths: str) -> list[mg.SourceBlock]:
+    """A payload named by path only, for the cases that care about `sources:`
+    bookkeeping rather than about dates. _apply_diff takes blocks because RA3's
+    order guard reads their dates; these tests emit no supersede action, so
+    undated blocks say what the bare path list they replace used to say."""
+    return [_block(source_path=path) for path in source_paths]
+
+
 # ── _estimate_block_size ──────────────────────────────────
 
 def test_estimate_size_skips_empty_fields():
@@ -411,7 +419,7 @@ def test_apply_diff_refreshes_updated_and_appends_source():
         "---\n"
         "## Body\ntext\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/new.md"), TODAY)
 
     assert f"updated: {TODAY}" in out
     assert "updated: 2024-01-01" not in out
@@ -427,8 +435,8 @@ def test_apply_diff_appends_every_source_as_its_own_item():
     it most."""
     article = "---\ntitle: A\nsources:\n  - raw/old.md\n---\nbody\n"
 
-    out = mg._apply_diff(article, {"patches": []},
-                         ["raw/a.md", "raw/b.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []},
+                         _blocks("raw/a.md", "raw/b.md"), TODAY)
 
     assert "  - raw/a.md\n" in out and "  - raw/b.md\n" in out
     assert "raw/a.md, raw/b.md" not in out
@@ -438,8 +446,8 @@ def test_apply_diff_appends_every_source_as_its_own_item():
 def test_apply_diff_appends_only_the_sources_the_article_lacks():
     article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
 
-    out = mg._apply_diff(article, {"patches": []},
-                         ["raw/a.md", "raw/b.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []},
+                         _blocks("raw/a.md", "raw/b.md"), TODAY)
 
     assert out.count("  - raw/a.md") == 1
     assert "  - raw/b.md" in out
@@ -449,7 +457,7 @@ def test_apply_diff_does_not_duplicate_an_existing_source():
     article = (
         "---\ntitle: A\nupdated: 2024-01-01\nsources:\n  - raw/a.md\n---\nbody\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/a.md"), TODAY)
 
     assert out.count("  - raw/a.md") == 1
 
@@ -458,35 +466,35 @@ def test_apply_diff_is_idempotent_for_a_repeated_source():
     """Re-merging the same source must not grow the frontmatter sources list."""
     out = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
     for _ in range(3):
-        out = mg._apply_diff(out, {"patches": []}, ["raw/a.md"], TODAY)
+        out, _ = mg._apply_diff(out, {"patches": []}, _blocks("raw/a.md"), TODAY)
 
     assert out.count("  - raw/a.md") == 1
 
 
 def test_apply_diff_adds_updated_when_missing():
     article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/b.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/b.md"), TODAY)
 
     assert f"updated: {TODAY}" in out
 
 
 def test_apply_diff_without_frontmatter_leaves_body_alone():
     article = "## Body\njust text\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/a.md"), TODAY)
 
     assert out == article
 
 
 def test_apply_diff_handles_unterminated_frontmatter():
     article = "---\ntitle: A\nno closing delimiter\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/a.md"), TODAY)
 
     assert out == article
 
 
 def test_apply_diff_inserts_source_when_sources_is_last_key():
     article = "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/new.md"), TODAY)
 
     assert "  - raw/new.md" in out
 
@@ -495,7 +503,7 @@ def test_apply_diff_inserts_source_before_a_following_key():
     article = (
         "---\ntitle: A\nsources:\n  - raw/a.md\ncreated: 2024-01-01\n---\nbody\n"
     )
-    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/new.md"), TODAY)
 
     lines = out.split("\n")
     assert lines.index("  - raw/new.md") < lines.index("created: 2024-01-01")
@@ -505,7 +513,7 @@ def test_apply_diff_fills_an_empty_sources_key_before_the_next_key():
     """`sources:` with no items yet: the new source must land under it rather
     than after the following key (or be dropped)."""
     article = "---\ntitle: A\nsources:\ncreated: 2024-01-01\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/new.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/new.md"), TODAY)
 
     lines = out.split("\n")
     assert lines[lines.index("sources:") + 1] == "  - raw/new.md"
@@ -516,7 +524,7 @@ def test_apply_diff_fills_an_empty_sources_key_at_the_end_of_frontmatter():
     """`sources:` with no items as the last frontmatter key: the source is
     appended after the loop ends, so it must not be lost."""
     article = "---\ntitle: A\nupdated: 2024-01-01\nsources:\n---\nbody\n"
-    out = mg._apply_diff(article, {"patches": []}, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": []}, _blocks("raw/a.md"), TODAY)
 
     assert "sources:\n  - raw/a.md\n---" in out
     assert f"updated: {TODAY}" in out
@@ -529,7 +537,7 @@ def test_apply_diff_appends_to_an_existing_section():
     diff = {"patches": [
         {"action": "append_to_section", "section": "## One", "content": "added line"},
     ]}
-    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, diff, _blocks("raw/a.md"), TODAY)
 
     assert "added line" in out
     # The addition lands inside section One, above section Two.
@@ -541,7 +549,7 @@ def test_apply_diff_creates_a_new_section_after_an_anchor():
     diff = {"patches": [
         {"action": "new_section", "after": "## One", "heading": "## Two", "content": "new body"},
     ]}
-    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, diff, _blocks("raw/a.md"), TODAY)
 
     assert out.index("## One") < out.index("## Two") < out.index("## Three")
 
@@ -552,21 +560,582 @@ def test_apply_diff_applies_several_patches():
         {"action": "append_to_section", "section": "## One", "content": "first"},
         {"action": "new_section", "after": "## One", "heading": "## Two", "content": "second"},
     ]}
-    out = mg._apply_diff(article, diff, ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, diff, _blocks("raw/a.md"), TODAY)
 
     assert "first" in out and "second" in out
 
 
 def test_apply_diff_ignores_unknown_actions():
     article = "## One\nbody\n"
-    out = mg._apply_diff(article, {"patches": [{"action": "delete_everything"}]},
-                         ["raw/a.md"], TODAY)
+    out, _ = mg._apply_diff(article, {"patches": [{"action": "delete_everything"}]},
+                         _blocks("raw/a.md"), TODAY)
     assert "body" in out
 
 
 def test_apply_diff_tolerates_a_missing_patches_key():
     article = "## One\nbody\n"
-    assert mg._apply_diff(article, {}, ["raw/a.md"], TODAY) == article
+    assert mg._apply_diff(article, {}, _blocks("raw/a.md"), TODAY)[0] == article
+
+
+# ── _apply_diff: supersede ──────────────────────────────────────────
+#
+# A2 step 1: the replace primitive and its trail (spec-a2.md RA1-RA5, TR1-TR5),
+# verified per VA1-VA3. No prompt offers the action yet, so every case here is
+# reached only by handing _apply_diff a patch set directly.
+
+V2 = date(2026, 5, 14)
+V3 = date(2026, 6, 1)
+
+
+def _supersede(**fields) -> dict:
+    """One supersede patch, with the four RA1 fields defaulted to a valid case."""
+    return {"action": "supersede",
+            "anchor": "Progress: 0%",
+            "replacement": "Progress: 50%",
+            "by": "raw/v2.md",
+            "was": "the earlier figure was 0%", **fields}
+
+
+def _v2_only() -> list[mg.SourceBlock]:
+    """The single-block payload RA3 passes vacuously: v2 merging into v1's article."""
+    return [_block(source_path="raw/v2.md", day=V2)]
+
+
+def test_supersede_replaces_the_anchor_and_renders_the_trail():
+    """RA2 single match, TR1's format verbatim from D1, TR2's placement, TR3's date."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]},
+                                   _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out == (
+        "## Status\n"
+        "Progress: 50% [Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_dates_the_trail_from_the_superseding_document_not_today():
+    """TR3. The compile date moves on every recompile and would rewrite the
+    history the trail records, so a run today must not leave today's date."""
+    out, _ = mg._apply_diff("## Status\nProgress: 0%\n", {"patches": [_supersede()]},
+                            _v2_only(), TODAY)
+
+    assert "2026-05-14" in out
+    assert TODAY not in out.split("[Superseded ")[1]
+
+
+def test_supersede_passes_vacuously_on_a_single_block_payload():
+    """RA3's stated limit, pinned rather than described: the guard orders blocks
+    against each other and cannot order one against the article, so the common
+    case -- v2 merging into the article v1 wrote -- is not caught by code."""
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n",
+                                   {"patches": [_supersede()]}, _v2_only(), TODAY)
+
+    assert refusals == []
+    assert "Progress: 50%" in out
+
+
+def test_supersede_with_no_matching_anchor_is_a_no_op_and_reports():
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(
+        article, {"patches": [_supersede(anchor="Progress: 99%")]}, _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor not found"]
+    assert refusals[0].anchor == "Progress: 99%"
+
+
+def test_supersede_with_an_ambiguous_anchor_is_a_no_op_and_reports():
+    """RA2. Two occurrences and the action cannot say which one it meant."""
+    article = "## Status\nProgress: 0%\n\n## Summary\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]},
+                                   _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor ambiguous"]
+
+
+def test_supersede_reports_only_the_first_80_characters_of_the_anchor():
+    """SG3. An anchor is as long as it needs to be unique (RA7), and a report
+    line is read by an operator."""
+    long_anchor = "x" * 200
+    _out, refusals = mg._apply_diff("## Status\nbody\n",
+                                    {"patches": [_supersede(anchor=long_anchor)]},
+                                    _v2_only(), TODAY)
+
+    assert refusals[0].anchor == "x" * 80
+
+
+def test_supersede_matches_the_body_and_not_the_frontmatter():
+    """RA2 says the article body. A phrase the frontmatter happens to repeat is
+    not a second occurrence of the claim."""
+    article = ("---\n"
+               "title: 0% done\n"
+               "updated: 2024-01-01\n"
+               "sources:\n"
+               "  - raw/v2.md\n"
+               "---\n"
+               "## Status\nProgress: 0%\n")
+
+    out, refusals = mg._apply_diff(
+        article, {"patches": [_supersede(anchor="0%", replacement="50%")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert "title: 0% done" in out
+    assert "Progress: 50% [Superseded 2026-05-14 by raw/v2.md:" in out
+
+
+def test_supersede_does_not_anchor_inside_an_existing_trail():
+    """RA5. A later supersession edits the article's claims, never its history."""
+    article = ("## Status\nProgress: 50% "
+               "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="the earlier figure was 0%",
+                                replacement="x", by="raw/v3.md", was="w")]},
+        [_block(source_path="raw/v3.md", day=V3)], TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor not found"]
+
+
+def test_supersede_does_not_anchor_inside_a_trail_this_patch_set_wrote():
+    """RA5's second half: two actions in one merge cannot chain onto each
+    other's bookkeeping."""
+    diff = {"patches": [
+        _supersede(),
+        _supersede(anchor="the earlier figure was 0%", replacement="x", was="w"),
+    ]}
+
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n", diff,
+                                   _v2_only(), TODAY)
+
+    assert [r.reason for r in refusals] == ["anchor not found"]
+    assert out.endswith("[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_chains_a_new_trail_ahead_of_the_existing_one():
+    """TR4, D10: entries accumulate newest first, and the v2 note is not
+    rewritten by the v3 merge (story S7)."""
+    article = ("## Status\nProgress: 50% "
+               "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="Progress: 50%", replacement="Progress: 80%",
+                                by="raw/v3.md", was="the earlier figure was 50%")]},
+        [_block(source_path="raw/v3.md", day=V3)], TODAY)
+
+    assert refusals == []
+    assert out == (
+        "## Status\nProgress: 80% "
+        "[Superseded 2026-06-01 by raw/v3.md: the earlier figure was 50%] "
+        "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_escapes_pipes_in_a_table_row():
+    """TR5. Four of P4's writer-owned survivors are DDL cells, so the row's
+    column count has to survive the trail."""
+    article = "## DDL\n| col | type |\n| --- | --- |\n| id | INT |\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="INT", replacement="BIGINT",
+                                was="was INT | nullable")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    row = out.split("\n")[3]
+    assert row == ("| id | BIGINT [Superseded 2026-05-14 by raw/v2.md: "
+                   "was INT \\| nullable] |")
+    assert row.count("|") - row.count("\\|") == 3
+
+
+def test_supersede_leaves_pipes_alone_outside_a_table_row():
+    """TR5 is scoped to the row, because a `|` in prose is just a character."""
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n",
+                                   {"patches": [_supersede(was="0% | unstarted")]},
+                                   _v2_only(), TODAY)
+
+    assert refusals == []
+    assert ": 0% | unstarted]" in out
+    assert "\\|" not in out
+
+
+def test_supersede_with_an_empty_replacement_leaves_the_trail_in_its_place():
+    """RA1 lets `replacement` be empty: the claim is withdrawn rather than
+    restated, and the trail is what makes the deletion recoverable (G7)."""
+    out, refusals = mg._apply_diff(
+        "## Status\nProgress: 0%\n", {"patches": [_supersede(replacement="")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out == (
+        "## Status\n"
+        "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_with_an_absent_replacement_field_deletes_the_same_way():
+    """A patch that omits the field means the same as one that empties it, so a
+    writer cannot delete by accident of serialization and keep the record."""
+    patch = {"action": "supersede", "anchor": "Progress: 0%",
+             "by": "raw/v2.md", "was": "the earlier figure was 0%"}
+
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n",
+                                   {"patches": [patch]}, _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out.endswith("[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_refuses_an_empty_was():
+    """`was` is the field that cannot be left out. An empty replacement is a
+    deletion the trail records; an empty `was` deletes the record itself, and G7
+    is the whole reason D1 chose a trail over a deletion."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(
+        article, {"patches": [_supersede(replacement="", was="")]}, _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["was is empty"]
+
+
+def test_supersede_refuses_an_empty_was_even_with_a_replacement():
+    """The rule is about the record, not about whether a value stands: a trail
+    rendering as `[Superseded ...: ]` names no superseded claim either."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede(was="")]},
+                                   _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["was is empty"]
+
+
+def test_supersede_refuses_a_whitespace_only_was():
+    """The required-field guard is about the record, so a `was` that renders as
+    blank fails it: with an empty replacement beside it the claim is deleted and
+    the trail says nothing about what stood there."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(
+        article, {"patches": [_supersede(replacement="", was="  \t ")]},
+        _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["was is empty"]
+
+
+def test_supersede_refuses_an_anchor_spanning_a_table_row_boundary():
+    """TR5. An anchor crossing a newline deletes the boundary between the lines it
+    replaces; where either side is a table row that merges two rows into one, and
+    one `was` would stand as the record for both deleted claims."""
+    article = "## DDL\n| id | INT |\n| name | TEXT |\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="| id | INT |\n| name | TEXT |",
+                                replacement="| id | BIGINT |", was="was two rows")]},
+        _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor spans a table row boundary"]
+
+
+def test_supersede_refuses_an_anchor_reaching_from_prose_into_a_table_row():
+    """The guard is on the lines the anchor touches, not only on where it starts:
+    an anchor beginning in prose and ending inside a row corrupts the row just the
+    same."""
+    article = "## DDL\nThe schema:\n| id | INT |\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="The schema:\n| id | INT",
+                                replacement="The revised schema:\n| id | BIGINT",
+                                was="was INT")]},
+        _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor spans a table row boundary"]
+
+
+def test_supersede_allows_a_multi_line_anchor_in_prose():
+    """The refusal is scoped to tables: replacing a two-line paragraph is an
+    ordinary anchored replacement and must not be caught."""
+    article = "## Status\nProgress: 0%\nOwner: Dana\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="Progress: 0%\nOwner: Dana",
+                                replacement="Progress: 50%\nOwner: Sam",
+                                was="the earlier pair was 0% under Dana")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out == (
+        "## Status\nProgress: 50%\nOwner: Sam "
+        "[Superseded 2026-05-14 by raw/v2.md: the earlier pair was 0% under Dana]\n")
+
+
+def test_escape_table_cell_does_not_double_escape_an_escaped_pipe():
+    """A model copying an existing DDL cell can hand back text that is already
+    escaped. Escaping it again yields `\\\\|`, which GFM reads as an escaped
+    backslash followed by a cell delimiter -- the column break the escape exists
+    to prevent."""
+    assert mg._escape_table_cell("a|b") == "a\\|b"
+    assert mg._escape_table_cell("a\\|b") == "a\\|b"
+
+
+def test_supersede_escapes_pipes_in_the_replacement_inside_a_table_row():
+    """TR5 covers everything the action writes into the row. A `|` in the
+    replacement adds a column exactly as one in `was` does, and D8 chose anchored
+    replacement so the neighbouring cells survive."""
+    article = "## DDL\n| col | type |\n| --- | --- |\n| id | INT |\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="INT", replacement="BIGINT | NOT NULL",
+                                was="was INT")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    row = out.split("\n")[3]
+    assert row == ("| id | BIGINT \\| NOT NULL "
+                   "[Superseded 2026-05-14 by raw/v2.md: was INT] |")
+    assert row.count("|") - row.count("\\|") == 3
+
+
+def test_supersede_refuses_a_replacement_with_a_newline_inside_a_table_row():
+    """A newline has no escape -- it splits the row in two -- so TR5 refuses
+    rather than corrupting the table."""
+    article = "## DDL\n| id | INT |\n"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="INT", replacement="BIG\nINT", was="was INT")]},
+        _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == [
+        "replacement contains a newline in a table row"]
+
+
+def test_supersede_allows_a_multi_line_replacement_outside_a_table_row():
+    """The newline refusal is scoped to the row: in prose a multi-line
+    replacement is ordinary content, so the guard must not reach it."""
+    out, refusals = mg._apply_diff(
+        "## Status\nProgress: 0%\n",
+        {"patches": [_supersede(replacement="Progress: 50%\n\nRevised at v2.")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert "Progress: 50%\n\nRevised at v2. [Superseded 2026-05-14" in out
+
+
+def test_supersede_folds_a_multi_line_anchor_onto_one_report_line():
+    """SG3's line is read by an operator, and an anchor spanning two lines would
+    print as two apparent refusals."""
+    _out, refusals = mg._apply_diff(
+        "## Status\nbody\n", {"patches": [_supersede(anchor="no\nsuch\ntext")]},
+        _v2_only(), TODAY)
+
+    assert refusals[0].anchor == "no such text"
+
+
+def test_supersede_applies_when_the_payload_mixes_dated_and_undated_blocks():
+    """RA3 orders `by` against the *dated* blocks only. An undated block's
+    position carries no ordering claim (WP6), so it cannot beat a strict maximum
+    and must not block the action either."""
+    blocks = [_block(source_path="raw/v2.md", day=V2),
+              _block(source_path="raw/unknown.md")]
+
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n",
+                                   {"patches": [_supersede()]}, blocks, TODAY)
+
+    assert refusals == []
+    assert "Progress: 50% [Superseded 2026-05-14 by raw/v2.md:" in out
+
+
+def test_two_supersede_actions_in_one_patch_set_both_land():
+    """Emission order within the supersede group (RA4), with both actions
+    succeeding -- the refusing pair is covered separately."""
+    article = "## Status\nProgress: 0%\n\n## Owner\nOwner: Dana\n"
+    diff = {"patches": [
+        _supersede(),
+        _supersede(anchor="Owner: Dana", replacement="Owner: Sam",
+                   was="the earlier owner was Dana"),
+    ]}
+
+    out, refusals = mg._apply_diff(article, diff, _v2_only(), TODAY)
+
+    assert refusals == []
+    assert "Progress: 50% [Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]" in out
+    assert "Owner: Sam [Superseded 2026-05-14 by raw/v2.md: the earlier owner was Dana]" in out
+
+
+def test_supersede_escapes_pipes_in_a_table_row_at_the_end_of_the_article():
+    """TR5 with no trailing newline: the containing line runs to the end of the
+    body, which is the branch a fixture article's final row takes."""
+    article = "## DDL\n| id | INT |"
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="INT", replacement="BIGINT",
+                                was="was INT | nullable")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out.endswith("was INT \\| nullable] |")
+
+
+def test_supersede_matches_a_multi_byte_anchor_past_the_frontmatter():
+    """_body_offset counts characters and the body is sliced by character, so a
+    non-ASCII frontmatter must not shift the anchor's offset."""
+    article = ("---\n"
+               "title: 缓存层设计\n"
+               "sources:\n"
+               "  - raw/v2.md\n"
+               "---\n"
+               "## 状态\n进度：0%\n")
+
+    out, refusals = mg._apply_diff(
+        article,
+        {"patches": [_supersede(anchor="进度：0%", replacement="进度：50%",
+                                was="此前为 0%")]},
+        _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out.endswith("进度：50% [Superseded 2026-05-14 by raw/v2.md: 此前为 0%]\n")
+    assert "title: 缓存层设计" in out
+
+
+def test_supersede_refuses_an_empty_anchor():
+    """An empty anchor names no text and str.find would report it at every
+    offset, so it is refused rather than applied at position zero."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede(anchor="")]},
+                                   _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["anchor not found"]
+
+
+def test_supersede_treats_unterminated_frontmatter_as_body():
+    """_body_offset draws no boundary on an article whose frontmatter never
+    closes, matching _apply_diff's own decision to leave it alone: there is no
+    body to scope to, and refusing every action would cost more than the stray
+    match it prevents."""
+    article = "---\ntitle: A\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]},
+                                   _v2_only(), TODAY)
+
+    assert refusals == []
+    assert out == (
+        "---\ntitle: A\n"
+        "Progress: 50% [Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+
+def test_supersede_refuses_a_was_containing_a_newline():
+    """TR5. A multi-line value in a table cell has no correct rendering, and the
+    trail is single-line everywhere else too."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede(was="a\nb")]},
+                                   _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["was contains a newline"]
+
+
+def test_supersede_refuses_a_by_that_is_not_in_the_payload():
+    """RA3, VA2. The trail names the document that replaced the value, so a `by`
+    this merge never received names nothing checkable."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede(by="raw/ghost.md")]},
+                                   _v2_only(), TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["by not in payload"]
+
+
+def test_supersede_refuses_when_every_block_is_undated():
+    """RA3/VA3. No block establishes an order, so there is nothing to supersede
+    across -- G8 in code. Reported as `by undated` rather than as the absent
+    maximum RA3 pairs this shape with: both are true, the specific one is the one
+    an operator can act on, and FA5 counts refusals by reason."""
+    article = "## Status\nProgress: 0%\n"
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]},
+                                   [_block(source_path="raw/v2.md")], TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["by undated"]
+
+
+def test_supersede_refuses_when_every_dated_block_shares_one_day():
+    """RA3/VA3, and WP9 in code: the system prompt states that a same-day pair
+    carries no ordering claim, so an action superseding across one would
+    contradict the prompt that carried it."""
+    article = "## Status\nProgress: 0%\n"
+    blocks = [_block(source_path="raw/v1.md", day=V2),
+              _block(source_path="raw/v2.md", day=V2)]
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]}, blocks, TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["no strictly-newest block"]
+
+
+def test_supersede_applies_when_by_names_the_strictly_newest_block():
+    """RA3/VA3, the case the guard exists to let through."""
+    blocks = [_block(source_path="raw/v1.md", day=date(2026, 4, 9)),
+              _block(source_path="raw/v2.md", day=V2)]
+
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n",
+                                   {"patches": [_supersede()]}, blocks, TODAY)
+
+    assert refusals == []
+    assert "Progress: 50% [Superseded 2026-05-14 by raw/v2.md:" in out
+
+
+def test_supersede_refuses_a_by_that_is_dated_but_not_the_newest():
+    """RA3/VA3. A block exists that this payload says is later, so the value
+    `by` would install is not the one that stands."""
+    article = "## Status\nProgress: 0%\n"
+    blocks = [_block(source_path="raw/v2.md", day=V2),
+              _block(source_path="raw/v3.md", day=V3)]
+
+    out, refusals = mg._apply_diff(article, {"patches": [_supersede()]}, blocks, TODAY)
+
+    assert out == article
+    assert [r.reason for r in refusals] == ["by is not the newest dated block"]
+
+
+def test_supersede_applies_before_an_append_that_would_duplicate_the_anchor():
+    """RA4. Anchors were chosen against the article as it entered the prompt, so
+    an additive action applied first can make one of them ambiguous. The append
+    is emitted first here and must still land second."""
+    diff = {"patches": [
+        {"action": "append_to_section", "section": "## Status", "content": "Progress: 0%"},
+        _supersede(),
+    ]}
+
+    out, refusals = mg._apply_diff("## Status\nProgress: 0%\n", diff,
+                                   _v2_only(), TODAY)
+
+    assert refusals == []
+    assert "Progress: 50% [Superseded 2026-05-14 by raw/v2.md:" in out
+    # The append still lands, and lands second: its copy of the claim sits past
+    # the trail, so it could not have made the anchor ambiguous.
+    assert out.index("[Superseded") < out.rindex("Progress: 0%\n")
 
 
 # ── _append_to_section / _insert_section_after ───────────────────────
@@ -678,6 +1247,25 @@ def test_merge_diff_applies_the_returned_patches(monkeypatch):
     out = mg._merge_diff("wiki/a.md", "## One\nbody\n", [_block()], "m")
 
     assert "added" in out
+
+
+def test_merge_diff_names_the_article_when_a_supersede_is_refused(monkeypatch, capsys):
+    """SG3 on the layer that knows which article was being written. An action the
+    code throws away has to reach an operator, or a clean Staleness column cannot
+    be told from a writer that never tried (FA5)."""
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "patches": [{"action": "supersede", "anchor": "no such text",
+                     "replacement": "x", "by": "raw/v2.md", "was": "w"}],
+    })
+
+    out = mg._merge_diff("wiki/a.md", "## One\nbody\n",
+                         [_block(source_path="raw/v2.md", day=V2)], "m")
+
+    err = capsys.readouterr().err
+    assert "supersede refused in wiki/a.md" in err
+    assert "anchor not found" in err
+    assert "no such text" in err
+    assert "body" in out
 
 
 def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):

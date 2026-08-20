@@ -99,11 +99,13 @@ def test_store_existing_articles_parses_master_index(tmp_path: Path):
 # ── Merge diff application (pure function, no LLM) ──────────────────
 
 def test_apply_diff_appends_to_section():
-    from kb_ai.core.merge import _apply_diff
+    from kb_ai.core.extract import ExtractionResult
+    from kb_ai.core.merge import SourceBlock, _apply_diff
     article = "## Overview\n\nExisting line.\n"
     diff = {"patches": [
         {"action": "append_to_section", "section": "## Overview", "content": "New line."},
     ]}
-    out = _apply_diff(article, diff, ["raw/src.md"], "2026-06-20")
+    sources = [SourceBlock(source_path="raw/src.md", extraction=ExtractionResult())]
+    out, _ = _apply_diff(article, diff, sources, "2026-06-20")
     assert "Existing line." in out
     assert "New line." in out

@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import re
 import sys
 from dataclasses import dataclass
 from datetime import date as _date
@@ -727,7 +728,16 @@ def _merge_diff(
     except (json.JSONDecodeError, RuntimeError):
         raw = {"patches": []}
 
-    return _apply_diff(article_content, raw, [b.source_path for b in sources], today)
+    content, refusals = _apply_diff(article_content, raw, sources, today)
+    # SG3's report, on stderr until the compile report carries it. Named here
+    # because this is the layer that knows which article was being written, and
+    # because an action the code throws away is the one thing the arm needs
+    # counted (FA5) -- dropping it silently would make a clean column
+    # indistinguishable from a writer that never tried.
+    for refusal in refusals:
+        print(f"[merge] supersede refused in {article_path}: {refusal.reason}: "
+              f"{refusal.anchor}", file=sys.stderr, flush=True)
+    return content
 
 
 def _merge_user_message(article_content: str, sources: Sequence[SourceBlock],
@@ -753,11 +763,267 @@ def _merge_user_message(article_content: str, sources: Sequence[SourceBlock],
     return user
 
 
-def _apply_diff(article_content: str, diff: dict, source_paths: list[str],
-                today: str) -> str:
-    # list[str] rather than Sequence[str]: a bare `str` satisfies the wider type
-    # and would append one frontmatter item per character, to a file that is then
-    # written to disk and read back by derive as one source path per character.
+# One supersession trail block (A2 spec TR1): opens `[Superseded `, closes at the
+# first `]`, never spans a line. Rendered by _render_trail and read back by
+# _anchor_offsets, which is what makes RA5's exclusion and TR4's chaining work off
+# the article text alone -- no sidecar record of what an earlier merge wrote.
+#
+# Known bound: a `was` containing `]` renders a block this pattern reads as
+# ending early, so the tail of that one entry is not excluded from anchor
+# matching. Not refused, because SG3 fixes the refusal reasons and `]` is not
+# among them; the cost is bounded to a fuzzier RA5 on an entry the code wrote.
+_TRAIL_RE = re.compile(r"\[Superseded [^\n\]]*\]")
+
+# SG3's reasons, verbatim, because they are operator-facing report text.
+_REFUSE_ANCHOR_MISSING = "anchor not found"
+_REFUSE_ANCHOR_AMBIGUOUS = "anchor ambiguous"
+_REFUSE_ANCHOR_CROSSES_ROW = "anchor spans a table row boundary"
+_REFUSE_REPLACEMENT_NEWLINE_IN_ROW = "replacement contains a newline in a table row"
+_REFUSE_BY_ABSENT = "by not in payload"
+_REFUSE_BY_UNDATED = "by undated"
+_REFUSE_NO_NEWEST = "no strictly-newest block"
+_REFUSE_BY_NOT_NEWEST = "by is not the newest dated block"
+_REFUSE_WAS_EMPTY = "was is empty"
+_REFUSE_WAS_NEWLINE = "was contains a newline"
+
+
+@dataclass(frozen=True)
+class SupersedeRefusal:
+    """A `supersede` action the code would not apply, for SG3's report.
+
+    Carries no article path: ``_apply_diff`` is not told which article it is
+    editing, and the layers that surface this (``_merge_diff`` on stderr, the
+    compile report) both know it. ``anchor`` arrives already cut to 80 characters
+    and folded onto one line -- RA7 asks for anchors long enough to be unique, so
+    the whole one is not a report line, and one refusal must not print as two.
+    """
+
+    reason: str
+    anchor: str
+
+
+def _body_offset(content: str) -> int:
+    """Where the article body starts, past any frontmatter (RA2).
+
+    An unterminated frontmatter block counts as body, matching ``_apply_diff``'s
+    own decision to leave such an article's frontmatter alone: there is no
+    boundary to draw, and refusing every action on a malformed article would cost
+    more than the stray match it prevents.
+    """
+    lines = content.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return 0
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            return sum(len(line) + 1 for line in lines[:i + 1])
+    return 0
+
+
+def _anchor_offsets(body: str, anchor: str) -> list[int]:
+    """Offsets where ``anchor`` occurs in ``body``, skipping trail blocks (RA2, RA5).
+
+    No normalization of any kind, per RA2: a fuzzy match is a silent edit to text
+    nobody chose. Overlapping occurrences are all counted, so a self-similar
+    anchor reads as ambiguous rather than as one arbitrary hit.
+    """
+    spans = [(m.start(), m.end()) for m in _TRAIL_RE.finditer(body)]
+    offsets: list[int] = []
+    start = 0
+    while True:
+        at = body.find(anchor, start)
+        if at < 0:
+            return offsets
+        end = at + len(anchor)
+        if not any(at < span_end and span_start < end for span_start, span_end in spans):
+            offsets.append(at)
+        start = at + 1
+
+
+def _resolve_superseding_block(
+    by: str, sources: Sequence[SourceBlock],
+) -> tuple[SourceBlock | None, str | None]:
+    """RA3: `by` must be in the payload, dated, and strictly newer than the rest.
+
+    Returns the block on success so the caller reads the trail's date off the same
+    lookup the guard already did -- a second search could not disagree, but it
+    would be a second place that has to keep knowing `by`'s date is not None.
+
+    The failure shapes are reported apart because they point an operator at
+    different things: a payload with no strict maximum (every block undated, every
+    dated block on one day, or a tie at the newest day) is WP9 saying no order
+    exists, while a `by` that is dated but beaten by a single newer block is the
+    writer naming the wrong document. Collapsing them into one reason would report
+    the second as the first, which is false. A payload where every block is
+    undated reports the more specific `by undated` rather than the absent maximum,
+    because that is the one an operator can act on and FA5 breaks the counts down
+    by reason.
+
+    Vacuous on a single-block payload, which is the common case and RA3's stated
+    limit: nothing here can order a block against the *article*, whose
+    ``updated:`` is the compile day.
+    """
+    block = next((b for b in sources if b.source_path == by), None)
+    if block is None:
+        return None, _REFUSE_BY_ABSENT
+    if block.date is None:
+        return None, _REFUSE_BY_UNDATED
+
+    others = [b.date for b in sources if b is not block and b.date is not None]
+    if not any(day >= block.date for day in others):
+        return block, None
+    dated = [block.date] + others
+    if dated.count(max(dated)) > 1:
+        return None, _REFUSE_NO_NEWEST
+    return None, _REFUSE_BY_NOT_NEWEST
+
+
+def _line_span(body: str, start: int, end: int) -> str:
+    """The whole lines that ``body[start:end]`` touches."""
+    line_start = body.rfind("\n", 0, start) + 1
+    line_end = body.find("\n", end)
+    return body[line_start:] if line_end < 0 else body[line_start:line_end]
+
+
+def _in_table_row(body: str, at: int) -> bool:
+    """Whether the line holding ``at`` is a table row (TR5).
+
+    Leading whitespace is stripped before the test: an indented row is still a
+    row, and an unescaped `|` breaks its column count either way.
+    """
+    return _line_span(body, at, at).lstrip().startswith("|")
+
+
+def _anchor_crosses_table_row(body: str, at: int, anchor: str) -> bool:
+    """Whether a multi-line anchor touches a table row (TR5).
+
+    An anchor spanning a newline deletes the boundary between the lines it
+    replaces. Between prose lines that is an ordinary paragraph edit; where any of
+    those lines is a table row it merges two rows into one, and the trail's single
+    `was` would then stand as the record for every claim the merged rows held --
+    TR5's column count and G7's record fail together. Judged on every line the
+    anchor touches rather than on where it starts, because an anchor reaching from
+    prose into a row corrupts the row just the same.
+    """
+    if "\n" not in anchor:
+        return False
+    region = _line_span(body, at, at + len(anchor))
+    return any(line.lstrip().startswith("|") for line in region.split("\n"))
+
+
+def _escape_table_cell(text: str) -> str:
+    """Escape `|` so text inserted into a table row keeps the row's column count.
+
+    Applied to both halves of what a supersession writes into a row -- the
+    replacement and the trail's `was` -- because an unescaped `|` in either one
+    adds a column, and D8 chose anchored replacement precisely so that the
+    neighbouring cells survive.
+
+    An already-escaped pipe is left alone. A writer copying an existing DDL cell
+    hands back text that is escaped, and escaping it again gives `\\\\|`, which GFM
+    reads as an escaped backslash followed by a cell delimiter -- the column break
+    this exists to prevent. Known bound: a literal backslash immediately before a
+    real pipe (`\\\\|` in the source) is read as an escape here and left unescaped,
+    which is the same shape one level up and has no instance in the corpus.
+    """
+    return re.sub(r"(?<!\\)\|", r"\\|", text)
+
+
+def _render_trail(day: _date, by: str, was: str, *, in_table_row: bool) -> str:
+    """The trail block, per TR1 and D1's example.
+
+    Rendered here rather than by the model, so D1's four format rules are
+    mechanical: the model supplies the judgement in `was`, the format is the
+    code's. ``day`` is the superseding document's own date (TR3).
+    """
+    if in_table_row:
+        was = _escape_table_cell(was)
+    return f"[Superseded {day.isoformat()} by {by}: {was}]"
+
+
+def _apply_supersede(content: str, patch: dict,
+                     sources: Sequence[SourceBlock]) -> tuple[str, SupersedeRefusal | None]:
+    """Apply one `supersede` patch, or refuse it and change nothing (RA1-RA5).
+
+    Every refusal is a no-op on the whole action: the article keeps every byte it
+    had (story S9). The trail goes at the anchor's position, immediately after the
+    replacement in the same line and section (TR2) or alone there when the claim is
+    withdrawn rather than restated. That placement is also what makes TR4 fall out
+    -- an existing trail sits just past the anchor, so the new entry lands ahead of
+    it and the entries read newest to oldest.
+
+    One consequence of RA5 worth naming: a position holding only trail blocks is
+    unreachable by any later ``supersede``, because anchor matching excludes trail
+    text. A withdrawn claim is therefore final on this path, and a further
+    supersession of it reports `anchor not found` rather than chaining.
+    """
+    anchor = patch.get("anchor") or ""
+    replacement = patch.get("replacement") or ""
+    by = patch.get("by") or ""
+    was = patch.get("was") or ""
+
+    def refuse(reason: str) -> tuple[str, SupersedeRefusal]:
+        return content, SupersedeRefusal(reason=reason, anchor=" ".join(anchor[:80].split()))
+
+    if "\n" in was:
+        return refuse(_REFUSE_WAS_NEWLINE)
+    # `was` is the required field, not `replacement`. An empty `replacement` is a
+    # deletion the trail makes recoverable, which RA1 allows; an empty `was` is a
+    # deletion of the record itself, and G7 is the whole reason D1 chose a trail
+    # over a deletion. So the field that carries the old value is the one that
+    # cannot be left out -- with both empty the claim would leave the article with
+    # nothing saying it was ever there. Tested on .strip(), because the guard is
+    # about the record and a `was` that renders as blank is not one.
+    if not was.strip():
+        return refuse(_REFUSE_WAS_EMPTY)
+    block, violation = _resolve_superseding_block(by, sources)
+    if violation is not None:
+        return refuse(violation)
+    # An empty anchor names no text, and str.find would report it at every offset.
+    # Reported as not found rather than earning a reason of its own.
+    if not anchor:
+        return refuse(_REFUSE_ANCHOR_MISSING)
+
+    offset = _body_offset(content)
+    body = content[offset:]
+    offsets = _anchor_offsets(body, anchor)
+    if not offsets:
+        return refuse(_REFUSE_ANCHOR_MISSING)
+    if len(offsets) > 1:
+        return refuse(_REFUSE_ANCHOR_AMBIGUOUS)
+
+    at = offsets[0]
+    if _anchor_crosses_table_row(body, at, anchor):
+        return refuse(_REFUSE_ANCHOR_CROSSES_ROW)
+
+    in_row = _in_table_row(body, at)
+    if in_row:
+        # TR5 covers everything this action writes into the row, not only the
+        # trail: a `|` in the replacement adds a column exactly as one in `was`
+        # does. A newline has no escape -- it splits the row into two -- and
+        # outside a row a multi-line replacement is ordinary prose, so this is the
+        # one refusal that depends on where the anchor turned out to be.
+        if "\n" in replacement:
+            return refuse(_REFUSE_REPLACEMENT_NEWLINE_IN_ROW)
+        replacement = _escape_table_cell(replacement)
+
+    trail = _render_trail(block.date, by, was, in_table_row=in_row)
+    # An empty replacement leaves the trail alone in the claim's place: a deletion
+    # with a record, which is what RA1 allows it to mean.
+    inserted = f"{replacement} {trail}" if replacement else trail
+    return content[:offset] + body[:at] + inserted + body[at + len(anchor):], None
+
+
+def _apply_diff(article_content: str, diff: dict, sources: Sequence[SourceBlock],
+                today: str) -> tuple[str, list[SupersedeRefusal]]:
+    """Frontmatter refresh, then the patches, and what the patches refused.
+
+    ``sources`` is the payload's blocks rather than their paths, because RA3's
+    order guard reads their dates and two representations of one payload could
+    disagree about which document is newest. A bare ``str`` passed here fails
+    loudly on the first ``.source_path``, where the previous ``list[str]``
+    signature would have appended one frontmatter item per character.
+    """
+    source_paths = [block.source_path for block in sources]
     lines = article_content.split("\n")
 
     if lines and lines[0].strip() == "---":
@@ -809,8 +1075,20 @@ def _apply_diff(article_content: str, diff: dict, source_paths: list[str],
             lines = ["---"] + new_fm + lines[end_idx:]
 
     content = "\n".join(lines)
+    patches = diff.get("patches", [])
+    refusals: list[SupersedeRefusal] = []
 
-    for patch in diff.get("patches", []):
+    # RA4: every supersede runs before any additive action, against the article
+    # text the anchors were chosen against. An append_to_section applied first can
+    # create text an anchor then matches, or move the text an anchor was cut from.
+    # Within the group, emission order -- _apply_diff's existing rule.
+    for patch in patches:
+        if patch.get("action") == "supersede":
+            content, refusal = _apply_supersede(content, patch, sources)
+            if refusal is not None:
+                refusals.append(refusal)
+
+    for patch in patches:
         action = patch.get("action")
         new_content = patch.get("content", "")
         if action == "append_to_section":
@@ -821,7 +1099,7 @@ def _apply_diff(article_content: str, diff: dict, source_paths: list[str],
             heading = patch.get("heading", "")
             content = _insert_section_after(content, after, heading, new_content)
 
-    return content
+    return content, refusals
 
 
 def _append_to_section(content: str, section_heading: str, new_content: str) -> str:
