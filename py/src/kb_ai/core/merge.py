@@ -694,17 +694,38 @@ def _merge_full_rewrite(
     system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
     user = _merge_user_message(article_content, sources, budget)
+    messages = [{"role": "system", "content": system},
+                {"role": "user", "content": user}]
 
-    text = completion(model=model, messages=[
-        {"role": "system", "content": system},
-        {"role": "user", "content": user},
-    ], max_tokens=16384, cache=True).strip()
-    merged = _strip_markdown_fencing(text)
+    def send(msgs: list[dict]) -> str:
+        text = completion(model=model, messages=msgs,
+                          max_tokens=16384, cache=True).strip()
+        return _strip_markdown_fencing(text)
+
+    # SG1, per D9. The diff path cannot delete a trail block; this one re-emits
+    # the whole article, so preservation is only checkable against the output.
+    merged = send(messages)
+    missing = _lost_trails(article_content, merged)
+    if missing:
+        note = _trail_retry_note(missing, MAX_PROMPT_CHARS - len(system) - len(user))
+        merged = send(messages + [{"role": "user", "content": note}])
+        missing = _lost_trails(article_content, merged)
+    if missing:
+        # The one loss that cannot be recovered from the article itself, so the
+        # merge is dropped instead: every other kind of write defect leaves text a
+        # human can still read and fix. One line per block, cut where SG3 and TR6
+        # cut theirs -- a trail block is as long as the claim it records.
+        for block in missing:
+            print(f"[merge] merge abandoned in {article_path}: {_TRAIL_LOST}: "
+                  f"{block[:80]}", file=sys.stderr, flush=True)
+        return article_content
 
     # TR6's report, on stderr beside _merge_diff's refusals until the compile
     # report carries both. This path writes its own trail text, so a malformed
     # block is reported and the write still lands: the note is prose a human can
-    # fix, where dropping the merge loses everything else it carried.
+    # fix, where dropping the merge loses everything else it carried. Read off the
+    # article that lands, and only reached when one does -- reporting the format of
+    # prose in an abandoned rewrite would send an operator to text no file holds.
     for defect in _trail_defects(article_content, merged, sources):
         print(f"[merge] malformed trail in {article_path}: {defect.reason}: "
               f"{defect.trail}", file=sys.stderr, flush=True)
@@ -1055,6 +1076,70 @@ def _trail_defects(before: str, after: str,
                 defects.append(defect(_TRAIL_BY_ABSENT, block_text))
         at = after.find(_TRAIL_OPENER, at + len(_TRAIL_OPENER))
     return defects
+
+
+# SG1's reason, verbatim, because it is operator-facing report text.
+_TRAIL_LOST = "pre-existing trail missing from the rewrite"
+
+# What the retry adds to the prompt the first attempt already saw. Fixed text kept
+# well inside _SAFETY_MARGIN (pinned by a test), because the first send is sized to
+# the budget minus that margin and anything past it raises PromptTooLargeError --
+# which would lose the history to a crash rather than to the guard SG1 designed.
+#
+# It restates the constraint rather than relying on the prompt file's own version
+# of it, and merge-rewrite.md landed that rule a step early for this reason: a
+# retry is the second time the model is told, not the first.
+#
+# Phrased as a requirement rather than as feedback on the rejected draft, because
+# the draft is not sent back: the retry appends to the first attempt's messages and
+# nothing else, so text about "what you dropped" would name an artifact this
+# conversation does not contain. Carrying the draft would cost a whole article of
+# budget to say what the list of notes below already says.
+_TRAIL_RETRY_HEAD = (
+    "The article you return has to contain every [Superseded ...] note listed "
+    "below, word for word, alongside everything you merged. The article's history "
+    "is append-only: these are notes it already carried.\n\n"
+)
+_TRAIL_RETRY_TAIL = "\nReturn the complete updated article.\n"
+
+
+def _lost_trails(before: str, after: str) -> list[str]:
+    """Every trail block in ``before`` that ``after`` does not carry verbatim (SG1).
+
+    Verbatim is the only grain a code guard has, and the spec says so rather than
+    implying more: a rewrite that paraphrases a preserved note trips this, and the
+    cost of that is one wasted retry, never a silent loss. What it cannot promise
+    is the converse -- a note kept in a section the rewrite otherwise gutted still
+    reads as preserved here.
+
+    Two bounds worth naming. A pre-existing block that does not close on its own
+    line is not a block by TR1's definition, so it yields no match and is not
+    guarded -- the same bound a reader grepping ``wiki/`` for the trail lives with.
+    And the test is substring presence, so an article carrying one block twice is
+    satisfied by an output that keeps one of them: duplicates are deduplicated here
+    to report a loss once, which is also why collapsing them cannot be detected.
+    """
+    carried = dict.fromkeys(_TRAIL_RE.findall(before))
+    return [block for block in carried if block not in after]
+
+
+def _trail_retry_note(missing: Sequence[str], room: int) -> str:
+    """SG1's retry message: the constraint restated, and the blocks to bring back.
+
+    ``room`` is what the budget left after the first send, and the list is cut to
+    fit it: naming five long blocks costs more than _SAFETY_MARGIN reserved. The
+    constraint is restated whether or not a single block fits beside it, and the
+    report names every missing block regardless -- the prompt is one call's worth,
+    where the report is the whole loss.
+    """
+    room -= len(_TRAIL_RETRY_HEAD) + len(_TRAIL_RETRY_TAIL)
+    listed: list[str] = []
+    for block in missing:
+        room -= len(block) + 1
+        if room < 0:
+            break
+        listed.append(block)
+    return _TRAIL_RETRY_HEAD + "\n".join(listed) + _TRAIL_RETRY_TAIL
 
 
 def _apply_supersede(content: str, patch: dict,

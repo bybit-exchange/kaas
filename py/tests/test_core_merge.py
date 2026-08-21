@@ -1411,6 +1411,268 @@ def test_rewrite_reports_every_malformed_trail_not_only_the_first(monkeypatch, c
     assert "trail date is not a date" in err
 
 
+# ── the rewrite path's trail preservation guard ──────────────────────
+#
+# A2 step 3, SG1 verified per VA4. D9's append-only rule is structural on the diff
+# path (no action deletes a trail) and checkable only against the output here: the
+# model re-emits the whole article, so every trail block the pre-write article
+# carried has to come back verbatim. A missing one buys one retry; still missing,
+# the merge is abandoned and the article keeps every byte it had.
+#
+# The assertions are on the returned article rather than on the report, per VA4:
+# what SG1 promises is that no history is lost, and a log line saying so is not
+# that promise.
+
+CARRIED = "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]"
+
+
+def _carrying() -> str:
+    """v1's article after v2 superseded a claim in it -- the pre-write state a
+    third source now merges into (D10's chain)."""
+    return f"# Gateway\n\nProgress: 50% {CARRIED}\n"
+
+
+def _v3_payload() -> list[mg.SourceBlock]:
+    return [_block(source_path="raw/v3.md", day=V3)]
+
+
+def _rewriting_in_turn(monkeypatch, *outputs: str) -> list[list[dict]]:
+    """Successive rewrite outputs, returning the messages each call was sent.
+
+    A call past the last output is an assertion failure rather than a repeat of
+    it, so "retried once" is pinned by every test that hands this two outputs:
+    a third send fails here instead of passing quietly.
+    """
+    sent: list[list[dict]] = []
+
+    def fake_completion(**kwargs):
+        # Copied, not aliased: what is asserted afterwards has to be the list this
+        # call was given, not one a later line could still append to.
+        sent.append(list(kwargs["messages"]))
+        assert len(sent) <= len(outputs), "more rewrite calls than this test allows"
+        return outputs[len(sent) - 1]
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+    return sent
+
+
+def test_a_dropped_trail_buys_one_retry_and_the_retry_lands(monkeypatch):
+    """SG1's first half. The retry preserved the block, so its article is written
+    -- the guard costs a call, not the merge."""
+    kept = f"# Gateway\n\nProgress: 80% [Superseded 2026-06-01 by raw/v3.md: it was 50%] {CARRIED}\n"
+    sent = _rewriting_in_turn(monkeypatch, "# Gateway\n\nProgress: 80%\n", kept)
+
+    out = mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+
+    assert out == kept.strip()
+    assert len(sent) == 2
+
+
+def test_a_trail_dropped_twice_leaves_the_article_byte_identical(monkeypatch):
+    """SG1's second half, and the price D9 accepts: the merge is lost so that the
+    history is not. Byte-identical, not merely trail-preserving -- an abandoned
+    write must not land a partial rewrite either."""
+    before = _carrying()
+    sent = _rewriting_in_turn(monkeypatch,
+                              "# Gateway\n\nProgress: 80%\n",
+                              "# Gateway\n\nProgress: 80%, and more prose.\n")
+
+    out = mg._merge_full_rewrite("wiki/a.md", before, _v3_payload(), "m")
+
+    assert out == before
+    assert len(sent) == 2
+
+
+def test_a_trail_dropped_twice_reports_the_article_and_the_block(monkeypatch, capsys):
+    """SG1's report: the path, because the layer that knows it is this one, and the
+    block, because an operator cannot go looking for what was lost otherwise."""
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+
+    mg._merge_full_rewrite("wiki/gateway.md", _carrying(), _v3_payload(), "m")
+    err = capsys.readouterr().err
+
+    assert "wiki/gateway.md" in err
+    assert CARRIED in err
+    # Hardcoded for the reason the TR6 section states: a test that read the reason
+    # off mg._TRAIL_LOST would stay green through any rewording of it.
+    assert "pre-existing trail missing from the rewrite" in err
+
+
+def test_the_same_block_carried_twice_is_reported_once(monkeypatch, capsys):
+    """Where a claim is stated in two places the prompt asks for a note at each, so
+    an article legitimately carries identical blocks. Losing them is one loss to
+    act on, not two identical report lines to read."""
+    before = f"Progress: 50% {CARRIED}\n\n## Also\nProgress: 50% {CARRIED}\n"
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+
+    mg._merge_full_rewrite("wiki/a.md", before, _v3_payload(), "m")
+
+    assert capsys.readouterr().err.count("merge abandoned") == 1
+
+
+def test_a_lost_trail_is_reported_to_eighty_characters(monkeypatch, capsys):
+    """The bound SG3 puts on an anchor and TR6 on a malformed block, here too: a
+    trail block is as long as the claim it records, and a report line is not the
+    place to read one. The prefix is enough to find what was lost."""
+    long_block = "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was " + "x" * 200 + "]"
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+
+    mg._merge_full_rewrite("wiki/a.md", f"Progress: 50% {long_block}\n",
+                           _v3_payload(), "m")
+
+    assert capsys.readouterr().err.rstrip("\n").endswith(f": {long_block[:80]}")
+
+
+def test_a_preserved_trail_costs_no_second_call(monkeypatch):
+    """The ordinary case. One output only, so a needless retry fails the test."""
+    kept = f"# Gateway\n\nProgress: 80% {CARRIED}\n"
+    sent = _rewriting_in_turn(monkeypatch, kept)
+
+    out = mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+
+    assert out == kept.strip()
+    assert len(sent) == 1
+
+
+def test_an_article_with_no_trail_is_rewritten_freely(monkeypatch):
+    """The guard is about history the article already holds. An article that has
+    none constrains nothing, however little of it the rewrite keeps."""
+    sent = _rewriting_in_turn(monkeypatch, "# Gateway\n\nEverything is different.\n")
+
+    out = mg._merge_full_rewrite("wiki/a.md", "# Gateway\n\nProgress: 50%\n",
+                                 _v3_payload(), "m")
+
+    assert out == "# Gateway\n\nEverything is different."
+    assert len(sent) == 1
+
+
+def test_a_paraphrased_trail_does_not_count_as_preserved(monkeypatch):
+    """The bound SG1 states rather than hides: verbatim is the only grain a code
+    guard has. A reworded note keeps the claim's history in prose and still trips
+    the guard, so the failure mode is a wasted retry, never a silent loss."""
+    reworded = "# Gateway\n\nProgress: 80% [Superseded 2026-05-14 by raw/v2.md: it was 0% before]\n"
+    sent = _rewriting_in_turn(monkeypatch, reworded, reworded)
+
+    out = mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+
+    assert out == _carrying()
+    assert len(sent) == 2
+
+
+def test_the_later_block_of_a_chain_is_guarded_too(monkeypatch):
+    """TR4's chains sit one entry after another on one line, and the entries after
+    the first are what a line-wide scan never reaches. The output here keeps the
+    newest of two and drops the one behind it."""
+    older = "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]"
+    newer = "[Superseded 2026-06-01 by raw/v3.md: it was 50%]"
+    before = f"# Gateway\n\nProgress: 80% {newer} {older}\n"
+    sent = _rewriting_in_turn(monkeypatch, f"# Gateway\n\nProgress: 80% {newer}\n",
+                              f"# Gateway\n\nProgress: 80% {newer} {older}\n")
+
+    mg._merge_full_rewrite("wiki/a.md", before,
+                           [_block(source_path="raw/v4.md", day=date(2026, 7, 1))], "m")
+
+    assert len(sent) == 2
+
+
+def test_the_retry_names_the_missing_block_and_keeps_the_first_prompt(monkeypatch):
+    """What makes the retry worth a call: the block it has to bring back, verbatim,
+    added to the prompt the first attempt already saw rather than replacing it --
+    the article and its sources are still the material being merged."""
+    sent = _rewriting_in_turn(monkeypatch, "gone\n",
+                              f"kept {CARRIED}\n")
+
+    mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+    first, retry = sent
+
+    assert retry[:2] == first
+    assert len(retry) == 3
+    assert CARRIED in retry[2]["content"]
+    # The other half of SG1's retry clause -- "with the constraint restated". The
+    # phrase is hardcoded rather than read off mg._TRAIL_RETRY_HEAD, which would
+    # assert nothing: an empty head would satisfy a test built from the head.
+    assert "append-only" in retry[2]["content"]
+
+
+def _five_lost_blocks(monkeypatch) -> str:
+    """An article carrying five long trail blocks, with the prompt budget squeezed
+    to what the first send leaves the retry.
+
+    The squeeze is the point. At the real 80 000 characters a note naming all five
+    fits with room to spare, so an assertion about the budget passes whether or not
+    the note is bounded at all -- which is what a mutation run caught. Here the
+    first send is capped at _SAFETY_MARGIN's worth of user message, so the note has
+    the margin and nothing else, exactly the position a full-sized article puts it
+    in.
+    """
+    monkeypatch.setattr(mg, "MAX_PROMPT_CHARS",
+                        len(mg._merge_rewrite_system()) + 2 * mg._SAFETY_MARGIN)
+    blocks = [f"[Superseded 2026-05-1{i} by raw/v2.md: {'x' * 150}]" for i in range(5)]
+    return "# Gateway\n\n" + "\n".join(f"Claim {i} {b}" for i, b in enumerate(blocks)) + "\n"
+
+
+def test_the_retry_note_fits_the_prompt_budget_the_first_send_left(monkeypatch):
+    """The retry appends to a prompt already sized to the budget, so its own text
+    has to fit what _SAFETY_MARGIN reserved -- otherwise a merge that SG1 means to
+    retry raises PromptTooLargeError instead, losing the article's history to a
+    crash rather than to the guard. Five long blocks is more than the margin holds,
+    so the note names what fits and drops the rest."""
+    before = _five_lost_blocks(monkeypatch)
+    sent = _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+
+    mg._merge_full_rewrite("wiki/a.md", before, _v3_payload(), "m")
+
+    assert len(sent) == 2
+    assert sum(len(m["content"]) for m in sent[1]) <= mg.MAX_PROMPT_CHARS
+
+
+def test_every_missing_block_is_reported_even_when_the_note_could_not_name_it(
+        monkeypatch, capsys):
+    """The bound above applies to the prompt, not to the operator: the note is what
+    one call can carry, where the report is the whole loss."""
+    before = _five_lost_blocks(monkeypatch)
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+
+    mg._merge_full_rewrite("wiki/a.md", before, _v3_payload(), "m")
+    err = capsys.readouterr().err
+
+    assert err.count("wiki/a.md") == 5
+
+
+def test_the_retry_note_is_shorter_than_the_margin_it_has_to_fit():
+    """The invariant the bound above rests on, asserted directly so that growing
+    the note's prose fails here rather than at a live call: the fixed text must fit
+    _SAFETY_MARGIN with room left for at least one block."""
+    fixed = len(mg._TRAIL_RETRY_HEAD) + len(mg._TRAIL_RETRY_TAIL)
+
+    assert fixed < mg._SAFETY_MARGIN
+
+
+def test_an_abandoned_merge_reports_no_trail_defects(monkeypatch, capsys):
+    """TR6 reports the format of prose that is now in the article. An abandoned
+    write put nothing there, so naming its malformed block would send an operator
+    looking for text no file contains."""
+    output = "Progress: 80% [Superseded by raw/v3.md: it was 50%]\n"
+    _rewriting_in_turn(monkeypatch, output, output)
+
+    mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+    err = capsys.readouterr().err
+
+    assert "trail block is malformed" not in err
+
+
+def test_the_article_that_lands_is_the_one_validated(monkeypatch, capsys):
+    """The other side of it: the retry's output is what gets written, so TR6 reads
+    that one rather than the attempt SG1 threw away."""
+    landed = f"Progress: 80% [Superseded by raw/v3.md: it was 50%] {CARRIED}\n"
+    _rewriting_in_turn(monkeypatch, "gone\n", landed)
+
+    out = mg._merge_full_rewrite("wiki/a.md", _carrying(), _v3_payload(), "m")
+
+    assert out == landed.strip()
+    assert "trail block is malformed" in capsys.readouterr().err
+
+
 def test_merge_diff_applies_the_returned_patches(monkeypatch):
     monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
