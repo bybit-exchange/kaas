@@ -575,8 +575,23 @@ A2's arm will report whether any instance arose rather than confirming the forma
    budget, since overrunning it would raise `PromptTooLargeError` and lose the history to a
    crash rather than to the guard; the report names every missing block whether or not the
    prompt could name it.
-4. **Reports.** SG2, SG3, SG4 and PV6, surfaced through the compile report beside the revised
-   and lineage reports (`compile.py:190`, `:722-739`), with VA8.
+4. **Reports — landed 2026-08-21.** SG2, SG3, SG4 and PV6, surfaced through the compile report
+   beside the revised and lineage reports (`compile.py:190`, `:722-739`), with VA8.
+   Three decisions the rule text left open, recorded because each could have gone another way.
+   **The findings travel in a caller-passed sink** (`merge_into_article(..., events=...)`) and
+   are *collected instead of printed*: the sink's owner logs the report, so emitting at both
+   layers would tell an operator the same refusal twice and make a count of report lines wrong.
+   A caller that passes none keeps the stderr behaviour it had, which is the only report a
+   direct caller gets. **SG2's delta is measured inside the merge op**, not by its two callers,
+   though both hold the pre- and post-write text: one number must not depend on which route
+   wrote the article. It has a one-byte floor worth knowing about — the rewrite route strips
+   what the model returns, so an article stored with a trailing newline really does lose a byte,
+   and SG2 reports it rather than inventing the threshold D9 rejected. **An abandoned merge is
+   its own status** on both routes (`merge-abandoned` in the compile log, `abandoned` in the
+   worker route's item result) rather than a `merged` that changed nothing, because `merged`
+   tells a client the sources reached the article and SG1 dropped the write so that they did
+   not. The ops still count as completed: D9 accepts losing the merge, and a deterministic trail
+   failure retried on every compile would re-spend forever while reporting the same finding.
 5. **The ruling — landed 2026-08-20.** GT1 written into test-set.md as V40, with GT2–GT4.
    Cost no spend and is the precondition for the arm meaning anything, which is why it ran
    first rather than in parallel.
