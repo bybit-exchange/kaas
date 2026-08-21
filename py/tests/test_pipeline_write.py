@@ -13,6 +13,7 @@ import pytest
 
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.commands.pipeline import _phase_write as pw
+from kb_ai.core import merge as mg
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.storage.store import KBStore
 
@@ -27,7 +28,10 @@ def store(tmp_path) -> KBStore:
 @pytest.fixture
 def writers(monkeypatch):
     """Fake create/merge article writers with a call log and a failure switch."""
-    state = {"created": [], "merged": [], "fail": set(), "cancel_on": set()}
+    state = {"created": [], "merged": [], "fail": set(), "cancel_on": set(),
+             # A2 step 4: findings the merge reports for an article, and the sink
+             # each call was handed.
+             "findings": {}, "sinks": []}
 
     def fake_create(article_type, title, sources, model="m"):
         if title in state["fail"]:
@@ -36,11 +40,18 @@ def writers(monkeypatch):
                                  "sources": [b.source_path for b in sources]})
         return f"---\ntitle: {title}\n---\nbody\n"
 
-    def fake_merge(art_path, old_content, sources, model="m"):
+    def fake_merge(art_path, old_content, sources, model="m", events=None):
         if art_path in state["fail"]:
             raise RuntimeError(f"merge failed: {art_path}")
         state["merged"].append({"path": art_path,
                                 "sources": [b.source_path for b in sources]})
+        state["sinks"].append(events)
+        findings = state["findings"].get(art_path, [])
+        if events is not None:
+            events.extend(findings)
+        # SG1 returns the article untouched when it abandons, so the fake does too.
+        if any(f.kind == mg.EV_TRAIL_LOST for f in findings):
+            return old_content
         return old_content + "\nmerged\n"
 
     monkeypatch.setattr(pw, "create_new_article", fake_create)
@@ -67,7 +78,7 @@ def by_hash(results: list[dict]) -> dict[str, dict]:
 def test_ensure_write_result_creates_the_slot():
     results: dict[str, dict] = {}
     pw._ensure_write_result(results, "h1")
-    assert results["h1"] == {"created": [], "merged": [], "errors": []}
+    assert results["h1"] == {"created": [], "merged": [], "abandoned": [], "errors": []}
 
 
 def test_ensure_write_result_is_idempotent():
@@ -418,7 +429,7 @@ def test_write_still_reports_a_finished_write_when_cancelled_afterwards(store, w
     cancel = threading.Event()
     store.write_article("wiki/concept/topic.md", "existing")
 
-    def merge_then_cancel(art_path, old_content, sources, model="m"):
+    def merge_then_cancel(art_path, old_content, sources, model="m", events=None):
         # The client disconnects while this write is in flight.
         cancel.set()
         return old_content + "\nmerged\n"
@@ -623,3 +634,119 @@ def test_the_write_timeout_override_lands_on_the_workers_own_context(
     assert seen["worker"] == _WRITE_CALL_TIMEOUT_S
     assert seen["caller"] is None, "the override must not touch the shared context"
     assert caller_ctx.call_timeout is None
+
+
+# ── merge findings on the worker route (A2 step 4) ───────────────────
+#
+# The daemon's write phase reports what the CLI's does, for the reason VF6 and
+# T14 exist: two independent write phases over one layout drift, and the last
+# time they did it cost every UI-ingested document a silent re-extraction. The
+# CLI carries findings into the compile report; here there is no compile report,
+# so they reach the per-item result and the phase's own log.
+
+def _finding(kind: str, article: str, reason: str = "reason", detail: str = "") -> mg.MergeEvent:
+    return mg.MergeEvent(kind=kind, article=article, reason=reason, detail=detail)
+
+
+def test_the_worker_route_hands_every_merge_a_sink(store, writers):
+    """A route that passes no sink reports nothing at all, and nothing about the
+    findings themselves would show it."""
+    store.write_article("wiki/concept/topic.md", "existing\n")
+    items = [item("h1", merges=["wiki/concept/topic.md"])]
+
+    pw.run_write_phase(items, store)
+
+    assert writers["sinks"] and all(sink is not None for sink in writers["sinks"])
+
+
+def test_the_worker_route_logs_a_finding(store, writers, capsys):
+    """SG3 through the phase's own log, in the shape format_merge_event fixes --
+    the same line the compile report prints, so an operator reading either one
+    reads the same finding."""
+    store.write_article("wiki/concept/topic.md", "existing\n")
+    writers["findings"] = {"wiki/concept/topic.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/topic.md",
+                 "anchor not found", "Progress: 0%")]}
+    items = [item("h1", merges=["wiki/concept/topic.md"])]
+
+    pw.run_write_phase(items, store)
+
+    err = capsys.readouterr().err
+    assert "[supersede-refused] wiki/concept/topic.md: anchor not found: Progress: 0%" in err
+
+
+def test_an_abandoned_merge_is_not_reported_as_merged(store, writers):
+    """The claim that was untrue before this step. `merged` tells the client the
+    sources reached the article; SG1 dropped the write so that they did not, and a
+    UI reading `merged` would show a document as filed into an article that never
+    received it."""
+    store.write_article("wiki/concept/topic.md", "existing\n")
+    writers["findings"] = {"wiki/concept/topic.md": [
+        _finding(mg.EV_TRAIL_LOST, "wiki/concept/topic.md",
+                 "pre-existing trail missing from the rewrite", "[Superseded ...]")]}
+    items = [item("h1", merges=["wiki/concept/topic.md"])]
+
+    results, _written = pw.run_write_phase(items, store)
+    result = by_hash(results)["h1"]
+
+    assert result.get("merged", []) == []
+    assert result["abandoned"] == ["wiki/concept/topic.md"]
+    assert result["status"] == "ok", "an abandoned merge is a reported outcome, not an error"
+    assert (store.base_dir / "wiki/concept/topic.md").read_text() == "existing\n"
+
+
+def test_a_batched_abandon_names_the_article_once_per_item(store, writers):
+    """One call covering two sources, abandoned: both items have to hear about it,
+    because both would otherwise read as filed."""
+    store.write_article("wiki/concept/shared.md", "existing\n")
+    writers["findings"] = {"wiki/concept/shared.md": [
+        _finding(mg.EV_TRAIL_LOST, "wiki/concept/shared.md")]}
+    items = [
+        item("h1", merges=["wiki/concept/shared.md"], source_ref="raw/a.md"),
+        item("h2", merges=["wiki/concept/shared.md"], source_ref="raw/b.md"),
+    ]
+
+    results, _written = pw.run_write_phase(items, store)
+
+    assert by_hash(results)["h1"]["abandoned"] == ["wiki/concept/shared.md"]
+    assert by_hash(results)["h2"]["abandoned"] == ["wiki/concept/shared.md"]
+
+
+def test_a_merge_that_lands_reports_no_abandonment(store, writers):
+    """The key is absent rather than empty on the ordinary path, matching how
+    `created` and `merged` are already reported."""
+    store.write_article("wiki/concept/topic.md", "existing\n")
+    items = [item("h1", merges=["wiki/concept/topic.md"])]
+
+    results, _written = pw.run_write_phase(items, store)
+    result = by_hash(results)["h1"]
+
+    assert result["merged"] == ["wiki/concept/topic.md"]
+    assert "abandoned" not in result
+
+
+def test_an_abandoned_merge_survives_a_cancellation_after_the_write(store, writers,
+                                                                    monkeypatch):
+    """The final pass, for an abandonment rather than a landed write. Cancelling
+    right after the merge returns makes the result loop break before emitting, so
+    the status has to be rebuilt at the end -- and an item that reached neither
+    `created` nor `merged` would otherwise come back looking like a no-op."""
+    cancel = threading.Event()
+    store.write_article("wiki/concept/topic.md", "existing\n")
+
+    def merge_then_cancel(art_path, old_content, sources, model="m", events=None):
+        cancel.set()
+        if events is not None:
+            events.append(_finding(mg.EV_TRAIL_LOST, art_path))
+        return old_content
+
+    monkeypatch.setattr(pw, "merge_into_article", merge_then_cancel)
+    emitted: list = []
+
+    results, _ = pw.run_write_phase([item("h1", merges=["wiki/concept/topic.md"])], store,
+                                    cancel_event=cancel, emit=emitted.append)
+    result = by_hash(results)["h1"]
+
+    assert result["abandoned"] == ["wiki/concept/topic.md"]
+    assert result.get("merged", []) == []
+    assert emitted == [result]

@@ -17,10 +17,11 @@ from datetime import date
 
 import json
 
-from kb_ai._types import ClassificationResult, CreateTarget
+from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.commands import compile as cm
 from kb_ai.commands.pipeline import _phase_write as pw
 from kb_ai.core import extract as ex
+from kb_ai.core import merge as mg
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.storage.store import KBStore, _compute_checksum
 
@@ -132,3 +133,85 @@ def test_both_routes_read_the_date_from_the_documents_own_frontmatter(tmp_path, 
     cli = _cli_blocks(tmp_path / "cli", monkeypatch)
 
     assert [b.date for b in cli] == [date(2020, 1, 1), date(2021, 6, 1)]
+
+
+# ── VA8: the supersede action, on both routes ───────────────────────
+#
+# VF6 above compares what reaches the writer. A2 gives the writer an action that
+# edits the article in place, so the thing worth comparing is now the article the
+# two routes write: the same claim, the same anchor and the same payload have to
+# produce the same bytes whichever phase ran. Both routes go through one
+# merge_into_article, so what could still diverge is what they hand it -- the
+# blocks (VF6) and the article they read -- and a trail landing twice, or on a
+# different day, is what that divergence would look like.
+
+CLAIM = "Progress: 0%"
+# Past _LARGE_ARTICLE_THRESHOLD, so both routes take the diff path -- the one that
+# carries `supersede` -- rather than one of them rewriting the whole article.
+SUPERSEDE_ARTICLE = (f"---\ntitle: Target\n---\n\n## Status\n{CLAIM}\n\n"
+                     + "padding prose for the large-article threshold. " * 800)
+
+PATCHES = {"patches": [{"action": "supersede", "anchor": CLAIM,
+                        "replacement": "Progress: 50%",
+                        # The newest dated block in this payload (2021-06-01).
+                        "by": "raw/a.md",
+                        "was": "the earlier figure was 0%"}]}
+
+
+def _superseding_kb(root) -> KBStore:
+    store = _kb(root)
+    store.write_article(ARTICLE, SUPERSEDE_ARTICLE)
+    return store
+
+
+def _cli_supersede(root, monkeypatch) -> str:
+    """compile_kb merging both documents into the existing article."""
+    store = _superseding_kb(root)
+
+    monkeypatch.setattr(ex, "extract_knowledge_chunked",
+                        lambda content, model="m": _extraction_of(content))
+    monkeypatch.setattr(cm, "classify_article",
+                        lambda extraction, existing, model="m", categories=None:
+                        json.loads(json.dumps({"merge_into": [{"path": ARTICLE}],
+                                               "create_new": []})))
+    monkeypatch.setattr(cm, "dedup_create_new", lambda result, existing: result)
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: PATCHES)
+    monkeypatch.setattr(cm, "update_markdown_index",
+                        lambda store, min_articles, summary_max_chars: None)
+    monkeypatch.setattr(cm, "update_timeline", lambda store, rels: None)
+    monkeypatch.setattr(cm, "update_people_stubs", lambda store, cfg: None)
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert out["errors"] == []
+    return (store.base_dir / ARTICLE).read_text()
+
+
+def _worker_supersede(root, monkeypatch) -> str:
+    """run_write_phase over the same documents and the same article."""
+    store = _superseding_kb(root)
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: PATCHES)
+
+    items = []
+    for rel, content in DOCS.items():
+        extraction = _extraction_of(content)
+        extraction.source_path = rel
+        items.append((_compute_checksum(content), rel, extraction,
+                      ClassificationResult(create_new=[],
+                                           merge_into=[MergeTarget(path=ARTICLE)])))
+
+    item_results, written = pw.run_write_phase(items, store, workers=2)
+
+    assert written == 1
+    assert all(r["status"] == "ok" for r in item_results), item_results
+    return (store.base_dir / ARTICLE).read_text()
+
+
+def test_both_routes_write_the_same_article_for_one_supersede(tmp_path, monkeypatch):
+    """VA8. Compared as bytes: the anchor replaced once, one trail, the same date."""
+    cli = _cli_supersede(tmp_path / "cli-sup", monkeypatch)
+    worker = _worker_supersede(tmp_path / "worker-sup", monkeypatch)
+
+    assert cli == worker
+    assert "Progress: 50%" in cli and CLAIM not in cli
+    assert cli.count("[Superseded 2021-06-01 by raw/a.md: the earlier figure was 0%]") == 1

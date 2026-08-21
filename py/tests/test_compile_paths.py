@@ -70,7 +70,7 @@ def fakes(monkeypatch):
         state["created"].append((article_type, title, source_path))
         return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
 
-    def fake_merge(article_path, article_content, sources, model="m"):
+    def fake_merge(article_path, article_content, sources, model="m", events=None):
         source_path = ", ".join(b.source_path for b in sources)
         if article_path in state["fail_write"]:
             raise RuntimeError(f"merge failed for {article_path}")
@@ -193,7 +193,7 @@ def test_compile_still_merges_when_a_create_failed_but_the_article_exists(
     kb_two.write_article("wiki/concept/target.md", "prior body\n")
     calls: list[str] = []
 
-    def first_merge_fails(article_path, article_content, sources, model="m"):
+    def first_merge_fails(article_path, article_content, sources, model="m", events=None):
         source_path = ", ".join(b.source_path for b in sources)
         calls.append(source_path)
         if len(calls) == 1:
@@ -354,7 +354,7 @@ def test_merge_worker_labels_its_phase_with_the_article(kb_one, fakes, monkeypat
 
     seen = {}
 
-    def recording_merge(article_path, article_content, sources, model="m"):
+    def recording_merge(article_path, article_content, sources, model="m", events=None):
         source_path = ", ".join(b.source_path for b in sources)
         seen["phase"] = get_context().phase
         return article_content
@@ -597,7 +597,7 @@ def test_compile_dates_the_block_on_the_single_merge_path(tmp_path, fakes, monke
     store.write_article("wiki/concept/target.md", "---\ntitle: T\n---\nprior body\n")
     seen: list = []
 
-    def recording_merge(article_path, article_content, sources, model="m"):
+    def recording_merge(article_path, article_content, sources, model="m", events=None):
         seen.extend(sources)
         return article_content + "\nmerged\n"
 

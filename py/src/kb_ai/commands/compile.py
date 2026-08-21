@@ -3,6 +3,7 @@ import posixpath
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from datetime import datetime
@@ -36,8 +37,11 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    EV_TRAIL_LOST,
+    MergeEvent,
     build_source_blocks,
     create_new_article,
+    format_merge_event,
     merge_into_article,
     write_prompt_version,
 )
@@ -562,6 +566,23 @@ def compile_kb(
         _write_lock = threading.Lock()
         _file_done_ops: dict[str, int] = {rel: 0 for rel in file_op_counts}
         _file_done_articles: dict[str, set] = {rel: set() for rel in file_op_counts}
+        # SG1-SG3's findings from every merge op in this run, collected under the
+        # same lock as the bookkeeping and rendered once the pool is drained (SG4).
+        _merge_findings: list[MergeEvent] = []
+
+        def _collect(events: list[MergeEvent]) -> bool:
+            """Drain one merge op's findings into the run's report (SG1-SG3).
+
+            Returns whether the merge was abandoned, which is what decides the log
+            line: `merged` would tell an operator the sources reached the article,
+            and SG1 dropped the write precisely so that they did not. The ops are
+            still recorded as completed either way -- D9 accepts losing the merge,
+            and a deterministic trail failure retried every compile would re-spend
+            forever while reporting the same finding.
+            """
+            with _write_lock:
+                _merge_findings.extend(events)
+            return any(e.kind == EV_TRAIL_LOST for e in events)
 
         def _process_article(art_path: str, ops: list):
             adopt_context(_parent_ctx, phase=f"write:{art_path}")
@@ -570,6 +591,7 @@ def compile_kb(
             create_failed = False
 
             for rel, cs, extraction, details in creates:
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         full = store.base_dir / details["path"]
@@ -578,12 +600,14 @@ def compile_kb(
                         if full.exists():
                             old_content = full.read_text()
                             new_content = merge_into_article(
-                                details["path"], old_content, sources, model=write_model)
+                                details["path"], old_content, sources,
+                                model=write_model, events=events)
                         else:
                             new_content = create_new_article(
                                 details["type"], details["title"], sources, model=write_model)
                         store.write_article(details["path"], new_content)
-                    log(f"  [create] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
+                    tag = "merge-abandoned" if _collect(events) else "create"
+                    log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -645,14 +669,16 @@ def compile_kb(
 
             if len(merges) == 1:
                 rel, cs, extraction, details = merges[0]
+                events = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         new_content = merge_into_article(
-                            art_path, old_content, sources, model=write_model)
+                            art_path, old_content, sources, model=write_model, events=events)
                         store.write_article(art_path, new_content)
-                    log(f"  [merge] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
+                    tag = "merge-abandoned" if _collect(events) else "merge"
+                    log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -664,13 +690,15 @@ def compile_kb(
                 sources = build_source_blocks(
                     store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
                 merge_rels = [rel for rel, _cs, _ext, _det in merges]
+                events = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         new_content = merge_into_article(
-                            art_path, old_content, sources, model=write_model)
+                            art_path, old_content, sources, model=write_model, events=events)
                         store.write_article(art_path, new_content)
-                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
+                    tag = "merge-abandoned" if _collect(events) else "merge-batch"
+                    log(f"  [{tag}] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         for rel in merge_rels:
@@ -718,6 +746,25 @@ def compile_kb(
         write_d = tracker.delta(write_snap)
         if items_to_classify:
             log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
+
+        # SG1-SG3 in one section, built after the last write op and never read back
+        # into a prompt (SG4). One section rather than three because the arm counts
+        # findings by kind and an operator reads them per article: a refused
+        # supersede, an abandoned merge and a shrunken article are all "the writer
+        # tried something the code did not simply apply".
+        #
+        # Sorted rather than printed in completion order, which the thread pool does
+        # not fix: an unchanged KB has to produce a diffable report twice running.
+        merge_findings = sorted(
+            ({"kind": ev.kind, "article": ev.article,
+              "reason": ev.reason, "detail": ev.detail} for ev in _merge_findings),
+            key=lambda f: (f["article"], f["kind"], f["reason"], f["detail"]))
+        if merge_findings:
+            kinds = Counter(f["kind"] for f in merge_findings)
+            log(f"Merge findings: {len(merge_findings)} — "
+                + ", ".join(f"{n} {kind}" for kind, n in sorted(kinds.items())) + ":")
+            for finding in merge_findings:
+                log(format_merge_event(MergeEvent(**finding)))
 
         # A revised document's articles were merged into, not rewritten, so what
         # the previous version contributed may still be in there. "May" is PV6: the
@@ -776,6 +823,10 @@ def compile_kb(
         # title rule (RP3). Report only: nothing here reached a prompt, and nothing
         # here changed what was written.
         "lineage": lineage,
+        # What the merge ops reported about themselves: refused supersedes (SG3),
+        # abandoned merges (SG1) and articles that shrank (SG2). Always present, so
+        # a clean run reads as clean rather than as a run that reported nothing.
+        "merge_findings": merge_findings,
         # How far the wiki is behind each gate's prompts (G5). Counts only, since
         # `kb-ai check` names the documents for free. The first_run flags are per
         # gate: each says "no entry records a version for THIS gate", which is what

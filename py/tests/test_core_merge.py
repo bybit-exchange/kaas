@@ -285,12 +285,14 @@ def spy_modes(monkeypatch):
     """Record which merge mode was chosen."""
     chosen: dict = {}
 
-    def fake_rewrite(article_path, article_content, sources, model):
+    def fake_rewrite(article_path, article_content, sources, model, events=None):
         chosen["mode"] = "rewrite"
+        chosen["events"] = events
         return "rewritten"
 
-    def fake_diff(article_path, article_content, sources, model):
+    def fake_diff(article_path, article_content, sources, model, events=None):
         chosen["mode"] = "diff"
+        chosen["events"] = events
         return "diffed"
 
     monkeypatch.setattr(mg, "_merge_full_rewrite", fake_rewrite)
@@ -1507,7 +1509,7 @@ def test_the_same_block_carried_twice_is_reported_once(monkeypatch, capsys):
 
     mg._merge_full_rewrite("wiki/a.md", before, _v3_payload(), "m")
 
-    assert capsys.readouterr().err.count("merge abandoned") == 1
+    assert capsys.readouterr().err.count("[abandoned]") == 1
 
 
 def test_a_lost_trail_is_reported_to_eighty_characters(monkeypatch, capsys):
@@ -1673,6 +1675,238 @@ def test_the_article_that_lands_is_the_one_validated(monkeypatch, capsys):
     assert "trail block is malformed" in capsys.readouterr().err
 
 
+# ── the report sink ─────────────────────────────────────────────────
+#
+# A2 step 4. SG1's abandonments, SG3's refusals and TR6's defects are what the
+# compile report has to name, and until now each printed itself to stderr from
+# inside the merge, where no caller could count it. A caller that passes a sink
+# collects them instead; one that does not keeps the stderr behaviour, which is
+# what every direct caller and the daemon's own logs still rely on.
+#
+# Collected *instead of* printed, not as well as: both routes log the report to
+# stderr themselves, so printing at both layers would tell an operator the same
+# refusal twice and make a count of report lines wrong.
+
+def test_a_refusal_reaches_the_sink_with_the_article_named(monkeypatch):
+    """SG3's report, structured. The reason and the anchor are what an operator
+    acts on, and the article is what only this layer knows."""
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: {"patches": [_supersede(anchor="absent text")]})
+    events: list[mg.MergeEvent] = []
+
+    mg._merge_diff("wiki/gateway.md", "## Status\nProgress: 0%\n", _v2_only(), "m",
+                   events=events)
+
+    assert [(e.kind, e.article, e.reason) for e in events] == [
+        (mg.EV_SUPERSEDE_REFUSED, "wiki/gateway.md", "anchor not found")]
+    assert events[0].detail == "absent text"
+
+
+def test_a_refusal_prints_when_no_sink_is_passed(monkeypatch, capsys):
+    """The behaviour every direct caller had before the sink existed. A merge that
+    reports nowhere would make the daemon's logs quieter than its output."""
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: {"patches": [_supersede(anchor="absent text")]})
+
+    mg._merge_diff("wiki/gateway.md", "## Status\nProgress: 0%\n", _v2_only(), "m")
+
+    assert "anchor not found" in capsys.readouterr().err
+
+
+def test_a_refusal_does_not_print_when_it_reaches_the_sink(monkeypatch, capsys):
+    """One refusal, one report line. The sink's owner logs it, so printing here as
+    well would double every entry in the compile report's own count."""
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: {"patches": [_supersede(anchor="absent text")]})
+
+    mg._merge_diff("wiki/gateway.md", "## Status\nProgress: 0%\n", _v2_only(), "m",
+                   events=[])
+
+    assert "anchor not found" not in capsys.readouterr().err
+
+
+def test_a_malformed_trail_reaches_the_sink_and_the_write_still_lands(monkeypatch, capsys):
+    """TR6 through the sink: reported, never rejected."""
+    _rewriting(monkeypatch, "Progress: 50% [Superseded by raw/v2.md: was 0%]\n")
+    events: list[mg.MergeEvent] = []
+
+    out = mg._merge_full_rewrite("wiki/gateway.md", "old", _v2_payload(), "m", events=events)
+
+    assert "[Superseded by raw/v2.md: was 0%]" in out
+    assert [(e.kind, e.article, e.reason) for e in events] == [
+        (mg.EV_TRAIL_MALFORMED, "wiki/gateway.md", "trail block is malformed")]
+    assert "trail" not in capsys.readouterr().err
+
+
+def test_an_abandoned_merge_reaches_the_sink_with_the_missing_block(monkeypatch):
+    """SG1 through the sink. This is the event the compile report turns into its own
+    status, so the block has to travel with it: an operator reading `abandoned`
+    needs to know which note the writer dropped."""
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+    events: list[mg.MergeEvent] = []
+
+    out = mg._merge_full_rewrite("wiki/gateway.md", _carrying(), _v3_payload(), "m",
+                                 events=events)
+
+    assert out == _carrying()
+    assert [(e.kind, e.article, e.reason) for e in events] == [
+        (mg.EV_TRAIL_LOST, "wiki/gateway.md",
+         "pre-existing trail missing from the rewrite")]
+    assert events[0].detail == CARRIED
+
+
+def test_the_entry_point_carries_the_sink_down_the_diff_route(monkeypatch):
+    """Routing must not drop it. An article past the large-article threshold takes
+    the diff path, and a sink the entry point forgets to pass is a report that is
+    empty for exactly the articles most likely to need one."""
+    monkeypatch.setattr(mg, "completion_json",
+                        lambda **kwargs: {"patches": [_supersede(anchor="absent text")]})
+    article = "## Status\nProgress: 0%\n" + "filler prose. " * 3000
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/gateway.md", article, _v2_only(), model="m", events=events)
+
+    assert [e.kind for e in events] == [mg.EV_SUPERSEDE_REFUSED]
+
+
+def test_the_entry_point_carries_the_sink_down_the_rewrite_route(monkeypatch):
+    """The other route, for the same reason."""
+    _rewriting(monkeypatch, "Progress: 50% [Superseded by raw/v2.md: was 0%]\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/gateway.md", "small article\n", _v2_payload(), model="m",
+                          events=events)
+
+    assert [e.kind for e in events] == [mg.EV_TRAIL_MALFORMED]
+
+
+def test_an_event_formats_as_one_report_line(monkeypatch):
+    """The report's line shape lives with the events rather than in each route, so
+    the CLI and the daemon cannot word the same finding two ways. One line, because
+    a count of findings is read off the lines."""
+    event = mg.MergeEvent(kind=mg.EV_SUPERSEDE_REFUSED, article="wiki/gateway.md",
+                          reason="anchor not found", detail="Progress: 0%")
+
+    line = mg.format_merge_event(event)
+
+    assert line.count("\n") == 0
+    assert "wiki/gateway.md" in line
+    assert "anchor not found" in line
+    assert "Progress: 0%" in line
+
+
+def test_an_event_with_no_detail_formats_without_a_dangling_separator():
+    """SG2's shrink lines carry their whole finding in the reason."""
+    event = mg.MergeEvent(kind=mg.EV_ARTICLE_SHRANK, article="wiki/gateway.md",
+                          reason="shrank 120 bytes (1 000 → 880)")
+
+    line = mg.format_merge_event(event)
+
+    assert line.rstrip().endswith("880)")
+
+
+# ── SG2: the shrink report ──────────────────────────────────────────
+#
+# Recorded by the merge op rather than by its callers, though both callers hold
+# the pre- and post-write text: two routes computing the same delta is two
+# chances to word it differently, and the entry point is the one layer both go
+# through. A1's NG7 asked whether an article can shrink and A2 answers yes, so
+# the Size column stops being a growth meter -- which only works if the delta is
+# reported the same way whoever wrote the article.
+
+def _rewrites_to(monkeypatch, article: str) -> None:
+    """The rewrite route returning a whole article, for the byte-delta cases."""
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: article)
+
+
+def test_a_merge_that_shrinks_the_article_records_the_delta(monkeypatch):
+    """SG2: named with its delta, no threshold and no block."""
+    _rewrites_to(monkeypatch, "short\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", "a much longer article than what came back\n",
+                          _v2_payload(), model="m", events=events)
+
+    assert [(e.kind, e.article) for e in events] == [(mg.EV_ARTICLE_SHRANK, "wiki/a.md")]
+    # 42 bytes in, 5 back: the reason carries both ends, so a reader does not have
+    # to hold the article's size in their head to read the delta.
+    assert "37" in events[0].reason
+    assert "42" in events[0].reason and "5" in events[0].reason
+
+
+def test_a_merge_that_grows_the_article_records_nothing(monkeypatch):
+    """The ordinary case, and the reason SG2 needs no threshold: growth is silent."""
+    _rewrites_to(monkeypatch, "a much longer article than what went in\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", "short\n", _v2_payload(), model="m", events=events)
+
+    assert events == []
+
+
+def test_a_merge_that_keeps_the_size_records_nothing(monkeypatch):
+    """The boundary. Equal is not smaller, so a rewrite that reworded a sentence
+    into the same number of bytes is not a shrink to investigate. The article here
+    carries no trailing newline, which is what makes the comparison equal -- see the
+    next test for why that is not incidental."""
+    _rewrites_to(monkeypatch, "abcde\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", "edcba", _v2_payload(), model="m", events=events)
+
+    assert events == []
+
+
+def test_a_rewrite_that_drops_the_trailing_newline_reports_one_byte(monkeypatch):
+    """A one-byte floor under the rewrite route, pinned rather than filtered out.
+    The route strips what the model returns and the store writes it verbatim, so an
+    article that was stored with a trailing newline really does lose a byte on disk.
+    SG2 has no threshold on purpose, and inventing one here to hide a byte would be
+    the guessed threshold D9 rejected -- so the honest report is a 1-byte line."""
+    _rewrites_to(monkeypatch, "same text\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", "same text\n", _v2_payload(), model="m",
+                          events=events)
+
+    assert [e.kind for e in events] == [mg.EV_ARTICLE_SHRANK]
+    assert "shrank 1 bytes" in events[0].reason
+
+
+def test_the_shrink_delta_is_measured_in_utf8_bytes(monkeypatch):
+    """Bytes, as SG2 says and as the Size column reads. Three CJK characters are
+    three characters and nine bytes, so a rewrite that drops them for one ASCII
+    word grows in characters while shrinking on disk."""
+    _rewrites_to(monkeypatch, "abcd")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", "网关文", _v2_payload(), model="m", events=events)
+
+    assert [e.kind for e in events] == [mg.EV_ARTICLE_SHRANK]
+    assert "9" in events[0].reason and "4" in events[0].reason
+
+
+def test_an_abandoned_merge_records_no_shrink(monkeypatch):
+    """SG1 returned the article untouched, so there is no delta to report -- and a
+    shrink line beside an abandonment would read as though the write had landed."""
+    _rewriting_in_turn(monkeypatch, "gone\n", "still gone\n")
+    events: list[mg.MergeEvent] = []
+
+    mg.merge_into_article("wiki/a.md", _carrying(), _v3_payload(), model="m", events=events)
+
+    assert [e.kind for e in events] == [mg.EV_TRAIL_LOST]
+
+
+def test_a_shrink_prints_when_no_sink_is_passed(monkeypatch, capsys):
+    """Same rule as the other three findings: the report goes somewhere."""
+    _rewrites_to(monkeypatch, "short\n")
+
+    mg.merge_into_article("wiki/a.md", "a much longer article than what came back\n",
+                          _v2_payload(), model="m")
+
+    assert "[shrank] wiki/a.md" in capsys.readouterr().err
+
+
 def test_merge_diff_applies_the_returned_patches(monkeypatch):
     monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
@@ -1696,7 +1930,7 @@ def test_merge_diff_names_the_article_when_a_supersede_is_refused(monkeypatch, c
                          [_block(source_path="raw/v2.md", day=V2)], "m")
 
     err = capsys.readouterr().err
-    assert "supersede refused in wiki/a.md" in err
+    assert "[supersede-refused] wiki/a.md" in err
     assert "anchor not found" in err
     assert "no such text" in err
     assert "body" in out

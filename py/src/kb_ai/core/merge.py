@@ -659,12 +659,67 @@ def _merge_diff_system() -> str:
             + "\n" + _GROUNDING + _SOURCE_ORDER)
 
 
+# SG1's, SG2's and SG3's findings, as the compile report consumes them. One flat
+# record rather than four, because the report prints one line per finding and the
+# arm counts them by kind (FA5): a shape per rule would put the same loop in both
+# write routes and let them word the same finding two ways.
+#
+# The reasons stay where they are produced (_REFUSE_*, _TRAIL_*) -- this carries
+# them, it does not restate them.
+EV_SUPERSEDE_REFUSED = "supersede-refused"
+EV_TRAIL_MALFORMED = "malformed-trail"
+EV_TRAIL_LOST = "abandoned"
+EV_ARTICLE_SHRANK = "shrank"
+
+
+@dataclass(frozen=True)
+class MergeEvent:
+    """One report line about one merge op, per SG4.
+
+    Operator-facing and terminal: nothing built from these re-enters a prompt, and
+    the write entry points take source blocks and nothing else, so an event cannot
+    reach the model that produced it. ``detail`` is the anchor, trail block or
+    delta -- already cut to 80 characters and folded onto one line by whichever
+    rule produced it, so a formatter cannot turn one finding into two lines.
+    """
+
+    kind: str
+    article: str
+    reason: str
+    detail: str = ""
+
+
+def format_merge_event(event: MergeEvent) -> str:
+    """The report's line shape, in one place for both write routes."""
+    tail = f": {event.detail}" if event.detail else ""
+    return f"  [{event.kind}] {event.article}: {event.reason}{tail}"
+
+
+def _report(events: list[MergeEvent] | None, kind: str, article: str,
+            reason: str, detail: str = "") -> None:
+    """Collect a finding, or print it when the caller keeps no sink.
+
+    Collected *instead of* printed, not as well as: the sink's owner logs the
+    report itself, so emitting at both layers would tell an operator the same
+    refusal twice and make a count of report lines wrong. Callers that pass no
+    sink -- direct callers and every test written before step 4 -- keep the stderr
+    behaviour they had, which is the only report those have.
+    """
+    event = MergeEvent(kind=kind, article=article, reason=reason, detail=detail)
+    if events is None:
+        print(f"[merge] {format_merge_event(event).strip()}",
+              file=sys.stderr, flush=True)
+    else:
+        events.append(event)
+
+
 @_with_write_timeout
 def merge_into_article(
     article_path: str,
     article_content: str,
     sources: Sequence[SourceBlock],
     model: str = "claude-sonnet-4-6",
+    events: list[MergeEvent] | None = None,
 ) -> str:
     """Merge ``sources`` into an existing article, by rewrite or by diff.
 
@@ -672,24 +727,54 @@ def merge_into_article(
     ``build_source_blocks`` returns (WP5). The system prompt tells the model the
     blocks arrive in that order (_SOURCE_ORDER), so a caller that sorts differently
     makes the payload say something untrue rather than merely unordered.
+
+    ``events``, when given, collects this op's findings for the compile report
+    (SG1-SG3) instead of printing them. A caller that keeps one is the only layer
+    that can count them or turn an abandoned merge into its own status; the events
+    are terminal per SG4 and never travel back into a prompt.
     """
     if len(article_content.encode("utf-8")) >= _LARGE_ARTICLE_THRESHOLD:
-        return _merge_diff(article_path, article_content, sources, model)
+        merged = _merge_diff(article_path, article_content, sources, model, events)
+    else:
+        # Budget-aware: check if full rewrite fits.
+        # Registry caches per-process, so this call here + same call inside
+        # _merge_full_rewrite both hit the cache after the first lookup.
+        full_rewrite_system = _merge_rewrite_system()
+        budget = MAX_PROMPT_CHARS - len(full_rewrite_system) - _SAFETY_MARGIN
+        if len(article_content) + _min_blocks_chars(sources) > budget:
+            merged = _merge_diff(article_path, article_content, sources, model, events)
+        else:
+            merged = _merge_full_rewrite(article_path, article_content, sources, model,
+                                         events)
 
-    # Budget-aware: check if full rewrite fits.
-    # Registry caches per-process, so this call here + same call inside
-    # _merge_full_rewrite both hit the cache after the first lookup.
-    full_rewrite_system = _merge_rewrite_system()
-    budget = MAX_PROMPT_CHARS - len(full_rewrite_system) - _SAFETY_MARGIN
-    if len(article_content) + _min_blocks_chars(sources) > budget:
-        return _merge_diff(article_path, article_content, sources, model)
+    _report_shrink(events, article_path, article_content, merged)
+    return merged
 
-    return _merge_full_rewrite(article_path, article_content, sources, model)
+
+def _report_shrink(events: list[MergeEvent] | None, article_path: str,
+                   before: str, after: str) -> None:
+    """SG2: the byte delta of a merge that made its article smaller.
+
+    Bytes rather than characters, because that is what the Size column reads and
+    what a reader sees on disk -- a rewrite can drop three CJK characters for one
+    ASCII word and grow in characters while shrinking by six bytes.
+
+    Reported here rather than by the callers, though both of them hold the two
+    strings: the delta is one number that must not depend on which route wrote the
+    article, and this is the layer both routes go through. Equal is not smaller, and
+    an abandoned merge returns what it was given, so neither reports anything.
+    """
+    pre, post = len(before.encode("utf-8")), len(after.encode("utf-8"))
+    if post >= pre:
+        return
+    _report(events, EV_ARTICLE_SHRANK, article_path,
+            f"shrank {pre - post} bytes ({pre} → {post})")
 
 
 def _merge_full_rewrite(
     article_path: str, article_content: str,
     sources: Sequence[SourceBlock], model: str,
+    events: list[MergeEvent] | None = None,
 ) -> str:
     system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
@@ -716,25 +801,23 @@ def _merge_full_rewrite(
         # human can still read and fix. One line per block, cut where SG3 and TR6
         # cut theirs -- a trail block is as long as the claim it records.
         for block in missing:
-            print(f"[merge] merge abandoned in {article_path}: {_TRAIL_LOST}: "
-                  f"{block[:80]}", file=sys.stderr, flush=True)
+            _report(events, EV_TRAIL_LOST, article_path, _TRAIL_LOST, block[:80])
         return article_content
 
-    # TR6's report, on stderr beside _merge_diff's refusals until the compile
-    # report carries both. This path writes its own trail text, so a malformed
-    # block is reported and the write still lands: the note is prose a human can
-    # fix, where dropping the merge loses everything else it carried. Read off the
-    # article that lands, and only reached when one does -- reporting the format of
-    # prose in an abandoned rewrite would send an operator to text no file holds.
+    # TR6's report. This path writes its own trail text, so a malformed block is
+    # reported and the write still lands: the note is prose a human can fix, where
+    # dropping the merge loses everything else it carried. Read off the article that
+    # lands, and only reached when one does -- reporting the format of prose in an
+    # abandoned rewrite would send an operator to text no file holds.
     for defect in _trail_defects(article_content, merged, sources):
-        print(f"[merge] malformed trail in {article_path}: {defect.reason}: "
-              f"{defect.trail}", file=sys.stderr, flush=True)
+        _report(events, EV_TRAIL_MALFORMED, article_path, defect.reason, defect.trail)
     return merged
 
 
 def _merge_diff(
     article_path: str, article_content: str,
     sources: Sequence[SourceBlock], model: str,
+    events: list[MergeEvent] | None = None,
 ) -> str:
     from datetime import date
     today = date.today().isoformat()
@@ -761,14 +844,13 @@ def _merge_diff(
         raw = {"patches": []}
 
     content, refusals = _apply_diff(article_content, raw, sources, today)
-    # SG3's report, on stderr until the compile report carries it. Named here
-    # because this is the layer that knows which article was being written, and
-    # because an action the code throws away is the one thing the arm needs
-    # counted (FA5) -- dropping it silently would make a clean column
+    # SG3's report. Named here because this is the layer that knows which article
+    # was being written, and because an action the code throws away is the one thing
+    # the arm needs counted (FA5) -- dropping it silently would make a clean column
     # indistinguishable from a writer that never tried.
     for refusal in refusals:
-        print(f"[merge] supersede refused in {article_path}: {refusal.reason}: "
-              f"{refusal.anchor}", file=sys.stderr, flush=True)
+        _report(events, EV_SUPERSEDE_REFUSED, article_path,
+                refusal.reason, refusal.anchor)
     return content
 
 
