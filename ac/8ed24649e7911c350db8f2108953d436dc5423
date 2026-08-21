@@ -1,0 +1,23 @@
+docs/features/supersession/spec-a2.md
+  e097625e1c41ed7b 578-594
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "ac8ed24649e7911c350db8f2108953d436dc5423",
+  "prompts": {
+    "e097625e1c41ed7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23bb99db-77aa-4190-bdd3-16639a0ae97f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2478,
+      "total_deletions": 8715,
+      "accepted_lines": 26342,
+      "overriden_lines": 0
+    }
+  }
+}
