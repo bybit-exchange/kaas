@@ -182,6 +182,20 @@ something has to take its place. Two guarantees, and they are different in kind:
   the merge is abandoned and the article keeps every byte it had. Losing a merge is expensive
   and it is the right price here: this is the one loss that cannot be recovered from the
   article itself.
+  **One exception to "structural", measured 2026-08-21 while step 3 landed.** The claim holds
+  for what the actions do and not for what the diff path hands them. `_merge_diff`
+  section-truncates an article over 70% of the prompt budget — about 52 700 characters — and
+  then patches *the truncated text*, which is also what is written back (`merge.py:749-751`,
+  `:763`, `:772`), so whole section bodies are dropped before any action runs. On a synthetic
+  86 731-character article with a trail in a large low-relevance section: 51 966 characters
+  written back, the trail gone, its heading kept. This predates A2 and contradicts A1's G4 as
+  squarely as it does D9, so it is recorded rather than fixed inside a step scoped to SG1 —
+  patching the untruncated article, or refusing the write when truncation would drop a trail,
+  is its own change with its own tests. Until then the guarantee reads: structural on the diff
+  path *for articles that fit the prompt budget whole*, checked against the output on the
+  rewrite path, and unenforced in the truncation range. SG2's shrink report will surface the
+  range as large deltas, which is why the exception is named before step 4 rather than
+  discovered from it.
 - **Shrinkage is reported, never blocked.** Every write op records the byte delta and any
   article that got smaller is named in the report with its delta. A hard threshold was
   rejected outright: there is no measured distribution of legitimate shrinkage to set one
@@ -343,11 +357,13 @@ A2's arm will report whether any instance arose rather than confirming the forma
 
 ### SG. Guards and reports
 
-- **SG1.** Trail preservation, per D9. The diff path holds it structurally. On the rewrite
-  path, every trail block present in the pre-write article must be present verbatim in the
-  output; if one is missing, the call is retried once with the constraint restated, and if it
-  is still missing the article is left unchanged and the failure is reported with the article
-  path and the missing block.
+- **SG1.** Trail preservation, per D9. The diff path holds it structurally, with the one
+  truncation-range exception D9 now records. On the rewrite path, every trail block present in
+  the pre-write article must be present verbatim in the output; if one is missing, the call is
+  retried once with the constraint restated, and if it is still missing the article is left
+  unchanged and the failure is reported with the article path and the missing block, cut to 80
+  characters as SG3 cuts an anchor — a trail block is as long as the claim it records, and the
+  article still holds the block a prefix locates.
 - **SG2.** Shrinkage, per D9. Every merge op records pre- and post-write article bytes, and
   the compile report names every article that shrank, with its delta. No threshold, no block.
   This is also what makes the Size column readable in both directions for the first time —
@@ -517,7 +533,7 @@ A2's arm will report whether any instance arose rather than confirming the forma
 | D6 | Does A2 cover version-split chains | No. Writer-side only; GT1 restates the gate to the same-article count and publishes the split rows apart |
 | D7 | Does A2 act on dropped claims | No. Explicit contradiction only, as Q1 fixed for A1; the drop column is recorded and gates nothing |
 | D8 | What grain does the replace primitive work at | Anchored exact text, one occurrence per action. Not section-level — the residue is in bullets and table cells |
-| D9 | What replaces A1's G4 once a path can delete | A trail is append-only, enforced by rejection on the rewrite path and structurally on the diff path; shrinkage is reported with no threshold |
+| D9 | What replaces A1's G4 once a path can delete | A trail is append-only, enforced by rejection on the rewrite path and structurally on the diff path except in its truncation range; shrinkage is reported with no threshold |
 | D10 | Chained supersession: keep or drop the earlier entry (A1's NG3) | Accumulate, newest first, no cap. Answered by reasoning, not by evidence — the fixture holds no instance (V15) |
 
 ## Open questions
@@ -552,7 +568,13 @@ A2's arm will report whether any instance arose rather than confirming the forma
    also states D9's append-only rule, because SG1 retries "with the constraint restated" and a
    prompt that never carried the constraint would make that retry the normal path rather than
    the exception. Step 3 adds the code that enforces it.
-3. **The rewrite-path guard.** SG1 with VA4.
+3. **The rewrite-path guard — landed 2026-08-21.** SG1 with VA4. The retry restates the
+   constraint as a requirement rather than as feedback on the rejected draft, because the draft
+   is not sent back: carrying it would spend a whole article of budget to say what the list of
+   missing blocks says. The retry's own text is bounded by what the first send left of the
+   budget, since overrunning it would raise `PromptTooLargeError` and lose the history to a
+   crash rather than to the guard; the report names every missing block whether or not the
+   prompt could name it.
 4. **Reports.** SG2, SG3, SG4 and PV6, surfaced through the compile report beside the revised
    and lineage reports (`compile.py:190`, `:722-739`), with VA8.
 5. **The ruling — landed 2026-08-20.** GT1 written into test-set.md as V40, with GT2–GT4.
