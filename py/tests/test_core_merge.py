@@ -1239,6 +1239,178 @@ def test_merge_full_rewrite_enables_prompt_caching(monkeypatch):
     assert captured["cache"] is True
 
 
+# ── the rewrite path's trail validation ─────────────────────────────
+#
+# A2 step 2, TR6 verified per VA6. The diff path renders its own trail, so its
+# shape is the code's; the rewrite path returns a whole article and the model
+# writes the trail text itself. Code checks the shape, the date and the `by`
+# path, and *reports* what fails without rejecting the write: a malformed trail
+# is prose a human can fix, where a rejected merge loses information.
+#
+# The reason strings are hardcoded here rather than read off mg._TRAIL_*. They
+# are operator-facing report text, so a test that asserted the constant appears
+# in its own output would stay green through any rewording of it.
+
+def _rewriting(monkeypatch, article: str) -> None:
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: article)
+
+
+def _v2_payload() -> list[mg.SourceBlock]:
+    return [_block(source_path="raw/v2.md", day=V2)]
+
+
+def test_rewrite_reports_a_malformed_trail_and_still_writes(monkeypatch, capsys):
+    """TR6: no date where the format needs one. The write lands anyway."""
+    _rewriting(monkeypatch, "# A\n\nProgress: 50% [Superseded by raw/v2.md: was 0%]\n")
+
+    out = mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert "[Superseded by raw/v2.md: was 0%]" in out
+    err = capsys.readouterr().err
+    assert "wiki/a.md" in err
+    assert "trail block is malformed" in err
+
+
+def test_rewrite_reports_a_trail_that_does_not_close_on_its_line(monkeypatch, capsys):
+    """TR1 makes the block single-line, so a wrapped one is malformed rather than
+    a block whose tail happens to live elsewhere."""
+    _rewriting(monkeypatch,
+               "Progress: 50%\n\n[Superseded 2026-05-14 by raw/v2.md: the earlier\nfigure was 0%]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert "trail block is malformed" in capsys.readouterr().err
+
+
+def test_rewrite_reports_a_trail_date_that_is_not_a_date(monkeypatch, capsys):
+    """The shape is right and the day is not resolvable — a distinct report,
+    because it points an operator at the date rather than at the format."""
+    _rewriting(monkeypatch, "Progress: 50% [Superseded 2026-13-99 by raw/v2.md: was 0%]\n")
+
+    merged = mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+    err = capsys.readouterr().err
+
+    # The write lands with the bad date in it -- VA6's "reported, not rejected".
+    assert "Superseded 2026-13-99" in merged
+    assert "trail date is not a date" in err
+
+
+def test_rewrite_reports_a_trail_naming_a_source_outside_the_payload(monkeypatch, capsys):
+    """A `by` no source in this payload carries is a path a reader cannot land in
+    from the material the writer was handed."""
+    _rewriting(monkeypatch, "Progress: 50% [Superseded 2026-05-14 by raw/invented.md: was 0%]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert "trail names a source that is not in this payload" in capsys.readouterr().err
+
+
+def test_rewrite_accepts_a_by_path_containing_spaces(monkeypatch, capsys):
+    """The two halves of TR6 have to agree about the format, and a source path can
+    hold spaces: distill's _raw_rel joins the file's path parts verbatim, so
+    `My Notes/design doc.md` ingests under a name with two of them. The block here
+    is what _render_trail itself emits for that source, so reporting it malformed
+    would be the validator rejecting the renderer's own output."""
+    spaced = "raw/kb__My Notes__design doc.md"
+    day = date(2026, 5, 14)
+    rendered = mg._render_trail(day, spaced, "the earlier figure was 0%", in_table_row=False)
+    _rewriting(monkeypatch, f"Progress: 50% {rendered}\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old",
+                           [_block(source_path=spaced, day=day)], "m")
+
+    assert "trail" not in capsys.readouterr().err
+
+
+def test_rewrite_does_not_report_an_empty_was(monkeypatch, capsys):
+    """Pinning an asymmetry rather than endorsing it. The diff path refuses an empty
+    `was` outright (RA1, `_REFUSE_WAS_EMPTY`) because G7 is why D1 chose a trail over
+    a deletion; TR6 enumerates three checks and this is not one, so a trail recording
+    nothing passes here. Recorded in spec-a2.md as an open bound — this test is what
+    makes closing it a visible change rather than a silent one."""
+    _rewriting(monkeypatch, "Progress: 50% [Superseded 2026-05-14 by raw/v2.md: ]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert "trail" not in capsys.readouterr().err
+
+
+def test_rewrite_reports_nothing_for_a_well_formed_trail(monkeypatch, capsys):
+    """D1's shape, rendered as _render_trail renders it on the sibling path."""
+    _rewriting(monkeypatch,
+               "Progress: 50% [Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert "trail" not in capsys.readouterr().err
+
+
+def test_rewrite_does_not_report_a_trail_the_article_already_carried(monkeypatch, capsys):
+    """The case TR6 read literally would get wrong, and the one D10 designs for:
+    v3 arrives after v2 superseded v1, so the preserved v2 entry names a document
+    the v3 payload does not contain. Only blocks new in the output are checked."""
+    carried = "[Superseded 2026-05-14 by raw/v2.md: the earlier figure was 0%]"
+    before = f"Progress: 50% {carried}\n"
+    _rewriting(monkeypatch, f"Progress: 80% [Superseded 2026-06-01 by raw/v3.md: it was 50%] {carried}\n")
+
+    mg._merge_full_rewrite("wiki/a.md", before,
+                           [_block(source_path="raw/v3.md", day=V3)], "m")
+
+    assert "trail" not in capsys.readouterr().err
+
+
+def test_rewrite_checks_the_later_blocks_of_a_chain_on_one_line(monkeypatch, capsys):
+    """TR4's chains sit one entry after another on a single line, and a later entry
+    is what a scan running to the end of the line never reaches: the first block
+    here is well formed, so only a per-block scan reports the second."""
+    _rewriting(monkeypatch,
+               "Progress: 80% [Superseded 2026-06-01 by raw/v3.md: it was 50%] "
+               "[Superseded 2026-06-01 by raw/gone.md: it was 0%]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old",
+                           [_block(source_path="raw/v3.md", day=V3)], "m")
+
+    assert "raw/gone.md" in capsys.readouterr().err
+
+
+def test_a_malformed_trail_reports_as_one_line(monkeypatch, capsys):
+    """SG3's rule for anchors, applied to TR6's blocks: one defect must not print as
+    two. A block that never closes runs into whatever follows it, so what is reported
+    is bounded by its own line and cannot carry the newline that would split it."""
+    opener = "[Superseded 2026-05-14 by raw/v2.md was 0%"
+    _rewriting(monkeypatch, f"{opener}\nand a paragraph the report must not reach\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+    err = capsys.readouterr().err.rstrip("\n")
+
+    assert err.count("\n") == 0
+    assert err.endswith(opener)
+
+
+def test_a_long_malformed_trail_is_reported_to_eighty_characters(monkeypatch, capsys):
+    """The same bound SG3 puts on an anchor. A trail block is as long as the claim it
+    records, and a report line is not the place to read one."""
+    opener = "[Superseded 2026-05-14 by raw/v2.md the earlier figure was " + "x" * 200
+    _rewriting(monkeypatch, f"{opener}\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+
+    assert capsys.readouterr().err.rstrip("\n").endswith(f": {opener[:80]}")
+
+
+def test_rewrite_reports_every_malformed_trail_not_only_the_first(monkeypatch, capsys):
+    """One report per block: an operator fixing the first should not have to
+    recompile to discover the second."""
+    _rewriting(monkeypatch,
+               "a [Superseded by raw/v2.md: x]\nb [Superseded 2026-99-99 by raw/v2.md: y]\n")
+
+    mg._merge_full_rewrite("wiki/a.md", "old", _v2_payload(), "m")
+    err = capsys.readouterr().err
+
+    assert "trail block is malformed" in err
+    assert "trail date is not a date" in err
+
+
 def test_merge_diff_applies_the_returned_patches(monkeypatch):
     monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
@@ -1502,6 +1674,46 @@ def test_write_prompt_version_covers_a_type_with_no_section_template(monkeypatch
     assert mg.write_prompt_version() != before
 
 
+# PV5's claim, verified per VA7. Six sites asserted the merge paths could not
+# retract, and A2 falsifies all six. A grep over the tree rather than a check of
+# six line numbers, because line numbers move and what a future reader believes
+# is the sentence, not its address.
+
+_ADDITIVE_CLAIMS = (
+    "both merge paths are additive",
+    "merge paths are additive",
+    "merge cannot retract",
+    # The _SOURCE_ORDER comment's own wording. Left as a separate pattern rather
+    # than folded into the one above, because "merge cannot retract" does not
+    # match "the merge paths cannot retract" and PV5 names that site first.
+    "paths cannot retract",
+    "still the additive ones",
+    "which still carry the previous",
+)
+
+
+def test_no_source_file_claims_the_merge_paths_cannot_retract():
+    """PV5. The positive control is load-bearing, not decoration: a pattern with a
+    typo in it matches nothing, and this test would then pass over a tree that
+    still tells its reader the write paths only append."""
+    from pathlib import Path
+
+    sample = ("both merge paths are additive -- merge-diff.md offers only "
+              "append_to_section and new_section")
+    assert any(claim in sample for claim in _ADDITIVE_CLAIMS), \
+        "the patterns match nothing, so a clean result would prove nothing"
+
+    src = Path(__file__).resolve().parents[1] / "src" / "kb_ai"
+    offenders = [
+        f"{path.relative_to(src)}: {claim}"
+        for path in sorted(src.rglob("*.py"))
+        for claim in _ADDITIVE_CLAIMS
+        if claim in path.read_text(encoding="utf-8")
+    ]
+
+    assert offenders == []
+
+
 def test_create_new_article_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
     """Ties the hash to the production path: a version over a template the real
     call does not use would report freshness about text nobody sent."""
@@ -1757,6 +1969,118 @@ def test_merge_rewrite_asks_for_every_source_in_the_frontmatter():
     # duplicate in an article's frontmatter is written once and read forever
     # (the same reasoning _apply_diff's dedupe carries).
     assert "already" in rule
+
+
+# A2 step 2: the prompts learn the action (RA6, RA7). The prompt files are what
+# changes behaviour, so the rules RA7 enumerates are pinned here -- a rule silently
+# dropped from a prompt is invisible everywhere else until an arm is bought.
+
+def test_the_diff_prompt_offers_supersede_with_its_four_fields():
+    """RA1: four fields and no others, and the action named in the example rather
+    than only in prose, since the example is what a JSON-emitting model copies."""
+    from kb_ai.prompts import default_registry
+
+    # .content, not .render(): the file holds literal JSON braces (_merge_diff_system).
+    text = default_registry().get("merge-diff").content
+
+    assert '"action": "supersede"' in text
+    # Asserted as JSON keys rather than as bare names: every one of the four is
+    # also discussed in the prose below the example, so a search for the name
+    # alone stays green over an example that has stopped showing the field.
+    for field in ("anchor", "replacement", "by", "was"):
+        assert f'"{field}":' in text
+
+
+def test_the_diff_prompt_example_is_valid_json():
+    """The example is the thing a JSON-emitting model copies, so a prompt whose own
+    example does not parse teaches output the diff path then throws away
+    (`_merge_diff` swallows a JSONDecodeError into an empty patch set, so the cost
+    is a silently no-op merge). Asserted by parsing rather than by eye, which is
+    also what catches a brace lost while editing the actions."""
+    import json
+    from kb_ai.prompts import default_registry
+
+    lines = default_registry().get("merge-diff").content.splitlines()
+    # Bounded by the two lines that are a lone brace, not by the first and last
+    # brace in the file: the Rules below carry a literal `{"patches": []}`.
+    start = next(i for i, line in enumerate(lines) if line == "{")
+    end = next(i for i, line in enumerate(lines) if i > start and line == "}")
+
+    example = json.loads("\n".join(lines[start:end + 1]))
+    actions = [patch["action"] for patch in example["patches"]]
+    assert actions == ["append_to_section", "new_section", "supersede"]
+
+
+# Every rule either prompt states, as one list per prompt, because a rule deleted
+# from a prompt is invisible everywhere else until an arm is bought. Each entry is
+# the rule's own wording paired with the criterion it comes from -- so a deletion
+# fails here, and a rewording fails here with the criterion named.
+_SHARED_SUPERSEDE_RULES = [
+    ("RA7 `by` is the newest block", "newer than every other date"),
+    ("RA7/WP9 no order to act on", "the newest date shared by two"),
+    ("RA7 one action per occurrence", "more than one place"),
+    ("RA7 the prohibition", "older than the one the article already reflects"),
+]
+
+_DIFF_ONLY_RULES = [
+    ("RA1 the action is named in Rules", '"supersede": correct an existing statement'),
+    ("RA1 four fields and no others", "these four fields and no others"),
+    ("RA2/RA7 the anchor is unique", "exactly once"),
+    ("RA7 how to make it unique", "Include enough surrounding text"),
+    ("RA1 `was` cannot be omitted", '"was" is required'),
+    ("RA1 withdrawal is allowed", '"replacement" may be empty'),
+    ("RA1 the trail's text is code's", "Do NOT write the bracketed note yourself"),
+]
+
+_REWRITE_ONLY_RULES = [
+    ("RA6 the rule has a heading of its own", "Superseded claims"),
+    ("TR1 the block is single-line", "The note is one line"),
+    # The one sentence aimed at the shape A1's arm actually produced. Nothing else
+    # in either prompt stands against coequal presentation.
+    ("D1 coequal presentation is the failure", "as though both were current"),
+    ("D1 one value has to hold", "which value holds now"),
+    ("TR3 not the compile date", "never today's date"),
+    ("D9 the history is append-only", "must appear in your output word for word"),
+    ("TR4 newest first", "newest first"),
+]
+
+
+@pytest.mark.parametrize("prompt,accessor,extra", [
+    ("merge-diff", "content", _DIFF_ONLY_RULES),
+    ("merge-rewrite", "render", _REWRITE_ONLY_RULES),
+])
+def test_both_prompts_state_every_rule_supersede_needs(prompt, accessor, extra):
+    """RA7's four requirements and its one prohibition on both paths, plus the rules
+    only one path can state. The strings are the rules' own wording, so this fails on
+    a deletion rather than only on a rewrite -- which is the failure with no other
+    detector. RA7's anchor rules are diff-only by construction: the rewrite path
+    returns a whole article and has no anchor to make unique."""
+    from kb_ai.prompts import default_registry
+
+    entry = default_registry().get(prompt)
+    text = entry.content if accessor == "content" else entry.render()
+
+    missing = [f"{criterion}: {rule!r}"
+               for criterion, rule in _SHARED_SUPERSEDE_RULES + extra
+               if rule not in text]
+    assert missing == []
+
+
+def test_the_rewrite_prompt_teaches_a_trail_its_own_validator_accepts():
+    """The two halves of TR6 have to agree: the prompt teaches the format by
+    example and _trail_defects reads it back. D1's example is line-wrapped where it
+    is written in design-options.md and TR1 makes the block single-line, so a
+    verbatim copy of the wrapped form would teach a shape this same code reports as
+    malformed on every use. Asserted across the two artifacts rather than inside
+    either one, which is the only place the disagreement is visible."""
+    from kb_ai.prompts import default_registry
+
+    text = default_registry().get("merge-rewrite").render()
+    example = next(line.strip() for line in text.splitlines()
+                   if line.strip().startswith("[Superseded "))
+
+    payload = [_block(source_path="raw/plan-v2.md", day=date(2026, 6, 14))]
+    assert mg._trail_defects("", example, payload) == []
 
 
 def test_create_prompt_asks_for_every_source_in_the_frontmatter():

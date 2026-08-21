@@ -606,13 +606,15 @@ composition about its subject:
 # an operator's existing KAAS_PROMPTS_DIR raise NoActivePromptError on the first
 # write after upgrade.
 #
-# It states facts and asks for nothing. A1 carries the ordering signal and adds no
-# action: the merge paths cannot retract (merge-diff.md offers append_to_section
-# and new_section) and the rewrite path must not start, since it returns a whole
-# article and would be the one place A1 could destroy correct content (NG1, G4).
-# Telling the writer what to *do* about a contradiction is A2's replace primitive
-# and its [Superseded ...] trail — and saying it here would also spend the fixture
-# arm that exists to decide whether A2 is needed (FX7).
+# It states facts and asks for nothing, and that division is still deliberate now
+# that the writer has an action to take. What to *do* about a contradiction lives
+# in the two prompt files, which A2 gave the replace primitive and its
+# [Superseded ...] trail (merge-diff.md's `supersede`, merge-rewrite.md's prose
+# rule). This block is the evidence the judgement runs on -- which document is
+# newer, and when the payload says nothing about it -- so a rule about the action
+# would be split across two places to drift apart. `_create_system` keeps this
+# block and gains no action either, per NG13: a fresh article states the newest
+# value and has nothing to retract.
 #
 # Two known approximations in what it asserts, both narrower than the statement and
 # neither worth A1's scope to close. "One block per source" is one block per source
@@ -697,7 +699,16 @@ def _merge_full_rewrite(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ], max_tokens=16384, cache=True).strip()
-    return _strip_markdown_fencing(text)
+    merged = _strip_markdown_fencing(text)
+
+    # TR6's report, on stderr beside _merge_diff's refusals until the compile
+    # report carries both. This path writes its own trail text, so a malformed
+    # block is reported and the write still lands: the note is prose a human can
+    # fix, where dropping the merge loses everything else it carried.
+    for defect in _trail_defects(article_content, merged, sources):
+        print(f"[merge] malformed trail in {article_path}: {defect.reason}: "
+              f"{defect.trail}", file=sys.stderr, flush=True)
+    return merged
 
 
 def _merge_diff(
@@ -938,6 +949,112 @@ def _render_trail(day: _date, by: str, was: str, *, in_table_row: bool) -> str:
     if in_table_row:
         was = _escape_table_cell(was)
     return f"[Superseded {day.isoformat()} by {by}: {was}]"
+
+
+# TR6's reasons, verbatim, because they are operator-facing report text.
+_TRAIL_MALFORMED = "trail block is malformed"
+_TRAIL_BAD_DATE = "trail date is not a date"
+_TRAIL_BY_ABSENT = "trail names a source that is not in this payload"
+
+# Where a trail block opens, and what a well-formed one looks like read back.
+# Deliberately an opener plus a parse rather than one pattern: the opener finds
+# every *candidate*, so a block that never closes is reported instead of skipped,
+# and the parse decides whether the candidate is the shape TR1 fixes.
+#
+# The opener is a plain string scanned with str.find rather than a regex, and that
+# is not a style choice. A regex candidate has to run to the end of the line
+# (TR1 makes the block single-line, so a wrapped one is malformed rather than a
+# block whose tail lives on the next line), and a greedy match then swallows every
+# further block on that line -- which is exactly how TR4's chains sit, one entry
+# after another on one line. finditer resumes past what it consumed, so the second
+# and later entries of a chain would never be looked at.
+#
+# `by` is non-greedy up to the first `: ` rather than a run of non-space, because a
+# source path can contain spaces: distill's _raw_rel joins the file's path parts
+# verbatim, so `My Notes/design doc.md` ingests as `raw/<root>__My Notes__design
+# doc.md`. A non-space `by` reported every trail _render_trail had itself written
+# for such a source as malformed -- the two halves of TR6 disagreeing about the
+# format while the prompt tells the writer to copy the path "exactly as it is
+# listed". Taking the *first* `: ` is what lets `was` hold colons of its own.
+#
+# Two bounds this shares with _TRAIL_RE above, and the third declaration of the
+# same format: a `was` containing `]` parses short, so the block read back here is
+# a prefix of what was written, and `day` is a run of non-space, so a date with a
+# space in it reads as a shape defect rather than as a date defect. Neither loses
+# information -- both surface as a report either way.
+_TRAIL_OPENER = "[Superseded "
+_TRAIL_PARSE_RE = re.compile(
+    r"^\[Superseded (?P<day>[^\s\]]+) by (?P<by>[^\]\n]+?): [^\]\n]*\]")
+
+
+@dataclass(frozen=True)
+class TrailDefect:
+    """A trail block the rewrite path emitted that code would not have (TR6).
+
+    Distinct from SupersedeRefusal, and the difference is the whole point of the
+    asymmetry TR6 names: a refusal changed nothing, where a defect is already in
+    the article and is being reported so a human can fix the prose. Rejecting it
+    would lose the merge's information, which costs more than a malformed note.
+    """
+
+    reason: str
+    trail: str
+
+
+def _trail_defects(before: str, after: str,
+                   sources: Sequence[SourceBlock]) -> list[TrailDefect]:
+    """Every trail block the rewrite path added that is not well formed (TR6).
+
+    Only blocks that are new in ``after`` are checked. TR6 read literally would
+    validate every block in the output, which reports a false defect on exactly
+    the case D10 designs for: v3 arriving after v2 superseded v1 leaves a
+    preserved v2 entry whose ``by`` names a document the v3 payload does not
+    contain. Checking what the writer *added* keeps the `by` rule meaningful
+    without turning a correct chain into noise. The pre-write article is the
+    second half of the comparison, and SG1 reads the same pair for its own guard.
+
+    Three checks, in the order an operator can act on them: the bracket shape,
+    then a resolvable day, then a ``by`` this payload carries. Reported apart
+    because a wrong format and a wrong date point at different fixes.
+
+    "New" is a substring test against the pre-write article, which also skips a
+    *newly added duplicate* of a block already there. That is deliberate: TR6 is
+    about the format of what the writer wrote, and a duplicated trail is SG1's
+    question about whether the history survived intact, not this one's.
+
+    A block whose opener is not exactly ``[Superseded `` -- ``[Superseded:``,
+    ``[**Superseded**``, an opener broken across a line -- yields no candidate and
+    so no report. That bound is TR1's: it fixes the block's opening as the string a
+    grep over ``wiki/`` looks for, and a reader grepping for the trail would miss
+    those the same way.
+    """
+    known = {block.source_path for block in sources}
+    defects: list[TrailDefect] = []
+
+    def defect(reason: str, text: str) -> TrailDefect:
+        """Cut to 80 characters in one place, as ``_apply_supersede``'s ``refuse``
+        does. No whitespace folding is needed here where SG3's anchors need it: the
+        candidate is already bounded by its own line, so it holds no newline."""
+        return TrailDefect(reason=reason, trail=text[:80])
+
+    at = after.find(_TRAIL_OPENER)
+    while at >= 0:
+        line_end = after.find("\n", at)
+        candidate = after[at:] if line_end < 0 else after[at:line_end]
+        parsed = _TRAIL_PARSE_RE.match(candidate)
+        # The block as it stands, cut to the parse where there is one: a candidate
+        # runs to the end of its line, so an entry with a chained one or plain
+        # prose after it would otherwise report that text as part of the block.
+        block_text = parsed.group(0) if parsed else candidate
+        if block_text not in before:
+            if parsed is None:
+                defects.append(defect(_TRAIL_MALFORMED, block_text))
+            elif as_day(parsed.group("day")) is None:
+                defects.append(defect(_TRAIL_BAD_DATE, block_text))
+            elif parsed.group("by") not in known:
+                defects.append(defect(_TRAIL_BY_ABSENT, block_text))
+        at = after.find(_TRAIL_OPENER, at + len(_TRAIL_OPENER))
+    return defects
 
 
 def _apply_supersede(content: str, patch: dict,
@@ -1218,21 +1335,25 @@ def write_prompt_version() -> str:
     a write-prompt edit must not move the extraction's version, or every document
     would re-extract at full cost over a prompt extraction never used.
 
-    Reported, never gated (spec D5, PV1). Both merge paths are additive --
-    merge-diff.md offers only append_to_section and new_section, and merge-rewrite.md
-    says nothing about supersession -- so re-composing an article layers new content
-    on top of the old rather than replacing it. Feeding this into the composition
-    gate would inflate every article on a prompt edit and pay the full write phase
-    to do it.
+    Reported, never gated (spec D5, PV1, NG12) -- and the reason for that changed
+    with A2, so it is restated rather than carried. It used to be that gating bought
+    nothing: both merge paths were additive, so a re-composition layered new content
+    on top of the old and could not correct anything. That argument is now false.
+    merge-diff.md offers `supersede` and merge-rewrite.md states the trail rule, so
+    a re-composition can retract a claim, and a gate would be the thing that gets
+    the 682 existing articles corrected.
 
-    The write prompts now state how the payload's source blocks are ordered
-    (_SOURCE_ORDER, WP6), which is what makes this value move for every existing
-    KB, so the first report after the upgrade names every article. That is noise
-    rather than spend, because nothing acts on it -- and it does not make gating any
-    more attractive: an article that exists is re-composed through the merge paths,
-    which are still the additive ones. A re-composition that could act on the
-    ordering, rather than merely be told it, needs the replace primitive and the
-    trail that A2 specifies.
+    What holds it back is cost and blast radius, not futility: a prompt edit would
+    re-compose the whole wiki through the full write phase, and every article it
+    touched would be rewritten by a model with a new action and no measurement
+    behind it yet. Which is why NG12 leaves that to path C's decision instead of
+    letting a hash change trigger it. The value's own job is unchanged -- it says
+    which articles are behind, and nothing acts on the answer.
+
+    Every prompt edit in this feature moves the value for every existing KB, so the
+    first report after each upgrade names every article: A1's source-order block
+    (_SOURCE_ORDER, WP6) did it once and A2's two prompt files do it again (PV4).
+    That is noise rather than spend, because nothing acts on it.
 
     Memoized for the same reason as its extraction counterpart (B12): the registry
     caches lazily per name, so a long-lived daemon could otherwise hold

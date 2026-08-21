@@ -128,6 +128,11 @@ path A.
   `merge-rewrite.md`. The comment at `compile.py:722` — "merge paths are additive
   -- merge-diff.md offers only append_to_section and new_section" — stays true
   after A1 and changes only with A2.
+  **A2 spent it, 2026-08-21.** `merge-diff.md` carries `supersede` and
+  `merge-rewrite.md` states the trail rule, so that comment and five others like it
+  are gone ([spec-a2.md](spec-a2.md#pv-prompt-version-and-the-additive-claim) PV5).
+  This non-goal is A1's boundary as it stood and is left as written; the claim it
+  quotes is no longer true of the tree.
 - **NG2. The `[Superseded …]` trail (A2).** A1 emits no markers. On `merge→create`
   its best output is correct current state with no trail, which is *latest-wins*,
   the option D1 rejected. **A1 does not satisfy D1**, and a clean A1 score must not

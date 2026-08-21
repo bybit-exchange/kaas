@@ -18,8 +18,8 @@
   <text x="430" y="32" font-size="16" fill="#1e293b" text-anchor="middle">How one claim iterates: the closed-loop progress figure (case P7, row C8)</text>
 
   <!-- layer 1: dashed group -->
-  <!-- outcomes group: x=75, y=432, w=710, h=421, right=785, bottom=853 -->
-  <rect x="75" y="432" width="710" height="421" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+  <!-- outcomes group: x=55, y=432, w=750, h=421, right=805, bottom=853 -->
+  <rect x="55" y="432" width="750" height="421" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
 
   <!-- layer 2: connectors -->
   <path d="M228,129 C 228,148 320,150 320,159" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
@@ -56,28 +56,28 @@
   <text x="430" y="394" font-size="10" fill="#b45309" text-anchor="middle">composes the body; A1 gives it no action that can delete text (NG1)</text>
 
   <!-- outcomes -->
-  <text x="85" y="446" font-size="11" fill="#64748b">What the article body ends up saying — four shapes, worst to target</text>
+  <text x="65" y="446" font-size="11" fill="#64748b">What the article body ends up saying — four shapes, worst to target</text>
 
-  <rect x="90" y="457" width="680" height="72" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1"/>
+  <rect x="70" y="457" width="720" height="72" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1"/>
   <text x="430" y="479" font-size="12" fill="#9d174d" text-anchor="middle">1. Both values current and unordered — the failure the feature exists to remove</text>
   <text x="430" y="499" font-size="10" fill="#9d174d" text-anchor="middle" class="code">Progress: 50% … open action: establish the closed loop   (both present tense)</text>
   <text x="430" y="517" font-size="10" fill="#9d174d" text-anchor="middle">how P7 C8 read before A1; still 19 of 40 rows on the A1 arm, against the baseline's 24</text>
 
-  <rect x="90" y="554" width="680" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <rect x="70" y="554" width="720" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
   <text x="430" y="576" font-size="12" fill="#b45309" text-anchor="middle">2. Coequal presentation — each value attributed to its own version</text>
   <text x="430" y="596" font-size="10" fill="#b45309" text-anchor="middle" class="code">As of 20260409: 0%   ·   As of 20260514: 50%</text>
   <text x="430" y="614" font-size="10" fill="#b45309" text-anchor="middle">clears Staleness (P7 0 of 8, P10 0 of 7, P5 0 of 5), earns no Trail, and fails In force (V39) — nothing says which value holds</text>
 
-  <rect x="90" y="651" width="680" height="72" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1"/>
+  <rect x="70" y="651" width="720" height="72" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1"/>
   <text x="430" y="673" font-size="12" fill="#166534" text-anchor="middle">3. Directional trail in prose — the newer stands, the older is named as past</text>
   <text x="430" y="693" font-size="10" fill="#166534" text-anchor="middle" class="code">Progress: 50% (as of 20260514; previously 0%)</text>
   <text x="430" y="711" font-size="10" fill="#166534" text-anchor="middle">the A1 arm wrote this unprompted on 5 of 45 rows (baseline 7), and this row is one of them</text>
 
-  <rect x="90" y="748" width="680" height="90" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1"/>
+  <rect x="70" y="748" width="720" height="90" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1"/>
   <text x="430" y="770" font-size="12" fill="#6b21a8" text-anchor="middle">4. A [Superseded …] marker — D1's target, and A2's job (NG2)</text>
   <text x="430" y="790" font-size="10" fill="#6b21a8" text-anchor="middle" class="code">Progress: 50%</text>
   <text x="430" y="806" font-size="10" fill="#6b21a8" text-anchor="middle" class="code">[Superseded 2026-05-14 by raw/docs/2026-05-14-….md: the earlier figure was 0%]</text>
-  <text x="430" y="826" font-size="10" fill="#6b21a8" text-anchor="middle">needs a replace primitive; the merge prompts only append, so A1 cannot emit one</text>
+  <text x="430" y="826" font-size="10" fill="#6b21a8" text-anchor="middle">A1 had no action that could emit one; A2 landed the primitive and offered it to both merge prompts (steps 1–2)</text>
 
   <text x="430" y="878" font-size="10" fill="#64748b" text-anchor="middle">One row of FX5's 45. FX7: 19 of 40 rows still stale against the baseline's 24 — improved, not cleared, so A2 is required.</text>
 </svg>

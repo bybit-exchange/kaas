@@ -2,7 +2,10 @@
 
 Date: 2026-08-20
 Slug: `supersession`
-Status: specified, not implemented. **Required rather than optional** — A1 was measured
+Status: specified; **sequencing steps 1, 2 and 5 landed** — the supersede primitive and its
+trail (`17aa09b`), V40 in test-set.md (`3d9597a`), and the two prompts plus PV4/PV5
+(2026-08-21, the step that changes what the writer does). Steps 3, 4 and 6 are open: the
+rewrite-path guard, the reports, then the arm. **Required rather than optional** — A1 was measured
 and [verdict-fx7.md](verdict-fx7.md) decided D2's condition against it. The rubric this
 increment is judged on was fixed before any spend on its arm: `In force` became a third
 gating column as V39 on 2026-08-19 ([test-set.md](test-set.md#scoring)). D1 fixes what the
@@ -256,6 +259,13 @@ A2's arm will report whether any instance arose rather than confirming the forma
 - **RA6.** `merge-rewrite.md` gains the same rule in prose, since the rewrite path returns a
   whole article and has no action vocabulary. It states the trail format by example — D1's
   example verbatim — and states the same order precondition RA3 enforces.
+  **One deviation, taken 2026-08-21 when the prompt landed: the example is unwrapped onto one
+  line.** D1 writes it wrapped across two, which is that document's line width and not part of
+  the format; TR1 makes the block single-line and TR6's validator reads it back that way, so a
+  verbatim copy of the wrapped form would teach a shape this feature's own code reports as
+  malformed on every use. Pinned by a test that runs the prompt's example line through
+  `_trail_defects` and asserts it is clean — the disagreement is only visible across the two
+  artifacts, so it is asserted there rather than inside either one.
 - **RA7.** Both prompts state four things the action needs and one it forbids: make the
   anchor unique by including surrounding text; emit one action per occurrence when the same
   claim is stated in two places; name in `by` the source whose block is newest; leave the
@@ -264,6 +274,10 @@ A2's arm will report whether any instance arose rather than confirming the forma
   no fixture instance**, because FX2 stages version N into the wiki version N−1 produced, so
   the newest document always arrives last. The rule is stated and left unmeasured, recorded
   here rather than discovered later.
+  **One of the four is diff-only, 2026-08-21.** "Make the anchor unique by including surrounding
+  text" is vacuous on the rewrite path, which returns a whole article and has no anchor;
+  `merge-rewrite.md` states the other three and the prohibition. Recorded because RA7 says
+  *both* prompts state four, and a reader checking would otherwise find a rule missing.
 
 ### TR. The trail
 
@@ -306,6 +320,26 @@ A2's arm will report whether any instance arose rather than confirming the forma
   bracket shape, a resolvable date, and a `by` path that is one of this payload's sources —
   and **reports** malformed ones without rejecting the write. A malformed trail is prose a
   human can fix; a rejected merge loses information. Only D9's append-only guarantee rejects.
+  **Narrowed to the blocks new in the output, 2026-08-21.** "Every trail block in the output"
+  read literally reports a false defect on the case D10 exists for: S7's v3 merge preserves
+  the v2 entry, whose `by` names a document the v3 payload does not carry, so the `by` rule
+  would fire on every correct chain. The validator therefore compares the output against the
+  pre-write article — the same pair SG1 reads — and checks only what the writer added.
+  Two bounds worth naming rather than discovering. The date test is `as_day`, the KB's one
+  narrowing, so a *resolvable* day that is not D1's `YYYY-MM-DD` (an ISO stamp, or the basic
+  form `20260514`) passes; the alternative is a second date reader that could disagree with
+  the one ordering the blocks. And the blocks of a chain sit adjacent on one line, so the
+  scan runs per opener rather than per line — a line-wide match consumes the whole chain and
+  leaves every entry after the first unchecked, which is how the first implementation of this
+  read and what a mutation run caught.
+  **One open bound, and it is a decision rather than an oversight: an empty `was` passes.**
+  The three checks are shape, date and `by`, so `[Superseded 2026-05-14 by raw/v2.md: ]` — a
+  trail recording nothing — is reported by neither, where the diff path refuses it outright
+  (RA1, `was is empty`) because G7 is the whole reason D1 chose a trail over a deletion. The
+  asymmetry is the one G7 argues hardest against, so it is not left implicit: current behaviour
+  is pinned by a test, and adding a fourth check is a change to TR6 rather than a fix to its
+  implementation. Note the paths would still differ in *response* — the diff path refuses, TR6
+  reports — which is the asymmetry TR6 chose on purpose and would not be touched.
 
 ### SG. Guards and reports
 
@@ -346,6 +380,11 @@ A2's arm will report whether any instance arose rather than confirming the forma
   untouched, per NG13 — it keeps `_GROUNDING` and `_SOURCE_ORDER` and gains no action, and two
   changed renderings move the hash exactly as three would. Per D5 it gates nothing (NG12), so
   the cost is a report saying every article is behind — noise, not spend.
+  **Landed 2026-08-21: `5a66a8ed04ea` → `3c88b88358d8`**, measured across the two prompt edits
+  rather than asserted. The docstring's *reason* for staying report-only changed with it and
+  was rewritten rather than carried: it used to be that gating bought nothing because a
+  re-composition could only append, and now a re-composition can correct a claim, so what
+  holds the gate back is cost and blast radius — which is where NG12 already put the decision.
 - **PV5.** **Six sites assert that the merge paths cannot retract, and A2 falsifies all
   six.** They are enumerated here because a stale claim in a docstring is what a future
   reader will believe: `core/merge.py:609` (the `_SOURCE_ORDER` comment, which says A1 adds
@@ -354,6 +393,13 @@ A2's arm will report whether any instance arose rather than confirming the forma
   report's own text) and `commands/compile.py:722-732` (the revised-documents report). The two
   report strings are user-visible and change what an operator is told, so they change with the
   code and not after it.
+  **All six cleared 2026-08-21, and the guard is a grep rather than six line numbers**, since
+  line numbers move and what a future reader believes is the sentence. Two things the drafting
+  got wrong and the test caught: the `_SOURCE_ORDER` comment says "the merge paths cannot
+  retract", which the pattern written for `write_prompt_version`'s "merge cannot retract" does
+  not match — so the site PV5 names first would have been missed — and a pattern set proves
+  nothing when it is empty by accident, so the test asserts a positive control before it
+  asserts a clean tree.
 - **PV6.** RP2's guarantee is re-verified rather than rebuilt: a revised document still
   names the articles carrying its previous version. What A2 changes is the *reason* the report
   exists — the articles may now have been corrected — so the text says "may still carry" and
@@ -500,8 +546,12 @@ A2's arm will report whether any instance arose rather than confirming the forma
    in `_apply_diff`, with VA1–VA3 and VA5. **No prompt changes, so behaviour does not move**:
    the model cannot emit an action it has not been told about, and the code lands under test
    before it can be exercised.
-2. **The prompts.** RA6, RA7 and TR6 in `merge-diff.md` and `merge-rewrite.md`, plus PV4 and
-   PV5's six sites, with VA6 and VA7. This is the step that changes what the writer does.
+2. **The prompts — landed 2026-08-21.** RA6, RA7 and TR6 in `merge-diff.md` and
+   `merge-rewrite.md`, plus PV4 and PV5's six sites, with VA6 and VA7. This is the step that
+   changes what the writer does. One thing arrived a step early on purpose: `merge-rewrite.md`
+   also states D9's append-only rule, because SG1 retries "with the constraint restated" and a
+   prompt that never carried the constraint would make that retry the normal path rather than
+   the exception. Step 3 adds the code that enforces it.
 3. **The rewrite-path guard.** SG1 with VA4.
 4. **Reports.** SG2, SG3, SG4 and PV6, surfaced through the compile report beside the revised
    and lineage reports (`compile.py:190`, `:722-739`), with VA8.

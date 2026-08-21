@@ -9,16 +9,15 @@ either without being behind on the other:
   system prompt), which had no version at all. Editing one invalidated nothing and
   no report named the articles it left behind.
 
-Both are reported and neither gates. Feeding either into the composition gate
-would be worse than the lag it fixes: both merge paths are additive -- merge-diff
-offers only append_to_section and new_section, and merge-rewrite says nothing
-about supersession -- so re-composing an article layers new content on top of the
-old rather than replacing it. A prompt edit would inflate every article and pay
-the whole write phase to do it. The write prompts now state how their source
-blocks are ordered, which moved the write version for every existing KB without
-changing that argument -- an article that exists is re-composed through the merge
-paths, which are still the additive ones. write_prompt_version's own docstring
-carries the full reasoning.
+Both are reported and neither gates, and what the write half's reason rests on
+changed: the merge paths used to be additive, so a re-composition could not correct
+anything and gating it bought nothing. merge-diff now offers `supersede` and
+merge-rewrite states the trail rule, so a re-composition can retract a claim --
+gating became the thing that would fix the existing wiki rather than merely inflate
+it. It still does not gate, for cost and blast radius: a prompt edit would re-write
+every article through the full write phase with an action nothing has measured yet.
+write_prompt_version's own docstring carries the full reasoning, and leaves the
+decision where the supersession spec puts it.
 
 One function for both callers rather than a comparison in each: compile records
 the versions and reports the lag it noticed while it had work to do, and kb-ai

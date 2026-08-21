@@ -187,7 +187,8 @@ def _lineage_report(store: KBStore, done_articles: dict[str, set],
     log(f"Lineage: {len(found)} lineage group(s) across {len(report)} article(s) "
         f"({marked} with a version marker, {len(found) - marked} without — an "
         "unmarked group is as likely to be a recurring series as a version chain); "
-        "merge cannot retract, so the earlier version's content is still there:")
+        "a merge may have corrected the earlier version's claims or may have left "
+        "them standing — look for [Superseded ...]:")
     for art, group in found:
         members = ", ".join(
             rel + (f" ({facts[rel].date.isoformat()})" if facts[rel].date else "")
@@ -718,18 +719,21 @@ def compile_kb(
         if items_to_classify:
             log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
 
-        # A revised document's articles were merged into, not rewritten: both
-        # merge paths are additive -- merge-diff.md offers only append_to_section
-        # and new_section, and merge-rewrite.md says nothing about supersession --
-        # so what the previous version contributed is still in there. Naming the
-        # articles is the whole point: it says which ones a human should re-read.
+        # A revised document's articles were merged into, not rewritten, so what
+        # the previous version contributed may still be in there. "May" is PV6: the
+        # merge paths can now retract a claim and leave a `[Superseded ...]` trail
+        # where it stood (merge-diff.md's `supersede`, merge-rewrite.md's prose
+        # rule), so the report can no longer assert what the article holds. Naming
+        # the articles is still the whole point -- it says which ones a human should
+        # re-read -- and the trail is what tells them the merge did act.
         revised_articles = {rel: sorted(_file_done_articles[rel])
                             for rel in revised
                             if _file_done_articles.get(rel)}
         if revised_articles:
             log(f"Revised documents: {len(revised_articles)} re-extracted document(s) "
-                "were merged into existing articles, which still carry the previous "
-                "version's content (merge cannot retract):")
+                "were merged into existing articles, which may still carry the "
+                "previous version's content — look for [Superseded ...] to see what "
+                "the merge corrected:")
             for rel, arts in sorted(revised_articles.items()):
                 log(f"  [revised] {rel} → {', '.join(arts)}")
 

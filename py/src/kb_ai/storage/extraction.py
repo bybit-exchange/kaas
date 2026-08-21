@@ -311,9 +311,11 @@ def persist(
     """Write one extraction file. The only writer, on both ingestion routes (C1).
 
     Returns (path, existed_before). The flag is what lets compile distinguish a
-    first extraction from one that overwrote an existing file: those documents
-    were revised, and both merge paths are additive, so their articles layered
-    new content on top of what the previous version already contributed (C11).
+    first extraction from one that overwrote an existing file: those documents were
+    revised, so their articles may still carry what the previous version contributed
+    (C11). "May", not "do": the merge paths can now retract a claim and leave a
+    `[Superseded ...]` trail where it stood, so the report this feeds names the
+    articles a human should re-read rather than asserting what is in them.
 
     Atomic: temp file plus os.replace, so a crash mid-write cannot leave a file
     whose header disagrees with its payload. Not retried -- what actually fails
