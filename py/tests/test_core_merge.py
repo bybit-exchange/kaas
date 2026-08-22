@@ -561,6 +561,104 @@ def test_merge_full_rewrite_strips_fencing(monkeypatch):
     assert "```" not in out
 
 
+# ── _strip_article_wrapper ──────────────────────────────────────────
+
+@pytest.mark.parametrize("text,expected", [
+    ("<article>\n---\ntitle: A\n---\nbody\n</article>", "---\ntitle: A\n---\nbody"),
+    ("<article>\n---\ntitle: A\n---\nbody", "---\ntitle: A\n---\nbody"),
+    ("---\ntitle: A\n---\nbody\n", "---\ntitle: A\n---\nbody\n"),
+    ("<article>", ""),
+])
+def test_strip_article_wrapper(text, expected):
+    assert mg._strip_article_wrapper(text) == expected
+
+
+def test_strip_article_wrapper_leaves_an_unwrapped_article_alone():
+    """Whitespace must not be touched when no wrapper is present — the fencing
+    stripper intentionally leaves the inner document's trailing newline."""
+    text = "# Title\n\nbody\n"
+    assert mg._strip_article_wrapper(text) == text
+
+
+def test_strip_article_wrapper_keeps_a_lone_trailing_close_tag():
+    """Paired-only: a body legitimately ending with a literal </article>
+    (an HTML example, say) must not lose its tail."""
+    text = "---\ntitle: A\n---\ndiscusses <article> tags\n</article>"
+    assert mg._strip_article_wrapper(text) == text
+
+
+def test_merge_full_rewrite_strips_the_echoed_article_wrapper(monkeypatch):
+    """The rewrite prompt frames the existing article in <article>...</article>,
+    and the output is written to disk verbatim — an echoed wrapper would land
+    above the frontmatter in the compiled wiki."""
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: "<article>\n---\ntitle: A\n---\nbody\n</article>")
+
+    out = mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+
+    assert out.startswith("---")
+    assert "<article>" not in out and "</article>" not in out
+
+
+def test_merge_full_rewrite_strips_fencing_inside_the_echoed_wrapper(monkeypatch):
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: "<article>\n```markdown\n# Merged\n```\n</article>")
+
+    out = mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+
+    assert out == "# Merged\n"
+
+
+def test_merge_full_rewrite_strips_the_wrapper_inside_an_echoed_fence(monkeypatch):
+    """The echo can nest the other way too — the whole wrapper inside a
+    markdown fence — which a single ordering of the two strippers misses."""
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kwargs: "```markdown\n<article>\n---\ntitle: A\n---\nbody\n</article>\n```")
+
+    out = mg._merge_full_rewrite("wiki/a.md", "old", _extraction(), "raw/a.md", "m")
+
+    assert out.startswith("---")
+    assert "<article>" not in out and "</article>" not in out
+
+
+def test_merge_into_article_heals_a_polluted_article_before_the_diff_path(monkeypatch):
+    """An article that already leaked the wrapper has its frontmatter pass
+    silently skipped by _apply_diff (lines[0] != "---"), so `updated` never
+    refreshes and sources never append. The entry strip must restore that."""
+    polluted = (
+        "<article>\n"
+        "---\ntitle: A\nupdated: 2024-01-01\nsources:\n  - raw/a.md\n---\n"
+        + "x" * mg._LARGE_ARTICLE_THRESHOLD + "\n"
+        "</article>"
+    )
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {"patches": []})
+
+    out = mg.merge_into_article("wiki/a.md", polluted, _extraction(), "raw/a.md")
+
+    assert out.startswith("---")
+    assert "<article>" not in out and "</article>" not in out
+    assert f"updated: {TODAY}" in out
+
+
+def test_merge_into_article_heals_a_polluted_article_before_the_rewrite_path(monkeypatch):
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured["user"] = kwargs["messages"][1]["content"]
+        return "---\ntitle: A\n---\nbody\n"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    out = mg.merge_into_article(
+        "wiki/a.md", "<article>\n---\ntitle: A\n---\nbody\n</article>",
+        _extraction(), "raw/a.md")
+
+    assert out.startswith("---")
+    # The model must be shown a clean article, not one double-wrapped in the
+    # prompt framing.
+    assert captured["user"].count("<article>") == 1
+
+
 def test_merge_full_rewrite_enables_prompt_caching(monkeypatch):
     captured = {}
 
@@ -878,6 +976,16 @@ def test_grounding_constraint_names_enumerations_and_partial_sets():
     text = mg._GROUNDING.lower()
     assert "enumerat" in text
     assert "partial" in text or "incomplete" in text
+
+
+def test_rewrite_prompt_states_the_article_wrapper_is_not_content():
+    """Root cause of the <article> leak: the grounding constraint (#42,
+    bd8252e) made the writer faithful to its input, transport wrapper included,
+    so the rule that removes the cause must actually reach the rewrite path.
+    Wording is load-bearing the same way the grounding text's is."""
+    system = mg._merge_rewrite_system()
+    assert "<article>" in system
+    assert "not article content" in system
 
 
 def test_write_prompt_version_moves_when_the_grounding_constraint_changes(monkeypatch):

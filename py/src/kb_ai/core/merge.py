@@ -17,6 +17,12 @@ from kb_ai.prompts import default_registry
 
 _SAFETY_MARGIN = 500
 
+# The framing _merge_user_message wraps the existing article in, and the tag a
+# rewrite sometimes echoes back into its output. One pair of constants so the
+# framing and _strip_article_wrapper cannot drift apart.
+_ARTICLE_OPEN = "<article>"
+_ARTICLE_CLOSE = "</article>"
+
 # Per-call timeout for the write phase, mirroring extract's override. Without one
 # a write inherits DEFAULT_CLIENT_TIMEOUT_S, and a gateway that hangs on a 6-8K
 # prompt then costs 15 minutes to discover -- three derive runs each lost roughly
@@ -318,6 +324,13 @@ def merge_into_article(
     source_path: str,
     model: str = "claude-sonnet-4-6",
 ) -> str:
+    # A previously leaked <article> wrapper sits above the frontmatter and
+    # silently disables _apply_diff's frontmatter pass, so heal it on entry
+    # rather than carrying the pollution through another compile. Articles
+    # that receive no further merges keep the tag on disk; sweeping the
+    # compiled wiki once is deliberately out of scope here.
+    article_content = _strip_article_wrapper(article_content)
+
     if len(article_content.encode("utf-8")) >= _LARGE_ARTICLE_THRESHOLD:
         return _merge_diff(article_path, article_content, extraction, source_path, model)
 
@@ -345,7 +358,9 @@ def _merge_full_rewrite(
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ], max_tokens=16384, cache=True).strip()
-    return _strip_markdown_fencing(text)
+    # Wrapper before fencing and again after: an echoed <article> can nest
+    # either way -- outermost, or the whole wrapper inside a markdown fence.
+    return _strip_article_wrapper(_strip_markdown_fencing(_strip_article_wrapper(text)))
 
 
 def _merge_diff(
@@ -379,8 +394,8 @@ def _merge_diff(
 
 def _merge_user_message(article_content: str, extraction: ExtractionResult,
                         source_path: str, budget_chars: int) -> str:
-    header = "Existing article:\n<article>\n"
-    footer = "\n</article>\n\nNew information to merge:\n"
+    header = f"Existing article:\n{_ARTICLE_OPEN}\n"
+    footer = f"\n{_ARTICLE_CLOSE}\n\nNew information to merge:\n"
     extraction_budget = max(budget_chars - len(header) - len(article_content) - len(footer), 0)
     extraction_text = _fit_extraction_to_budget(extraction, source_path, max(extraction_budget, 200))
 
@@ -534,6 +549,31 @@ def _strip_markdown_fencing(text: str) -> str:
         if text.endswith("```"):
             text = text[:-3]
     return text
+
+
+def _strip_article_wrapper(text: str) -> str:
+    """Remove the <article>/</article> wrapper a rewrite sometimes echoes back
+    from _merge_user_message's framing.
+
+    The framing is prompt scaffolding, but the rewrite output is written to
+    disk verbatim, so an echoed tag lands above the frontmatter. Once there it
+    also breaks _apply_diff, whose frontmatter pass requires lines[0] == "---"
+    -- so the tag is stripped here both from fresh output and from article
+    content that already carries it (healing on the next merge).
+
+    Paired-only: the closing tag is removed just when the opening tag was,
+    because an article whose body legitimately ends with a literal
+    </article> (an HTML example, say) must not lose its tail. A clean article
+    starts with the frontmatter delimiter, never this tag, so the leading
+    match is unambiguous.
+    """
+    if not text.startswith(_ARTICLE_OPEN):
+        return text
+    text = text[len(_ARTICLE_OPEN):]
+    trimmed = text.rstrip()
+    if trimmed.endswith(_ARTICLE_CLOSE):
+        text = trimmed[: -len(_ARTICLE_CLOSE)]
+    return text.strip()
 
 
 def _write_stage_renderings() -> list[tuple[str, str]]:
