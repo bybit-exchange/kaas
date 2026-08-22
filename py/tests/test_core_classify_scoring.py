@@ -529,7 +529,9 @@ def test_dedup_threshold_is_seventy_percent():
 ])
 def test_dedup_merges_a_title_that_only_adds_a_qualifier(new_title, existing_title):
     """The collision the cross-group dedup phase exists for: two groups name the
-    same subject and one adds a word."""
+    same subject and one adds a word. Containment is checked in both directions --
+    the classifier can just as easily propose the shorter title of the two, which
+    test_dedup_merges_when_the_new_title_is_the_shorter_one covers."""
     classification = ClassificationResult(
         create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
 
@@ -575,6 +577,19 @@ def test_dedup_refuses_a_title_that_merely_contains_a_shorter_one(new_title):
     # A two-character marker, which is neither a token nor a bigram of the run it
     # sits in, so only the substring arm of _polarity sees it.
     ("取消灰度发布", "灰度发布"),
+    # A substituted token costs 1/n of the score, so on a long title it is nearly
+    # free: these reach 0.86-0.91 on overlap and no threshold separates them from a
+    # genuine rewording, which is why substitution is refused outright.
+    ("内部用户数据访问审计方案", "外部用户数据访问审计方案"),
+    ("高优先级需求排期方案", "低优先级需求排期方案"),
+    ("允许跨境数据传输的合规评估结论", "拒绝跨境数据传输的合规评估结论"),
+    ("生产环境数据库迁移实施方案评审", "测试环境数据库迁移实施方案评审"),
+    ("Checkout Outage Postmortem And Action Items Decisions",
+     "Search Outage Postmortem And Action Items Decisions"),
+    # The ampersand rule adds a shared `and` to both sides, which must not become
+    # the token that tips a substitution over.
+    ("Checkout & Payments Outage Postmortem Action Items",
+     "Search & Payments Outage Postmortem Action Items"),
 ])
 def test_dedup_refuses_titles_that_replace_or_invert_a_word(new_title, existing_title):
     """Every one of these scores 0.75-0.91 on token overlap alone, and merging any
@@ -595,9 +610,6 @@ def test_dedup_refuses_titles_that_replace_or_invert_a_word(new_title, existing_
      "Greenhouse Ats Launch And Interviewer Training"),
     ("R&D Cycle Metrics Data Quality Audit & JIRA Workflow Calibration Decisions",
      "R And D Cycle Metrics Data Quality Audit And Jira Workflow Calibration Decisions"),
-    # Differs on both sides (Bi-Weekly against Biweekly) but is near-identical.
-    ("Global Architecture Bi-Weekly Meeting Decisions - Migration Risk & DR Drill Delay",
-     "Global Architecture Biweekly Meeting Decisions: Migration Risk And DR Drill Delay"),
 ])
 def test_dedup_merges_real_rewordings_of_one_article(new_title, existing_title):
     """Taken from data/kb-knowledge, where the same article was written twice."""
@@ -608,6 +620,90 @@ def test_dedup_merges_real_rewordings_of_one_article(new_title, existing_title):
 
     assert out.create_new == []
     assert out.merge_into[0].path == "wiki/b.md"
+
+
+def test_dedup_merges_when_the_new_title_is_the_shorter_one():
+    """The other direction of containment: the classifier proposed the plain title
+    while a qualified article already exists."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title="向量检索")]),
+        [article("向量检索基础", "wiki/b.md")])
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
+@pytest.mark.parametrize("new_title,existing_title", [
+    # A re-spelling that splits one token into two reads as a substitution, so this
+    # real corpus pair is refused. It costs a duplicate, which is the cheap
+    # direction -- the alternative is a threshold, and the corpus's false merges
+    # score HIGHER than this pair (0.91 against 0.88).
+    ("Global Architecture Bi-Weekly Meeting Decisions - Migration Risk & DR Drill Delay",
+     "Global Architecture Biweekly Meeting Decisions: Migration Risk And DR Drill Delay"),
+    ("Zero Trust Rollout May 6, 2026", "Zero Trust Rollout May6 2026"),
+])
+def test_dedup_refuses_a_respelling_that_splits_a_token(new_title, existing_title):
+    """Recorded rather than fixed: known cost of refusing every substitution."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new_title)]),
+        [article(existing_title, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+
+
+@pytest.mark.parametrize("marker", sorted(cl._POLARITY_MARKERS))
+def test_every_polarity_marker_refuses_a_merge(marker):
+    """A marker nothing exercises is a marker nobody can justify: each one has to
+    turn an otherwise-containing pair into a refusal. The list is small because a
+    spurious match costs a real duplicate -- `rollback` alone appears in 22 of this
+    corpus's titles as a domain noun, which is why it is not in the list."""
+    existing = "灰度发布方案" if not marker.isascii() else "Gateway Rollout Plan"
+    new = f"{marker}{existing}" if not marker.isascii() else f"{marker} {existing}"
+    assert cl._duplicate_score(new, existing) == 0.0
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new)]),
+        [article(existing, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+
+
+def test_polarity_does_not_match_an_ascii_marker_inside_a_word():
+    """`no` and `not` sit inside `Notification`, so an ASCII marker is matched as a
+    token, not as a substring. Otherwise adding the word `Notification` to a title
+    would read as negating it."""
+    assert cl._polarity("Notification Pipeline Design") == set()
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[
+            CreateTarget(path="wiki/a.md", title="Notification Pipeline Design")]),
+        [article("Pipeline Design", "wiki/b.md")])
+
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
+@pytest.mark.parametrize("new_title,existing_title", [
+    ("Gateway Migration Plan Deprecation", "Gateway Migration Plan"),
+    ("全球数据安全规范", "数据安全规范"),
+])
+def test_dedup_merges_an_addition_that_narrows_the_subject(new_title, existing_title):
+    """Recorded rather than fixed, and pinned so a future change is deliberate: an
+    addition that changes what the article is about carries no lexical signal, so
+    the rule reads it as a qualifier. Separating these needs meaning."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new_title)]),
+        [article(existing_title, "wiki/b.md")])
+
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
+def test_dedup_is_not_transitive_through_a_generic_title():
+    """Recorded rather than fixed: _phase_dedup walks pairs, so a short generic
+    title acts as a hub between two articles that do not match each other. 15 such
+    triples exist in data/kb-knowledge."""
+    assert cl._duplicate_score("Big Data Team OKR Decisions", "DBA Team OKR Decisions") == 0.0
+    assert cl._duplicate_score("Big Data Team OKR Decisions", "Team OKR Decisions") >= 0.7
+    assert cl._duplicate_score("DBA Team OKR Decisions", "Team OKR Decisions") >= 0.7
 
 
 def test_dedup_merges_a_dated_instalment_into_an_undated_archive():

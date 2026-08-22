@@ -239,30 +239,25 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
-# Measured over the 675 titles of data/kb-knowledge: this rule merges 23 pairs, 16
-# of which the pre-branch ASCII rule also merged and 7 of which are new. All 23
-# were read: 16 are one article titled twice (capitalisation, "&" against "And", or
-# a trailing date), 1 is this corpus's near-duplicate "AI-Native workflow" cluster,
-# and 6 are a rolling 发言复盘 article beside its dated instalments (see the
-# docstring below -- that shape is the price of matching a dated title to its
-# undated twin). The pre-branch rule merged 46 pairs; 895424d's merged 86.
+# Measured over the 675 titles of data/kb-knowledge: this rule merges 22 pairs
+# against the pre-branch ASCII rule's 46. All 22 were read: 15 are one article
+# titled twice (capitalisation, "&" against "And", or a trailing date), 1 is this
+# corpus's near-duplicate "AI-Native workflow" cluster, and 6 are a rolling 发言复盘
+# article beside its dated instalments (see the docstring below). The number gate
+# changes none of those 22 -- on this corpus it is inert, and it is kept for the
+# series shape the docstring names, which this corpus happens not to contain.
 _DUPLICATE_THRESHOLD = 0.7
 
-# Two titles that differ on BOTH sides may still be one article reworded, but only
-# if they are near-identical. 0.85 admits `Bi-Weekly` against `Biweekly` (0.88, one
-# real pair in the corpus) and refuses every sibling-instance shape measured:
-# two teams' OKR articles 0.83, `Checkout`/`Search Outage Postmortem` 0.83,
-# 一月复盘报告/三月复盘报告 0.80.
-_NEAR_IDENTICAL = 0.85
-
 # A one-token difference is enough to invert a claim, and these are the tokens that
-# do it. Deliberately small: an unpaired marker refuses a merge, so a missing entry
-# leaves the pre-branch behaviour rather than creating a new failure, and a spurious
-# match (无 inside 无线) costs a duplicate rather than a misfiled document.
+# do it. Deliberately small, and every entry is exercised by a test: an unpaired
+# marker refuses a merge, so a missing entry leaves the pre-branch behaviour rather
+# than creating a new failure, while a spurious match costs a real duplicate. That
+# last cost is measured, which is why `rollback`, `revert` and `non` are NOT here --
+# they appear in 28 of this corpus's 675 titles as ordinary domain nouns ("Abnormal
+# Trade Rollback Methodology", "Non-Middleware Integration Scope").
 _POLARITY_MARKERS = frozenset({
     "不", "非", "无", "未", "停", "禁", "取消",
-    "not", "no", "non", "without", "disable", "disabled",
-    "deprecate", "deprecated", "revert", "reverted", "rollback",
+    "not", "no", "without", "disable", "disabled",
 })
 
 # Any token carrying a digit is a number: `2026`, `01`, but also `q1`, `v2`, `h1`.
@@ -289,40 +284,49 @@ def _polarity(title: str) -> set[str]:
 def _duplicate_score(new_title: str, existing_title: str) -> float:
     """How strongly two titles claim to name the same article.
 
-    In one sentence: a duplicate is the same title with words ADDED, or a
-    near-identical rewording of it, with no number and no polarity disagreement.
+    In one sentence: a duplicate is the same title with words ADDED, and nothing
+    replaced -- no substituted word, no disagreeing number, no unpaired negation.
 
     This is not the ranking's score, and the difference is the cost of being wrong.
     Ranking divides by the smaller token set because it wants recall and a loose
     match only reorders a list. Here a merge writes a document's knowledge into an
-    article that never named the subject, and nothing later undoes it, so a title
-    that SUBSTITUTES a word is treated as a different article even when most of the
-    text agrees -- that shape is a sibling instance far more often than a
-    duplicate. Measured, all refused by that rule alone: two teams'
-    `2026 H1 ... Team OKR Decisions` (0.83), `Checkout`/`Search Outage Postmortem
-    And Action Items` (0.83), 一月复盘报告/三月复盘报告 (0.80), 生产环境/测试环境
-    数据库迁移方案 (0.80), `Bybit AI Agent (bybit-skill)`/`Bybit AI Trading Skill`
-    (0.75, two articles this corpus keeps apart). Addition still merges, which is
+    article that never named the subject, and nothing later undoes it. One
+    substituted token is all it takes to change the subject, and on a Dice score it
+    is also nearly free: for two titles of n tokens differing in one, the score is
+    exactly 1 - 1/n, so 内部用户数据访问审计方案 against 外部用户数据访问审计方案
+    reaches 0.91 and `允许跨境数据传输…` against `拒绝跨境数据传输…` 0.86. A
+    threshold cannot separate those from a genuine rewording, because the corpus's
+    one real reworded pair (`Bi-Weekly` against `Biweekly`) sits BELOW them at 0.88.
+    So substitution is refused outright and only addition can merge, which is also
     the collision the cross-group dedup phase exists for: "Vector Search Basics"
     beside "Vector Search", 向量检索基础 beside 向量检索.
 
-    Numbers gate it, because a number in a title is a period, a version or a date:
-    two titles whose numbers DISAGREE are consecutive instances of a series, not
-    one article named twice. A title that merely ADDS a date still matches its
-    undated twin, which is 9 of the duplicate pairs in data/kb-knowledge -- and the
-    price of that, accepted deliberately, is that a dated instalment also matches a
-    rolling archive of the same name (`发言复盘 2026-07` into `发言复盘`). The two
-    shapes are lexically identical, so no rule here separates them.
+    Numbers gate the addition, because a number in a title is a period, a version
+    or a date: two titles whose numbers DISAGREE are consecutive instances of a
+    series (`发言复盘 2026` is not the January instalment). A title that merely ADDS
+    a date still matches its undated twin, which is 9 of the duplicate pairs in
+    data/kb-knowledge -- and the price of that, accepted deliberately, is that a
+    dated instalment also matches a rolling archive of the same name
+    (`发言复盘 2026-07` into `发言复盘`). The two shapes are lexically identical, so
+    nothing here separates them.
 
     Polarity markers gate it too, because an addition can invert a claim as easily
     as a substitution can: `不支持向量检索` contains every token of `支持向量检索`
     and scores 0.91.
 
-    Known limitation, pre-existing rather than introduced here: a period spelled
-    without digits is invisible to the number gate, but the substitution rule now
-    catches those anyway (`Phase I`/`Phase II` 0.75 differ on both sides). What
-    stays open is a substitution the polarity list does not know and that survives
-    _NEAR_IDENTICAL -- closing that needs meaning, not tokens.
+    Three limitations, all measured and none closable by another threshold:
+    - An addition can change the subject without carrying a marker, so
+      `Gateway Migration Plan Deprecation` still merges into `Gateway Migration
+      Plan` (0.86), as does 全球数据安全规范 into 数据安全规范 (0.83). Separating
+      those needs meaning, not tokens.
+    - A re-spelling that splits a token is a substitution and is refused:
+      `May 6` against `May6`, `Bi-Weekly` against `Biweekly`. That costs a
+      duplicate, which is the cheap direction.
+    - The relation is not transitive, and _phase_dedup walks it pairwise, so a
+      short generic title acts as a hub: `Big Data Team OKR Decisions` and
+      `DBA Team OKR Decisions` score 0.0 against each other yet both merge into
+      `Team OKR Decisions`. 15 such triples exist in data/kb-knowledge, 6 of them
+      the 发言复盘 archive named above.
     """
     new_numbers, existing_numbers = _numbers(new_title), _numbers(existing_title)
     if new_numbers and existing_numbers and new_numbers != existing_numbers:
@@ -332,10 +336,9 @@ def _duplicate_score(new_title: str, existing_title: str) -> float:
     a, b = bigram_tokens(new_title), bigram_tokens(existing_title)
     if not a or not b:
         return 0.0
-    dice = 2 * len(a & b) / (len(a) + len(b))
-    if not (a <= b or b <= a) and dice < _NEAR_IDENTICAL:
+    if not (a <= b or b <= a):
         return 0.0
-    return dice
+    return 2 * len(a & b) / (len(a) + len(b))
 
 
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:
