@@ -1,0 +1,23 @@
+py/tests/test_llm_completion_paths.py
+  9398b7b5671f95ea 71-80,213,220,249,252,269,294,308,320-340,376-402,413,458
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "4766f8532ae6d5c68ca89fb8c07022540af5a283",
+  "prompts": {
+    "9398b7b5671f95ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bdec563-4784-482a-b400-5079aa88440b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 550,
+      "overriden_lines": 0
+    }
+  }
+}
