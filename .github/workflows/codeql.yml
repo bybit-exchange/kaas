@@ -1,0 +1,70 @@
+name: CodeQL
+
+# Advanced setup instead of GitHub's default setup, because default setup never
+# triggers on a pull request from a fork. Pull request #50 sat blocked on a code
+# scanning result that was never going to arrive, and every future outside
+# contribution would have hit the same wall. A workflow file is part of the pull
+# request's merge commit, so it runs for fork pull requests too — after the
+# usual approval for outside contributors — and uploads the CodeQL result the
+# "main" ruleset requires before a merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  # Default setup also refreshed the default-branch baseline weekly, so a newly
+  # released query still reaches untouched code in a quiet week.
+  schedule:
+    - cron: "34 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # CodeQL reads the workflow run to attribute results to a configuration,
+      # and writes the SARIF it produces.
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      # One language failing still leaves the other results worth uploading.
+      fail-fast: false
+      matrix:
+        include:
+          # The four analyses default setup actually ran. Its language list also
+          # named "javascript" and "typescript", which CodeQL folds into
+          # javascript-typescript.
+          - language: actions
+            build-mode: none
+          - language: go
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v7
+
+      # autobuild needs a toolchain, and the one preinstalled on the runner is
+      # not necessarily the version go.mod asks for.
+      - if: matrix.language == 'go'
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
