@@ -43,6 +43,14 @@ from kb_ai.core.merge import (
 from kb_ai.storage.lag import wiki_lag
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
+# How many documents this command works on at once when neither --workers nor
+# KB_WORKERS says otherwise. Deliberately NOT the queue route's 12
+# (worker.extract_workers in internal/config/config.go): the two routes are
+# tuned against different evidence, and this figure is what every published
+# measurement in docs/articles/ was taken at, so moving it would make those
+# numbers describe a configuration nobody ran. Whichever route is used, each
+# document fans out again inside extract.py to min(chunks, KB_WORKERS), so the
+# concurrent-call count is the product, not this.
 _DEFAULT_WORKERS = 16
 
 

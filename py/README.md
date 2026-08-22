@@ -119,8 +119,8 @@ run's cost. `--force` replaces an existing `derived/<slug>/` from a previous run
 | `KAAS_PROMPTS_DIR` | 内置 `prompts/defaults/` | 自定义 prompt 模板目录 |
 | `KB_AI_MAX_PROMPT_CHARS` | `80000` | prompt 最大字符数（超出则截断） |
 | `KB_AI_PRICING` | — | JSON object of `{model: {"input": per-1M-USD, "output": per-1M-USD}}`. Prices models the built-in table lacks; unpriced models report 0.00 USD and warn once. Example: `{"gpt-4o": {"input": 2.5, "output": 10.0}}` |
-| `KB_WORKERS` | `16` | 编译管线 worker 并发数 |
-| `KAAS_DAEMON_MAX_WORKERS` | `8` | daemon 线程池大小 |
+| `KB_WORKERS` | `16` | 编译管线 worker 并发数. Read at two levels: `kb-ai compile`'s document pool and, in both routes, each phase's per-chunk fan-out (`core/extract.py`). A document over 16,000 chars splits, so the CLI's worst case is documents x chunk workers. The queue route takes its document count from `worker.extract_workers` instead and reads this only for the fan-out, making its worst case 12 x 16 = 192 concurrent calls at the shipped defaults. |
+| `KAAS_DAEMON_MAX_WORKERS` | `8` | daemon 线程池大小. The 8 applies to a standalone `kb-ai daemon`; when the Go backend spawns it, `ai.daemon.concurrency` is passed here instead (16 by default, and validated to be at least `worker.extract_workers`). |
 | `KAAS_KB_DIR` | `./data` | MCP server 知识库根目录 |
 | `KAAS_MCP_TOKEN` | — | MCP HTTP 模式 Bearer token |
 

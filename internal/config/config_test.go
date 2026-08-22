@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -323,5 +324,58 @@ api_key = "sk"
 		t.Fatalf("daemon pool %d is smaller than the worker pool %d, so the daemon "+
 			"caps document concurrency instead of the dispatcher",
 			c.AI.Daemon.Concurrency, c.Worker.ExtractWorkers)
+	}
+}
+
+// TestExtractWorkersAboveTheDaemonPoolIsRejected covers the same invariant for a
+// deployment that edits the file. The test above only reads the shipped defaults,
+// so raising extract_workers alone used to load cleanly and hand the operator a
+// silent cap: the dispatcher would claim 32 documents and the daemon's semaphore
+// would run 16, which reads as the raise having bought nothing.
+func TestExtractWorkersAboveTheDaemonPoolIsRejected(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[worker]
+extract_workers = 32
+
+[llm]
+api_key = "sk"
+`)
+	_, err := Load(p)
+	if err == nil {
+		t.Fatal("expected Load to reject extract_workers above ai.daemon.concurrency")
+	}
+	for _, want := range []string{"extract_workers", "concurrency", "32", "16"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q, so it cannot be acted on", err, want)
+		}
+	}
+}
+
+// TestExtractWorkersRaisedWithTheDaemonPoolIsAccepted is the other half: the rule
+// must refuse the unpaired raise only, not scaling past the shipped defaults.
+func TestExtractWorkersRaisedWithTheDaemonPoolIsAccepted(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[worker]
+extract_workers = 32
+
+[ai.daemon]
+concurrency = 40
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load rejected a paired raise: %v", err)
+	}
+	if c.Worker.ExtractWorkers != 32 || c.AI.Daemon.Concurrency != 40 {
+		t.Fatalf("got extract_workers=%d concurrency=%d, want 32 and 40",
+			c.Worker.ExtractWorkers, c.AI.Daemon.Concurrency)
 	}
 }

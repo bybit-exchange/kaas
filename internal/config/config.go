@@ -68,13 +68,28 @@ type StorageConf struct {
 type WorkerConf struct {
 	// ExtractWorkers is how many documents the dispatcher runs at once, and it is
 	// the ceiling on a bulk ingest's throughput: each queue task carries a single
-	// document, so the per-phase fan-out inside Python collapses to one group and
-	// this is the only document-level parallelism there is. At 4 it made the queue
-	// route roughly 3x slower than `kb-ai compile`, which runs 16 for the same
-	// work. 12 is the highest figure this pipeline has actually been measured at
-	// against a live gateway (108 documents, zero extract errors), so it is
-	// preferred over matching the CLI's unmeasured 16. Every worker holds a daemon
-	// slot, so AIConf.Daemon.Concurrency has to stay at or above this.
+	// document, so this is the only document-level parallelism the queue route
+	// has. At 4 it made the queue route roughly 3x slower than `kb-ai compile`,
+	// which defaults to 16 documents for the same work.
+	//
+	// It is NOT the ceiling on simultaneous LLM calls. A document over 16,000
+	// characters splits into chunks (chunk_content's 4,000-token default), and
+	// each phase then fans out to min(chunks, KB_WORKERS) calls of its own
+	// (py/src/kb_ai/core/extract.py:306,648,759; KB_WORKERS defaults to 16). So
+	// the worst case is the product, 12 x 16 = 192 in-flight calls, and that is
+	// the figure a gateway's rate limit is met with. KB_WORKERS is env-only and
+	// has no field here; the daemon inherits the backend's environment
+	// (internal/bridge/daemon.go passes os.Environ() through), so setting
+	// KB_WORKERS on the backend process is how the product gets bounded.
+	//
+	// 12 is the highest figure this pipeline has actually been measured at
+	// against a live gateway (data/distill-2026-06.log: 108 documents, workers=12,
+	// zero extract errors), so it is preferred over matching the CLI's unmeasured
+	// 16. That run fanned out on top of 12 as well — the log records the resolved
+	// document count and not KB_WORKERS, so the product it survived is 12 x 12 at
+	// the least and 12 x 16 if the default held. Every worker holds a
+	// daemon slot for its whole pipeline, so AIConf.Daemon.Concurrency has to
+	// stay at or above this — enforced in validate(), not just by the defaults.
 	ExtractWorkers      int `json:"extract_workers,default=12"`
 	PipelineConcurrency int `json:"pipeline_concurrency,default=2"`
 	PollIntervalMS      int `json:"poll_interval_ms,default=1000"`
@@ -218,6 +233,16 @@ func (c *Config) validate() error {
 	}
 	if c.Worker.LeaseTimeoutSec <= 0 {
 		return fmt.Errorf("worker.lease_timeout_sec must be > 0")
+	}
+	// Every dispatched document holds a daemon slot for its whole pipeline, so a
+	// daemon pool below the worker pool is the real cap and raising
+	// extract_workers alone buys nothing. Refused rather than clamped, because
+	// clamping would silently ignore the figure the operator wrote down.
+	if c.AI.Daemon.Concurrency < c.Worker.ExtractWorkers {
+		return fmt.Errorf("ai.daemon.concurrency (%d) must be >= worker.extract_workers (%d): "+
+			"each dispatched document holds a daemon slot for its whole pipeline, so a smaller "+
+			"pool caps ingest instead of the dispatcher",
+			c.AI.Daemon.Concurrency, c.Worker.ExtractWorkers)
 	}
 	if !slices.Contains(extractStrategies, c.LLM.ExtractStrategy) {
 		return fmt.Errorf("llm.extract_strategy must be one of %s, got %q",
