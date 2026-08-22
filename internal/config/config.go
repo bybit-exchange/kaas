@@ -66,7 +66,16 @@ type StorageConf struct {
 
 // WorkerConf tunes the compile worker pool.
 type WorkerConf struct {
-	ExtractWorkers      int `json:"extract_workers,default=4"`
+	// ExtractWorkers is how many documents the dispatcher runs at once, and it is
+	// the ceiling on a bulk ingest's throughput: each queue task carries a single
+	// document, so the per-phase fan-out inside Python collapses to one group and
+	// this is the only document-level parallelism there is. At 4 it made the queue
+	// route roughly 3x slower than `kb-ai compile`, which runs 16 for the same
+	// work. 12 is the highest figure this pipeline has actually been measured at
+	// against a live gateway (108 documents, zero extract errors), so it is
+	// preferred over matching the CLI's unmeasured 16. Every worker holds a daemon
+	// slot, so AIConf.Daemon.Concurrency has to stay at or above this.
+	ExtractWorkers      int `json:"extract_workers,default=12"`
 	PipelineConcurrency int `json:"pipeline_concurrency,default=2"`
 	PollIntervalMS      int `json:"poll_interval_ms,default=1000"`
 	LeaseTimeoutSec     int `json:"lease_timeout_sec,default=300"`
@@ -95,11 +104,17 @@ type MCPConf struct {
 
 // DaemonConf configures the multiplexed Python daemon process lifecycle.
 type DaemonConf struct {
-	Command          string   `json:"command,default=uv"`
-	Args             []string `json:"args,optional"`
-	Concurrency      int      `json:"concurrency,default=8"`
-	WarmupTimeoutSec int      `json:"warmup_timeout_sec,default=30"`
-	MaxRestarts      int      `json:"max_restarts,default=5"`
+	Command string   `json:"command,default=uv"`
+	Args    []string `json:"args,optional"`
+	// Concurrency sizes the daemon's in-flight semaphore. It has to cover
+	// WorkerConf.ExtractWorkers, since every dispatched document occupies a slot
+	// for its whole pipeline; below that the daemon, not the dispatcher, is what
+	// limits a bulk ingest. The margin over it leaves room for the KB-level calls
+	// that share the daemon — chat, derive, retrieval — so a bulk ingest does not
+	// lock interactive requests out.
+	Concurrency      int `json:"concurrency,default=16"`
+	WarmupTimeoutSec int `json:"warmup_timeout_sec,default=30"`
+	MaxRestarts      int `json:"max_restarts,default=5"`
 }
 
 // LLMConf holds OpenAI-compatible LLM credentials forwarded to the AI engine.

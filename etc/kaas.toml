@@ -10,7 +10,11 @@ sqlite_path = "./data/kaas.db"
 kb_dir = "./data"
 
 [worker]
-extract_workers = 4
+# How many documents the dispatcher runs at once. This is the ceiling on a bulk
+# ingest: one queue task carries one document, so it is the only document-level
+# parallelism there is. Lower it on a machine or gateway that cannot take 12
+# concurrent extractions, and keep ai.daemon.concurrency at or above it.
+extract_workers = 12
 pipeline_concurrency = 2
 poll_interval_ms = 1000
 lease_timeout_sec = 300
@@ -28,7 +32,10 @@ mcp_url = ""
 # kaas 启动时自动 spawn Python daemon 进程，通过 stdin/stdout 多路复用协议通信。
 command = "uv"
 args = ["run", "--directory", "py", "kb-ai", "daemon"]
-concurrency = 8
+# Must cover worker.extract_workers: every dispatched document holds a slot for
+# its whole pipeline, so a smaller pool here caps ingest instead of the
+# dispatcher. The margin leaves room for chat, derive and retrieval calls.
+concurrency = 16
 warmup_timeout_sec = 30
 max_restarts = 5
 

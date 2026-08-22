@@ -86,7 +86,7 @@ api_key = "sk"
 	if !filepath.IsAbs(c.Storage.KBDir) || filepath.Base(c.Storage.KBDir) != "data" {
 		t.Fatalf("storage.kb_dir not resolved to absolute: %q", c.Storage.KBDir)
 	}
-	if c.Worker.ExtractWorkers != 4 || c.Worker.LeaseTimeoutSec != 300 {
+	if c.Worker.ExtractWorkers != 12 || c.Worker.LeaseTimeoutSec != 300 {
 		t.Fatalf("worker defaults not applied: %+v", c.Worker)
 	}
 	if c.AI.MCPURL != "" {
@@ -299,5 +299,29 @@ extract_strategy = "Chunked"
 `)
 	if _, err := Load(p); err == nil {
 		t.Fatal("expected Load to reject an unknown extract_strategy")
+	}
+}
+
+// TestDaemonPoolCoversTheWorkerPool guards the pairing between two defaults that
+// have to move together. The dispatcher runs ExtractWorkers documents at once,
+// but each one occupies a slot in the Python daemon's semaphore
+// (internal/bridge/daemon.go), so a daemon pool smaller than the worker pool
+// quietly becomes the real limit and raising ExtractWorkers alone buys nothing.
+func TestDaemonPoolCoversTheWorkerPool(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.AI.Daemon.Concurrency < c.Worker.ExtractWorkers {
+		t.Fatalf("daemon pool %d is smaller than the worker pool %d, so the daemon "+
+			"caps document concurrency instead of the dispatcher",
+			c.AI.Daemon.Concurrency, c.Worker.ExtractWorkers)
 	}
 }
