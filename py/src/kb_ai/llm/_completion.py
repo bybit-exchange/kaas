@@ -38,6 +38,33 @@ _CACHE_MISS_THRESHOLD = 10
 _cache_state = AdaptiveCacheState(miss_threshold=_CACHE_MISS_THRESHOLD)
 _cache_lock = _cache_state._lock  # tests access this directly
 
+# Statuses worth another attempt. 429 is retryable for a different reason than
+# the gateway family: it is not the provider failing but this run asking for more
+# throughput than the account allows, and it clears on its own. Left out, it
+# fails a whole document — and the more workers a run uses, the more it fires.
+_RATE_LIMIT_STATUS = 429
+_RETRYABLE_GATEWAY_STATUS = (502, 503, 504)
+
+# Ceiling on a server-supplied Retry-After. Honouring the header keeps retries
+# off an account that is already over its limit; the cap keeps one absurd value
+# from parking a worker for the rest of the run.
+_RETRY_AFTER_CAP_S = 120.0
+
+
+def _retry_after_seconds(e: APIStatusError) -> float:
+    """Read Retry-After as capped seconds, or 0.0 when the header is unusable.
+
+    Only the delay-seconds form is read. The HTTP-date form would need clock-skew
+    handling to be trustworthy, and 0.0 simply leaves the caller's own backoff in
+    charge — the same place an absent header leaves it.
+    """
+    raw = (e.response.headers.get("retry-after") or "").strip()
+    try:
+        seconds = float(raw)
+    except ValueError:
+        return 0.0
+    return min(seconds, _RETRY_AFTER_CAP_S) if seconds > 0 else 0.0
+
 
 def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
                       max_tokens: int = 4096, cache: bool = False,
@@ -101,14 +128,24 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
                       f"prompt_chars={prompt_chars} elapsed={elapsed}s")
 
             is_timeout = isinstance(e, APITimeoutError)
-            is_retryable_gateway = (
-                isinstance(e, APIStatusError) and e.status_code in (502, 503, 504)
+            status = None if is_timeout else e.status_code
+            is_rate_limited = status == _RATE_LIMIT_STATUS
+            is_retryable_gateway = status in _RETRYABLE_GATEWAY_STATUS
+            can_retry = attempt < _TIMEOUT_RETRIES and (
+                is_timeout or is_rate_limited or is_retryable_gateway
             )
-            can_retry = attempt < _TIMEOUT_RETRIES and (is_timeout or is_retryable_gateway)
 
-            kind = "api_timeout_error" if is_timeout else (
-                f"gateway_{e.status_code}" if is_retryable_gateway else f"http_{e.status_code}"
-            )
+            # A rate limit gets its own label rather than joining the gateway
+            # family: both are retryable, but only this one says the run's own
+            # concurrency is the cause, which is what a reader tuning it needs.
+            if is_timeout:
+                kind, label = "api_timeout_error", "timeout"
+            elif is_rate_limited:
+                kind = label = f"rate_limited_{status}"
+            elif is_retryable_gateway:
+                kind = label = f"gateway_{status}"
+            else:
+                kind = label = f"http_{status}"
             emit_alert(f"{detail} | {e}", model, attempt + 1, kind,
                        content_hash=content_hash, caller=_ALERT_CALLER)
 
@@ -121,14 +158,16 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
                 raise
 
             wait = _TIMEOUT_BACKOFF_BASE * (2 ** attempt)
+            if is_rate_limited:
+                # The server knows when the window reopens; the backoff is only a
+                # floor under it, so retrying sooner than asked is not an option.
+                wait = max(wait, _retry_after_seconds(e))
             if (dl := ctx.deadline_abs) and time.monotonic() + wait + 60 > dl:
-                label = "timeout" if is_timeout else f"gateway_{e.status_code}"
                 print(f"  [{label}] {detail}, deadline_too_close, raising", file=sys.stderr)
                 raise DeadlineExceededError(
                     f"deadline_too_close: op={op} model={model} attempts={attempt + 1} "
                     f"prompt_chars={prompt_chars} elapsed={elapsed}s base_url={base_url}"
                 )
-            label = "timeout" if is_timeout else f"gateway_{e.status_code}"
             print(f"  [{label}] {detail}, retrying in {wait}s...", file=sys.stderr)
             time.sleep(wait)
 

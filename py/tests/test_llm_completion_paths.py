@@ -51,10 +51,15 @@ def _make_response(content="Hello world", finish_reason="stop", prompt_tokens=10
     return SimpleNamespace(choices=[choice], usage=usage)
 
 
-def _status_error(status_code: int, message: str = "boom") -> APIStatusError:
+def _status_error(status_code: int, message: str = "boom",
+                  headers: dict | None = None) -> APIStatusError:
     """Build a real openai.APIStatusError carrying the given HTTP status."""
     request = httpx.Request("POST", "http://test:8080/v1/chat/completions")
-    return APIStatusError(message, response=httpx.Response(status_code, request=request), body=None)
+    return APIStatusError(
+        message,
+        response=httpx.Response(status_code, request=request, headers=headers),
+        body=None,
+    )
 
 
 def _timeout_error() -> APITimeoutError:
@@ -156,6 +161,19 @@ class TestErrorClassification:
         assert excinfo.value is original
         assert "gateway_503" in capsys.readouterr().err
 
+    def test_rate_limit_is_reraised_when_retries_exhausted(
+        self, mock_client, monkeypatch, capsys
+    ):
+        monkeypatch.setattr(completion_mod, "_TIMEOUT_RETRIES", 0)
+        original = _status_error(429, "rate limit exceeded")
+        mock_client.chat.completions.create.side_effect = original
+
+        with pytest.raises(APIStatusError) as excinfo:
+            _completion_inner("model", MSGS)
+
+        assert excinfo.value is original
+        assert "rate_limited_429" in capsys.readouterr().err
+
     def test_timeout_raises_llm_timeout_error_when_retries_exhausted(
         self, mock_client, monkeypatch, capsys
     ):
@@ -222,6 +240,74 @@ class TestRetryBackoff:
         err = capsys.readouterr().err
         assert "[gateway_502]" in err
         assert f"retrying in {completion_mod._TIMEOUT_BACKOFF_BASE}s..." in err
+
+    def test_rate_limit_is_retried_then_succeeds(
+        self, mock_client, no_sleep, fresh_context, capsys
+    ):
+        """429 says "slow down", not "this request is malformed". Leaving it out of
+        the retryable set fails a whole document on a condition that clears in
+        seconds -- and the more concurrency a run uses, the more it happens."""
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "rate limit exceeded"),
+            _make_response(content="limit cleared"),
+        ]
+
+        text, _ = _completion_inner("model", MSGS)
+
+        assert text == "limit cleared"
+        assert mock_client.chat.completions.create.call_count == 2
+        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert "[rate_limited_429]" in capsys.readouterr().err
+
+    def test_rate_limit_waits_the_retry_after_the_server_asked_for(
+        self, mock_client, no_sleep, fresh_context
+    ):
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down", headers={"retry-after": "45"}),
+            _make_response(content="ok"),
+        ]
+
+        _completion_inner("model", MSGS)
+
+        assert no_sleep == [45.0]
+
+    def test_rate_limit_keeps_the_backoff_when_retry_after_is_shorter(
+        self, mock_client, no_sleep, fresh_context
+    ):
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down", headers={"retry-after": "1"}),
+            _make_response(content="ok"),
+        ]
+
+        _completion_inner("model", MSGS)
+
+        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+
+    def test_rate_limit_caps_an_outsized_retry_after(
+        self, mock_client, no_sleep, fresh_context
+    ):
+        """An unbounded header value would park a worker for as long as the server
+        asked, which one bad value turns into a stalled run."""
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down", headers={"retry-after": "99999"}),
+            _make_response(content="ok"),
+        ]
+
+        _completion_inner("model", MSGS)
+
+        assert no_sleep == [completion_mod._RETRY_AFTER_CAP_S]
+
+    def test_rate_limit_falls_back_to_backoff_on_an_unreadable_retry_after(
+        self, mock_client, no_sleep, fresh_context
+    ):
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down", headers={"retry-after": "in a while"}),
+            _make_response(content="ok"),
+        ]
+
+        _completion_inner("model", MSGS)
+
+        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
 
     def test_deadline_too_close_blocks_timeout_retry(
         self, mock_client, no_sleep, fresh_context, capsys
