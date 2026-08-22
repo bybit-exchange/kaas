@@ -1,8 +1,8 @@
 """Offline tests for classification scoring and budgeting (kb_ai.core.classify).
 
 Covers the relevance ranking that decides which existing articles make it into
-the prompt, the exponential-backoff budget fit, and the title-overlap dedup that
-stops the classifier creating near-duplicate articles.
+the prompt, the budget fit that cuts the catalog, and the title-overlap dedup
+that stops the classifier creating near-duplicate articles.
 """
 from __future__ import annotations
 
@@ -18,20 +18,6 @@ from kb_ai.storage.store import ArticleMeta
 
 def article(title: str, path: str = "", summary: str = "") -> ArticleMeta:
     return ArticleMeta(title=title, path=path or f"wiki/{title.lower()}.md", summary=summary)
-
-
-# ── _title_words ────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("title,expected", [
-    ("Hello World", {"hello", "world"}),
-    ("Cost-Review Report!", {"costreview", "report"}),
-    ("", set()),
-    ("...", set()),
-    ("MiXeD CaSe", {"mixed", "case"}),
-    ("API v2 Design", {"api", "v2", "design"}),
-])
-def test_title_words(title, expected):
-    assert cl._title_words(title) == expected
 
 
 # ── _relevance_score ────────────────────────────────────────────────
@@ -72,7 +58,37 @@ def test_relevance_score_normalises_by_the_smaller_set():
     assert cl._relevance_score(article("Pricing"), ["pricing", "a", "b", "c"]) == 1.0
 
 
+def test_relevance_score_ranks_a_chinese_title_above_an_unrelated_one():
+    """The ranking is what decides which articles survive the budget cut, so a
+    Chinese-titled KB whose scores are all 0.0 has no ranking at all -- the merge
+    target is then kept or dropped by list position."""
+    topics = ["网关成本", "评审"]
+
+    assert cl._relevance_score(article("网关成本评审"), topics) > 0.0
+    assert cl._relevance_score(article("周末团建安排"), topics) == 0.0
+    assert (cl._relevance_score(article("网关成本评审"), topics)
+            > cl._relevance_score(article("周末团建安排"), topics))
+
+
+def test_relevance_score_scores_a_mixed_script_title():
+    """A title mixing Latin and Chinese scores on either side's terms."""
+    assert cl._relevance_score(article("LiteLLM 网关"), ["litellm"]) == 1.0
+    assert cl._relevance_score(article("LiteLLM 网关"), ["网关"]) > 0.0
+
+
+def test_relevance_score_splits_hyphenated_titles():
+    """Proof the shared tokeniser is in use: the ASCII-only predecessor stripped
+    the hyphen and produced the single token `costreview`, which no topic list
+    ever matches."""
+    assert cl._relevance_score(article("Cost-Review"), ["review"]) == 1.0
+
+
 # ── _fit_articles_to_budget ─────────────────────────────────────────
+
+def entries(n: int, summary_chars: int = 80) -> list[dict]:
+    return [{"title": f"Article {i}", "path": f"wiki/a{i}.md",
+             "summary": "x" * summary_chars} for i in range(n)]
+
 
 def test_fit_articles_under_budget_keeps_everything():
     articles = [{"title": "A", "path": "wiki/a.md", "summary": "s"}]
@@ -80,23 +96,65 @@ def test_fit_articles_under_budget_keeps_everything():
     assert json.loads(out) == articles
 
 
-def test_fit_articles_halves_until_it_fits(capsys):
-    articles = [{"title": f"Article {i}", "path": f"wiki/a{i}.md",
-                 "summary": "x" * 80} for i in range(32)]
+def test_fit_articles_renders_exactly_what_json_dumps_would():
+    """The fit builds the array entry by entry to know each one's cost, so the
+    rendering has to stay byte-identical to json.dumps or the prompt's article
+    list changes shape the first time the budget is not hit."""
+    articles = entries(3) + [{"title": "中文标题", "path": "wiki/zh.md", "summary": "摘要"}]
 
-    out = cl._fit_articles_to_budget(articles, 2000)
+    out = cl._fit_articles_to_budget(articles, 100_000)
+
+    assert out == json.dumps(articles, ensure_ascii=False, indent=2)
+
+
+def test_fit_articles_keeps_every_entry_the_budget_holds(capsys):
+    """Halving threw away up to half of what the budget could hold: 32 entries
+    against a budget for 30 kept 16. The budget is the only limit that should
+    decide, because every dropped entry is an article the classifier cannot
+    merge into."""
+    articles = entries(32)
+    room_for_30 = len(json.dumps(articles[:30], ensure_ascii=False, indent=2))
+
+    out = cl._fit_articles_to_budget(articles, room_for_30)
 
     kept = json.loads(out)
-    assert 0 < len(kept) < 32
-    assert len(out) <= 2000
-    # Backoff keeps the highest-ranked prefix.
-    assert kept[0]["title"] == "Article 0"
-    assert "[truncation] classify articles" in capsys.readouterr().err
+    assert len(kept) == 30
+    assert len(out) <= room_for_30
+    assert [e["title"] for e in kept] == [e["title"] for e in articles[:30]]
+    assert "[truncation] classify articles: 32 → 30 items" in capsys.readouterr().err
 
 
-def test_fit_articles_backs_off_to_zero_items(capsys):
-    """With a budget that fits '[]' but nothing else, the halving loop reaches
-    zero items and reports that rather than hitting the hopeless path."""
+def test_fit_articles_skips_an_oversized_entry_and_keeps_the_rest():
+    """The list arrives ranked, so one entry too large to fit must not discard
+    every smaller entry below it (same rule as retrieve._fit_catalog)."""
+    articles = [
+        {"title": "Huge", "path": "wiki/huge.md", "summary": "x" * 5_000},
+        {"title": "Small", "path": "wiki/small.md", "summary": "s"},
+    ]
+
+    kept = json.loads(cl._fit_articles_to_budget(articles, 400))
+
+    assert [e["title"] for e in kept] == ["Small"]
+
+
+def test_fit_articles_charges_the_array_brackets_to_the_first_entry():
+    """The rendered array costs four characters more than its entries, so an
+    entry that fits only by ignoring them must be dropped -- otherwise the fit
+    returns a prompt fragment slightly over the budget it was given."""
+    articles = entries(1)
+    rendered = len(json.dumps(articles, ensure_ascii=False, indent=2))
+
+    out = cl._fit_articles_to_budget(articles, rendered - 1)
+
+    assert out == "[]"
+
+
+def test_fit_articles_reports_nothing_when_everything_fits(capsys):
+    cl._fit_articles_to_budget(entries(3), 100_000)
+    assert capsys.readouterr().err == ""
+
+
+def test_fit_articles_returns_empty_json_when_nothing_fits(capsys):
     articles = [{"title": "A" * 500, "path": "p", "summary": "s"}]
 
     out = cl._fit_articles_to_budget(articles, 5)
@@ -105,23 +163,24 @@ def test_fit_articles_backs_off_to_zero_items(capsys):
     assert "classify articles: 1 → 0 items" in capsys.readouterr().err
 
 
-def test_fit_articles_returns_empty_json_when_budget_is_hopeless(capsys):
-    """Below 2 chars even '[]' does not fit, so the loop exhausts and the
-    hopeless-budget branch reports it."""
-    articles = [{"title": "A" * 500, "path": "p", "summary": "s"}]
-
-    out = cl._fit_articles_to_budget(articles, 1)
-
-    assert out == "[]"
-    assert "budget too small" in capsys.readouterr().err
-
-
 def test_fit_articles_empty_list():
     assert json.loads(cl._fit_articles_to_budget([], 1000)) == []
 
 
 def test_fit_articles_negative_budget():
     assert cl._fit_articles_to_budget([{"title": "A"}], -5) == "[]"
+
+
+def test_fit_articles_measures_chinese_entries_by_rendered_chars():
+    """ensure_ascii=False means a Chinese entry costs its characters, not the
+    six-fold \\uXXXX escape -- budgeting the escaped form would keep a third of
+    what fits."""
+    articles = [{"title": "网关成本评审", "path": "wiki/zh.md", "summary": "摘要" * 20}]
+    rendered = json.dumps(articles, ensure_ascii=False, indent=2)
+
+    out = cl._fit_articles_to_budget(articles, len(rendered))
+
+    assert json.loads(out) == articles
 
 
 # ── classify_article ────────────────────────────────────────────────
@@ -188,6 +247,36 @@ def test_classify_article_orders_articles_by_relevance(fake_llm):
     assert system.index("wiki/pricing.md") < system.index("wiki/trivia.md")
 
 
+def test_classify_article_orders_chinese_articles_by_relevance(fake_llm):
+    """The bug this fixes: with every score 0.0 the sort was stable and therefore
+    a no-op, so at 500 articles the budget cut kept whichever came first and the
+    merge target was dropped by position -- one duplicate article per miss."""
+    extraction = ExtractionResult(summary="s", topics=["网关成本"])
+    articles = [
+        article("周末团建安排", "wiki/trivia.md"),
+        article("网关成本评审", "wiki/gateway-cost.md"),
+    ]
+
+    cl.classify_article(extraction, articles)
+
+    system = fake_llm["system"]
+    assert system.index("wiki/gateway-cost.md") < system.index("wiki/trivia.md")
+
+
+def test_classify_article_keeps_the_ranked_head_when_the_budget_cuts(fake_llm, monkeypatch):
+    """End to end over the two halves of the fix: the relevant Chinese article
+    sits last in the input and still reaches a prompt with room for a fraction of
+    the catalog."""
+    monkeypatch.setattr(cl, "MAX_PROMPT_CHARS", 6_000)
+    filler = [article(f"无关记录 {i}", f"wiki/filler{i}.md", summary="摘" * 80)
+              for i in range(200)]
+    target = article("网关成本评审", "wiki/gateway-cost.md", summary="摘" * 80)
+
+    cl.classify_article(ExtractionResult(summary="s", topics=["网关成本"]), filler + [target])
+
+    assert "wiki/gateway-cost.md" in fake_llm["system"]
+
+
 def test_classify_article_truncates_long_summaries(fake_llm):
     cl.classify_article(ExtractionResult(summary="s" * 500_000), [])
 
@@ -231,6 +320,36 @@ def test_dedup_converts_a_near_duplicate_into_a_merge():
     assert len(out.merge_into) == 1
     assert out.merge_into[0].path == "wiki/concept/pricing.md"
     assert "dedup: title overlap" in out.merge_into[0].reason
+
+
+def test_dedup_converts_a_chinese_near_duplicate_into_a_merge():
+    """The dedup was the backstop for a classification that missed its merge
+    target, and it rode the same ASCII-only tokeniser -- so on a Chinese KB the
+    backstop never fired either."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/concept/gateway-cost-review.md",
+                                 type="concept", title="网关成本评审")],
+    )
+    existing = [article("网关成本评审", "wiki/concept/gateway-cost.md")]
+
+    out = cl.dedup_create_new(classification, existing)
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/concept/gateway-cost.md"
+
+
+def test_dedup_keeps_a_distinct_chinese_article():
+    """The other direction, and the one that decides whether the threshold is
+    safe: two unrelated Chinese titles sharing a character must stay separate."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title="成本评审流程")],
+    )
+    existing = [article("成员入职指南", "wiki/b.md")]
+
+    out = cl.dedup_create_new(classification, existing)
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []
 
 
 def test_dedup_keeps_a_distinct_new_article():

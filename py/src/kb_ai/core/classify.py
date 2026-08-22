@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import sys
 from datetime import datetime, timezone
+from textwrap import indent
 
+from kb_ai._text import overlap, tokens
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
@@ -119,43 +120,60 @@ def category_definitions_block(categories: list[str]) -> str:
 
 
 def _relevance_score(article: ArticleMeta, topics: list) -> float:
-    """Score article by title word overlap with extraction topics."""
-    title_words = _title_words(article.title)
-    if not title_words:
-        return 0.0
-    topic_words: set[str] = set()
-    for t in topics:
-        topic_words.update(re.sub(r'[^a-zA-Z0-9\s]', '', str(t).lower()).split())
-    if not topic_words:
-        return 0.0
-    return len(title_words & topic_words) / min(len(title_words), len(topic_words))
+    """Score an article's title against the extraction's topics.
+
+    Tokenised by the shared lexical tokeniser rather than a local ASCII-only
+    regexp: that regexp scored every Chinese title 0.0, which left the sort below
+    stable and therefore a no-op, so the budget cut kept whichever articles came
+    first. Topics arrive from LLM output and are not guaranteed to be strings.
+    """
+    return overlap(tokens(article.title), tokens(" ".join(str(t) for t in topics)))
+
+
+# json.dumps(list, indent=2) wraps the entries in "[\n" ... "\n]" and joins them
+# with ",\n", each entry indented one level. The fit below needs each entry's
+# exact cost, so it renders them one at a time and reassembles the array;
+# test_fit_articles_renders_exactly_what_json_dumps_would pins the equivalence.
+_ARRAY_OVERHEAD = len("[\n") + len("\n]")
+_ENTRY_SEPARATOR = ",\n"
+
+
+def _entry_block(entry: dict) -> str:
+    return indent(json.dumps(entry, ensure_ascii=False, indent=2), "  ")
 
 
 def _fit_articles_to_budget(articles: list[dict], budget_chars: int) -> str:
-    """Fit articles JSON into budget using exponential backoff truncation."""
-    full = json.dumps(articles, ensure_ascii=False, indent=2)
-    if len(full) <= budget_chars:
-        return full
+    """Keep the highest-ranked entries whose rendered JSON fits the budget.
 
-    total = len(articles)
-    n = total
-    while n > 0:
-        n = n // 2
-        candidate = json.dumps(articles[:n], ensure_ascii=False, indent=2)
-        if len(candidate) <= budget_chars:
-            print(
-                f"[truncation] classify articles: {total} → {n} items",
-                file=sys.stderr,
-                flush=True,
-            )
-            return candidate
+    The previous version halved the list until it fit, so a budget with room for
+    30 of 32 entries kept 16 -- and at 500 articles, where the catalog is cut for
+    real, the classifier saw a quarter of the KB and created a duplicate article
+    whenever the merge target was in the discarded half. Every entry the budget
+    holds is one more article a merge can land in.
+    """
+    kept: list[str] = []
+    used = 0
+    for entry in articles:
+        block = _entry_block(entry)
+        cost = len(block) + (len(_ENTRY_SEPARATOR) if kept else _ARRAY_OVERHEAD)
+        if used + cost > budget_chars:
+            # Skip rather than stop: the list is ranked, so one entry whose block
+            # does not fit must not discard every shorter one below it (same rule
+            # as retrieve._fit_catalog).
+            continue
+        kept.append(block)
+        used += cost
 
-    print(
-        f"[truncation] classify articles: {total} → 0 items (budget too small)",
-        file=sys.stderr,
-        flush=True,
-    )
-    return "[]"
+    if len(kept) < len(articles):
+        print(
+            f"[truncation] classify articles: {len(articles)} → {len(kept)} items "
+            f"({budget_chars:,}-char budget)",
+            file=sys.stderr,
+            flush=True,
+        )
+    if not kept:
+        return "[]"
+    return "[\n" + _ENTRY_SEPARATOR.join(kept) + "\n]"
 
 
 def classify_article(
@@ -217,11 +235,15 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
-def _title_words(title: str) -> set[str]:
-    return set(re.sub(r'[^a-zA-Z0-9\s]', '', title.lower()).split())
-
-
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:
+    """Turn a create that duplicates an existing title into a merge.
+
+    This is the backstop for a classification that missed its merge target, and
+    it read titles through the same ASCII-only tokeniser as the ranking above --
+    so on a Chinese KB it scored every pair 0.0 and never fired. It now shares
+    kb_ai._text with the ranking, which keeps the two from disagreeing about what
+    a title says.
+    """
     if not classification.create_new or not existing:
         return classification
 
@@ -229,7 +251,7 @@ def dedup_create_new(classification: ClassificationResult, existing: list[Articl
     kept_new: list[CreateTarget] = []
 
     for item in classification.create_new:
-        new_words = _title_words(item.title)
+        new_words = tokens(item.title)
         if not new_words:
             kept_new.append(item)
             continue
@@ -237,12 +259,11 @@ def dedup_create_new(classification: ClassificationResult, existing: list[Articl
         best_match = None
         best_overlap = 0.0
         for art in existing:
-            art_words = _title_words(art.title)
-            if not art_words:
-                continue
-            overlap = len(new_words & art_words) / min(len(new_words), len(art_words))
-            if overlap > best_overlap:
-                best_overlap = overlap
+            # overlap() returns 0.0 for an untitled article, which never beats the
+            # 0.0 seed, so such an article is skipped without a guard of its own.
+            score = overlap(new_words, tokens(art.title))
+            if score > best_overlap:
+                best_overlap = score
                 best_match = art
 
         if best_overlap >= 0.7 and best_match:
