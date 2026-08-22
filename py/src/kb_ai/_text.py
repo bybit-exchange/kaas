@@ -46,7 +46,12 @@ def bigram_tokens(text: str) -> set[str]:
     separator. Narrowing the range would change tokens() too, and with it
     retrieval's ranking.
     """
-    lowered = text.lower()
+    # "&" is read as the word it stands for. Nine of the duplicate pairs in
+    # data/kb-knowledge are one article written once with "&" and once with "And",
+    # and without this they differ on BOTH sides -- which the caller reads as two
+    # different subjects rather than one rewording. tokens() deliberately does not
+    # do this: it would move retrieval's ranking, which is outside this branch.
+    lowered = text.lower().replace("&", " and ")
     out = set(_WORD_RE.findall(lowered))
     for run in _RUN_RE.findall(lowered):
         out.update(run[i:i + 2] for i in range(max(len(run) - 1, 1)))

@@ -437,10 +437,10 @@ def test_dedup_scores_an_untitled_pair_without_dividing_by_zero():
 
 
 def test_dedup_merges_at_exactly_the_threshold():
-    """0.7 is reachable, so the boundary decides real cases: ten tokens against
-    ten sharing seven scores exactly 0.7 and merges."""
-    new = "alpha beta gamma delta epsilon zeta eta theta iota kappa"
-    existing = "alpha beta gamma delta epsilon zeta eta lambda mu nu"
+    """0.7 is reachable, so the boundary decides real cases: seven tokens contained
+    in thirteen score exactly 0.7 and merge."""
+    existing = "alpha beta gamma delta epsilon zeta eta"
+    new = existing + " theta iota kappa lambda mu nu"
     assert cl._duplicate_score(new, existing) == 0.7
 
     out = cl.dedup_create_new(
@@ -556,17 +556,106 @@ def test_dedup_refuses_a_title_that_merely_contains_a_shorter_one(new_title):
     assert out.merge_into == []
 
 
-def test_dedup_refuses_two_teams_sharing_a_title_skeleton():
-    """Real pair from data/kb-knowledge: the shared text is boilerplate, so the
-    score has to fall under the threshold on size alone (0.67)."""
-    classification = ClassificationResult(create_new=[CreateTarget(
-        path="wiki/a.md", title="2026 H1 Infra AI & Framework Team OKR Decisions")])
-    existing = [article("Big Data Team 2026 H1 Okr Decisions", "wiki/bd.md")]
+@pytest.mark.parametrize("new_title,existing_title", [
+    # A substituted word: a sibling instance, not the same article twice.
+    ("2026 H1 Infra Team OKR Decisions", "2026 H1 Growth Team OKR Decisions"),
+    ("Checkout Outage Postmortem And Action Items",
+     "Search Outage Postmortem And Action Items"),
+    ("生产环境数据库迁移方案", "测试环境数据库迁移方案"),
+    ("一月复盘报告", "三月复盘报告"),
+    ("第一阶段上线计划", "第二阶段上线计划"),
+    ("Phase I Rollout Plan", "Phase II Rollout Plan"),
+    # Real pair from data/kb-knowledge, two articles the corpus keeps apart.
+    ("Bybit AI Agent (bybit-skill)", "Bybit AI Trading Skill"),
+    # An added word that inverts the claim rather than qualifying it.
+    ("不支持向量检索", "支持向量检索"),
+    ("Vector Search Not Supported", "Vector Search Supported"),
+    ("停用灰度发布", "启用灰度发布"),
+    ("Rate Limiting Disabled On Gateway", "Rate Limiting Enabled On Gateway"),
+    # A two-character marker, which is neither a token nor a bigram of the run it
+    # sits in, so only the substring arm of _polarity sees it.
+    ("取消灰度发布", "灰度发布"),
+])
+def test_dedup_refuses_titles_that_replace_or_invert_a_word(new_title, existing_title):
+    """Every one of these scores 0.75-0.91 on token overlap alone, and merging any
+    of them writes a document's knowledge into an article asserting something else.
+    """
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
 
-    out = cl.dedup_create_new(classification, existing)
+    out = cl.dedup_create_new(classification, [article(existing_title, "wiki/b.md")])
 
     assert len(out.create_new) == 1
     assert out.merge_into == []
+
+
+@pytest.mark.parametrize("new_title,existing_title", [
+    # "&" against "And" plus a trailing date -- 9 of the corpus's duplicate pairs.
+    ("Greenhouse ATS Launch & Interviewer Training (May 2026)",
+     "Greenhouse Ats Launch And Interviewer Training"),
+    ("R&D Cycle Metrics Data Quality Audit & JIRA Workflow Calibration Decisions",
+     "R And D Cycle Metrics Data Quality Audit And Jira Workflow Calibration Decisions"),
+    # Differs on both sides (Bi-Weekly against Biweekly) but is near-identical.
+    ("Global Architecture Bi-Weekly Meeting Decisions - Migration Risk & DR Drill Delay",
+     "Global Architecture Biweekly Meeting Decisions: Migration Risk And DR Drill Delay"),
+])
+def test_dedup_merges_real_rewordings_of_one_article(new_title, existing_title):
+    """Taken from data/kb-knowledge, where the same article was written twice."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
+
+    out = cl.dedup_create_new(classification, [article(existing_title, "wiki/b.md")])
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
+def test_dedup_merges_a_dated_instalment_into_an_undated_archive():
+    """The accepted price of matching a dated title to its undated twin. The two
+    shapes are lexically identical, so this is a consequence rather than a choice
+    between them -- pinned so that changing it has to be deliberate."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title="发言复盘 2026-07")])
+
+    out = cl.dedup_create_new(classification, [article("发言复盘", "wiki/archive.md")])
+
+    assert out.merge_into[0].path == "wiki/archive.md"
+
+
+def test_dedup_refuses_an_addition_that_swamps_the_original_title():
+    """Containment is not enough on its own: nine tokens inside seventeen score
+    0.69, below the threshold, so a short title cannot absorb a much longer one."""
+    short = "alpha beta gamma delta epsilon zeta eta theta iota"
+    long = short + " kappa lambda mu nu xi omicron pi rho"
+    assert round(cl._duplicate_score(long, short), 3) == 0.692
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=long)]),
+        [article(short, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+
+
+@pytest.mark.parametrize("new_title,existing_title,merges", [
+    # The gate reads numbers off tokens, so punctuation around a date is not a
+    # difference -- the corpus writes trailing dates both ways.
+    ("Weekly Report (2026-01)", "Weekly Report 2026-01", True),
+    # Fullwidth digits are digits. Contained in the other title, so nothing but
+    # the number gate can refuse this one.
+    ("复盘报告 ２０２６ Ｑ１", "复盘报告 ２０２６", False),
+    # One title's numbers being a subset of the other's is still a disagreement:
+    # a yearly summary is not the January instalment.
+    ("发言复盘 2026", "发言复盘 2026-01", False),
+    # Conservative on purpose: the same number written two ways reads as a
+    # conflict, which costs a duplicate rather than a misfiled document.
+    ("2026 Q1 Planning Review", "Q1 Planning Review", False),
+])
+def test_dedup_reads_numbers_through_the_tokeniser(new_title, existing_title, merges):
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new_title)]),
+        [article(existing_title, "wiki/b.md")])
+
+    assert bool(out.merge_into) is merges
 
 
 def test_dedup_breaks_a_tie_by_list_order():
