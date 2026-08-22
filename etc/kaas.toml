@@ -18,10 +18,12 @@ kb_dir = "./data"
 #
 # It is not the ceiling on concurrent LLM calls. A document longer than 16,000
 # characters splits into chunks and each phase fans out to min(chunks,
-# KB_WORKERS) further calls, so the worst case is the product: 12 x 16 = 192
-# in-flight calls at these defaults. KB_WORKERS has no setting here — it is read
-# from the environment, which the daemon inherits from this process, so export
-# KB_WORKERS to bound the second factor.
+# KB_WORKERS) further calls, so the ceiling is the product: 12 x 16 = 192
+# in-flight calls at these defaults. That is a ceiling and not a typical load —
+# real documents are short, and a 108-document reference corpus averaged 2.8
+# chunks, peaking around 34 concurrent calls. KB_WORKERS has no setting here: it
+# is read from the environment, which the daemon inherits from this process, so
+# export KB_WORKERS to bound the second factor.
 extract_workers = 12
 pipeline_concurrency = 2
 poll_interval_ms = 1000

@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import threading
 import time
+from datetime import datetime, timedelta, timezone
+from email.utils import format_datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -328,10 +330,15 @@ class TestRetryBackoff:
         skew in the wrong direction turns a 30s wait into hours. Falling back to
         the local backoff is the same place an absent header leaves us, so this
         pins the degradation as chosen rather than overlooked.
+
+        The date is computed rather than written down: a fixed one goes into the
+        past eventually, and a past date yields a negative delta that any
+        date-honouring implementation would floor to 0 -- leaving this test green
+        while it had stopped distinguishing anything.
         """
+        an_hour_out = format_datetime(datetime.now(timezone.utc) + timedelta(hours=1))
         mock_client.chat.completions.create.side_effect = [
-            _status_error(429, "slow down",
-                         headers={"retry-after": "Wed, 21 Oct 2026 07:28:00 GMT"}),
+            _status_error(429, "slow down", headers={"retry-after": an_hour_out}),
             _make_response(content="ok"),
         ]
 
@@ -380,9 +387,13 @@ class TestRetryBackoff:
 
         The deadline here is 150s away, which the 10s backoff plus the 60s margin
         clears comfortably -- so with the floor removed this retries and succeeds.
-        It is the server's 200s, capped to 120, that overruns it. Without this
-        test the guard is only ever exercised on the timeout and gateway paths,
-        where the wait cannot exceed the backoff.
+        It is the server's wait that overruns it. Without this test the guard is
+        only ever exercised on the timeout and gateway paths, where the wait
+        cannot exceed the backoff.
+
+        What this does NOT pin is the cap: 200s overruns a 150s deadline whether
+        it is capped to 120 or not, so raising _RETRY_AFTER_CAP_S leaves this
+        green. test_rate_limit_caps_an_outsized_retry_after is the cap's test.
         """
         mock_client.chat.completions.create.side_effect = [
             _status_error(429, "slow down", headers={"retry-after": "200"}),

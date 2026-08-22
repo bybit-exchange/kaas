@@ -354,9 +354,11 @@ api_key = "sk"
 	}
 }
 
-// TestExtractWorkersRaisedWithTheDaemonPoolIsAccepted is the other half: the rule
-// must refuse the unpaired raise only, not scaling past the shipped defaults.
-func TestExtractWorkersRaisedWithTheDaemonPoolIsAccepted(t *testing.T) {
+// TestExtractWorkersEqualToTheDaemonPoolIsAccepted is the other half, and it sits
+// exactly on the boundary on purpose: the rule is "at or above", so an equal pair
+// must load. A version at 40 against 32 also passes with the rule tightened to
+// reject equality, which would refuse the configuration both comments bless.
+func TestExtractWorkersEqualToTheDaemonPoolIsAccepted(t *testing.T) {
 	p := writeTOML(t, `
 [storage]
 driver = "sqlite"
@@ -365,17 +367,17 @@ driver = "sqlite"
 extract_workers = 32
 
 [ai.daemon]
-concurrency = 40
+concurrency = 32
 
 [llm]
 api_key = "sk"
 `)
 	c, err := Load(p)
 	if err != nil {
-		t.Fatalf("Load rejected a paired raise: %v", err)
+		t.Fatalf("Load rejected a daemon pool equal to the worker pool: %v", err)
 	}
-	if c.Worker.ExtractWorkers != 32 || c.AI.Daemon.Concurrency != 40 {
-		t.Fatalf("got extract_workers=%d concurrency=%d, want 32 and 40",
+	if c.Worker.ExtractWorkers != 32 || c.AI.Daemon.Concurrency != 32 {
+		t.Fatalf("got extract_workers=%d concurrency=%d, want 32 and 32",
 			c.Worker.ExtractWorkers, c.AI.Daemon.Concurrency)
 	}
 }

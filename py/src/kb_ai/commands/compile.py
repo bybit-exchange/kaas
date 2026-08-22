@@ -43,14 +43,19 @@ from kb_ai.core.merge import (
 from kb_ai.storage.lag import wiki_lag
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
-# How many documents this command works on at once when neither --workers nor
-# KB_WORKERS says otherwise. Deliberately NOT the queue route's 12
-# (worker.extract_workers in internal/config/config.go): the two routes are
-# tuned against different evidence, and this figure is what every published
-# measurement in docs/articles/ was taken at, so moving it would make those
-# numbers describe a configuration nobody ran. Whichever route is used, each
-# document fans out again inside extract.py to min(chunks, KB_WORKERS), so the
-# concurrent-call count is the product, not this.
+# Upper bound on how many documents this command works on at once when neither
+# --workers nor KB_WORKERS says otherwise; the pool is then floored at the work
+# actually queued, max(len(to_extract), len(to_write)).
+#
+# Deliberately NOT the queue route's 12 (worker.extract_workers in
+# internal/config/config.go), and the reason is the daemon rather than the
+# evidence: 16 is the better-measured of the two figures (359 documents through a
+# live gateway, 0 errors, docs/articles/kaas-distill-a-codebase.md:351), but a
+# queue-route ingest shares the daemon's 16-slot semaphore with chat, derive and
+# retrieval, so it stops at 12 to leave that margin. This command owns its own
+# process and needs no such margin. Whichever route runs, each document fans out
+# again inside extract.py to min(chunks, KB_WORKERS), so the concurrent-call
+# count is the product and not this.
 _DEFAULT_WORKERS = 16
 
 

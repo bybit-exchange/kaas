@@ -76,20 +76,30 @@ type WorkerConf struct {
 	// characters splits into chunks (chunk_content's 4,000-token default), and
 	// each phase then fans out to min(chunks, KB_WORKERS) calls of its own
 	// (py/src/kb_ai/core/extract.py:306,648,759; KB_WORKERS defaults to 16). So
-	// the worst case is the product, 12 x 16 = 192 in-flight calls, and that is
-	// the figure a gateway's rate limit is met with. KB_WORKERS is env-only and
-	// has no field here; the daemon inherits the backend's environment
-	// (internal/bridge/daemon.go passes os.Environ() through), so setting
-	// KB_WORKERS on the backend process is how the product gets bounded.
+	// the ceiling is the product, 12 x 16 = 192 in-flight calls. KB_WORKERS is
+	// env-only and has no field here; the daemon inherits the backend's
+	// environment (internal/bridge/daemon.go:98 passes os.Environ() through), so
+	// setting KB_WORKERS on the backend process is how that factor gets bounded.
 	//
-	// 12 is the highest figure this pipeline has actually been measured at
-	// against a live gateway (data/distill-2026-06.log: 108 documents, workers=12,
-	// zero extract errors), so it is preferred over matching the CLI's unmeasured
-	// 16. That run fanned out on top of 12 as well — the log records the resolved
-	// document count and not KB_WORKERS, so the product it survived is 12 x 12 at
-	// the least and 12 x 16 if the default held. Every worker holds a
-	// daemon slot for its whole pipeline, so AIConf.Daemon.Concurrency has to
-	// stay at or above this — enforced in validate(), not just by the defaults.
+	// 192 is a ceiling and not an observation, which is the distinction the
+	// sentence this comment replaced got wrong in the other direction. The
+	// fan-out is min(chunks, KB_WORKERS) and real documents are short:
+	// data/distill-2026-06.log's 108 documents hold 302 chunks (mean 2.8, max 9),
+	// so even its twelve largest together could only put 80 calls in flight, and
+	// the typical peak sat near 34. A corpus of uniformly long documents is what
+	// would reach 192.
+	//
+	// Why 12 and not the CLI's 16 — and it is NOT that 16 is unmeasured, which is
+	// the claim this comment used to make. 16 is the better-measured figure: the
+	// CLI ran 359 documents at KB_WORKERS unset through a live gateway with 0
+	// errors (docs/articles/kaas-distill-a-codebase.md:351). But the CLI owns its
+	// process, while a queue-route ingest shares the daemon's 16-slot semaphore
+	// with chat, derive and retrieval; at 16 a bulk ingest saturates it and locks
+	// interactive requests out for the length of the run. 12 buys that margin,
+	// and it is itself measured (data/distill-2026-06.log: 108 documents,
+	// workers=12, zero extract errors). Every worker holds a daemon slot for its
+	// whole pipeline, so AIConf.Daemon.Concurrency has to stay at or above this —
+	// enforced in validate(), not just by the defaults.
 	ExtractWorkers      int `json:"extract_workers,default=12"`
 	PipelineConcurrency int `json:"pipeline_concurrency,default=2"`
 	PollIntervalMS      int `json:"poll_interval_ms,default=1000"`
@@ -121,12 +131,10 @@ type MCPConf struct {
 type DaemonConf struct {
 	Command string   `json:"command,default=uv"`
 	Args    []string `json:"args,optional"`
-	// Concurrency sizes the daemon's in-flight semaphore. It has to cover
-	// WorkerConf.ExtractWorkers, since every dispatched document occupies a slot
-	// for its whole pipeline; below that the daemon, not the dispatcher, is what
-	// limits a bulk ingest. The margin over it leaves room for the KB-level calls
-	// that share the daemon — chat, derive, retrieval — so a bulk ingest does not
-	// lock interactive requests out.
+	// Concurrency sizes the daemon's in-flight semaphore, and validate() refuses a
+	// value below WorkerConf.ExtractWorkers. The reasoning for the pair, and for
+	// the margin that keeps chat, derive and retrieval out of a bulk ingest's way,
+	// lives on WorkerConf.ExtractWorkers — stated once so the two cannot drift.
 	Concurrency      int `json:"concurrency,default=16"`
 	WarmupTimeoutSec int `json:"warmup_timeout_sec,default=30"`
 	MaxRestarts      int `json:"max_restarts,default=5"`
