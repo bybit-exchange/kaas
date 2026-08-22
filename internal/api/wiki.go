@@ -154,8 +154,8 @@ func rebuildChildren(node *wikiTreeNode, dirs map[string]*wikiTreeNode) []wikiTr
 				result = append(result, rebuilt)
 			}
 		} else {
-			// 文件节点通过值拷贝保留全部字段（包括 Title、Tags）。
-			// 若未来修改此逻辑为重建文件节点，须确保所有字段被显式赋值。
+			// File nodes are copied by value to preserve all fields (including Title and Tags).
+			// If this logic is changed to reconstruct file nodes, all fields must be explicitly assigned.
 			result = append(result, child)
 		}
 	}

@@ -49,11 +49,11 @@ func main() {
 	case "-h", "--help", "help":
 		printUsage()
 	default:
-		// 以 - 开头 = flag，走 serve 兼容旧用法
+		// starts with - = flag, route to serve for backward compatibility
 		if len(os.Args[1]) > 0 && os.Args[1][0] == '-' {
 			os.Exit(runServe(os.Args[1:]))
 		}
-		// 否则未知子命令
+		// otherwise unknown subcommand
 		fmt.Fprintf(os.Stderr, "kaas: unknown command %q\n\n", os.Args[1])
 		printUsage()
 		os.Exit(1)
@@ -162,12 +162,12 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: kaas <command> [options]
 
 Commands:
-  serve     启动 KaaS 服务（默认命令）
-  version   显示版本信息
-  help      显示此帮助
+  serve     start the KaaS server (default command)
+  version   show version information
+  help      show this help
 
 Options for "serve":
-  -f <path>   配置文件路径（TOML）
+  -f <path>   config file path (TOML)
 
 Examples:
   kaas serve -f /path/to/kaas.toml

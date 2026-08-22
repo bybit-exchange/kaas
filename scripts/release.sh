@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# === 颜色输出 ===
+# === Colour output ===
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -11,45 +11,45 @@ info()  { printf '%b[INFO]%b %s\n' "$GREEN" "$NC" "$*"; }
 warn()  { printf '%b[WARN]%b %s\n' "$YELLOW" "$NC" "$*"; }
 die()   { printf '%b[ERROR]%b %s\n' "$RED" "$NC" "$*" >&2; exit 1; }
 
-# === 参数校验 ===
+# === Argument validation ===
 TAG="${1:-}"
 if [[ -z "$TAG" ]]; then
-    echo "用法: $0 <tag>"
-    echo "示例: $0 v0.1.0"
+    echo "Usage: $0 <tag>"
+    echo "Example: $0 v0.1.0"
     exit 1
 fi
 
 SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'
 if [[ ! "$TAG" =~ $SEMVER_REGEX ]]; then
-    die "tag 格式不合法: '$TAG'，需要 semver 格式如 v0.1.0 或 v1.0.0-rc.1"
+    die "tag format invalid: '$TAG'; expected semver like v0.1.0 or v1.0.0-rc.1"
 fi
 
-# === 定位仓库根目录 ===
+# === Locate repository root ===
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# === 环境检查 ===
+# === Environment checks ===
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    die "当前目录不是 git 仓库"
+    die "current directory is not a git repository"
 fi
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
-    die "工作区有未提交的变更，请先 commit 或 stash"
+    die "working tree has uncommitted changes; please commit or stash first"
 fi
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 if [[ "$CURRENT_BRANCH" != "main" ]]; then
-    die "当前分支为 '$CURRENT_BRANCH'，发布脚本只能在 main 分支运行"
+    die "current branch is '$CURRENT_BRANCH'; release script must run on main"
 fi
 
 git fetch origin --tags --quiet
 if git rev-parse "$TAG" >/dev/null 2>&1; then
-    die "tag '$TAG' 已存在，请使用不同的版本号"
+    die "tag '$TAG' already exists; use a different version number"
 fi
 
-info "准备发布 $TAG (基于 $CURRENT_BRANCH @ $(git rev-parse --short HEAD))"
+info "Preparing release $TAG (from $CURRENT_BRANCH @ $(git rev-parse --short HEAD))"
 
-# === 临时 worktree ===
+# === Temporary worktree ===
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/kaas-release.XXXXXX")
 
 cleanup() {
@@ -61,20 +61,20 @@ trap cleanup EXIT
 git worktree add --detach "$WORK_DIR" HEAD
 cd "$WORK_DIR"
 
-# === 创建 release 分支 ===
+# === Create release branch ===
 git checkout -B release
 
-# === 文件清理 ===
-info "清理内部文件..."
+# === File cleanup ===
+info "Cleaning up internal files..."
 
-# 内部文件/目录
+# Internal files/directories
 git rm -rf --ignore-unmatch \
     CLAUDE.md \
     .claude/ \
     .codegraph/ \
     2>/dev/null || true
 
-# docs/ 白名单保留（仅 README 实际引用的文件）
+# docs/ allowlist: keep only files actually referenced from README
 DOCS_KEEP="
 docs/agent-quickstart.md
 docs/assets/architecture.en.svg
@@ -88,33 +88,33 @@ git ls-files -- docs/ | while IFS= read -r f; do
     echo "$DOCS_KEEP" | grep -qxF "$f" || git rm -f --ignore-unmatch "$f" 2>/dev/null || true
 done
 
-info "文件清理完成"
+info "File cleanup done"
 
-# === 提交 ===
+# === Commit ===
 if git diff --cached --quiet; then
-    info "无文件变更，跳过提交"
+    info "No file changes, skipping commit"
 else
     git commit -m "release: ${TAG}
 
 Remove internal docs and dev-only files."
-    info "提交完成"
+    info "Commit done"
 fi
 
-# === 打 tag ===
+# === Tag ===
 git tag -a "$TAG" -m "Release $TAG"
-info "tag $TAG 已创建"
+info "tag $TAG created"
 
-# === 推送 ===
-info "推送 release 分支和 tag 到远端..."
+# === Push ===
+info "Pushing release branch and tag to remote..."
 git push origin release --force
 git push origin "$TAG"
 
-# === 完成 ===
+# === Done ===
 cd "$ROOT_DIR"
 
 echo ""
 info "========================================="
-info "发布完成!"
-info "  分支: release (已推送)"
-info "  Tag:  $TAG (已推送)"
+info "Release complete!"
+info "  Branch: release (pushed)"
+info "  Tag:  $TAG (pushed)"
 info "========================================="

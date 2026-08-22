@@ -1,12 +1,12 @@
 #!/bin/bash
-# smoke-test.sh — 安装后烟雾测试脚本
-# 用法: KAAS_BIN=/path/to/bin_dir/kaas bash scripts/smoke-test.sh
+# smoke-test.sh — post-install smoke test
+# Usage: KAAS_BIN=/path/to/bin_dir/kaas bash scripts/smoke-test.sh
 #
-# KAAS_BIN 应指向 BIN_DIR 中的 symlink（不是真实 binary 路径）
-# 测试项:
-#   T1: kaas version — 退出码 0, 输出含 "kaas"
-#   T2: kaas help — 退出码 0, 输出含 "serve"
-#   T3: KAAS_HOME 检测 — symlink 解析正确 + 标志文件存在
+# KAAS_BIN should point to the symlink in BIN_DIR (not the real binary path)
+# Tests:
+#   T1: kaas version — exits 0, output contains "kaas"
+#   T2: kaas help — exits 0, output contains "serve"
+#   T3: KAAS_HOME detection — symlink resolves correctly + marker file exists
 
 set -uo pipefail
 
@@ -23,13 +23,13 @@ fail() {
   FAIL=$((FAIL + 1))
 }
 
-# 检查 KAAS_BIN 是否设置
+# Check KAAS_BIN is set
 if [[ -z "${KAAS_BIN:-}" ]]; then
   echo "error: KAAS_BIN is not set"
   exit 1
 fi
 
-# T1: kaas version — 退出码 0, 输出含 "kaas"
+# T1: kaas version — exits 0, output contains "kaas"
 echo "--- T1: kaas version ---"
 if output=$("$KAAS_BIN" version 2>&1); then
   if echo "$output" | grep -qi "kaas"; then
@@ -41,7 +41,7 @@ else
   fail "T1: kaas version exited with non-zero code"
 fi
 
-# T2: kaas help — 退出码 0, 输出含 "serve"
+# T2: kaas help — exits 0, output contains "serve"
 echo "--- T2: kaas help ---"
 if output=$("$KAAS_BIN" help 2>&1); then
   if echo "$output" | grep -q "serve"; then
@@ -53,7 +53,7 @@ else
   fail "T2: kaas help exited with non-zero code"
 fi
 
-# T3: KAAS_HOME 检测 — symlink 解析 + 标志文件存在
+# T3: KAAS_HOME detection — symlink resolves + marker file exists
 echo "--- T3: KAAS_HOME detection ---"
 T3_PASSED=true
 
@@ -74,7 +74,7 @@ else
     T3_PASSED=false
   fi
 
-  # 通过 symlink 端到端调用验证
+  # End-to-end invocation via symlink
   if ! "$KAAS_BIN" version >/dev/null 2>&1; then
     fail "T3: end-to-end invocation via symlink failed"
     T3_PASSED=false
@@ -85,7 +85,7 @@ else
   fi
 fi
 
-# 汇总
+# Summary
 echo ""
 echo "=== Results: $PASS PASS, $FAIL FAIL ==="
 
