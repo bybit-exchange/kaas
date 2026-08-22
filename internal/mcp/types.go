@@ -2,7 +2,7 @@ package mcp
 
 import "encoding/json"
 
-// JSON-RPC 2.0 基础结构
+// JSON-RPC 2.0 base structures
 type JSONRPCRequest struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      json.RawMessage `json:"id,omitempty"`
