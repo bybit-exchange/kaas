@@ -1,0 +1,31 @@
+internal/config/config_test.go
+  9398b7b5671f95ea 6,329-381
+etc/kaas.toml
+  9398b7b5671f95ea 16-24,43-46
+py/README.md
+  9398b7b5671f95ea 122-123
+internal/config/config.go
+  9398b7b5671f95ea 71-92,237-246
+py/src/kb_ai/commands/compile.py
+  9398b7b5671f95ea 46-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "59637e5f2a07e036a86805aee024a63fb9004456",
+  "prompts": {
+    "9398b7b5671f95ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bdec563-4784-482a-b400-5079aa88440b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2080,
+      "total_deletions": 1535,
+      "accepted_lines": 602,
+      "overriden_lines": 0
+    }
+  }
+}
