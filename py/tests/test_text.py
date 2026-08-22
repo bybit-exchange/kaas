@@ -6,7 +6,7 @@ every overlap score to zero and silently turns "rank by relevance" into a no-op.
 """
 from __future__ import annotations
 
-from kb_ai._text import overlap, tokens
+from kb_ai._text import bigram_tokens, overlap, tokens
 
 
 def test_tokens_splits_ascii_words_on_punctuation():
@@ -60,3 +60,26 @@ def test_overlap_is_zero_when_either_set_is_empty():
 
 def test_overlap_of_chinese_query_and_title_is_nonzero():
     assert overlap(tokens("熔断器冷却时间调优"), tokens("熔断器冷却时间怎么调")) > 0.0
+
+
+def test_bigram_tokens_pairs_adjacent_characters_of_a_chinese_run():
+    assert bigram_tokens("数据安全") == {"数据", "据安", "安全"}
+
+
+def test_bigram_tokens_separates_titles_that_share_every_character():
+    """The reason the function exists: on single characters these two titles are
+    a perfect match under a smaller-set normalisation, which merged them."""
+    a, b = bigram_tokens("数据安全"), bigram_tokens("安全数据库")
+    assert len(a & b) / max(len(a), len(b)) < 0.7
+    assert len(tokens("数据安全") & tokens("安全数据库")) / len(tokens("数据安全")) == 1.0
+
+
+def test_bigram_tokens_keeps_a_one_character_run_whole():
+    """A run with no bigram must not vanish, or a title made of single characters
+    between Latin words is unmatchable against itself."""
+    assert bigram_tokens("网") == {"网"}
+    assert bigram_tokens("AI 网 gateway") == {"ai", "网", "gateway"}
+
+
+def test_bigram_tokens_keeps_word_tokens_as_words():
+    assert bigram_tokens("Cost-Review 2026-01") == {"cost", "review", "2026", "01"}

@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime, timezone
-from textwrap import indent
 
-from kb_ai._text import overlap, tokens
+from kb_ai._text import bigram_tokens, overlap, tokens
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
@@ -139,7 +139,11 @@ _ENTRY_SEPARATOR = ",\n"
 
 
 def _entry_block(entry: dict) -> str:
-    return indent(json.dumps(entry, ensure_ascii=False, indent=2), "  ")
+    # Indented by hand rather than with textwrap.indent, which breaks lines on
+    # everything str.splitlines() accepts: a title carrying U+0085, U+2028 or
+    # U+2029 (ensure_ascii=False emits all three raw) came back with two spaces
+    # injected into it, so the model read a title the article does not have.
+    return "  " + json.dumps(entry, ensure_ascii=False, indent=2).replace("\n", "\n  ")
 
 
 def _fit_articles_to_budget(articles: list[dict], budget_chars: int) -> str:
@@ -235,14 +239,67 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
+# Measured over the 675 titles of data/kb-knowledge, against the pre-fix rule as
+# the baseline for what counts as a regression: the rule below merges 16 pairs
+# where the pre-fix one merged 46. 9 pairs are merged by both, 7 only by this one
+# (all same-subject -- capitalisation variants and this corpus's near-duplicate
+# "AI-Native workflow" cluster), and 37 that the pre-fix rule merged are now
+# refused, which is where the false merges lived.
+_DUPLICATE_THRESHOLD = 0.7
+
+# A title may name the same article as one at most half again its size. Beyond
+# that the shorter title is a prefix or a boilerplate skeleton rather than the
+# same subject: 上海 was fully contained in 海上运输, and two different teams'
+# OKR articles share `2026 H1 ... Team OKR Decisions`.
+_LENGTH_RATIO = 1.5
+
+_NUMERIC_TOKEN = re.compile(r"\d+")
+
+
+def _numbers(title: str) -> set[str]:
+    return {t for t in tokens(title) if _NUMERIC_TOKEN.fullmatch(t)}
+
+
+def _duplicate_score(new_title: str, existing_title: str) -> float:
+    """How strongly two titles claim to name the same article.
+
+    Still the ranking's shape -- shared tokens over the smaller set, so a title
+    that adds a qualifier ("Vector Search Basics" beside "Vector Search") is
+    caught, which is the collision the cross-group dedup phase exists for -- but
+    with two guards, each closing a false merge this branch's tokeniser change
+    would otherwise have introduced:
+
+    Numbers gate the comparison. A number in a title is a period, a version or a
+    date, so two titles alike apart from their numbers are consecutive instances
+    of a series, not one article named twice -- `发言复盘 2026-01` against
+    `发言复盘 2026-03` scored 0.83 and merged March's knowledge into January's
+    article. Splitting the date into its own tokens is what pushed this class over
+    the threshold, so the tokeniser change has to pay for it.
+
+    And the two titles must be comparable in length (_LENGTH_RATIO), because
+    containment alone is weak evidence: every character of 上海 appears in
+    海上运输.
+    """
+    if _numbers(new_title) != _numbers(existing_title):
+        return 0.0
+    a, b = bigram_tokens(new_title), bigram_tokens(existing_title)
+    if not a or not b:
+        return 0.0
+    if max(len(a), len(b)) > _LENGTH_RATIO * min(len(a), len(b)):
+        return 0.0
+    return len(a & b) / min(len(a), len(b))
+
+
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:
     """Turn a create that duplicates an existing title into a merge.
 
     This is the backstop for a classification that missed its merge target, and
-    it read titles through the same ASCII-only tokeniser as the ranking above --
-    so on a Chinese KB it scored every pair 0.0 and never fired. It now shares
-    kb_ai._text with the ranking, which keeps the two from disagreeing about what
-    a title says.
+    it read titles through an ASCII-only tokeniser -- so on a Chinese KB it scored
+    every pair 0.0 and never fired. It now scores through _duplicate_score, which
+    shares kb_ai._text with the ranking but is deliberately stricter: this
+    function writes a document's knowledge into an article it did not name, and
+    nothing later undoes that, while a missed duplicate leaves an article a later
+    compile can still merge.
     """
     if not classification.create_new or not existing:
         return classification
@@ -251,22 +308,18 @@ def dedup_create_new(classification: ClassificationResult, existing: list[Articl
     kept_new: list[CreateTarget] = []
 
     for item in classification.create_new:
-        new_words = tokens(item.title)
-        if not new_words:
-            kept_new.append(item)
-            continue
-
         best_match = None
         best_overlap = 0.0
         for art in existing:
-            # overlap() returns 0.0 for an untitled article, which never beats the
-            # 0.0 seed, so such an article is skipped without a guard of its own.
-            score = overlap(new_words, tokens(art.title))
+            # _duplicate_score returns 0.0 when either title tokenises to nothing,
+            # which never beats the 0.0 seed -- so an untitled article, and an
+            # untitled create, need no guard of their own.
+            score = _duplicate_score(item.title, art.title)
             if score > best_overlap:
                 best_overlap = score
                 best_match = art
 
-        if best_overlap >= 0.7 and best_match:
+        if best_overlap >= _DUPLICATE_THRESHOLD and best_match:
             merge_into.append(MergeTarget(
                 path=best_match.path,
                 reason=f"dedup: title overlap {best_overlap:.0%} with existing article",

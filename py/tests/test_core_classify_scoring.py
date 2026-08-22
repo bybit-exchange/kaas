@@ -137,6 +137,33 @@ def test_fit_articles_skips_an_oversized_entry_and_keeps_the_rest():
     assert [e["title"] for e in kept] == ["Small"]
 
 
+def test_fit_articles_charges_the_separator_between_entries():
+    """With many small entries the separators are most of the slack, so charging
+    them wrong admits an entry the budget cannot hold. Sized for 30 of 80: a fit
+    that charges one character per separator instead of two keeps 31 and overruns.
+    """
+    articles = [{"title": f"t{i}"} for i in range(80)]
+    room_for_30 = len(json.dumps(articles[:30], ensure_ascii=False, indent=2))
+
+    out = cl._fit_articles_to_budget(articles, room_for_30)
+
+    assert len(json.loads(out)) == 30
+    assert len(out) <= room_for_30
+
+
+@pytest.mark.parametrize("char", ["", " ", " "])
+def test_fit_articles_keeps_titles_holding_line_break_codepoints_intact(char):
+    """ensure_ascii=False emits these raw, and str.splitlines() treats all three
+    as line breaks -- indenting through it injected two spaces into the title, so
+    the model read a title no article has."""
+    articles = [{"title": f"网关{char}评审", "path": "wiki/a.md", "summary": "s"}]
+
+    out = cl._fit_articles_to_budget(articles, 10_000)
+
+    assert out == json.dumps(articles, ensure_ascii=False, indent=2)
+    assert json.loads(out)[0]["title"] == f"网关{char}评审"
+
+
 def test_fit_articles_charges_the_array_brackets_to_the_first_entry():
     """The rendered array costs four characters more than its entries, so an
     entry that fits only by ignoring them must be dropped -- otherwise the fit
@@ -338,18 +365,60 @@ def test_dedup_converts_a_chinese_near_duplicate_into_a_merge():
     assert out.merge_into[0].path == "wiki/concept/gateway-cost.md"
 
 
-def test_dedup_keeps_a_distinct_chinese_article():
-    """The other direction, and the one that decides whether the threshold is
-    safe: two unrelated Chinese titles sharing a character must stay separate."""
+@pytest.mark.parametrize("new_title,existing_title", [
+    # Every character of the shorter title appears in the longer one, so single
+    # characters normalised by the smaller set scored these a perfect match.
+    ("上海", "海上运输"),
+    ("数据安全", "安全数据库"),
+    ("成本评审流程", "成员入职指南"),
+])
+def test_dedup_keeps_distinct_chinese_articles(new_title, existing_title):
+    """The direction that decides whether the threshold is safe: a Chinese title
+    made of another's characters is a different article, and merging it writes a
+    document's knowledge into an article that never claimed the subject."""
     classification = ClassificationResult(
-        create_new=[CreateTarget(path="wiki/a.md", title="成本评审流程")],
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)],
     )
-    existing = [article("成员入职指南", "wiki/b.md")]
 
-    out = cl.dedup_create_new(classification, existing)
+    out = cl.dedup_create_new(classification, [article(existing_title, "wiki/b.md")])
 
     assert len(out.create_new) == 1
     assert out.merge_into == []
+
+
+@pytest.mark.parametrize("new_title,existing_title", [
+    ("发言复盘 2026-03", "发言复盘 2026-01"),
+    ("Weekly Report 2026-03", "Weekly Report 2026-01"),
+    ("API v3 Design", "API v2 Design"),
+])
+def test_dedup_keeps_the_next_instance_of_a_numbered_series(new_title, existing_title):
+    """Splitting a date into its own tokens is what makes these titles look alike,
+    so the tokeniser change has to pay for the consequence: titles differing only
+    in their numbers are consecutive instances of a series."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)],
+    )
+
+    out = cl.dedup_create_new(classification, [article(existing_title, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []
+
+
+def test_dedup_merges_at_exactly_the_threshold():
+    """0.7 is reachable, so the boundary decides real cases: ten tokens against
+    ten sharing seven scores exactly 0.7 and merges."""
+    new = "alpha beta gamma delta epsilon zeta eta theta iota kappa"
+    existing = "alpha beta gamma delta epsilon zeta eta lambda mu nu"
+    assert cl._duplicate_score(new, existing) == 0.7
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new)]),
+        [article(existing, "wiki/b.md")],
+    )
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/b.md"
 
 
 def test_dedup_keeps_a_distinct_new_article():
@@ -419,22 +488,49 @@ def test_dedup_threshold_is_seventy_percent():
     assert out_above.create_new == []
 
 
-def test_dedup_treats_a_subset_title_as_a_full_match():
-    """Overlap is normalised by the smaller word set, so an existing title that
-    is a strict subset of the new one also scores 1.0. Ties are broken by list
-    order, so the first candidate wins rather than the exact match.
-    """
+def test_dedup_merges_a_title_that_only_adds_a_qualifier():
+    """The collision the cross-group dedup phase exists for: two groups name the
+    same subject and one adds a word."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title="Vector Search Basics")])
+
+    out = cl.dedup_create_new(classification, [article("Vector Search", "wiki/vs.md")])
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/vs.md"
+
+
+@pytest.mark.parametrize("new_title", [
+    "Pricing Model",                # 2 tokens against 1 -- ratio 2.0
+    "Pricing Model Review Notes",   # ratio 4.0
+])
+def test_dedup_refuses_a_title_far_longer_than_the_one_it_contains(new_title):
+    """Containment alone is weak evidence, so the two titles must be comparable in
+    length: otherwise a short generic title absorbs every article that starts with
+    it, and every character of 上海 sits inside 海上运输."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
+
+    out = cl.dedup_create_new(classification, [article("Pricing", "wiki/partial.md")])
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []
+
+
+def test_dedup_breaks_a_tie_by_list_order():
+    """Two candidates scoring the same keep the first, so the outcome does not
+    depend on dict or filesystem ordering."""
     classification = ClassificationResult(
         create_new=[CreateTarget(path="wiki/a.md", title="Pricing Model")])
     existing = [
-        article("Pricing", "wiki/partial.md"),
-        article("Pricing Model", "wiki/exact.md"),
+        article("Pricing Model", "wiki/first.md"),
+        article("Pricing Model", "wiki/second.md"),
     ]
 
     out = cl.dedup_create_new(classification, existing)
 
     assert out.create_new == []
-    assert out.merge_into[0].path == "wiki/partial.md"
+    assert out.merge_into[0].path == "wiki/first.md"
 
 
 def test_dedup_handles_several_creates():

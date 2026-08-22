@@ -21,11 +21,30 @@ import re
 # ("the cooldown"), never the whole of cb_cooldown_sec.
 _SCRIPTIO_CONTINUA = r"\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
 _TOKEN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]|[^\W_{_SCRIPTIO_CONTINUA}]+")
+_RUN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]+")
+_WORD_RE = re.compile(rf"[^\W_{_SCRIPTIO_CONTINUA}]+")
 
 
 def tokens(text: str) -> set[str]:
     """Tokenise text for lexical overlap scoring."""
     return set(_TOKEN_RE.findall(text.lower()))
+
+
+def bigram_tokens(text: str) -> set[str]:
+    """Tokenise for deciding whether two texts say the same thing.
+
+    Same word tokens as tokens(), but each run of break-less script becomes its
+    character bigrams instead of single characters. Single characters are the
+    right unit for ranking, where a loose match only changes an ordering, and the
+    wrong one for a decision: \u6570\u636e\u5b89\u5168 and \u5b89\u5168\u6570\u636e\u5e93 share every character of the
+    shorter title, so on unigrams they score a perfect match, while on bigrams
+    they share \u5b89\u5168 and \u6570\u636e out of four and no longer do. A one-character run has
+    no bigram and is kept whole.
+    """
+    out = set(_WORD_RE.findall(text.lower()))
+    for run in _RUN_RE.findall(text.lower()):
+        out.update(run[i:i + 2] for i in range(max(len(run) - 1, 1)))
+    return out
 
 
 def overlap(a: set[str], b: set[str]) -> float:
