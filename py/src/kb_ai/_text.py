@@ -19,10 +19,10 @@ import re
 # The underscore is excluded even though \w carries it: reference-table keys reach
 # a catalog line as snake_case identifiers, and a question names one part of them
 # ("the cooldown"), never the whole of cb_cooldown_sec.
-_SCRIPTIO_CONTINUA = r"\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+_SCRIPTIO_CONTINUA = r"぀-ヿ㐀-䶿一-鿿豈-﫿"
 _TOKEN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]|[^\W_{_SCRIPTIO_CONTINUA}]+")
 _RUN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]+")
-_WORD_RE = re.compile(rf"[^\W_{_SCRIPTIO_CONTINUA}]+")
+_CHUNK_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]+|[^\W_{_SCRIPTIO_CONTINUA}]+")
 
 
 def tokens(text: str) -> set[str]:
@@ -30,32 +30,44 @@ def tokens(text: str) -> set[str]:
     return set(_TOKEN_RE.findall(text.lower()))
 
 
-def bigram_tokens(text: str) -> set[str]:
-    """Tokenise for deciding whether two texts say the same thing.
+def bigram_sequence(text: str) -> list[str]:
+    """Tokenise for deciding whether two texts say the same thing, in order.
 
     Same word tokens as tokens(), but each run of break-less script becomes its
     character bigrams instead of single characters. Single characters are the
     right unit for ranking, where a loose match only changes an ordering, and the
-    wrong one for a decision: \u6570\u636e\u5b89\u5168 and \u5b89\u5168\u6570\u636e\u5e93 share every character of the
+    wrong one for a decision: 数据安全 and 安全数据库 share every character of the
     shorter title, so on unigrams they score a perfect match, while on bigrams
-    they share \u5b89\u5168 and \u6570\u636e out of four and no longer do. A one-character run has
-    no bigram and is kept whole.
+    they share 安全 and 数据 -- two of the shorter title's three -- and no longer
+    do. A one-character run has no bigram and is kept whole.
 
-    Known limitation, inherited from _SCRIPTIO_CONTINUA: U+30FB (\u30fb) is inside the
+    Reading order is preserved, and repeats are kept, because a caller comparing
+    two titles needs both: as sets, 腾讯云到阿里云迁移方案 and 阿里云到腾讯云迁移方案
+    are identical while saying opposite things.
+
+    "&" is read as the word it stands for. Nine of the duplicate pairs in
+    data/kb-knowledge are one article written once with "&" and once with "And",
+    and without this they differ on BOTH sides -- which core.classify reads as two
+    different subjects rather than one rewording. tokens() deliberately does not
+    do this: it would move retrieval's ranking, which is outside this change.
+
+    Known limitation, inherited from _SCRIPTIO_CONTINUA: U+30FB (・) is inside the
     range, so a katakana phrase written with it yields bigrams straddling the
     separator. Narrowing the range would change tokens() too, and with it
     retrieval's ranking.
     """
-    # "&" is read as the word it stands for. Nine of the duplicate pairs in
-    # data/kb-knowledge are one article written once with "&" and once with "And",
-    # and without this they differ on BOTH sides -- which the caller reads as two
-    # different subjects rather than one rewording. tokens() deliberately does not
-    # do this: it would move retrieval's ranking, which is outside this branch.
-    lowered = text.lower().replace("&", " and ")
-    out = set(_WORD_RE.findall(lowered))
-    for run in _RUN_RE.findall(lowered):
-        out.update(run[i:i + 2] for i in range(max(len(run) - 1, 1)))
+    out: list[str] = []
+    for chunk in _CHUNK_RE.findall(text.lower().replace("&", " and ")):
+        if _RUN_RE.fullmatch(chunk):
+            out.extend(chunk[i:i + 2] for i in range(max(len(chunk) - 1, 1)))
+        else:
+            out.append(chunk)
     return out
+
+
+def bigram_tokens(text: str) -> set[str]:
+    """bigram_sequence as a set, for scoring rather than ordering."""
+    return set(bigram_sequence(text))
 
 
 def overlap(a: set[str], b: set[str]) -> float:

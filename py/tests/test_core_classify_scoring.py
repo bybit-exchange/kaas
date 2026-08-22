@@ -622,6 +622,47 @@ def test_dedup_merges_real_rewordings_of_one_article(new_title, existing_title):
     assert out.merge_into[0].path == "wiki/b.md"
 
 
+@pytest.mark.parametrize("new_title,existing_title", [
+    # Same tokens, opposite meaning: set containment cannot see a swap.
+    ("腾讯云到阿里云迁移方案", "阿里云到腾讯云迁移方案"),
+    ("主库切换到备库演练", "备库切换到主库演练"),
+    ("Migration From Redis To Kafka Decisions", "Migration From Kafka To Redis Decisions"),
+])
+def test_dedup_refuses_a_transposition(new_title, existing_title):
+    """Both titles carry exactly the same tokens, so every set-based score reads
+    1.0. Only reading order separates them."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new_title)]),
+        [article(existing_title, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []
+
+
+def test_dedup_merges_an_insertion_in_the_middle_of_a_title():
+    """Subsequence, not prefix: the corpus's rewordings drop and add words inside
+    the title, not only at the end."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(
+            path="wiki/a.md",
+            title="OpenClaw Request Processing Pipeline - Performance Analysis & Latency Work")]),
+        [article("Openclaw Request Pipeline Performance Analysis", "wiki/b.md")])
+
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
+def test_dedup_reads_a_word_with_digits_in_the_middle_as_a_word():
+    """`p2p` and `top5` are not periods or versions. Reading every digit-bearing
+    token as a number refused this real pair from data/kb-knowledge."""
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(
+            path="wiki/a.md",
+            title="Customer Service Bot TOP5 Scenario Integration Decisions (P2P)")]),
+        [article("Customer Service Bot Top5 Scenario Integration Decisions", "wiki/b.md")])
+
+    assert out.merge_into[0].path == "wiki/b.md"
+
+
 def test_dedup_merges_when_the_new_title_is_the_shorter_one():
     """The other direction of containment: the classifier proposed the plain title
     while a qualified article already exists."""
@@ -652,6 +693,21 @@ def test_dedup_refuses_a_respelling_that_splits_a_token(new_title, existing_titl
 
 
 @pytest.mark.parametrize("marker", sorted(cl._POLARITY_MARKERS))
+def test_a_polarity_marker_on_the_existing_title_refuses_a_merge(marker):
+    """The gate compares both sides, so the marker being on the ARTICLE rather than
+    on the proposed create must refuse just as firmly -- otherwise
+    `支持向量检索` merges into an existing `不支持向量检索`."""
+    new = "灰度发布方案" if not marker.isascii() else "Gateway Rollout Plan"
+    existing = f"{marker}{new}" if not marker.isascii() else f"{marker} {new}"
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title=new)]),
+        [article(existing, "wiki/b.md")])
+
+    assert len(out.create_new) == 1
+
+
+@pytest.mark.parametrize("marker", sorted(cl._POLARITY_MARKERS))
 def test_every_polarity_marker_refuses_a_merge(marker):
     """A marker nothing exercises is a marker nobody can justify: each one has to
     turn an otherwise-containing pair into a refusal. The list is small because a
@@ -672,12 +728,14 @@ def test_polarity_does_not_match_an_ascii_marker_inside_a_word():
     """`no` and `not` sit inside `Notification`, so an ASCII marker is matched as a
     token, not as a substring. Otherwise adding the word `Notification` to a title
     would read as negating it."""
-    assert cl._polarity("Notification Pipeline Design") == set()
+    # Lowercase on purpose: _polarity's substring arm reads the raw title, so a
+    # capitalised fixture would pass even if the arm stopped excluding ASCII.
+    assert cl._polarity("notification pipeline design") == set()
 
     out = cl.dedup_create_new(
         ClassificationResult(create_new=[
-            CreateTarget(path="wiki/a.md", title="Notification Pipeline Design")]),
-        [article("Pipeline Design", "wiki/b.md")])
+            CreateTarget(path="wiki/a.md", title="notification pipeline design")]),
+        [article("pipeline design", "wiki/b.md")])
 
     assert out.merge_into[0].path == "wiki/b.md"
 

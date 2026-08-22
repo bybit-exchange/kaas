@@ -6,7 +6,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
-from kb_ai._text import bigram_tokens, overlap, tokens
+from kb_ai._text import bigram_sequence, overlap, tokens
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
@@ -239,37 +239,56 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
-# Measured over the 675 titles of data/kb-knowledge: this rule merges 22 pairs
-# against the pre-branch ASCII rule's 46. All 22 were read: 15 are one article
+# Measured over the 675 titles of data/kb-knowledge: this rule merges 23 pairs
+# against the pre-branch ASCII rule's 46. All 23 were read: 16 are one article
 # titled twice (capitalisation, "&" against "And", or a trailing date), 1 is this
 # corpus's near-duplicate "AI-Native workflow" cluster, and 6 are a rolling 发言复盘
-# article beside its dated instalments (see the docstring below). The number gate
-# changes none of those 22 -- on this corpus it is inert, and it is kept for the
-# series shape the docstring names, which this corpus happens not to contain.
+# article beside its dated instalments (see the docstring below). Deleting the number
+# gate adds one more merge and that pair is a genuine duplicate, so the gate is not
+# free here: it is kept for the series shape the docstring names, and _NUMBER_TOKEN is
+# narrow enough that the `p2p` and `top5` in that pair's titles are not numbers.
 _DUPLICATE_THRESHOLD = 0.7
 
 # A one-token difference is enough to invert a claim, and these are the tokens that
-# do it. Deliberately small, and every entry is exercised by a test: an unpaired
-# marker refuses a merge, so a missing entry leaves the pre-branch behaviour rather
-# than creating a new failure, while a spurious match costs a real duplicate. That
-# last cost is measured, which is why `rollback`, `revert` and `non` are NOT here --
-# they appear in 28 of this corpus's 675 titles as ordinary domain nouns ("Abnormal
-# Trade Rollback Methodology", "Non-Middleware Integration Scope").
+# do it. Every entry is exercised by a test, and the list stays short because a
+# spurious match costs a real duplicate: `rollback`, `revert` and `non` are NOT here
+# because they appear in 28 of this corpus's 675 titles as ordinary domain nouns
+# ("Abnormal Trade Rollback Methodology", "Non-Middleware Integration Scope"), while
+# none of the entries below appears in any of the 675.
+#
+# An omission is NOT free on the Chinese side, which is why the list carries more
+# than a negation particle: before this branch every CJK pair scored 0.0, so a
+# marker missing here creates a merge that could not happen before -- measured,
+# 拒绝跨境数据传输方案 lands in 跨境数据传输方案 at 0.88 without an entry for 拒绝.
 _POLARITY_MARKERS = frozenset({
-    "不", "非", "无", "未", "停", "禁", "取消",
-    "not", "no", "without", "disable", "disabled",
+    "不", "非", "无", "未", "停", "禁", "取消", "拒绝", "反对", "废止", "撤销",
+    "not", "no", "without", "disable", "disabled", "reject", "rejected",
 })
 
-# Any token carrying a digit is a number: `2026`, `01`, but also `q1`, `v2`, `h1`.
-# Restricting this to all-digit tokens let `2026 Q1 Planning Review` merge into
-# `2026 Q2 Planning Review`.
-_DIGIT = re.compile(r"\d")
+# The shapes a period or a version takes: bare digits (`2026`, `01`) and a one- or
+# two-letter prefix over digits (`q1`, `v2`, `h1`). Reading every digit-bearing
+# token as a number instead made `p2p` and `top5` numbers, which refused a real
+# duplicate in data/kb-knowledge; reading only bare digits let `2026 Q1 Planning
+# Review` pass as the same article as `Q1 Planning Review`.
+_NUMBER_TOKEN = re.compile(r"\d+|[^\W\d_]{1,2}\d+")
 
 
 def _numbers(title: str) -> set[str]:
     # Read off tokens rather than off the raw string, so `(2026-01)` and `2026 01`
     # carry the same numbers -- the corpus writes trailing dates both ways.
-    return {t for t in tokens(title) if _DIGIT.search(t)}
+    return {t for t in tokens(title) if _NUMBER_TOKEN.fullmatch(t)}
+
+
+def _is_subsequence(shorter: list[str], longer: list[str]) -> bool:
+    """Do `shorter`'s tokens appear in `longer`, in the same order?
+
+    Set containment is not enough, because it cannot see a swap: as sets,
+    腾讯云到阿里云迁移方案 and 阿里云到腾讯云迁移方案 are equal and mean opposite
+    things. Order costs nothing here -- every rewording the corpus actually
+    contains keeps its words in sequence and only inserts.
+    """
+    it = iter(longer)
+    return all(token in it for token in shorter)
 
 
 def _polarity(title: str) -> set[str]:
@@ -284,8 +303,9 @@ def _polarity(title: str) -> set[str]:
 def _duplicate_score(new_title: str, existing_title: str) -> float:
     """How strongly two titles claim to name the same article.
 
-    In one sentence: a duplicate is the same title with words ADDED, and nothing
-    replaced -- no substituted word, no disagreeing number, no unpaired negation.
+    In one sentence: a duplicate is the same title with words ADDED IN PLACE, and
+    nothing replaced -- no substituted word, no reordering, no disagreeing number,
+    no unpaired negation.
 
     This is not the ranking's score, and the difference is the cost of being wrong.
     Ranking divides by the smaller token set because it wants recall and a loose
@@ -318,26 +338,33 @@ def _duplicate_score(new_title: str, existing_title: str) -> float:
     - An addition can change the subject without carrying a marker, so
       `Gateway Migration Plan Deprecation` still merges into `Gateway Migration
       Plan` (0.86), as does 全球数据安全规范 into 数据安全规范 (0.83). Separating
-      those needs meaning, not tokens.
+      those needs meaning, not tokens. One of the corpus's 23 merges is this shape
+      rather than one article twice (`Openclaw Agent Memory Transfer &
+      Offboarding Archival Decisions` at 0.77, whose sources are disjoint from
+      those of `Openclaw Agent Memory Transfer Decisions`); the pre-branch rule
+      merged it too.
     - A re-spelling that splits a token is a substitution and is refused:
-      `May 6` against `May6`, `Bi-Weekly` against `Biweekly`. That costs a
-      duplicate, which is the cheap direction.
+      `May 6` against `May6`, `Bi-Weekly` against `Biweekly`. Of the 30 pairs the
+      pre-branch rule merged and this one refuses, 5 are genuinely one article and
+      fall in this class or under the threshold. That costs a duplicate, which is
+      the cheap direction.
     - The relation is not transitive, and _phase_dedup walks it pairwise, so a
       short generic title acts as a hub: `Big Data Team OKR Decisions` and
       `DBA Team OKR Decisions` score 0.0 against each other yet both merge into
-      `Team OKR Decisions`. 15 such triples exist in data/kb-knowledge, 6 of them
-      the 发言复盘 archive named above.
+      `Team OKR Decisions`. That example is constructed; the 15 hub triples in
+      data/kb-knowledge all belong to the one 发言复盘 archive named above.
     """
     new_numbers, existing_numbers = _numbers(new_title), _numbers(existing_title)
     if new_numbers and existing_numbers and new_numbers != existing_numbers:
         return 0.0
     if _polarity(new_title) != _polarity(existing_title):
         return 0.0
-    a, b = bigram_tokens(new_title), bigram_tokens(existing_title)
-    if not a or not b:
+    new_seq, existing_seq = bigram_sequence(new_title), bigram_sequence(existing_title)
+    if not new_seq or not existing_seq:
         return 0.0
-    if not (a <= b or b <= a):
+    if not _is_subsequence(new_seq, existing_seq) and not _is_subsequence(existing_seq, new_seq):
         return 0.0
+    a, b = set(new_seq), set(existing_seq)
     return 2 * len(a & b) / (len(a) + len(b))
 
 
