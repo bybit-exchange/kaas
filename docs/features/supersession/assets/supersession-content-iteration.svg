@@ -1,0 +1,83 @@
+<svg viewBox="0 0 860 901" width="860" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+    .code { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+  </defs>
+
+  <text x="430" y="32" font-size="16" fill="#1e293b" text-anchor="middle">How one claim iterates: the closed-loop progress figure (case P7, row C8)</text>
+
+  <!-- layer 1: dashed group -->
+  <!-- outcomes group: x=55, y=432, w=750, h=421, right=805, bottom=853 -->
+  <rect x="55" y="432" width="750" height="421" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6,4"/>
+
+  <!-- layer 2: connectors -->
+  <path d="M228,129 C 228,148 320,150 320,159" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <path d="M632,129 C 632,148 540,150 540,159" fill="none" stroke="#3b82f6" stroke-width="1.5" marker-end="url(#arrow-blue)"/>
+  <path d="M430,333 L 430,342" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M430,412 L 430,421" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+
+  <!-- layer 3: boxes and text -->
+  <!-- the two source documents -->
+  <rect x="40" y="52" width="375" height="72" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="228" y="74" font-size="12" fill="#1e40af" text-anchor="middle">Document v1 — dated 2026-04-09</text>
+  <text x="228" y="94" font-size="10" fill="#1e40af" text-anchor="middle">closed loop (identify→analyze→track→review): 0%</text>
+  <text x="228" y="112" font-size="10" fill="#1e40af" text-anchor="middle">the date rides in raw/ frontmatter (RT2, RT9)</text>
+
+  <rect x="445" y="52" width="375" height="72" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1"/>
+  <text x="632" y="74" font-size="12" fill="#1e40af" text-anchor="middle">Document v2 — dated 2026-05-14</text>
+  <text x="632" y="94" font-size="10" fill="#1e40af" text-anchor="middle">the same loop, now: 50%</text>
+  <text x="632" y="112" font-size="10" fill="#1e40af" text-anchor="middle">same title, so one lineage group (RP3, RP4)</text>
+
+  <!-- writer payload -->
+  <rect x="170" y="170" width="520" height="158" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+  <text x="430" y="192" font-size="12" fill="#1e293b" text-anchor="middle">What the writer receives — one block per source (WP1, WP3)</text>
+  <text x="200" y="212" font-size="10" fill="#64748b" class="code">- Source: raw/docs/2026-04-09-….md</text>
+  <text x="200" y="228" font-size="10" fill="#64748b" class="code">- Date: 2026-04-09</text>
+  <text x="200" y="244" font-size="10" fill="#64748b" class="code">  claim: closed loop at 0%</text>
+  <text x="200" y="264" font-size="10" fill="#64748b" class="code">- Source: raw/docs/2026-05-14-….md</text>
+  <text x="200" y="280" font-size="10" fill="#64748b" class="code">- Date: 2026-05-14</text>
+  <text x="200" y="296" font-size="10" fill="#64748b" class="code">  claim: closed loop at 50%</text>
+  <text x="430" y="316" font-size="10" fill="#64748b" text-anchor="middle">rendered oldest → newest; the system prompt says so (WP5, WP6)</text>
+
+  <!-- write gate -->
+  <rect x="170" y="353" width="520" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="430" y="376" font-size="12" fill="#b45309" text-anchor="middle">create_new_article / merge_into_article</text>
+  <text x="430" y="394" font-size="10" fill="#b45309" text-anchor="middle">composes the body; A1 gives it no action that can delete text (NG1)</text>
+
+  <!-- outcomes -->
+  <text x="65" y="446" font-size="11" fill="#64748b">What the article body ends up saying — four shapes, worst to target</text>
+
+  <rect x="70" y="457" width="720" height="72" rx="6" fill="#fce7f3" stroke="#ec4899" stroke-width="1"/>
+  <text x="430" y="479" font-size="12" fill="#9d174d" text-anchor="middle">1. Both values current and unordered — the failure the feature exists to remove</text>
+  <text x="430" y="499" font-size="10" fill="#9d174d" text-anchor="middle" class="code">Progress: 50% … open action: establish the closed loop   (both present tense)</text>
+  <text x="430" y="517" font-size="10" fill="#9d174d" text-anchor="middle">how P7 C8 read before A1; still 19 of 40 rows on the A1 arm, against the baseline's 24</text>
+
+  <rect x="70" y="554" width="720" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1"/>
+  <text x="430" y="576" font-size="12" fill="#b45309" text-anchor="middle">2. Coequal presentation — each value attributed to its own version</text>
+  <text x="430" y="596" font-size="10" fill="#b45309" text-anchor="middle" class="code">As of 20260409: 0%   ·   As of 20260514: 50%</text>
+  <text x="430" y="614" font-size="10" fill="#b45309" text-anchor="middle">clears Staleness (P7 0 of 8, P10 0 of 7, P5 0 of 5), earns no Trail, and fails In force (V39) — nothing says which value holds</text>
+
+  <rect x="70" y="651" width="720" height="72" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1"/>
+  <text x="430" y="673" font-size="12" fill="#166534" text-anchor="middle">3. Directional trail in prose — the newer stands, the older is named as past</text>
+  <text x="430" y="693" font-size="10" fill="#166534" text-anchor="middle" class="code">Progress: 50% (as of 20260514; previously 0%)</text>
+  <text x="430" y="711" font-size="10" fill="#166534" text-anchor="middle">the A1 arm wrote this unprompted on 5 of 45 rows (baseline 7), and this row is one of them</text>
+
+  <rect x="70" y="748" width="720" height="90" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1"/>
+  <text x="430" y="770" font-size="12" fill="#6b21a8" text-anchor="middle">4. A [Superseded …] marker — D1's target, and A2's job (NG2)</text>
+  <text x="430" y="790" font-size="10" fill="#6b21a8" text-anchor="middle" class="code">Progress: 50%</text>
+  <text x="430" y="806" font-size="10" fill="#6b21a8" text-anchor="middle" class="code">[Superseded 2026-05-14 by raw/docs/2026-05-14-….md: the earlier figure was 0%]</text>
+  <text x="430" y="826" font-size="10" fill="#6b21a8" text-anchor="middle">A1 had no action that could emit one; A2 landed the primitive and offered it to both merge prompts (steps 1–2)</text>
+
+  <text x="430" y="878" font-size="10" fill="#64748b" text-anchor="middle">One row of FX5's 45. FX7: 19 of 40 rows still stale against the baseline's 24 — improved, not cleared, so A2 is required.</text>
+</svg>

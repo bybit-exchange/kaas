@@ -55,6 +55,11 @@ def fakes(monkeypatch):
         "summarized": [],
         "fail_extract": set(),
         "fail_write": set(),
+        # A2 step 4: what the merge reports for a given article (SG1-SG3), and the
+        # sink each merge call was handed -- a route that forgets to pass one
+        # reports nothing at all, which no assertion on the findings would catch.
+        "findings": {},
+        "sinks": [],
     }
 
     def fake_extract(content, model="m"):
@@ -68,16 +73,27 @@ def fakes(monkeypatch):
         result = state["classification"]
         return json.loads(json.dumps(result))   # deep copy per call
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if title in state["fail_write"]:
             raise RuntimeError(f"write failed for {title}")
         state["created"].append((article_type, title, source_path))
         return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
 
-    def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+    def fake_merge(article_path, article_content, sources, model="m", events=None):
+        source_path = ", ".join(b.source_path for b in sources)
         if article_path in state["fail_write"]:
             raise RuntimeError(f"merge failed for {article_path}")
         state["merged"].append((article_path, source_path))
+        state["sinks"].append(events)
+        findings = state["findings"].get(article_path, [])
+        if events is not None:
+            events.extend(findings)
+        # A merge that abandoned returns what it was handed (SG1), so the fake has
+        # to as well -- a report that named an abandonment beside a changed article
+        # would be testing something the real merge cannot produce.
+        if any(f.kind == mg.EV_MERGE_ABANDONED for f in findings):
+            return article_content
         return article_content + f"\nmerged {source_path}\n"
 
     def fake_summarized(chunks, meta, summarize_model, extract_model):
@@ -227,7 +243,8 @@ def test_write_phase_attributes_cost_to_the_article_that_spent_it(kb, fakes, mon
                 "create_new": [{"path": f"wiki/concept/{stem}.md",
                                 "title": stem, "type": "concept"}]}
 
-    def create_costing_three_dollars(article_type, title, extraction, source_path, model="m"):
+    def create_costing_three_dollars(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         # Hold every worker inside its own measurement window, so a global delta
         # cannot help but see all four charges.
         holding.wait()
@@ -284,7 +301,8 @@ def test_compile_passes_models_through(kb, fakes, monkeypatch):
         seen["categories"] = categories
         return creates("wiki/concept/a.md")
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         seen["write_model"] = model
         return "article"
 
@@ -487,6 +505,215 @@ def test_compile_derives_type_and_title_for_merge_create(kb, fakes):
     article_type, title, _source = fakes["created"][0]
     assert article_type == "project"
     assert title == "My Cool Thing"
+
+
+# ── the merge findings report (A2 step 4) ───────────────────────────
+#
+# SG1's abandonments, SG2's shrink deltas and SG3's refusals reach the compile
+# report through a sink the write phase passes into every merge op. SG4 is what
+# makes the shape safe to be this rich: the findings are built after the last
+# write op and never re-enter a prompt, so nothing here can change what a later
+# merge is told.
+#
+# The reports were stderr-only until this step, which meant a refused supersede
+# was invisible to anything counting -- and FA5 needs the count to tell a clean
+# Staleness column from a writer whose actions the code kept throwing away.
+
+def _finding(kind: str, article: str, reason: str = "reason", detail: str = "") -> mg.MergeEvent:
+    return mg.MergeEvent(kind=kind, article=article, reason=reason, detail=detail)
+
+
+def test_compile_reports_a_refused_supersede(kb, fakes):
+    """SG3 through the compile report: the article, the reason, the anchor."""
+    kb.write_article("wiki/concept/target.md", "existing")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/target.md",
+                 "anchor not found", "Progress: 0%")]}
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["merge_findings"] == [{"kind": "supersede-refused",
+                                     "article": "wiki/concept/target.md",
+                                     "reason": "anchor not found",
+                                     "detail": "Progress: 0%"}]
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert "[supersede-refused] wiki/concept/target.md: anchor not found: Progress: 0%" in log
+
+
+def test_compile_reports_a_shrunken_article(kb, fakes):
+    """SG2: named with its delta, beside the other findings rather than in a report
+    of its own -- one section is what makes a count of findings readable."""
+    kb.write_article("wiki/concept/target.md", "existing")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_ARTICLE_SHRANK, "wiki/concept/target.md",
+                 "shrank 120 bytes (1000 → 880)")]}
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert [f["kind"] for f in out["merge_findings"]] == ["shrank"]
+    assert "shrank 120 bytes" in (kb.base_dir / ".compile.log").read_text()
+
+
+def test_compile_names_an_abandoned_merge_as_its_own_status(kb, fakes):
+    """The status D9's price needs: `merged` would say the sources landed in the
+    article, and SG1 abandoned the write precisely so they would not."""
+    kb.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/target.md",
+                 "pre-existing trail missing from the rewrite", "[Superseded ...]")]}
+
+    out = cm.compile_kb(str(kb.base_dir))
+    log = (kb.base_dir / ".compile.log").read_text()
+
+    assert "[merge-abandoned] wiki/concept/target.md" in log
+    assert "[merge-batch]" not in log
+    assert [f["kind"] for f in out["merge_findings"]] == ["abandoned"]
+    # The article kept every byte it had, which is the guarantee itself.
+    assert (kb.base_dir / "wiki/concept/target.md").read_text() == "existing\n"
+
+
+def test_an_abandoned_merge_still_marks_its_sources_compiled(kb, fakes):
+    """The accounting D9 chose: the merge is lost, not retried. A deterministic
+    trail failure would otherwise re-spend on every compile forever, and the
+    report is what tells an operator to act instead."""
+    kb.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/target.md", "reason", "block")]}
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["compiled"] == 2
+    state = kb.load_compile_state()
+    assert "compiled_at" in state["raw/a.md"]
+
+
+def test_a_clean_compile_reports_no_findings(kb, fakes):
+    """The column has to be readable as clean rather than as absent (FA5), so the
+    key is always there and the section is not."""
+    kb.write_article("wiki/concept/target.md", "existing")
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["merge_findings"] == []
+    assert "Merge findings" not in (kb.base_dir / ".compile.log").read_text()
+
+
+def test_the_findings_report_is_ordered_independently_of_the_workers(kb, fakes):
+    """Two articles finish in whatever order the pool returns them, and a report
+    that printed in completion order would diff differently run to run over an
+    unchanged KB. Sorted by article, then by kind."""
+    kb.write_article("wiki/concept/aaa.md", "existing")
+    kb.write_article("wiki/concept/zzz.md", "existing")
+    fakes["classification"] = merges("wiki/concept/zzz.md", "wiki/concept/aaa.md")
+    fakes["findings"] = {
+        "wiki/concept/zzz.md": [_finding(mg.EV_ARTICLE_SHRANK, "wiki/concept/zzz.md")],
+        "wiki/concept/aaa.md": [_finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/aaa.md")],
+    }
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert [f["article"] for f in out["merge_findings"]] == [
+        "wiki/concept/aaa.md", "wiki/concept/zzz.md"]
+
+
+def test_every_merge_route_is_handed_a_sink(kb, fakes):
+    """Three call sites reach merge_into_article -- a create over an existing file,
+    a single merge and a batch -- and a route that forgets the sink reports nothing
+    for exactly the articles it wrote. Asserted on the sinks the fake was handed,
+    because a missing one is invisible in the findings."""
+    kb.write_article("wiki/concept/target.md", "existing")
+    fakes["classification"] = merges("wiki/concept/target.md")
+
+    cm.compile_kb(str(kb.base_dir))
+
+    assert fakes["sinks"], "no merge ran"
+    assert all(sink is not None for sink in fakes["sinks"])
+
+
+def test_a_create_over_an_existing_file_is_handed_a_sink(kb, fakes):
+    """The third route, which merges rather than creating (compile.py's create
+    branch) and is the one easiest to miss."""
+    kb.write_article("wiki/concept/topic.md", "prior content\n")
+    fakes["classification"] = creates("wiki/concept/topic.md")
+
+    cm.compile_kb(str(kb.base_dir))
+
+    assert fakes["sinks"] and all(sink is not None for sink in fakes["sinks"])
+
+
+def _write_refuses(monkeypatch, article: str) -> None:
+    """Make the store refuse one article, leaving the merge that precedes it intact.
+
+    `fakes["fail_write"]` fails the merge itself, which never fills the sink; the
+    ordering under test is only reachable when the merge reports and the write then
+    raises.
+    """
+    real_write = KBStore.write_article
+
+    def write_article(self, art_path, content):
+        if art_path == article:
+            raise RuntimeError("disk full")
+        return real_write(self, art_path, content)
+
+    monkeypatch.setattr(KBStore, "write_article", write_article)
+
+
+@pytest.mark.parametrize("raws, tag", [
+    (["raw/a.md"], "merge-error"),                    # one op on the article
+    (["raw/a.md", "raw/b.md"], "merge-batch-error"),  # two, batched into one call
+])
+def test_a_finding_survives_a_write_that_fails(tmp_path, fakes, monkeypatch, raws, tag):
+    """A drain below `store.write_article` loses the findings of exactly the run
+    worth reporting: the one whose write then failed. The refusal happened, and it
+    is what tells an operator why the article they are about to re-run looks the
+    way it does.
+
+    Both merge branches, since each holds a drain of its own and fixing one leaves
+    the other green. The raw files are written here rather than taken from the `kb`
+    fixture, whose two documents can only reach the batch branch.
+    """
+    store = KBStore(str(tmp_path))
+    for rel in raws:
+        store.write_raw(rel, f"content of {rel}")
+    store.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/target.md",
+                 "anchor not found", "Progress: 0%")]}
+    _write_refuses(monkeypatch, "wiki/concept/target.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert [f["reason"] for f in out["merge_findings"]] == ["anchor not found"]
+    log = (store.base_dir / ".compile.log").read_text()
+    assert "[supersede-refused] wiki/concept/target.md: anchor not found" in log
+    # Names which branch ran and doubles as the proof that the write really did
+    # fail: the `-error` tags are printed from the except path and nowhere else.
+    assert f"[{tag}] wiki/concept/target.md" in log
+
+
+def test_a_create_over_an_existing_file_reports_its_finding_when_the_write_fails(
+        kb, fakes, monkeypatch):
+    """The same ordering on the create branch, which merges rather than creating and
+    holds the only other drain."""
+    kb.write_article("wiki/concept/topic.md", "prior content\n")
+    fakes["classification"] = creates("wiki/concept/topic.md")
+    fakes["findings"] = {"wiki/concept/topic.md": [
+        _finding(mg.EV_ARTICLE_SHRANK, "wiki/concept/topic.md", "shrank 9 bytes")]}
+    _write_refuses(monkeypatch, "wiki/concept/topic.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    # One per create op, and the fixture ingests two raw files into this article.
+    assert [f["reason"] for f in out["merge_findings"]] == ["shrank 9 bytes"] * 2
+    # Both writes really did fail, printed from this branch's except path.
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert log.count("[create-error] wiki/concept/topic.md") == 2
 
 
 # ── incremental completed_ops ───────────────────────────────────────
@@ -726,8 +953,8 @@ def test_the_write_phase_composes_from_the_file_on_disk(kb, fakes, monkeypatch):
     """D1: the extraction is handed over through extraction/, not in memory."""
     seen: list[str] = []
 
-    def capture(article_type, title, extraction, source_path, model="m"):
-        seen.append(extraction.summary)
+    def capture(article_type, title, sources, model="m"):
+        seen.extend(block.extraction.summary for block in sources)
         return "article"
 
     fakes["classification"] = creates("wiki/concept/a.md")
@@ -883,6 +1110,257 @@ def test_a_first_extraction_is_not_reported_as_revised(kb, fakes):
     out = cm.compile_kb(str(kb.base_dir))
 
     assert out["revised"] == {}
+
+
+def test_a_revised_duplicate_still_names_its_article(kb, fakes):
+    """RP2 against WP7: two paths holding identical bytes collapse into one block,
+    and the collapsed one is still a revised document whose article a human should
+    re-read. Dropping it from the report would hide the revision behind a
+    deduplication that only ever concerned the payload.
+    """
+    kb.write_raw("raw/a.md", "shared bytes")
+    kb.write_raw("raw/b.md", "shared bytes")
+    fakes["classification"] = merges("wiki/concept/shared.md")
+    cm.compile_kb(str(kb.base_dir))
+
+    kb.write_raw("raw/a.md", "shared bytes, revised")
+    kb.write_raw("raw/b.md", "shared bytes, revised")
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["revised"] == {"raw/a.md": ["wiki/concept/shared.md"],
+                             "raw/b.md": ["wiki/concept/shared.md"]}
+
+
+# ── the lineage report (RP3-RP5) ────────────────────────────────────
+
+def _dated(title, doc_id, day, source="docs", body="body"):
+    return (f"---\nsource: {source}\nid: \"{doc_id}\"\ndate: {day}\n"
+            f"title: \"{title}\"\n---\n\n{body}\n")
+
+
+@pytest.fixture
+def versions(tmp_path) -> KBStore:
+    """A KB holding v1 and v2 of one document as two separate documents."""
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/gw-v15.md", _dated("Gateway Design v1.5", "id-a", "2026-03-23"))
+    store.write_raw("raw/gw-v17.md", _dated("Gateway Design v1.7", "id-b", "2026-03-30"))
+    return store
+
+
+def test_two_versions_in_one_article_are_reported_as_a_lineage_group(versions, fakes):
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"] == {"wiki/concept/gw.md": [{
+        "title": "Gateway Design",
+        "source": "docs",
+        "members": ["raw/gw-v15.md", "raw/gw-v17.md"],
+        "versioned": True,
+    }]}
+    log = (versions.base_dir / ".compile.log").read_text()
+    assert "[lineage] wiki/concept/gw.md" in log
+    assert "Gateway Design" in log
+
+
+def test_an_earlier_version_only_named_in_the_articles_sources_is_reported(versions,
+                                                                          fakes):
+    """The staged fixture's shape (FX2): v1 was composed by an earlier run, so it is
+    in the article's `sources:` and not in this run's ops. Reading only this run
+    would leave the report silent on exactly the merge paths A1 is measured on.
+    """
+    versions.write_article("wiki/concept/gw.md",
+                           "---\ntitle: Gateway\nsources:\n  - raw/gw-v15.md\n---\n\nbody\n")
+    state = {"raw/gw-v15.md": {"checksum": _compute_checksum(
+        versions.read_raw("raw/gw-v15.md")), "compiled_at": "2026-03-23T00:00:00",
+        "prompt_version": exl.extract_prompt_version(),
+        "write_prompt_version": mg.write_prompt_version()}}
+    versions.save_compile_state(state)
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"]["wiki/concept/gw.md"][0]["members"] == [
+        "raw/gw-v15.md", "raw/gw-v17.md"]
+
+
+def test_the_same_document_revised_is_not_a_lineage_group(kb, fakes):
+    """One `id` over two files is shape A, which the revised report already names.
+    Reporting it twice would double-count the only failure the corpus adjudicated.
+    """
+    kb.write_raw("raw/a.md", _dated("Onboarding Plan", "id-a", "2026-04-08"))
+    kb.write_raw("raw/b.md", _dated("Onboarding Plan", "id-a", "2026-04-17"))
+    fakes["classification"] = merges("wiki/concept/onboarding.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_a_cross_source_collision_is_not_reported(kb, fakes):
+    kb.write_raw("raw/a.md", _dated("Card MoneySend", "id-a", "2026-04-13",
+                                    source="docs"))
+    kb.write_raw("raw/b.md", _dated("Card MoneySend", "id-b", "2026-04-25",
+                                    source="meetings"))
+    fakes["classification"] = merges("wiki/concept/card.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_a_recurring_one_to_one_titled_with_a_persons_name_is_not_reported(kb, fakes):
+    kb.write_article("wiki/person/cara.md", "---\ntitle: Cara\ntype: person\n---\n\nbio\n")
+    kb.write_raw("raw/a.md", _dated("Cara", "id-a", "2026-01-01", source="meetings"))
+    kb.write_raw("raw/b.md", _dated("Cara", "id-b", "2026-04-21", source="meetings"))
+    fakes["classification"] = merges("wiki/decision/one-to-ones.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_an_allowlisted_person_is_excluded_before_their_article_exists(kb, fakes):
+    """The person articles are stubs a later phase generates, so on the run that
+    first ingests a one-to-one there is nothing on disk to match against.
+    """
+    kb.write_raw("raw/a.md", _dated("Cara", "id-a", "2026-01-01", source="meetings"))
+    kb.write_raw("raw/b.md", _dated("Cara", "id-b", "2026-04-21", source="meetings"))
+    fakes["classification"] = merges("wiki/decision/one-to-ones.md")
+
+    out = cm.compile_kb(str(kb.base_dir),
+                        people_cfg=[{"canonical": "Cara", "aliases": ["cara.zhang"]}])
+
+    assert out["lineage"] == {}
+
+
+def test_marked_groups_lead_the_report_and_both_counts_are_stated(tmp_path, fakes):
+    """A version marker is the operator's triage key: on the reference corpus 40 of
+    44 reported groups are recurring series and 4 are real version chains, so the
+    marked ones are named first and the summary line states how many of each.
+    """
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/daily-1.md", _dated("AI Daily", "id-1", "2026-05-01",
+                                            source="meetings"))
+    store.write_raw("raw/daily-2.md", _dated("AI Daily", "id-2", "2026-05-02",
+                                            source="meetings"))
+    store.write_raw("raw/gw-v15.md", _dated("Gateway Design v1.5", "id-a", "2026-03-23"))
+    store.write_raw("raw/gw-v17.md", _dated("Gateway Design v1.7", "id-b", "2026-03-30"))
+    fakes["classification"] = merges("wiki/concept/all.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    groups = out["lineage"]["wiki/concept/all.md"]
+    assert [g["title"] for g in groups] == ["Gateway Design", "AI Daily"]
+    log = (store.base_dir / ".compile.log").read_text()
+    assert "2 lineage group(s)" in log
+    assert "1 with a version marker" in log
+
+
+def test_an_article_whose_write_failed_reports_no_lineage(versions, fakes):
+    fakes["classification"] = merges("wiki/concept/gw.md")
+    fakes["fail_write"] = {"Gw"}          # the merge→create path titles from the stem
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_nothing_from_the_lineage_report_reaches_the_writer(versions, fakes,
+                                                           monkeypatch):
+    """RP5. The report is a title heuristic, and a heuristic that steers what gets
+    written is what D2's gate on build path B refuses. So the writer's arguments are
+    the source blocks and nothing else -- there is no argument a group could ride in
+    on, and the report is built after the last write op.
+    """
+    seen: list = []
+
+    def capture_merge(article_path, article_content, sources, model="m"):
+        seen.append((article_path, article_content, sources, model))
+        return article_content + "merged\n"
+
+    def capture_create(article_type, title, sources, model="m"):
+        seen.append((article_type, title, sources, model))
+        return f"---\ntitle: {title}\n---\nbody\n"
+
+    monkeypatch.setattr(cm, "merge_into_article", capture_merge)
+    monkeypatch.setattr(cm, "create_new_article", capture_create)
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"]                     # the report fired ...
+    assert seen                               # ... and the writer ran
+    for call in seen:
+        for arg in call:
+            if isinstance(arg, list):
+                # The blocks are the only thing the writer is handed, and a block
+                # carries a document -- never a judgement about one.
+                for block in arg:
+                    assert set(vars(block)) == {"source_path", "extraction", "date"}
+            else:
+                assert "lineage" not in str(arg)
+                assert "Gateway Design" not in str(arg)
+
+
+def test_nothing_from_the_merge_findings_reaches_the_writer(kb, fakes, monkeypatch):
+    """SG4, asserted the way RP5 is above. A2's reports carry more than RP3's did --
+    a refused action, a dropped trail, a byte delta -- and a report that steered the
+    next write would make the writer's input depend on its own failures. Two halves:
+    the entry points take source blocks and nothing else, and the findings are built
+    after the last write op, so there is no call left for one to reach.
+    """
+    kb.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/target.md",
+                 "anchor not found", "SENTINEL-ANCHOR")]}
+    seen: list = []
+
+    # The fixture's fake, wrapped rather than replaced: it is what emits the
+    # finding, so a capture that stood in for it would assert over a clean run.
+    real_merge = cm.merge_into_article
+
+    def capture_merge(article_path, article_content, sources, model="m", events=None):
+        seen.append((article_path, article_content, sources, model))
+        return real_merge(article_path, article_content, sources, model=model, events=events)
+
+    monkeypatch.setattr(cm, "merge_into_article", capture_merge)
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["merge_findings"], "the report has to have fired for this to prove anything"
+    assert seen, "the writer has to have run"
+    for call in seen:
+        for arg in call:
+            if isinstance(arg, list):
+                for block in arg:
+                    assert set(vars(block)) == {"source_path", "extraction", "date"}
+            else:
+                # The anchor is the finding's own text, so a payload carrying it is
+                # a report that came back round.
+                assert "SENTINEL-ANCHOR" not in str(arg)
+                assert "supersede-refused" not in str(arg)
+
+
+def test_the_revised_report_says_an_article_may_still_carry_the_old_version(kb, fakes):
+    """PV6. RP2's guarantee is unchanged -- a revised document still names the
+    articles it was merged into -- and the sentence around it is not: A2's merge
+    paths can retract a claim, so the report can no longer assert what the article
+    holds. It says "may", and it names the trail as what to look for."""
+    kb.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    cm.compile_kb(str(kb.base_dir))
+    # A second compile over re-extracted documents is what marks them revised.
+    kb.write_raw("raw/a.md", "content of a, edited")
+    kb.write_raw("raw/b.md", "content of b, edited")
+
+    out = cm.compile_kb(str(kb.base_dir))
+    log = (kb.base_dir / ".compile.log").read_text()
+
+    assert out["revised"], "the revised report has to have fired"
+    assert "may still carry" in log
+    assert "[Superseded" in log
 
 
 def test_unreadable_prompts_stop_the_run_without_extracting(kb, fakes, monkeypatch,

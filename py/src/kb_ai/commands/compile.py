@@ -1,7 +1,9 @@
 import os
+import posixpath
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from datetime import datetime
@@ -22,7 +24,6 @@ from kb_ai.core.extract import (
     plan_extraction,
     run_planned_extraction,
     validate_strategy,
-    _combine_extractions,
 )
 from kb_ai.prompts import PromptError
 from kb_ai.storage import extraction as extraction_layer
@@ -36,11 +37,23 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    EV_MERGE_ABANDONED,
+    MergeEvent,
+    build_source_blocks,
     create_new_article,
+    format_merge_event,
     merge_into_article,
     write_prompt_version,
 )
+from kb_ai.derive import parse_sources
 from kb_ai.storage.lag import wiki_lag
+from kb_ai.storage.lineage import (
+    DocumentFacts,
+    LineageGroup,
+    known_person_names,
+    lineage_groups,
+    read_document_facts,
+)
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
@@ -110,6 +123,84 @@ def _under_wiki(store: KBStore, art_path: str) -> bool:
         return False
     wiki_root = store.wiki_dir.resolve()
     return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
+
+
+def _lineage_report(store: KBStore, done_articles: dict[str, set],
+                    people_cfg: list, log) -> dict[str, list[dict]]:
+    """Name the articles that received two versions of one document (spec RP3).
+
+    Runs after the last write op and returns a report. It is not consulted by
+    anything and reaches no prompt (RP5): the rule is a heuristic over titles, and
+    letting a heuristic decide what an article says is what D2's gate on build path
+    B refuses. What the operator gets is where to look.
+
+    "Share an article" spans both this run's ops and the paths already under the
+    article's ``sources:``, because the case that matters most has them in different
+    runs: the staged fixture compiles version N into the wiki version N-1 produced
+    (FX2), so the earlier member is on disk rather than in hand, and a report built
+    from this run alone would be silent on exactly the merge paths A1 is measured on.
+
+    Marked groups are listed first. A recurring meeting series has one fixed title
+    and a new ``id`` per occurrence, so it is a lineage group by any title rule --
+    37 of the 41 (article, group) pairs on the reference corpus are one, against 4
+    real version chains. The marker is what separates them, and it is a sort key rather
+    than a filter because three of the six shape-B fixture positives carry no marker
+    either. Both counts are stated so the ratio is visible rather than implied.
+    """
+    articles: dict[str, set[str]] = {}
+    for rel, arts in done_articles.items():
+        for art in arts:
+            articles.setdefault(art, set()).add(rel)
+    if not articles:
+        return {}
+
+    person_names = known_person_names(store.wiki_dir, people_cfg)
+    facts: dict[str, DocumentFacts] = {}
+    found: list[tuple[str, LineageGroup]] = []
+
+    for art, run_sources in articles.items():
+        entries, _reason = parse_sources(store, art)
+        # `sources:` is LLM-written (derive/_sources.py says so at more length), so
+        # an entry naming something outside raw/ is discarded rather than read: a
+        # compiled article joining a lineage group would report a document chain
+        # nobody ingested.
+        members = set(run_sources) | {e for e in (entries or [])
+                                      if posixpath.normpath(e).startswith("raw/")}
+        for rel in sorted(members):
+            if rel not in facts:
+                facts[rel] = read_document_facts(store.read_raw, rel)
+        for group in lineage_groups((facts[rel] for rel in sorted(members)),
+                                   person_names):
+            found.append((art, group))
+
+    if not found:
+        return {}
+
+    found.sort(key=lambda item: (not item[1].versioned, item[1].title.casefold(),
+                                 item[0]))
+    report: dict[str, list[dict]] = {}
+    for art, group in found:
+        report.setdefault(art, []).append({
+            "title": group.title,
+            "source": group.source,
+            "members": list(group.members),
+            "versioned": group.versioned,
+        })
+
+    marked = sum(1 for _art, group in found if group.versioned)
+    log(f"Lineage: {len(found)} lineage group(s) across {len(report)} article(s) "
+        f"({marked} with a version marker, {len(found) - marked} without — an "
+        "unmarked group is as likely to be a recurring series as a version chain); "
+        "a merge may have corrected the earlier version's claims or may have left "
+        "them standing — look for [Superseded ...]:")
+    for art, group in found:
+        members = ", ".join(
+            rel + (f" ({facts[rel].date.isoformat()})" if facts[rel].date else "")
+            for rel in group.members)
+        log(f"  [lineage] {art} ← {group.title!r} "
+            f"({group.source or 'no source'}"
+            f"{', version-marked' if group.versioned else ''}): {members}")
+    return report
 
 
 def compile_kb(
@@ -475,6 +566,23 @@ def compile_kb(
         _write_lock = threading.Lock()
         _file_done_ops: dict[str, int] = {rel: 0 for rel in file_op_counts}
         _file_done_articles: dict[str, set] = {rel: set() for rel in file_op_counts}
+        # SG1-SG3's findings from every merge op in this run, collected under the
+        # same lock as the bookkeeping and rendered once the pool is drained (SG4).
+        _merge_findings: list[MergeEvent] = []
+
+        def _collect(events: list[MergeEvent]) -> bool:
+            """Drain one merge op's findings into the run's report (SG1-SG3).
+
+            Returns whether the merge was abandoned, which is what decides the log
+            line: `merged` would tell an operator the sources reached the article,
+            and SG1 dropped the write precisely so that they did not. The ops are
+            still recorded as completed either way -- D9 accepts losing the merge,
+            and a deterministic trail failure retried every compile would re-spend
+            forever while reporting the same finding.
+            """
+            with _write_lock:
+                _merge_findings.extend(events)
+            return any(e.kind == EV_MERGE_ABANDONED for e in events)
 
         def _process_article(art_path: str, ops: list):
             adopt_context(_parent_ctx, phase=f"write:{art_path}")
@@ -482,20 +590,33 @@ def compile_kb(
             merges = [(rel, cs, ext, det) for rel, cs, ext, action, det in ops if action == "merge"]
             create_failed = False
 
-            for rel, _cs, extraction, details in creates:
+            for rel, cs, extraction, details in creates:
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         full = store.base_dir / details["path"]
                         full.parent.mkdir(parents=True, exist_ok=True)
+                        sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         if full.exists():
                             old_content = full.read_text()
                             new_content = merge_into_article(
-                                details["path"], old_content, extraction, rel, model=write_model)
+                                details["path"], old_content, sources,
+                                model=write_model, events=events)
+                            # Drained before the write, not after it: a drain below
+                            # `store.write_article` loses every finding of the run
+                            # most worth reporting to the exception. The findings
+                            # describe what the merge produced, not what reached
+                            # disk -- so on a failed write SG2's delta is a delta
+                            # against an article that still holds its old bytes,
+                            # and the error beside it in `errors` says so.
+                            abandoned = _collect(events)
                         else:
                             new_content = create_new_article(
-                                details["type"], details["title"], extraction, rel, model=write_model)
+                                details["type"], details["title"], sources, model=write_model)
+                            abandoned = False
                         store.write_article(details["path"], new_content)
-                    log(f"  [create] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
+                    tag = "merge-abandoned" if abandoned else "create"
+                    log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -530,12 +651,17 @@ def compile_kb(
                 path_parts = art_path.split("/")
                 article_type = path_parts[1] if len(path_parts) > 2 else "concept"
                 title = Path(art_path).stem.replace("-", " ").title()
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
+                sources = build_source_blocks(
+                    store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
+                # Every merge's rel, not one per surviving block: WP7 collapses two
+                # ingests of the same bytes into one block, and both documents' ops
+                # are still completed by the call that carries it. Dropping one from
+                # the bookkeeping would leave it uncompiled and retried forever.
+                merge_rels = [rel for rel, _cs, _ext, _det in merges]
                 try:
                     with _measure_op_cost() as op_cost:
                         new_content = create_new_article(
-                            article_type, title, combined, ", ".join(merge_rels), model=write_model)
+                            article_type, title, sources, model=write_model)
                         store.write_article(art_path, new_content)
                     log(f"  [merge→create] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")
@@ -551,14 +677,18 @@ def compile_kb(
                 return
 
             if len(merges) == 1:
-                rel, _cs, extraction, details = merges[0]
+                rel, cs, extraction, details = merges[0]
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
+                        sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         new_content = merge_into_article(
-                            art_path, old_content, extraction, rel, model=write_model)
+                            art_path, old_content, sources, model=write_model, events=events)
+                        abandoned = _collect(events)
                         store.write_article(art_path, new_content)
-                    log(f"  [merge] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
+                    tag = "merge-abandoned" if abandoned else "merge"
+                    log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
                         _file_done_articles[rel].add(art_path)
@@ -567,15 +697,19 @@ def compile_kb(
                         errors.append({"file": rel, "error": str(e), "article": art_path})
                     log(f"  [merge-error] {art_path} ← {rel}: {e}")
             else:
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
+                sources = build_source_blocks(
+                    store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
+                merge_rels = [rel for rel, _cs, _ext, _det in merges]
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         new_content = merge_into_article(
-                            art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
+                            art_path, old_content, sources, model=write_model, events=events)
+                        abandoned = _collect(events)
                         store.write_article(art_path, new_content)
-                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
+                    tag = "merge-abandoned" if abandoned else "merge-batch"
+                    log(f"  [{tag}] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         for rel in merge_rels:
@@ -624,20 +758,52 @@ def compile_kb(
         if items_to_classify:
             log(f"Phase 2b done: ${write_d['cost']:.4f}, {write_d['elapsed']:.1f}s")
 
-        # A revised document's articles were merged into, not rewritten: both
-        # merge paths are additive -- merge-diff.md offers only append_to_section
-        # and new_section, and merge-rewrite.md says nothing about supersession --
-        # so what the previous version contributed is still in there. Naming the
-        # articles is the whole point: it says which ones a human should re-read.
+        # SG1-SG3 in one section, built after the last write op and never read back
+        # into a prompt (SG4). One section rather than three because the arm counts
+        # findings by kind and an operator reads them per article: a refused
+        # supersede, an abandoned merge and a shrunken article are all "the writer
+        # tried something the code did not simply apply".
+        #
+        # Sorted rather than printed in completion order, which the thread pool does
+        # not fix: an unchanged KB has to produce a diffable report twice running.
+        findings = sorted(_merge_findings,
+                          key=lambda ev: (ev.article, ev.kind, ev.reason, ev.detail))
+        if findings:
+            kinds = Counter(ev.kind for ev in findings)
+            log(f"Merge findings: {len(findings)} — "
+                + ", ".join(f"{n} {kind}" for kind, n in sorted(kinds.items())) + ":")
+            for event in findings:
+                log(format_merge_event(event))
+        # Formatted from the events and serialised from the same order, rather than
+        # round-tripping a dict back through MergeEvent(**...) to print it. The
+        # projection below is coupled to the record's fields on purpose -- the
+        # report's shape is a contract; the reconstruction was coupled by accident,
+        # to print a line the event itself could format.
+        merge_findings = [{"kind": ev.kind, "article": ev.article,
+                           "reason": ev.reason, "detail": ev.detail} for ev in findings]
+
+        # A revised document's articles were merged into, not rewritten, so what
+        # the previous version contributed may still be in there. "May" is PV6: the
+        # merge paths can now retract a claim and leave a `[Superseded ...]` trail
+        # where it stood (merge-diff.md's `supersede`, merge-rewrite.md's prose
+        # rule), so the report can no longer assert what the article holds. Naming
+        # the articles is still the whole point -- it says which ones a human should
+        # re-read -- and the trail is what tells them the merge did act.
         revised_articles = {rel: sorted(_file_done_articles[rel])
                             for rel in revised
                             if _file_done_articles.get(rel)}
         if revised_articles:
             log(f"Revised documents: {len(revised_articles)} re-extracted document(s) "
-                "were merged into existing articles, which still carry the previous "
-                "version's content (merge cannot retract):")
+                "were merged into existing articles, which may still carry the "
+                "previous version's content — look for [Superseded ...] to see what "
+                "the merge corrected:")
             for rel, arts in sorted(revised_articles.items()):
                 log(f"  [revised] {rel} → {', '.join(arts)}")
+
+        # The other half of the same report. Shape A above is a document re-fetched
+        # after an edit; shape B is v1 and v2 ingested as two documents, which no
+        # `id` connects and only the title betrays (RP3).
+        lineage = _lineage_report(store, _file_done_articles, people_cfg, log)
 
         log(f"Compile done: {compiled} compiled, {extracted} extracted, "
             f"{len(errors)} errors, ${tracker.total_cost:.4f} total")
@@ -669,6 +835,16 @@ def compile_kb(
         # Documents whose extraction overwrote an existing one, mapped to the
         # articles they were merged into (C11). Empty on a first compile.
         "revised": revised_articles,
+        # Articles that received more than one version of the same document, by the
+        # title rule (RP3). Report only: nothing here reached a prompt, and nothing
+        # here changed what was written.
+        "lineage": lineage,
+        # What the merge ops reported about themselves: refused supersedes (SG3),
+        # abandoned merges (SG1) and articles that shrank (SG2). Empty rather than
+        # absent on a run that wrote cleanly, so a clean report reads as clean --
+        # like `revised` and `lineage`, it is missing entirely from the early returns
+        # above, which describe runs where no write phase ran at all.
+        "merge_findings": merge_findings,
         # How far the wiki is behind each gate's prompts (G5). Counts only, since
         # `kb-ai check` names the documents for free. The first_run flags are per
         # gate: each says "no entry records a version for THIS gate", which is what

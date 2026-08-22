@@ -23,9 +23,15 @@ from openai import APIError as LLMAPIError
 from kb_ai._context import adopt_context, cancellable, contextual_submit, get_context
 from kb_ai._errors import PipelineCancelledError
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
-from kb_ai.commands.compile import _combine_extractions
 from kb_ai.core.extract import ExtractionResult
-from kb_ai.core.merge import create_new_article, merge_into_article
+from kb_ai.core.merge import (
+    EV_MERGE_ABANDONED,
+    MergeEvent,
+    build_source_blocks,
+    create_new_article,
+    format_merge_event,
+    merge_into_article,
+)
 
 if TYPE_CHECKING:
     from kb_ai.storage.store import KBStore
@@ -52,7 +58,7 @@ def _process_article(
     adopt_context(get_context(), phase=f"write:{art_path}", content_hash="")
 
     t_art = time.time()
-    all_sources = [(ref, ext) for _ch, ref, ext, _action, _det in ops]
+    all_sources = [(ref, ch, ext) for ch, ref, ext, _action, _det in ops]
     all_hashes = [ch for ch, _ref, _ext, _action, _det in ops]
     first_create = next((det for _ch, _ref, _ext, action, det in ops if action == "create"), None)
 
@@ -61,16 +67,39 @@ def _process_article(
 
     try:
         with cancellable(cancel_event):
+            # One block per source, ordered oldest to newest, for whichever branch
+            # runs: both writers take the same payload, so building it once here
+            # keeps the two routes' orderings from drifting apart.
+            sources = build_source_blocks(store.read_raw, all_sources)
             if action == "merge":
                 # Article exists -- merge all sources in one LLM call
-                combined, merge_refs = _combine_extractions(all_sources)
                 old_content = store.read_article(art_path)
-                new_content = merge_into_article(art_path, old_content, combined, ", ".join(merge_refs), model=model)
+                events: list[MergeEvent] = []
+                new_content = merge_into_article(art_path, old_content, sources,
+                                                 model=model, events=events)
+                # SG1-SG3, worded as the CLI route words them (the prefix is this
+                # phase's own): two write phases over one layout describing the same
+                # finding two ways is the drift T14 and VF6 exist to stop.
+                #
+                # Before the write, not after it: reporting below it loses the
+                # findings of the run most worth reporting to the exception. They
+                # describe what the merge produced rather than what reached disk, so
+                # a failed write prints SG2's delta beside the error it also files.
+                for event in events:
+                    print(f"[pipeline] {format_merge_event(event).strip()}",
+                          file=sys.stderr, flush=True)
                 store.write_article(art_path, new_content)
+                # `merged` says the sources reached the article. SG1 abandoned the
+                # write precisely so they did not, so an abandoned merge is its own
+                # status rather than a merge that happened to change nothing -- a
+                # client reading `merged` would file the document into an article
+                # that never received it. The ops still count as completed: D9
+                # accepts losing the merge over losing the article's history.
+                key = "abandoned" if any(e.kind == EV_MERGE_ABANDONED for e in events) else "merged"
                 with write_lock:
                     for ch in all_hashes:
                         _ensure_write_result(write_results, ch)
-                        write_results[ch]["merged"].append(art_path)
+                        write_results[ch][key].append(art_path)
             else:
                 # Article doesn't exist -- combine all sources and create in one LLM call
                 full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,8 +110,7 @@ def _process_article(
                     article_type = first_create.type or article_type
                     title = first_create.title or title
 
-                combined, merge_refs = _combine_extractions(all_sources)
-                new_content = create_new_article(article_type, title, combined, ", ".join(merge_refs), model=model)
+                new_content = create_new_article(article_type, title, sources, model=model)
                 store.write_article(art_path, new_content)
                 with write_lock:
                     for ch in all_hashes:
@@ -113,7 +141,7 @@ def _process_article(
 def _ensure_write_result(write_results: dict[str, dict], ch: str) -> None:
     """Ensure a write_results entry exists for the given content_hash."""
     if ch not in write_results:
-        write_results[ch] = {"created": [], "merged": [], "errors": []}
+        write_results[ch] = {"created": [], "merged": [], "abandoned": [], "errors": []}
 
 
 def run_write_phase(
@@ -274,6 +302,8 @@ def run_write_phase(
                                     result["created"] = wr["created"]
                                 if wr["merged"]:
                                     result["merged"] = wr["merged"]
+                                if wr["abandoned"]:
+                                    result["abandoned"] = wr["abandoned"]
                                 item_results.append(result)
                                 if emit:
                                     emit(result)
@@ -297,6 +327,9 @@ def run_write_phase(
             result["created"] = wr["created"]
         if wr["merged"]:
             result["merged"] = wr["merged"]
+        # Present only when it happened, as the two lists beside it are (SG1).
+        if wr["abandoned"]:
+            result["abandoned"] = wr["abandoned"]
         item_results.append(result)
         if emit:
             emit(result)
