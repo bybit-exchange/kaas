@@ -19,6 +19,7 @@ on:
 permissions:
   contents: read
 
+# A new push to a branch makes the in-flight analysis obsolete.
 concurrency:
   group: codeql-${{ github.ref }}
   cancel-in-progress: true
@@ -29,8 +30,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      # CodeQL reads the workflow run to attribute results to a configuration,
-      # and writes the SARIF it produces.
+      # security-events: write is what uploads the SARIF. actions: read is only
+      # required on a private repository, where CodeQL reads workflow metadata;
+      # it is already implied here and kept so a visibility change is not a
+      # surprise. A fork pull request is not granted the write scope, which is
+      # why running fork code below is safe.
       actions: read
       contents: read
       security-events: write
@@ -51,7 +55,11 @@ jobs:
           - language: python
             build-mode: none
     steps:
+      # codeql-action needs no git credentials, and autobuild below compiles
+      # contributor-authored code, so do not leave a token in .git/config.
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       # autobuild needs a toolchain, and the one preinstalled on the runner is
       # not necessarily the version go.mod asks for.
