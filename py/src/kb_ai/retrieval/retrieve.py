@@ -25,8 +25,13 @@ from __future__ import annotations
 import sys
 
 from kb_ai._frontmatter import split_frontmatter
-from kb_ai.llm import completion_json
+from kb_ai._text import overlap, tokens
+from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
 from kb_ai.storage.store import ArticleMeta, KBStore, render_catalog_line
+
+# Headroom left unspent when fitting the catalog, so a prompt sized here is not
+# refused by the client's own MAX_PROMPT_CHARS check over a rounding difference.
+_SAFETY_MARGIN = 500
 
 # Cap per article so the combined context stays within the LLM prompt budget.
 # Coordinated with the default max_articles (6) and llm.MAX_PROMPT_CHARS (80K):
@@ -40,6 +45,50 @@ TRUNCATION_NOTE = ("\n\n[This article exceeds the retrieval budget and is cut of
                    "A detail missing from this excerpt does not mean the article lacks it.]")
 
 
+_SELECT_PROMPT = (
+    "You are selecting which knowledge-base articles can help answer a "
+    "question. Below is the article catalog (path — title: summary). An "
+    "article that documents a table of settings, fields or endpoints also "
+    "lists their names after `| keys:`, so a question about one specific "
+    "named value belongs to the article whose keys contain it.\n\n"
+    "{listing}\n\n"
+    "Question: {query}\n\n"
+    "Return JSON {{\"paths\": [...]}} listing up to {max_select} article "
+    "paths (verbatim from the catalog) most relevant to the question, most "
+    "relevant first. Return an empty list if none are relevant."
+)
+
+
+def _fit_catalog(catalog: list[ArticleMeta], query: str, budget_chars: int) -> str:
+    """Order the catalog by overlap with the query, then keep the lines that fit.
+
+    The whole catalog used to go into the prompt unbudgeted. At the ~340 chars a
+    catalog line runs to, an 80K budget is spent around 230 articles; past that
+    the client refuses the prompt, _select_relevant catches the refusal, and chat
+    answers with no KB context while reporting nothing to the caller. So the
+    catalog is ranked first and cut to fit, which degrades recall instead of
+    silently dropping grounding altogether.
+    """
+    q = tokens(query)
+    ranked = sorted(
+        catalog,
+        key=lambda a: overlap(tokens(f"{a.title} {a.summary} {a.keys}"), q),
+        reverse=True,
+    )
+    kept: list[str] = []
+    used = 0
+    for article in ranked:
+        line = render_catalog_line(article)
+        if used + len(line) + 1 > budget_chars:
+            break
+        kept.append(line)
+        used += len(line) + 1
+    if len(kept) < len(ranked):
+        print(f"[truncation] retrieval catalog: {len(ranked)} → {len(kept)} articles "
+              f"({budget_chars:,}-char budget)", file=sys.stderr, flush=True)
+    return "\n".join(kept)
+
+
 def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
                      *, max_select: int) -> list[str]:
     """Ask the LLM which catalog articles are most relevant to the query.
@@ -51,19 +100,11 @@ def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
     if not catalog:
         return []
     valid = {a.path for a in catalog}
-    listing = "\n".join(render_catalog_line(a) for a in catalog)
-    prompt = (
-        "You are selecting which knowledge-base articles can help answer a "
-        "question. Below is the article catalog (path — title: summary). An "
-        "article that documents a table of settings, fields or endpoints also "
-        "lists their names after `| keys:`, so a question about one specific "
-        "named value belongs to the article whose keys contain it.\n\n"
-        f"{listing}\n\n"
-        f"Question: {query}\n\n"
-        f"Return JSON {{\"paths\": [...]}} listing up to {max_select} article "
-        "paths (verbatim from the catalog) most relevant to the question, most "
-        "relevant first. Return an empty list if none are relevant."
-    )
+    skeleton = _SELECT_PROMPT.format(listing="", query=query, max_select=max_select)
+    listing = _fit_catalog(catalog, query,
+                           MAX_PROMPT_CHARS - len(skeleton) - _SAFETY_MARGIN)
+    prompt = _SELECT_PROMPT.format(listing=listing, query=query,
+                                   max_select=max_select)
     try:
         result = completion_json(model=model, messages=[{"role": "user", "content": prompt}])
     except Exception as e:  # noqa: BLE001 — retrieval must degrade gracefully
