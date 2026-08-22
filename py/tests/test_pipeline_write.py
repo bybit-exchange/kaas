@@ -50,7 +50,7 @@ def writers(monkeypatch):
         if events is not None:
             events.extend(findings)
         # SG1 returns the article untouched when it abandons, so the fake does too.
-        if any(f.kind == mg.EV_TRAIL_LOST for f in findings):
+        if any(f.kind == mg.EV_MERGE_ABANDONED for f in findings):
             return old_content
         return old_content + "\nmerged\n"
 
@@ -675,6 +675,30 @@ def test_the_worker_route_logs_a_finding(store, writers, capsys):
     assert "[supersede-refused] wiki/concept/topic.md: anchor not found: Progress: 0%" in err
 
 
+def test_the_worker_route_logs_a_finding_when_the_write_fails(store, writers,
+                                                             monkeypatch, capsys):
+    """Printing below `store.write_article` loses the findings of exactly the run
+    worth reporting: the one whose write then raised. `writers["fail"]` cannot reach
+    this, since a merge that fails never fills the sink."""
+    store.write_article("wiki/concept/topic.md", "existing\n")
+    writers["findings"] = {"wiki/concept/topic.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/topic.md",
+                 "anchor not found", "Progress: 0%")]}
+
+    def write_article(self, art_path, content):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(KBStore, "write_article", write_article)
+    items = [item("h1", merges=["wiki/concept/topic.md"])]
+
+    results, _written = pw.run_write_phase(items, store)
+
+    err = capsys.readouterr().err
+    assert "[supersede-refused] wiki/concept/topic.md: anchor not found" in err
+    # The write really did fail, or the ordering would not be under test.
+    assert by_hash(results)["h1"]["status"] == "error"
+
+
 def test_an_abandoned_merge_is_not_reported_as_merged(store, writers):
     """The claim that was untrue before this step. `merged` tells the client the
     sources reached the article; SG1 dropped the write so that they did not, and a
@@ -682,7 +706,7 @@ def test_an_abandoned_merge_is_not_reported_as_merged(store, writers):
     received it."""
     store.write_article("wiki/concept/topic.md", "existing\n")
     writers["findings"] = {"wiki/concept/topic.md": [
-        _finding(mg.EV_TRAIL_LOST, "wiki/concept/topic.md",
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/topic.md",
                  "pre-existing trail missing from the rewrite", "[Superseded ...]")]}
     items = [item("h1", merges=["wiki/concept/topic.md"])]
 
@@ -700,7 +724,7 @@ def test_a_batched_abandon_names_the_article_once_per_item(store, writers):
     because both would otherwise read as filed."""
     store.write_article("wiki/concept/shared.md", "existing\n")
     writers["findings"] = {"wiki/concept/shared.md": [
-        _finding(mg.EV_TRAIL_LOST, "wiki/concept/shared.md")]}
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/shared.md")]}
     items = [
         item("h1", merges=["wiki/concept/shared.md"], source_ref="raw/a.md"),
         item("h2", merges=["wiki/concept/shared.md"], source_ref="raw/b.md"),
@@ -737,7 +761,7 @@ def test_an_abandoned_merge_survives_a_cancellation_after_the_write(store, write
     def merge_then_cancel(art_path, old_content, sources, model="m", events=None):
         cancel.set()
         if events is not None:
-            events.append(_finding(mg.EV_TRAIL_LOST, art_path))
+            events.append(_finding(mg.EV_MERGE_ABANDONED, art_path))
         return old_content
 
     monkeypatch.setattr(pw, "merge_into_article", merge_then_cancel)

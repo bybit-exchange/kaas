@@ -92,7 +92,7 @@ def fakes(monkeypatch):
         # A merge that abandoned returns what it was handed (SG1), so the fake has
         # to as well -- a report that named an abandonment beside a changed article
         # would be testing something the real merge cannot produce.
-        if any(f.kind == mg.EV_TRAIL_LOST for f in findings):
+        if any(f.kind == mg.EV_MERGE_ABANDONED for f in findings):
             return article_content
         return article_content + f"\nmerged {source_path}\n"
 
@@ -562,7 +562,7 @@ def test_compile_names_an_abandoned_merge_as_its_own_status(kb, fakes):
     kb.write_article("wiki/concept/target.md", "existing\n")
     fakes["classification"] = merges("wiki/concept/target.md")
     fakes["findings"] = {"wiki/concept/target.md": [
-        _finding(mg.EV_TRAIL_LOST, "wiki/concept/target.md",
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/target.md",
                  "pre-existing trail missing from the rewrite", "[Superseded ...]")]}
 
     out = cm.compile_kb(str(kb.base_dir))
@@ -582,7 +582,7 @@ def test_an_abandoned_merge_still_marks_its_sources_compiled(kb, fakes):
     kb.write_article("wiki/concept/target.md", "existing\n")
     fakes["classification"] = merges("wiki/concept/target.md")
     fakes["findings"] = {"wiki/concept/target.md": [
-        _finding(mg.EV_TRAIL_LOST, "wiki/concept/target.md", "reason", "block")]}
+        _finding(mg.EV_MERGE_ABANDONED, "wiki/concept/target.md", "reason", "block")]}
 
     out = cm.compile_kb(str(kb.base_dir))
 
@@ -644,6 +644,76 @@ def test_a_create_over_an_existing_file_is_handed_a_sink(kb, fakes):
     cm.compile_kb(str(kb.base_dir))
 
     assert fakes["sinks"] and all(sink is not None for sink in fakes["sinks"])
+
+
+def _write_refuses(monkeypatch, article: str) -> None:
+    """Make the store refuse one article, leaving the merge that precedes it intact.
+
+    `fakes["fail_write"]` fails the merge itself, which never fills the sink; the
+    ordering under test is only reachable when the merge reports and the write then
+    raises.
+    """
+    real_write = KBStore.write_article
+
+    def write_article(self, art_path, content):
+        if art_path == article:
+            raise RuntimeError("disk full")
+        return real_write(self, art_path, content)
+
+    monkeypatch.setattr(KBStore, "write_article", write_article)
+
+
+@pytest.mark.parametrize("raws, tag", [
+    (["raw/a.md"], "merge-error"),                    # one op on the article
+    (["raw/a.md", "raw/b.md"], "merge-batch-error"),  # two, batched into one call
+])
+def test_a_finding_survives_a_write_that_fails(tmp_path, fakes, monkeypatch, raws, tag):
+    """A drain below `store.write_article` loses the findings of exactly the run
+    worth reporting: the one whose write then failed. The refusal happened, and it
+    is what tells an operator why the article they are about to re-run looks the
+    way it does.
+
+    Both merge branches, since each holds a drain of its own and fixing one leaves
+    the other green. The raw files are written here rather than taken from the `kb`
+    fixture, whose two documents can only reach the batch branch.
+    """
+    store = KBStore(str(tmp_path))
+    for rel in raws:
+        store.write_raw(rel, f"content of {rel}")
+    store.write_article("wiki/concept/target.md", "existing\n")
+    fakes["classification"] = merges("wiki/concept/target.md")
+    fakes["findings"] = {"wiki/concept/target.md": [
+        _finding(mg.EV_SUPERSEDE_REFUSED, "wiki/concept/target.md",
+                 "anchor not found", "Progress: 0%")]}
+    _write_refuses(monkeypatch, "wiki/concept/target.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    assert [f["reason"] for f in out["merge_findings"]] == ["anchor not found"]
+    log = (store.base_dir / ".compile.log").read_text()
+    assert "[supersede-refused] wiki/concept/target.md: anchor not found" in log
+    # Names which branch ran and doubles as the proof that the write really did
+    # fail: the `-error` tags are printed from the except path and nowhere else.
+    assert f"[{tag}] wiki/concept/target.md" in log
+
+
+def test_a_create_over_an_existing_file_reports_its_finding_when_the_write_fails(
+        kb, fakes, monkeypatch):
+    """The same ordering on the create branch, which merges rather than creating and
+    holds the only other drain."""
+    kb.write_article("wiki/concept/topic.md", "prior content\n")
+    fakes["classification"] = creates("wiki/concept/topic.md")
+    fakes["findings"] = {"wiki/concept/topic.md": [
+        _finding(mg.EV_ARTICLE_SHRANK, "wiki/concept/topic.md", "shrank 9 bytes")]}
+    _write_refuses(monkeypatch, "wiki/concept/topic.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    # One per create op, and the fixture ingests two raw files into this article.
+    assert [f["reason"] for f in out["merge_findings"]] == ["shrank 9 bytes"] * 2
+    # Both writes really did fail, printed from this branch's except path.
+    log = (kb.base_dir / ".compile.log").read_text()
+    assert log.count("[create-error] wiki/concept/topic.md") == 2
 
 
 # ── incremental completed_ops ───────────────────────────────────────

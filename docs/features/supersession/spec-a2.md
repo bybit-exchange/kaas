@@ -2,10 +2,10 @@
 
 Date: 2026-08-20
 Slug: `supersession`
-Status: specified; **sequencing steps 1, 2 and 5 landed** — the supersede primitive and its
-trail (`17aa09b`), V40 in test-set.md (`3d9597a`), and the two prompts plus PV4/PV5
-(2026-08-21, the step that changes what the writer does). Steps 3, 4 and 6 are open: the
-rewrite-path guard, the reports, then the arm. **Required rather than optional** — A1 was measured
+Status: specified; **sequencing steps 1–5 landed** — the supersede primitive and its
+trail (`17aa09b`), V40 in test-set.md (`3d9597a`), the two prompts plus PV4/PV5 (`d5bf395`,
+the step that changes what the writer does), the rewrite-path guard (`c525c48`) and the
+reports (`d7892d4`). Only step 6, the arm, is open. **Required rather than optional** — A1 was measured
 and [verdict-fx7.md](verdict-fx7.md) decided D2's condition against it. The rubric this
 increment is judged on was fixed before any spend on its arm: `In force` became a third
 gating column as V39 on 2026-08-19 ([test-set.md](test-set.md#scoring)). D1 fixes what the
@@ -386,7 +386,9 @@ A2's arm will report whether any instance arose rather than confirming the forma
   code then throws away.
 - **SG4.** The reports are operator-facing and never re-enter a prompt, on RP5's reasoning
   and asserted the same way: the write phase's entry points take source blocks and nothing
-  else, and every report is built after the last write op.
+  else, and no finding is read back by the run that produced it. The compile report's section
+  is built after the last write op; the worker route prints each finding as the merge returns
+  it, which is before its own write and still after the only prompt that op sends.
 
 ### PV. Prompt version and the additive claim
 

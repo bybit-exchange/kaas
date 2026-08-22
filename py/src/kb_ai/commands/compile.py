@@ -37,7 +37,7 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
-    EV_TRAIL_LOST,
+    EV_MERGE_ABANDONED,
     MergeEvent,
     build_source_blocks,
     create_new_article,
@@ -582,7 +582,7 @@ def compile_kb(
             """
             with _write_lock:
                 _merge_findings.extend(events)
-            return any(e.kind == EV_TRAIL_LOST for e in events)
+            return any(e.kind == EV_MERGE_ABANDONED for e in events)
 
         def _process_article(art_path: str, ops: list):
             adopt_context(_parent_ctx, phase=f"write:{art_path}")
@@ -602,11 +602,20 @@ def compile_kb(
                             new_content = merge_into_article(
                                 details["path"], old_content, sources,
                                 model=write_model, events=events)
+                            # Drained before the write, not after it: a drain below
+                            # `store.write_article` loses every finding of the run
+                            # most worth reporting to the exception. The findings
+                            # describe what the merge produced, not what reached
+                            # disk -- so on a failed write SG2's delta is a delta
+                            # against an article that still holds its old bytes,
+                            # and the error beside it in `errors` says so.
+                            abandoned = _collect(events)
                         else:
                             new_content = create_new_article(
                                 details["type"], details["title"], sources, model=write_model)
+                            abandoned = False
                         store.write_article(details["path"], new_content)
-                    tag = "merge-abandoned" if _collect(events) else "create"
+                    tag = "merge-abandoned" if abandoned else "create"
                     log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
@@ -669,15 +678,16 @@ def compile_kb(
 
             if len(merges) == 1:
                 rel, cs, extraction, details = merges[0]
-                events = []
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         sources = build_source_blocks(store.read_raw, [(rel, cs, extraction)])
                         new_content = merge_into_article(
                             art_path, old_content, sources, model=write_model, events=events)
+                        abandoned = _collect(events)
                         store.write_article(art_path, new_content)
-                    tag = "merge-abandoned" if _collect(events) else "merge"
+                    tag = "merge-abandoned" if abandoned else "merge"
                     log(f"  [{tag}] {art_path} ← {rel} — ${op_cost.total_cost:.4f}")
                     with _write_lock:
                         _file_done_ops[rel] += 1
@@ -690,14 +700,15 @@ def compile_kb(
                 sources = build_source_blocks(
                     store.read_raw, [(rel, cs, ext) for rel, cs, ext, _det in merges])
                 merge_rels = [rel for rel, _cs, _ext, _det in merges]
-                events = []
+                events: list[MergeEvent] = []
                 try:
                     with _measure_op_cost() as op_cost:
                         old_content = store.read_article(art_path)
                         new_content = merge_into_article(
                             art_path, old_content, sources, model=write_model, events=events)
+                        abandoned = _collect(events)
                         store.write_article(art_path, new_content)
-                    tag = "merge-abandoned" if _collect(events) else "merge-batch"
+                    tag = "merge-abandoned" if abandoned else "merge-batch"
                     log(f"  [{tag}] {art_path} ← {len(merges)} sources "
                         f"— ${op_cost.total_cost:.4f}")
                     with _write_lock:
@@ -755,16 +766,21 @@ def compile_kb(
         #
         # Sorted rather than printed in completion order, which the thread pool does
         # not fix: an unchanged KB has to produce a diffable report twice running.
-        merge_findings = sorted(
-            ({"kind": ev.kind, "article": ev.article,
-              "reason": ev.reason, "detail": ev.detail} for ev in _merge_findings),
-            key=lambda f: (f["article"], f["kind"], f["reason"], f["detail"]))
-        if merge_findings:
-            kinds = Counter(f["kind"] for f in merge_findings)
-            log(f"Merge findings: {len(merge_findings)} — "
+        findings = sorted(_merge_findings,
+                          key=lambda ev: (ev.article, ev.kind, ev.reason, ev.detail))
+        if findings:
+            kinds = Counter(ev.kind for ev in findings)
+            log(f"Merge findings: {len(findings)} — "
                 + ", ".join(f"{n} {kind}" for kind, n in sorted(kinds.items())) + ":")
-            for finding in merge_findings:
-                log(format_merge_event(MergeEvent(**finding)))
+            for event in findings:
+                log(format_merge_event(event))
+        # Formatted from the events and serialised from the same order, rather than
+        # round-tripping a dict back through MergeEvent(**...) to print it. The
+        # projection below is coupled to the record's fields on purpose -- the
+        # report's shape is a contract; the reconstruction was coupled by accident,
+        # to print a line the event itself could format.
+        merge_findings = [{"kind": ev.kind, "article": ev.article,
+                           "reason": ev.reason, "detail": ev.detail} for ev in findings]
 
         # A revised document's articles were merged into, not rewritten, so what
         # the previous version contributed may still be in there. "May" is PV6: the
@@ -824,8 +840,10 @@ def compile_kb(
         # here changed what was written.
         "lineage": lineage,
         # What the merge ops reported about themselves: refused supersedes (SG3),
-        # abandoned merges (SG1) and articles that shrank (SG2). Always present, so
-        # a clean run reads as clean rather than as a run that reported nothing.
+        # abandoned merges (SG1) and articles that shrank (SG2). Empty rather than
+        # absent on a run that wrote cleanly, so a clean report reads as clean --
+        # like `revised` and `lineage`, it is missing entirely from the early returns
+        # above, which describe runs where no write phase ran at all.
         "merge_findings": merge_findings,
         # How far the wiki is behind each gate's prompts (G5). Counts only, since
         # `kb-ai check` names the documents for free. The first_run flags are per

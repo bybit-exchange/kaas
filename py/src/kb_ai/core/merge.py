@@ -668,7 +668,7 @@ def _merge_diff_system() -> str:
 # them, it does not restate them.
 EV_SUPERSEDE_REFUSED = "supersede-refused"
 EV_TRAIL_MALFORMED = "malformed-trail"
-EV_TRAIL_LOST = "abandoned"
+EV_MERGE_ABANDONED = "abandoned"
 EV_ARTICLE_SHRANK = "shrank"
 
 
@@ -801,7 +801,7 @@ def _merge_full_rewrite(
         # human can still read and fix. One line per block, cut where SG3 and TR6
         # cut theirs -- a trail block is as long as the claim it records.
         for block in missing:
-            _report(events, EV_TRAIL_LOST, article_path, _TRAIL_LOST, block[:80])
+            _report(events, EV_MERGE_ABANDONED, article_path, _TRAIL_LOST, block[:80])
         return article_content
 
     # TR6's report. This path writes its own trail text, so a malformed block is

@@ -1750,7 +1750,7 @@ def test_an_abandoned_merge_reaches_the_sink_with_the_missing_block(monkeypatch)
 
     assert out == _carrying()
     assert [(e.kind, e.article, e.reason) for e in events] == [
-        (mg.EV_TRAIL_LOST, "wiki/gateway.md",
+        (mg.EV_MERGE_ABANDONED, "wiki/gateway.md",
          "pre-existing trail missing from the rewrite")]
     assert events[0].detail == CARRIED
 
@@ -1894,7 +1894,7 @@ def test_an_abandoned_merge_records_no_shrink(monkeypatch):
 
     mg.merge_into_article("wiki/a.md", _carrying(), _v3_payload(), model="m", events=events)
 
-    assert [e.kind for e in events] == [mg.EV_TRAIL_LOST]
+    assert [e.kind for e in events] == [mg.EV_MERGE_ABANDONED]
 
 
 def test_a_shrink_prints_when_no_sink_is_passed(monkeypatch, capsys):

@@ -25,7 +25,7 @@ from kb_ai._errors import PipelineCancelledError
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.core.merge import (
-    EV_TRAIL_LOST,
+    EV_MERGE_ABANDONED,
     MergeEvent,
     build_source_blocks,
     create_new_article,
@@ -77,20 +77,25 @@ def _process_article(
                 events: list[MergeEvent] = []
                 new_content = merge_into_article(art_path, old_content, sources,
                                                  model=model, events=events)
-                store.write_article(art_path, new_content)
-                # SG1-SG3, in the shape the CLI route prints them: two write phases
-                # over one layout wording the same finding two ways is the drift
-                # T14 and VF6 exist to stop.
+                # SG1-SG3, worded as the CLI route words them (the prefix is this
+                # phase's own): two write phases over one layout describing the same
+                # finding two ways is the drift T14 and VF6 exist to stop.
+                #
+                # Before the write, not after it: reporting below it loses the
+                # findings of the run most worth reporting to the exception. They
+                # describe what the merge produced rather than what reached disk, so
+                # a failed write prints SG2's delta beside the error it also files.
                 for event in events:
                     print(f"[pipeline] {format_merge_event(event).strip()}",
                           file=sys.stderr, flush=True)
+                store.write_article(art_path, new_content)
                 # `merged` says the sources reached the article. SG1 abandoned the
                 # write precisely so they did not, so an abandoned merge is its own
                 # status rather than a merge that happened to change nothing -- a
                 # client reading `merged` would file the document into an article
                 # that never received it. The ops still count as completed: D9
                 # accepts losing the merge over losing the article's history.
-                key = "abandoned" if any(e.kind == EV_TRAIL_LOST for e in events) else "merged"
+                key = "abandoned" if any(e.kind == EV_MERGE_ABANDONED for e in events) else "merged"
                 with write_lock:
                     for ch in all_hashes:
                         _ensure_write_result(write_results, ch)
