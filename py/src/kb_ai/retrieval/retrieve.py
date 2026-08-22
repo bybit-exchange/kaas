@@ -33,6 +33,13 @@ from kb_ai.storage.store import ArticleMeta, KBStore, render_catalog_line
 # refused by the client's own MAX_PROMPT_CHARS check over a rounding difference.
 _SAFETY_MARGIN = 500
 
+# Cap the question rendered into the selection prompt. Nothing caps a chat
+# message, so a pasted document arrives here as the query; rendered whole it
+# spends the catalog's budget and then overruns the prompt limit on its own. Only
+# selection reads this bounded prefix -- the answering call still gets the whole
+# question -- and a prefix is all that ranking titles needs.
+_MAX_QUERY_CHARS = 4_000
+
 # Cap per article so the combined context stays within the LLM prompt budget.
 # Coordinated with the default max_articles (6) and llm.MAX_PROMPT_CHARS (80K):
 # 6 * 12K = 72K leaves headroom for the system prompt + history.
@@ -80,7 +87,9 @@ def _fit_catalog(catalog: list[ArticleMeta], query: str, budget_chars: int) -> s
     for article in ranked:
         line = render_catalog_line(article)
         if used + len(line) + 1 > budget_chars:
-            break
+            # Skip rather than stop: the list is already ranked, so one article
+            # whose line does not fit must not discard every shorter one below it.
+            continue
         kept.append(line)
         used += len(line) + 1
     if len(kept) < len(ranked):
@@ -100,10 +109,14 @@ def _select_relevant(catalog: list[ArticleMeta], query: str, model: str,
     if not catalog:
         return []
     valid = {a.path for a in catalog}
-    skeleton = _SELECT_PROMPT.format(listing="", query=query, max_select=max_select)
-    listing = _fit_catalog(catalog, query,
+    question = query[:_MAX_QUERY_CHARS]
+    if len(question) < len(query):
+        print(f"[truncation] selection question: {len(query):,} → "
+              f"{len(question):,} chars", file=sys.stderr, flush=True)
+    skeleton = _SELECT_PROMPT.format(listing="", query=question, max_select=max_select)
+    listing = _fit_catalog(catalog, question,
                            MAX_PROMPT_CHARS - len(skeleton) - _SAFETY_MARGIN)
-    prompt = _SELECT_PROMPT.format(listing=listing, query=query,
+    prompt = _SELECT_PROMPT.format(listing=listing, query=question,
                                    max_select=max_select)
     try:
         result = completion_json(model=model, messages=[{"role": "user", "content": prompt}])

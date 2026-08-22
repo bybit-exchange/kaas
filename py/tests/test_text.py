@@ -24,6 +24,13 @@ def test_tokens_gives_each_chinese_character_its_own_token():
     assert tokens("熔断器") == {"熔", "断", "器"}
 
 
+def test_tokens_splits_an_identifier_into_its_parts():
+    # Reference-table keys reach the catalog line as snake_case identifiers, and a
+    # question names the part, not the whole: "the cooldown" has to reach the
+    # article whose keys carry cb_cooldown_sec.
+    assert tokens("cb_cooldown_sec") == {"cb", "cooldown", "sec"}
+
+
 def test_tokens_keeps_non_ascii_alphabets_as_words():
     assert tokens("Café Привет") == {"café", "привет"}
 

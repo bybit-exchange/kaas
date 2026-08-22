@@ -12,8 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from kb_ai._errors import PromptTooLargeError
-from kb_ai.llm import MAX_PROMPT_CHARS
+from kb_ai.llm import MAX_PROMPT_CHARS, PromptTooLargeError
 from kb_ai.retrieval import query, retrieve
 from kb_ai.storage.store import ArticleMeta, KBStore
 
@@ -438,6 +437,7 @@ def test_select_reports_the_catalog_it_had_to_drop(monkeypatch, capsys):
     err = capsys.readouterr().err
     assert "[truncation]" in err
     assert "600" in err
+    assert "→ 0 articles" not in err
 
 
 def test_select_sends_the_whole_catalog_when_it_fits(monkeypatch, capsys):
@@ -453,3 +453,72 @@ def test_select_sends_the_whole_catalog_when_it_fits(monkeypatch, capsys):
     for i in range(3):
         assert f"wiki/f{i:04d}.md" in seen["prompt"]
     assert "[truncation]" not in capsys.readouterr().err
+
+
+def test_select_keeps_the_prompt_in_budget_when_the_question_is_enormous(monkeypatch):
+    """Nothing caps a chat message, so a pasted document arrives here as the query.
+    Rendered whole it spends the budget itself, the listing comes out empty, and
+    the client still refuses the prompt -- back to answering with no grounding."""
+    seen: dict = {}
+
+    def fake(**kw):
+        seen["prompt"] = kw["messages"][0]["content"]
+        return {"paths": []}
+
+    monkeypatch.setattr(retrieve, "completion_json", fake)
+    retrieve._select_relevant(_oversized_catalog(50), "x" * 90_000, "m", max_select=6)
+
+    assert len(seen["prompt"]) <= MAX_PROMPT_CHARS
+    assert "wiki/f0000.md" in seen["prompt"]
+
+
+def test_fit_catalog_skips_a_line_too_long_to_fit_and_keeps_the_rest():
+    """A single over-long line must not end the scan: the list is already ranked,
+    so skipping one unfittable entry keeps the next-best ones instead of none."""
+    catalog = [ArticleMeta("L" * 900, "wiki/long.md", "s" * 200)] + [
+        ArticleMeta(f"Short {i}", f"wiki/s{i}.md", "") for i in range(5)]
+
+    listing = retrieve._fit_catalog(catalog, "", 400)
+
+    assert "wiki/long.md" not in listing
+    assert [f"wiki/s{i}.md" in listing for i in range(5)].count(True) >= 3
+
+
+def test_select_reaches_an_article_through_its_reference_table_keys(monkeypatch):
+    """The keys column exists so a question naming one setting finds the article
+    defining it. Tokenising cb_cooldown_sec whole makes that question score 0."""
+    seen: dict = {}
+
+    def fake(**kw):
+        seen["prompt"] = kw["messages"][0]["content"]
+        return {"paths": []}
+
+    monkeypatch.setattr(retrieve, "completion_json", fake)
+    catalog = _oversized_catalog()
+    catalog.append(ArticleMeta("Worker settings", "wiki/keys.md", "s" * 200,
+                               keys="cb_cooldown_sec, lease_timeout_sec"))
+    retrieve._select_relevant(catalog, "what does the cooldown do?", "m", max_select=6)
+
+    assert "wiki/keys.md" in seen["prompt"]
+
+
+def test_select_handles_a_single_article_catalog(monkeypatch):
+    monkeypatch.setattr(retrieve, "completion_json",
+                        lambda **kw: {"paths": ["wiki/f0000.md"]})
+
+    assert retrieve._select_relevant(_oversized_catalog(1), "q", "m",
+                                     max_select=6) == ["wiki/f0000.md"]
+
+
+def test_select_handles_an_empty_query(monkeypatch):
+    seen: dict = {}
+
+    def fake(**kw):
+        seen["prompt"] = kw["messages"][0]["content"]
+        return {"paths": []}
+
+    monkeypatch.setattr(retrieve, "completion_json", fake)
+    retrieve._select_relevant(_oversized_catalog(), "", "m", max_select=6)
+
+    assert len(seen["prompt"]) <= MAX_PROMPT_CHARS
+    assert "wiki/f0000.md" in seen["prompt"]
