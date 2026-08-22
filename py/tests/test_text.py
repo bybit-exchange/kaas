@@ -67,11 +67,18 @@ def test_bigram_tokens_pairs_adjacent_characters_of_a_chinese_run():
 
 
 def test_bigram_tokens_separates_titles_that_share_every_character():
-    """The reason the function exists: on single characters these two titles are
-    a perfect match under a smaller-set normalisation, which merged them."""
-    a, b = bigram_tokens("数据安全"), bigram_tokens("安全数据库")
-    assert len(a & b) / max(len(a), len(b)) < 0.7
-    assert len(tokens("数据安全") & tokens("安全数据库")) / len(tokens("数据安全")) == 1.0
+    """The reason the function exists. Whether that separation clears the dedup
+    threshold is core.classify's business and is asserted there -- here the claim
+    is only that the two titles stop being subsets of one another."""
+    assert bigram_tokens("数据安全") == {"数据", "据安", "安全"}
+    assert bigram_tokens("安全数据库") == {"安全", "全数", "数据", "据库"}
+    assert tokens("数据安全") < tokens("安全数据库")
+
+
+def test_bigram_tokens_pairs_kana_runs_too():
+    """The range covers kana, so a Japanese title is bigrammed rather than left as
+    one word token."""
+    assert bigram_tokens("ひらがな") == {"ひら", "らが", "がな"}
 
 
 def test_bigram_tokens_keeps_a_one_character_run_whole():

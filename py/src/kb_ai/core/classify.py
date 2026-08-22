@@ -239,55 +239,57 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
-# Measured over the 675 titles of data/kb-knowledge, against the pre-fix rule as
-# the baseline for what counts as a regression: the rule below merges 16 pairs
-# where the pre-fix one merged 46. 9 pairs are merged by both, 7 only by this one
-# (all same-subject -- capitalisation variants and this corpus's near-duplicate
-# "AI-Native workflow" cluster), and 37 that the pre-fix rule merged are now
-# refused, which is where the false merges lived.
+# Measured over the 675 titles of data/kb-knowledge: this rule merges 25 pairs, 16
+# of which the pre-branch ASCII rule also merged and 9 of which are new. All 25
+# were read: 19 are one article titled twice (capitalisation, punctuation or a
+# trailing date), 2 are this corpus's near-duplicate "AI-Native workflow" cluster,
+# and 4 are a rolling 发言复盘 article beside its dated instalments. The pre-branch
+# rule merged 46 pairs and the intermediate rule of 895424d merged 86.
 _DUPLICATE_THRESHOLD = 0.7
 
-# A title may name the same article as one at most half again its size. Beyond
-# that the shorter title is a prefix or a boilerplate skeleton rather than the
-# same subject: 上海 was fully contained in 海上运输, and two different teams'
-# OKR articles share `2026 H1 ... Team OKR Decisions`.
-_LENGTH_RATIO = 1.5
-
-_NUMERIC_TOKEN = re.compile(r"\d+")
+# Any token carrying a digit is a number: `2026`, `01`, but also `q1`, `v2`, `h1`.
+# Restricting this to all-digit tokens let `2026 Q1 Planning Review` merge into
+# `2026 Q2 Planning Review`.
+_DIGIT = re.compile(r"\d")
 
 
 def _numbers(title: str) -> set[str]:
-    return {t for t in tokens(title) if _NUMERIC_TOKEN.fullmatch(t)}
+    return {t for t in tokens(title) if _DIGIT.search(t)}
 
 
 def _duplicate_score(new_title: str, existing_title: str) -> float:
     """How strongly two titles claim to name the same article.
 
-    Still the ranking's shape -- shared tokens over the smaller set, so a title
-    that adds a qualifier ("Vector Search Basics" beside "Vector Search") is
-    caught, which is the collision the cross-group dedup phase exists for -- but
-    with two guards, each closing a false merge this branch's tokeniser change
-    would otherwise have introduced:
+    Not the ranking's score. Ranking divides by the smaller token set because it
+    wants recall and a loose match only reorders a list; this decides whether a
+    document's knowledge is written into an article that did not name it, which
+    nothing later undoes, so it needs the two titles to be mostly the same text
+    rather than one to contain the other -- every character of 上海 sits inside
+    海上运输. Dice does that with no length constant to tune: it charges both
+    titles' sizes, so a qualifier still merges ("Vector Search Basics" beside
+    "Vector Search" scores 0.80, 向量检索基础 beside 向量检索 0.75) while a
+    boilerplate skeleton does not (two teams' `2026 H1 ... Team OKR Decisions`
+    articles score 0.67).
 
-    Numbers gate the comparison. A number in a title is a period, a version or a
-    date, so two titles alike apart from their numbers are consecutive instances
-    of a series, not one article named twice -- `发言复盘 2026-01` against
+    Numbers gate it, because a number in a title is a period, a version or a date:
+    two titles carrying numbers that DISAGREE are consecutive instances of a
+    series, not one article named twice -- `发言复盘 2026-01` against
     `发言复盘 2026-03` scored 0.83 and merged March's knowledge into January's
-    article. Splitting the date into its own tokens is what pushed this class over
-    the threshold, so the tokeniser change has to pay for it.
+    article. A title that merely ADDS a date still matches its undated twin, which
+    is 15 of the duplicate pairs in data/kb-knowledge.
 
-    And the two titles must be comparable in length (_LENGTH_RATIO), because
-    containment alone is weak evidence: every character of 上海 appears in
-    海上运输.
+    Known limitation, and pre-existing rather than introduced here: a period
+    spelled without digits is invisible to the gate, so `Phase I Rollout Plan` and
+    `Phase II Rollout Plan` (or 一月/三月, `Part One`/`Part Two`) still score 0.75
+    and merge. Closing it needs an ordinal vocabulary, not another guard.
     """
-    if _numbers(new_title) != _numbers(existing_title):
+    new_numbers, existing_numbers = _numbers(new_title), _numbers(existing_title)
+    if new_numbers and existing_numbers and new_numbers != existing_numbers:
         return 0.0
     a, b = bigram_tokens(new_title), bigram_tokens(existing_title)
     if not a or not b:
         return 0.0
-    if max(len(a), len(b)) > _LENGTH_RATIO * min(len(a), len(b)):
-        return 0.0
-    return len(a & b) / min(len(a), len(b))
+    return 2 * len(a & b) / (len(a) + len(b))
 
 
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:

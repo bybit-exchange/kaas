@@ -389,12 +389,15 @@ def test_dedup_keeps_distinct_chinese_articles(new_title, existing_title):
 @pytest.mark.parametrize("new_title,existing_title", [
     ("发言复盘 2026-03", "发言复盘 2026-01"),
     ("Weekly Report 2026-03", "Weekly Report 2026-01"),
-    ("API v3 Design", "API v2 Design"),
+    # Not bare digits: the gate reads any token carrying one, or these merge on
+    # score alone (0.75 and 0.80).
+    ("2026 Q1 Planning Review", "2026 Q2 Planning Review"),
+    ("Product Roadmap v1 Overview", "Product Roadmap v2 Overview"),
 ])
 def test_dedup_keeps_the_next_instance_of_a_numbered_series(new_title, existing_title):
     """Splitting a date into its own tokens is what makes these titles look alike,
-    so the tokeniser change has to pay for the consequence: titles differing only
-    in their numbers are consecutive instances of a series."""
+    so the tokeniser change has to pay for the consequence: titles whose numbers
+    disagree are consecutive instances of a series."""
     classification = ClassificationResult(
         create_new=[CreateTarget(path="wiki/a.md", title=new_title)],
     )
@@ -403,6 +406,34 @@ def test_dedup_keeps_the_next_instance_of_a_numbered_series(new_title, existing_
 
     assert len(out.create_new) == 1
     assert out.merge_into == []
+
+
+def test_dedup_merges_a_dated_title_into_its_undated_twin():
+    """Numbers only gate the comparison when both sides carry them and disagree.
+    A title that merely adds a date is the same article titled twice -- 15 of the
+    duplicate pairs in data/kb-knowledge are exactly this."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(
+            path="wiki/a.md",
+            title="Greenhouse ATS Launch & Interviewer Training (May 2026)")])
+    existing = [article("Greenhouse Ats Launch And Interviewer Training", "wiki/g.md")]
+
+    out = cl.dedup_create_new(classification, existing)
+
+    assert out.create_new == []
+    assert out.merge_into[0].path == "wiki/g.md"
+
+
+def test_dedup_scores_an_untitled_pair_without_dividing_by_zero():
+    """Both titles empty is reachable through the classifier's own output, and the
+    guard that catches it is otherwise invisible."""
+    assert cl._duplicate_score("", "") == 0.0
+
+    out = cl.dedup_create_new(
+        ClassificationResult(create_new=[CreateTarget(path="wiki/a.md", title="")]),
+        [article("", "wiki/b.md")])
+
+    assert len(out.create_new) == 1
 
 
 def test_dedup_merges_at_exactly_the_threshold():
@@ -488,30 +519,51 @@ def test_dedup_threshold_is_seventy_percent():
     assert out_above.create_new == []
 
 
-def test_dedup_merges_a_title_that_only_adds_a_qualifier():
+@pytest.mark.parametrize("new_title,existing_title", [
+    ("Vector Search Basics", "Vector Search"),
+    # The same shape in Chinese, where bigrams roughly double the token count. A
+    # length-ratio guard read this as too dissimilar to merge while passing the
+    # English pair above -- which is Bug 2 back on the path Task 3 is about.
+    ("向量检索基础", "向量检索"),
+    ("成本管理系统", "成本管理"),
+])
+def test_dedup_merges_a_title_that_only_adds_a_qualifier(new_title, existing_title):
     """The collision the cross-group dedup phase exists for: two groups name the
     same subject and one adds a word."""
     classification = ClassificationResult(
-        create_new=[CreateTarget(path="wiki/a.md", title="Vector Search Basics")])
+        create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
 
-    out = cl.dedup_create_new(classification, [article("Vector Search", "wiki/vs.md")])
+    out = cl.dedup_create_new(classification, [article(existing_title, "wiki/vs.md")])
 
     assert out.create_new == []
     assert out.merge_into[0].path == "wiki/vs.md"
 
 
 @pytest.mark.parametrize("new_title", [
-    "Pricing Model",                # 2 tokens against 1 -- ratio 2.0
-    "Pricing Model Review Notes",   # ratio 4.0
+    "Pricing Model",                # scores 0.67 against a one-token title
+    "Pricing Model Review Notes",   # 0.40
 ])
-def test_dedup_refuses_a_title_far_longer_than_the_one_it_contains(new_title):
-    """Containment alone is weak evidence, so the two titles must be comparable in
-    length: otherwise a short generic title absorbs every article that starts with
-    it, and every character of 上海 sits inside 海上运输."""
+def test_dedup_refuses_a_title_that_merely_contains_a_shorter_one(new_title):
+    """Containment alone is weak evidence -- Dice charges both titles' sizes, so a
+    short generic title cannot absorb every article that starts with it, and 上海
+    stays out of 海上运输."""
     classification = ClassificationResult(
         create_new=[CreateTarget(path="wiki/a.md", title=new_title)])
 
     out = cl.dedup_create_new(classification, [article("Pricing", "wiki/partial.md")])
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []
+
+
+def test_dedup_refuses_two_teams_sharing_a_title_skeleton():
+    """Real pair from data/kb-knowledge: the shared text is boilerplate, so the
+    score has to fall under the threshold on size alone (0.67)."""
+    classification = ClassificationResult(create_new=[CreateTarget(
+        path="wiki/a.md", title="2026 H1 Infra AI & Framework Team OKR Decisions")])
+    existing = [article("Big Data Team 2026 H1 Okr Decisions", "wiki/bd.md")]
+
+    out = cl.dedup_create_new(classification, existing)
 
     assert len(out.create_new) == 1
     assert out.merge_into == []

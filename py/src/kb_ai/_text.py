@@ -40,9 +40,15 @@ def bigram_tokens(text: str) -> set[str]:
     shorter title, so on unigrams they score a perfect match, while on bigrams
     they share \u5b89\u5168 and \u6570\u636e out of four and no longer do. A one-character run has
     no bigram and is kept whole.
+
+    Known limitation, inherited from _SCRIPTIO_CONTINUA: U+30FB (\u30fb) is inside the
+    range, so a katakana phrase written with it yields bigrams straddling the
+    separator. Narrowing the range would change tokens() too, and with it
+    retrieval's ranking.
     """
-    out = set(_WORD_RE.findall(text.lower()))
-    for run in _RUN_RE.findall(text.lower()):
+    lowered = text.lower()
+    out = set(_WORD_RE.findall(lowered))
+    for run in _RUN_RE.findall(lowered):
         out.update(run[i:i + 2] for i in range(max(len(run) - 1, 1)))
     return out
 
