@@ -68,6 +68,16 @@ def _timeout_error() -> APITimeoutError:
 
 MSGS = [{"role": "user", "content": "Hi"}]
 
+# The two retry constants, written down here instead of imported. Asserting
+# against completion_mod._TIMEOUT_BACKOFF_BASE / _RETRY_AFTER_CAP_S made every
+# wait assertion in this file self-referential: the wait comes from the constant,
+# so a mutation of the constant moved both sides and the suite stayed green
+# (measured: base 10 -> 7 and cap 120 -> 600 both left 44/44 passing). These
+# literals are the independent source. Change them only together with the code,
+# and expect the mismatch to be exactly what fails.
+_BACKOFF_BASE_S = 10
+_RETRY_AFTER_CAP_S = 120.0
+
 
 @pytest.fixture
 def mock_client():
@@ -200,14 +210,14 @@ class TestErrorClassification:
         assert text == "recovered"
         assert reason == "stop"
         assert mock_client.chat.completions.create.call_count == 2
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
 
 
 class TestRetryBackoff:
     """Exponential backoff, retry logging, and the deadline_too_close guard."""
 
     def test_backoff_doubles_across_retries(self, mock_client, no_sleep, fresh_context, capsys):
-        base = completion_mod._TIMEOUT_BACKOFF_BASE
+        base = _BACKOFF_BASE_S
         mock_client.chat.completions.create.side_effect = [
             _timeout_error(),
             _timeout_error(),
@@ -236,10 +246,10 @@ class TestRetryBackoff:
         text, _ = _completion_inner("model", MSGS)
 
         assert text == "gateway recovered"
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
         err = capsys.readouterr().err
         assert "[gateway_502]" in err
-        assert f"retrying in {completion_mod._TIMEOUT_BACKOFF_BASE}s..." in err
+        assert f"retrying in {_BACKOFF_BASE_S}s..." in err
 
     def test_rate_limit_is_retried_then_succeeds(
         self, mock_client, no_sleep, fresh_context, capsys
@@ -256,7 +266,7 @@ class TestRetryBackoff:
 
         assert text == "limit cleared"
         assert mock_client.chat.completions.create.call_count == 2
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
         assert "[rate_limited_429]" in capsys.readouterr().err
 
     def test_rate_limit_waits_the_retry_after_the_server_asked_for(
@@ -281,7 +291,7 @@ class TestRetryBackoff:
 
         _completion_inner("model", MSGS)
 
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
 
     def test_rate_limit_caps_an_outsized_retry_after(
         self, mock_client, no_sleep, fresh_context
@@ -295,7 +305,7 @@ class TestRetryBackoff:
 
         _completion_inner("model", MSGS)
 
-        assert no_sleep == [completion_mod._RETRY_AFTER_CAP_S]
+        assert no_sleep == [_RETRY_AFTER_CAP_S]
 
     def test_rate_limit_falls_back_to_backoff_on_an_unreadable_retry_after(
         self, mock_client, no_sleep, fresh_context
@@ -307,7 +317,27 @@ class TestRetryBackoff:
 
         _completion_inner("model", MSGS)
 
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
+
+    def test_rate_limit_ignores_an_http_date_retry_after(
+        self, mock_client, no_sleep, fresh_context
+    ):
+        """The HTTP-date form is RFC-legal and deliberately not honoured.
+
+        Trusting it means trusting this machine's clock against the server's, and
+        skew in the wrong direction turns a 30s wait into hours. Falling back to
+        the local backoff is the same place an absent header leaves us, so this
+        pins the degradation as chosen rather than overlooked.
+        """
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down",
+                         headers={"retry-after": "Wed, 21 Oct 2026 07:28:00 GMT"}),
+            _make_response(content="ok"),
+        ]
+
+        _completion_inner("model", MSGS)
+
+        assert no_sleep == [_BACKOFF_BASE_S]
 
     def test_deadline_too_close_blocks_timeout_retry(
         self, mock_client, no_sleep, fresh_context, capsys
@@ -343,6 +373,33 @@ class TestRetryBackoff:
         assert no_sleep == []
         assert "[gateway_504] " in capsys.readouterr().err
 
+    def test_deadline_too_close_blocks_rate_limit_retry_at_the_server_s_wait(
+        self, mock_client, no_sleep, fresh_context, capsys
+    ):
+        """The Retry-After floor is what makes a rate limit trip this guard.
+
+        The deadline here is 150s away, which the 10s backoff plus the 60s margin
+        clears comfortably -- so with the floor removed this retries and succeeds.
+        It is the server's 200s, capped to 120, that overruns it. Without this
+        test the guard is only ever exercised on the timeout and gateway paths,
+        where the wait cannot exceed the backoff.
+        """
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(429, "slow down", headers={"retry-after": "200"}),
+            _make_response(content="must not be reached"),
+        ]
+        fresh_context.phase = "extract"
+        fresh_context.deadline_abs = time.monotonic() + 150
+
+        with pytest.raises(DeadlineExceededError) as excinfo:
+            _completion_inner("model", MSGS)
+
+        assert "deadline_too_close" in str(excinfo.value)
+        assert "op=extract" in str(excinfo.value)
+        assert no_sleep == []
+        assert mock_client.chat.completions.create.call_count == 1
+        assert "[rate_limited_429]" in capsys.readouterr().err
+
     def test_ample_deadline_still_allows_retry(self, mock_client, no_sleep, fresh_context):
         mock_client.chat.completions.create.side_effect = [
             _timeout_error(),
@@ -353,7 +410,7 @@ class TestRetryBackoff:
         text, _ = _completion_inner("model", MSGS)
 
         assert text == "retried in time"
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
 
     def test_context_accessors_survive_a_retry(self, mock_client, no_sleep, fresh_context):
         """record_cost's lambdas close over ctx -- it must still be the ThreadContext."""
@@ -398,7 +455,7 @@ class TestRetryBackoff:
 
         # First attempt runs, backoff happens, then the loop notices the cancel.
         assert mock_client.chat.completions.create.call_count == 1
-        assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
+        assert no_sleep == [_BACKOFF_BASE_S]
 
 
 class TestAdaptiveCacheBookkeeping:
