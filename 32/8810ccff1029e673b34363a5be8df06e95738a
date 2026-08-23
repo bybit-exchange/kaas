@@ -1,0 +1,33 @@
+internal/worker/breaker_reject_test.go
+  23d38fadaf652289 6,131-133,135-141,143-164
+internal/store/store.go
+  23d38fadaf652289 56
+internal/worker/dispatcher.go
+  23d38fadaf652289 49-54,66-70,77-80,85,93-95
+internal/store/sqlite/release_test.go
+  23d38fadaf652289 101-105
+internal/store/sqlite/sqlite.go
+  23d38fadaf652289 416-420
+internal/worker/dispatcher_limits_test.go
+  23d38fadaf652289 6-7,272-335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "328810ccff1029e673b34363a5be8df06e95738a",
+  "prompts": {
+    "23d38fadaf652289": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1899f3e0-d015-4572-b75b-7132ccb4dd6e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 130,
+      "total_deletions": 32,
+      "accepted_lines": 563,
+      "overriden_lines": 0
+    }
+  }
+}
