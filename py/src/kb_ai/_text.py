@@ -19,7 +19,19 @@ import re
 # The underscore is excluded even though \w carries it: reference-table keys reach
 # a catalog line as snake_case identifiers, and a question names one part of them
 # ("the cooldown"), never the whole of cb_cooldown_sec.
-_SCRIPTIO_CONTINUA = r"぀-ヿ㐀-䶿一-鿿豈-﫿"
+#
+# The four blocks are kana with its punctuation (U+3040-U+30FF), CJK unified
+# ideographs extension A (U+3400-U+4DBF), CJK unified ideographs (U+4E00-U+9FFF)
+# and CJK compatibility ideographs (U+F900-U+FAFF). They are spelled as escapes,
+# not as the characters: two of the endpoints are unassigned codepoints that render
+# as an empty box, so a review cannot see what the range says, and NFKC
+# normalisation of this file rewrites two others -- U+30FF into two characters and
+# U+F900 into U+8C48 -- into a pattern that still compiles. What that costs is not
+# the unified block, which was covered anyway: the rewritten class runs unbroken to
+# U+FAFF, so Yi, every Hangul syllable and the private use area silently become
+# break-less script, one character per token. Nothing raises; scoring changes.
+# tests/test_text.py pins both ends of all four blocks against exactly that.
+_SCRIPTIO_CONTINUA = "\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
 _TOKEN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]|[^\W_{_SCRIPTIO_CONTINUA}]+")
 _RUN_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]+")
 _CHUNK_RE = re.compile(rf"[{_SCRIPTIO_CONTINUA}]+|[^\W_{_SCRIPTIO_CONTINUA}]+")
