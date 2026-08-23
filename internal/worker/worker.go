@@ -155,6 +155,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		var e error
 		pipe, e = w.eng.Pipeline(ctx, bridge.PipelineRequest{
 			KBDir:   w.cfg.KBDir,
+			Model:   w.cfg.Model,
 			Workers: w.cfg.PipelineWorkers,
 			Items: []bridge.PipelineItem{{
 				ContentHash: task.ContentHash,
