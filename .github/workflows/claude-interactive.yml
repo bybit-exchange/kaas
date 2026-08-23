@@ -39,7 +39,8 @@ jobs:
         with:
           use_bedrock: "true"
           trigger_phrase: "@claude"
-          # Only write-permission users may trigger by default; allowed_non_write_users is not set (external users cannot invoke @claude)
+          # Only write-permission users may trigger by default; allowed_non_write_users
+          # is not set, so external users cannot invoke @claude.
           claude_args: |
             --model ${{ vars.BEDROCK_MODEL_ID }}
             --max-turns 15

@@ -51,7 +51,7 @@ api_key = ""
 base_url = "https://api.openai.com/v1"
 model = "gpt-4o-mini"
 # summarize_model defaults to model. Set it explicitly to summarize with a
-# cheaper or lighter model than the one doing extraction.
+# cheaper or lighter model than `model`.
 # summarize_model = ""
 # How extraction reads a document. "chunked" (default) sends the document text to
 # the structured extractor, splitting only when it exceeds the model window;
