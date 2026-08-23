@@ -80,6 +80,7 @@ func TestClosedStoreSurfacesRealErrors(t *testing.T) {
 		{"SetStage", func(s *Store) error { return s.SetStage(ctx, "t1", "w1", store.StagePipeline, 2) }, "set stage"},
 		{"MarkSucceeded", func(s *Store) error { return s.MarkSucceeded(ctx, "t1", "{}", 2) }, "mark succeeded"},
 		{"MarkFailed", func(s *Store) error { return s.MarkFailed(ctx, "t1", "boom", false, 2) }, "mark failed"},
+		{"ReleaseTask", func(s *Store) error { return s.ReleaseTask(ctx, "t1", "w1", 2) }, "release task"},
 		{"RecoverExpired", func(s *Store) error { _, err := s.RecoverExpired(ctx, 2); return err }, "recover expired"},
 		{"CreateSession", func(s *Store) error {
 			return s.CreateSession(ctx, &store.Session{ID: "s1"})

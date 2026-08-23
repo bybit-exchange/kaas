@@ -24,10 +24,12 @@ type stubQueue struct {
 	setStageErr  error
 	ackErr       error
 	nackErr      error
+	releaseErr   error
 
 	setStageN int
 	ackN      int
 	nackN     int
+	releaseN  int
 	ackResult string
 	nackMsg   string
 	stages    []string
@@ -66,10 +68,23 @@ func (s *stubQueue) Nack(ctx context.Context, task *store.Task, errMsg string) (
 	return true, nil
 }
 
+func (s *stubQueue) Release(ctx context.Context, id, owner string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.releaseN++
+	return s.releaseErr
+}
+
 func (s *stubQueue) snapshot() (setStageN, ackN, nackN int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.setStageN, s.ackN, s.nackN
+}
+
+func (s *stubQueue) releaseCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.releaseN
 }
 
 // taskWithRaw builds a claimed-looking task whose raw file contains body.

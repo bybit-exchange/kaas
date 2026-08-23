@@ -410,6 +410,26 @@ func (s *Store) MarkFailed(ctx context.Context, id, errMsg string, retry bool, n
 	return requireOneRow(res, "mark failed")
 }
 
+// ReleaseTask un-claims a task the owner still holds: back to pending with the
+// claim's attempt handed back and no error recorded.
+//
+// MAX(attempts - 1, 0) rather than a bare decrement: ClaimNext is the only
+// writer of status=running and always increments, so every releasable row has
+// attempts >= 1, but a negative attempts would read as "retries left forever" in
+// queue.Nack and no longer terminate.
+func (s *Store) ReleaseTask(ctx context.Context, id, owner string, now int64) error {
+	const q = `UPDATE tasks
+		SET status = ?, stage = ?, attempts = MAX(attempts - 1, 0),
+		    lease_owner = '', lease_expires_at = 0, updated_at = ?
+		WHERE id = ? AND status = ? AND lease_owner = ?`
+	res, err := s.db.ExecContext(ctx, q,
+		store.StatusPending, store.StageQueued, now, id, store.StatusRunning, owner)
+	if err != nil {
+		return fmt.Errorf("release task: %w", err)
+	}
+	return requireOneRow(res, "release task")
+}
+
 // RecoverExpired returns running tasks with an elapsed lease to pending.
 func (s *Store) RecoverExpired(ctx context.Context, now int64) (int, error) {
 	const q = `UPDATE tasks

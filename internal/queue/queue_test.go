@@ -2,6 +2,7 @@ package queue
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -163,5 +164,42 @@ func TestSetStage(t *testing.T) {
 	}
 	if err := q.SetStage(ctx, "t1", "other", store.StagePipeline); err != store.ErrNotFound {
 		t.Fatalf("wrong owner: want ErrNotFound, got %v", err)
+	}
+}
+
+// TestReleaseHandsTheAttemptBack asserts Release is not a Nack: the task returns
+// to the queue with no error recorded and with the attempt Claim spent, so a
+// caller that was refused before doing any work costs the task nothing.
+func TestReleaseHandsTheAttemptBack(t *testing.T) {
+	q, _ := newQueue(t, time.Minute)
+	ctx := context.Background()
+	submit(t, q, "t1", "h1") // MaxAttempts 2
+	task, err := q.Claim(ctx, "w1")
+	if err != nil || task == nil {
+		t.Fatalf("Claim: task=%v err=%v", task, err)
+	}
+
+	if err := q.Release(ctx, "t1", "w1"); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+
+	got, err := q.store.GetTask(ctx, "t1")
+	if err != nil {
+		t.Fatalf("GetTask: %v", err)
+	}
+	if got.Status != store.StatusPending {
+		t.Errorf("Status = %q, want %q", got.Status, store.StatusPending)
+	}
+	if got.Attempts != 0 {
+		t.Errorf("Attempts = %d, want 0", got.Attempts)
+	}
+	if got.Error != "" {
+		t.Errorf("Error = %q, want empty — a release is not a failure", got.Error)
+	}
+
+	// The wrong-owner sentinel must survive the queue layer, same as SetStage's:
+	// the worker treats it as "lease lost, abandon".
+	if err := q.Release(ctx, "t1", "w1"); !errors.Is(err, store.ErrNotFound) {
+		t.Errorf("Release of an already-released task = %v, want store.ErrNotFound", err)
 	}
 }

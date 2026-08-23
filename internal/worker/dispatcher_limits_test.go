@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -210,5 +211,98 @@ func TestDispatcherRespectsConcurrencyCap(t *testing.T) {
 
 	if claimN, _ := c.counts(); claimN < 2 {
 		t.Errorf("Claim calls = %d, want claiming to resume after the slot freed", claimN)
+	}
+}
+
+// halfOpenBrk returns a breaker that is open with its cooldown already elapsed,
+// so State() reports half-open and the next dispatched task becomes the single
+// recovery probe.
+func halfOpenBrk(t *testing.T) *circuit.Breaker {
+	t.Helper()
+	clk := &qClock{t: time.Unix(1000, 0)}
+	brk := circuit.New(circuit.Options{
+		FailureThreshold: 1, Cooldown: time.Minute, Clock: clk.now,
+	})
+	_ = brk.Do(func() error { return errors.New("engine down") })
+	clk.advance(2 * time.Minute)
+	if got := brk.State(); got != circuit.StateHalfOpen {
+		t.Fatalf("breaker state = %v, want half-open", got)
+	}
+	return brk
+}
+
+// TestDispatcherHandsOutOneProbeWhileHalfOpen asserts the dispatcher stops
+// filling the semaphore the moment the breaker admits only one call. Claiming a
+// whole batch there is pure churn: one task becomes the probe and every other
+// comes straight back with ErrOpen.
+func TestDispatcherHandsOutOneProbeWhileHalfOpen(t *testing.T) {
+	brk := halfOpenBrk(t)
+	release := make(chan struct{})
+	// The probe stays in Extract for the whole measurement, so the breaker
+	// cannot close and reopen the floodgates mid-test.
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	claimN, recoverN := c.counts()
+	close(release) // let the probe finish so shutdown can drain
+	stop()
+
+	if claimN > recoverN {
+		t.Errorf("Claim calls = %d over %d poll ticks, want at most one per tick while half-open",
+			claimN, recoverN)
+	}
+}
+
+// TestDispatcherFillsAllSlotsInOneTickWhenClosed is the counterweight to the
+// half-open probe: a closed breaker must still fill every slot in a single tick,
+// so the one-probe rule cannot be implemented by throttling every tick.
+//
+// The count is exact rather than a bound. Every dispatched task blocks in
+// Extract while holding its slot, and drain takes the slot before it claims, so
+// the semaphore is full the moment the first tick's drain returns and no later
+// tick can add a claim. Observing the second tick therefore reads a settled
+// count: waiting for it proves the first tick's drain ran to completion.
+func TestDispatcherFillsAllSlotsInOneTickWhenClosed(t *testing.T) {
+	const maxConc = 4
+	release := make(chan struct{})
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	brk := newBrk()
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, maxConc)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 2)
+	claimN, _ := c.counts()
+	close(release) // let the tasks finish so shutdown can drain
+	stop()
+
+	if claimN != maxConc {
+		t.Errorf("Claim calls = %d after the first tick drained, want %d — a closed breaker must fill every slot at once",
+			claimN, maxConc)
 	}
 }

@@ -57,20 +57,28 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			} else if n > 0 {
 				log.Printf("worker: recovered %d expired task(s)", n)
 			}
-			// Pause claiming only while fully open. Once the cooldown elapses,
-			// State() reports half-open, so we resume and the next claimed task
-			// acts as the breaker's single recovery probe via brk.Do.
-			if d.brk.State() == circuit.StateOpen {
+			// Scale the batch to what the breaker will actually admit. Fully
+			// open (still cooling down) it admits nothing. Once the cooldown
+			// elapses State() reports half-open, where it admits exactly one
+			// trial call: claiming a whole semaphore's worth there means one
+			// task becomes the recovery probe and every other comes straight
+			// back with ErrOpen, so we hand out a single task per tick instead.
+			switch d.brk.State() {
+			case circuit.StateOpen:
 				continue
+			case circuit.StateHalfOpen:
+				d.drain(ctx, sem, &wg, 1)
+			default:
+				d.drain(ctx, sem, &wg, d.maxConc)
 			}
-			d.drain(ctx, sem, &wg)
 		}
 	}
 }
 
-// drain claims and dispatches tasks until the queue is empty or no slot is free.
-func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup) {
-	for {
+// drain claims and dispatches up to limit tasks, stopping early when the queue
+// is empty or no slot is free.
+func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup, limit int) {
+	for i := 0; i < limit; i++ {
 		select {
 		case sem <- struct{}{}: // acquire a slot
 		default:

@@ -24,6 +24,7 @@ type TaskQueue interface {
 	SetStage(ctx context.Context, id, owner, stage string) error
 	Ack(ctx context.Context, id, result string) error
 	Nack(ctx context.Context, task *store.Task, errMsg string) (bool, error)
+	Release(ctx context.Context, id, owner string) error
 }
 
 // Config tunes a Worker.
@@ -134,7 +135,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		return e
 	})
 	if err != nil {
-		w.fail(ctx, task, fmt.Sprintf("extract: %v", err))
+		w.failEngine(ctx, task, "extract", err)
 		return
 	}
 
@@ -163,7 +164,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		return e
 	})
 	if err != nil {
-		w.fail(ctx, task, fmt.Sprintf("pipeline: %v", err))
+		w.failEngine(ctx, task, "pipeline", err)
 		return
 	}
 
@@ -174,6 +175,32 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 	if err := w.q.Ack(ctx, task.ID, buildResult(ext, pipe)); err != nil {
 		// Lease lost at ack (recovered & reclaimed elsewhere): drop.
 		log.Printf("worker: %s ack failed (lease lost?): %v", task.ID, err)
+	}
+}
+
+// failEngine ends the task after a brk.Do error. A breaker rejection never
+// reached the engine, so the document did nothing wrong and must not be charged
+// the attempt Claim spent on this delivery: only one task per half-open round
+// passes the breaker's single trial, and Nacking the rest failed healthy
+// documents permanently once max_attempts ran out.
+func (w *Worker) failEngine(ctx context.Context, task *store.Task, stage string, err error) {
+	if errors.Is(err, circuit.ErrOpen) {
+		w.release(ctx, task)
+		return
+	}
+	w.fail(ctx, task, fmt.Sprintf("%s: %v", stage, err))
+}
+
+// release hands the task and its attempt back to the queue. Like fail it writes
+// nothing once the context is gone: the lease is lost, so the task belongs to
+// RecoverExpired — which deliberately keeps the attempt, since a worker that
+// died mid-flight may have burned real work.
+func (w *Worker) release(ctx context.Context, task *store.Task) {
+	if ctx.Err() != nil {
+		return
+	}
+	if err := w.q.Release(ctx, task.ID, w.owner); err != nil {
+		log.Printf("worker: %s release failed: %v", task.ID, err)
 	}
 }
 
