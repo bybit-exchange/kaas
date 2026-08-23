@@ -6,7 +6,50 @@ every overlap score to zero and silently turns "rank by relevance" into a no-op.
 """
 from __future__ import annotations
 
+import pytest
+
 from kb_ai._text import bigram_tokens, overlap, tokens
+
+# The ends of the four blocks the tokeniser reads as break-less script, and word
+# characters just outside them. Pinned here because nothing else in the suite would
+# notice that range moving, and it can move without anyone editing it -- the comment
+# on _SCRIPTIO_CONTINUA in _text.py says how.
+#
+# The expectations are escapes rather than the characters they denote: as
+# characters, one NFKC pass over the tree would rewrite them and the range they pin
+# in the same direction, and the mismatch would stay green.
+_BREAK_LESS_ENDPOINTS = [
+    "\u3040", "\u30ff",  # hiragana, katakana and their punctuation
+    "\u3400", "\u4dbf",  # CJK unified ideographs extension A
+    "\u4e00", "\u9fff",  # CJK unified ideographs
+    "\uf900", "\ufaff",  # CJK compatibility ideographs
+]
+
+# Word characters just outside those blocks, which have to keep joining their
+# neighbours into one token. U+AC00 earns its place: the compatibility block's lower
+# bound is the one an NFKC rewrite drags down, and Hangul is the largest stretch of
+# word characters it swallows on the way.
+#
+# There is deliberately no probe between U+4DBF and U+4E00: that gap holds only
+# hexagram symbols, which \w does not match, so a bound widened there is not
+# observable through the tokeniser.
+_WORD_CHARS_OUTSIDE = [
+    "\u3005",  # ideographic iteration mark, below the kana block
+    "\u3105",  # bopomofo, between the kana block and extension A
+    "\ua000",  # Yi syllable, above the unified block
+    "\uac00",  # Hangul syllable, above the unified block
+    "\ufb00",  # Latin ligature, above the compatibility block
+]
+
+
+@pytest.mark.parametrize("char", _BREAK_LESS_ENDPOINTS)
+def test_tokens_gives_each_character_of_the_break_less_blocks_its_own_token(char):
+    assert tokens(f"a{char}b") == {"a", char, "b"}
+
+
+@pytest.mark.parametrize("char", _WORD_CHARS_OUTSIDE)
+def test_tokens_joins_a_word_character_outside_the_break_less_blocks(char):
+    assert tokens(f"a{char}b") == {f"a{char}b"}
 
 
 def test_tokens_splits_ascii_words_on_punctuation():
