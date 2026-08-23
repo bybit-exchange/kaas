@@ -63,6 +63,44 @@ func TestReleaseTaskUndoesTheClaim(t *testing.T) {
 	}
 }
 
+// TestReleaseTaskKeepsAnEarlierFailureMessage pins the decision not to clear
+// error. A document that failed for real and was then merely refused must still
+// show why it failed — that message is the last thing actually known about it.
+// The price is the state this builds: attempts falls while the older error stays
+// on display.
+func TestReleaseTaskKeepsAnEarlierFailureMessage(t *testing.T) {
+	s := newStore(t)
+	ctx := context.Background()
+	if err := s.CreateTask(ctx, mkTask("t1", "h1", 1)); err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	// Delivery 1 fails for real and is requeued with the message recorded.
+	if _, err := s.ClaimNext(ctx, "w1", 10, 100); err != nil {
+		t.Fatalf("ClaimNext: %v", err)
+	}
+	if err := s.MarkFailed(ctx, "t1", "extract: llm down", true, 20); err != nil {
+		t.Fatalf("MarkFailed: %v", err)
+	}
+	// Delivery 2 is refused before it reaches the engine, so it is handed back.
+	if _, err := s.ClaimNext(ctx, "w1", 30, 300); err != nil {
+		t.Fatalf("ClaimNext: %v", err)
+	}
+	if err := s.ReleaseTask(ctx, "t1", "w1", 40); err != nil {
+		t.Fatalf("ReleaseTask: %v", err)
+	}
+
+	got, err := s.GetTask(ctx, "t1")
+	if err != nil {
+		t.Fatalf("GetTask: %v", err)
+	}
+	if got.Error != "extract: llm down" {
+		t.Errorf("Error = %q, want the earlier real failure kept", got.Error)
+	}
+	if got.Attempts != 1 {
+		t.Errorf("Attempts = %d, want 1 — delivery 2 was handed back, delivery 1 was not", got.Attempts)
+	}
+}
+
 // TestReleaseTaskIsOwnerScoped asserts a worker that has lost its lease cannot
 // hand back an attempt on a task somebody else now owns.
 func TestReleaseTaskIsOwnerScoped(t *testing.T) {

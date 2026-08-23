@@ -271,12 +271,32 @@ func TestDispatcherHandsOutOneProbeWhileHalfOpen(t *testing.T) {
 	}
 }
 
+// syncBuffer is a log sink a test can read while the dispatcher is still
+// running: the writes come from Run's goroutine, and gating a test phase on a
+// line having been logged means polling the sink mid-run.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 // captureStdLog redirects the standard logger for the duration of the test. The
 // dispatcher reports through it, so this is the only way to observe what an
 // operator would see.
-func captureStdLog(t *testing.T) *strings.Builder {
+func captureStdLog(t *testing.T) *syncBuffer {
 	t.Helper()
-	buf := &strings.Builder{}
+	buf := &syncBuffer{}
 	prevOut, prevFlags := log.Writer(), log.Flags()
 	log.SetOutput(buf)
 	log.SetFlags(0)
@@ -336,25 +356,16 @@ func TestDispatcherLogsBreakerTransitionsOnce(t *testing.T) {
 }
 
 // scriptedEngine fails every call until the test lets it succeed, so one
-// dispatcher run can walk the breaker through its whole cycle. calls counts only
-// the calls the breaker admitted — a rejected task never reaches the engine.
+// dispatcher run can walk the breaker through its whole cycle.
 type scriptedEngine struct {
 	mu      sync.Mutex
 	failing bool
-	calls   int
 }
 
 func (e *scriptedEngine) admit() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.calls++
 	return !e.failing
-}
-
-func (e *scriptedEngine) callCount() int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.calls
 }
 
 func (e *scriptedEngine) heal() {
@@ -405,22 +416,29 @@ func TestDispatcherLogsEveryBreakerTransition(t *testing.T) {
 
 	stop := runDispatcher(t, d)
 
-	// Trip it: the first dispatched task fails for real → closed -> open.
-	waitFor(t, func() bool { return eng.callCount() >= 1 }, 5*time.Second)
-	c.waitTicks(t, 2)
+	// Each phase waits for the line that phase must produce. A tick count would
+	// not do: stubClaimer pushes its token from RecoverExpired, which runs before
+	// the state is read and logged, so observing a tick proves nothing about the
+	// log — and advancing the clock too early changes which transition happens.
+	waitForLog := func(want string) {
+		t.Helper()
+		waitFor(t, func() bool { return strings.Contains(buf.String(), want) }, 5*time.Second)
+	}
 
-	// Cooldown elapses → open -> half-open, and the probe fails → half-open -> open.
+	waitForLog("circuit breaker closed -> open") // the first task fails for real
 	clk.advance(2 * time.Minute)
-	waitFor(t, func() bool { return eng.callCount() >= 2 }, 5*time.Second)
-	c.waitTicks(t, 2)
-
-	// Heal, cool down again → open -> half-open, and the probe closes it.
+	waitForLog("circuit breaker open -> half-open") // cooldown elapsed
+	waitForLog("circuit breaker half-open -> open") // and the probe failed too
 	eng.heal()
+	// Safe to heal here: the breaker is open and its fake cooldown cannot elapse
+	// on its own, so no probe runs until the clock moves.
 	clk.advance(2 * time.Minute)
-	waitFor(t, func() bool { return eng.callCount() >= 4 }, 5*time.Second) // extract + pipeline
-	c.waitTicks(t, 2)
+	waitForLog("circuit breaker half-open -> closed") // the healed probe closes it
 	stop()
 
+	// Order, on the settled buffer. Duplicates and interleaving are tolerated
+	// here; TestDispatcherLogsBreakerTransitionsOnce pins the no-repeat property,
+	// so the two together cover it.
 	want := []string{
 		"circuit breaker closed -> open",
 		"circuit breaker open -> half-open",
