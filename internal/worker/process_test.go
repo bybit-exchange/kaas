@@ -286,7 +286,7 @@ func TestProcessPassesConfigToEngine(t *testing.T) {
 	}
 	kbDir := t.TempDir()
 	cfg := Config{KBDir: kbDir, PipelineWorkers: 7, HeartbeatInterval: time.Hour,
-		Model: "extract-model", SummarizeModel: "sum-model"}
+		Model: "cfg-model", SummarizeModel: "sum-model"}
 	task := taskWithRawUnder(t, kbDir, "raw body text")
 
 	NewWorker(&stubQueue{}, eng, newBrk(), "w1", cfg).Process(context.Background(), task)
@@ -306,11 +306,17 @@ func TestProcessPassesConfigToEngine(t *testing.T) {
 	if extReq.Source != filepath.Join("raw", "doc.md") {
 		t.Errorf("extract source = %q, want raw/doc.md", extReq.Source)
 	}
-	if extReq.Model != "extract-model" {
-		t.Errorf("extract model = %q, want %q", extReq.Model, "extract-model")
+	if extReq.Model != "cfg-model" {
+		t.Errorf("extract model = %q, want %q", extReq.Model, "cfg-model")
 	}
 	if pipeReq.KBDir != kbDir || pipeReq.Workers != 7 {
 		t.Errorf("pipeline req = %+v, want KBDir=%s Workers=7", pipeReq, kbDir)
+	}
+	// The pipeline hop needs the model too. Without it the Python engine falls back
+	// to its own literal default, so an endpoint that serves anything else answers
+	// every classify call with HTTP 400 and no document ever reaches wiki/.
+	if pipeReq.Model != "cfg-model" {
+		t.Errorf("pipeline model = %q, want %q", pipeReq.Model, "cfg-model")
 	}
 	if len(pipeReq.Items) != 1 {
 		t.Fatalf("pipeline items = %d, want 1", len(pipeReq.Items))

@@ -32,7 +32,7 @@ type Config struct {
 	KBDir             string        // forwarded as ExtractRequest.KBDir and PipelineRequest.KBDir
 	PipelineWorkers   int           // forwarded as PipelineRequest.Workers
 	HeartbeatInterval time.Duration // lease renewal cadence (typically leaseTTL/3)
-	Model             string        // forwarded as ExtractRequest.Model
+	Model             string        // forwarded as ExtractRequest.Model and PipelineRequest.Model
 	SummarizeModel    string        // forwarded as ExtractRequest.SummarizeModel
 	ExtractStrategy   string        // forwarded as ExtractRequest.Strategy
 }
