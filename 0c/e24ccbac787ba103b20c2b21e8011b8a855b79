@@ -1,0 +1,42 @@
+.github/workflows/claude-interactive.yml
+  d200ab05a757eaa2 42-43
+.github/workflows/claude-issue-triage.yml
+  d200ab05a757eaa2 7-8,36-54
+.github/labels.yml
+  d200ab05a757eaa2 1-2,4-5,8,11,14,17,20,23,26
+etc/kaas.toml
+  d200ab05a757eaa2 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "0ce24ccbac787ba103b20c2b21e8011b8a855b79",
+  "prompts": {
+    "d200ab05a757eaa2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c16a2eb-d05f-4ed2-a4b0-eefa327cf3c9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 35,
+      "total_deletions": 21,
+      "accepted_lines": 35,
+      "overriden_lines": 0
+    },
+    "f7de2b6a30b867ee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3a1a04-42c3-4b8d-9ccd-7f4d34bfa09e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 224,
+      "total_deletions": 0,
+      "accepted_lines": 224,
+      "overriden_lines": 0
+    }
+  }
+}
