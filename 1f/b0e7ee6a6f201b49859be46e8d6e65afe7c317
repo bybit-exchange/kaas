@@ -1,0 +1,23 @@
+py/tests/test_text.py
+  d200ab05a757eaa2 9-10,13-25,30-36,41-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "1fb0e7ee6a6f201b49859be46e8d6e65afe7c317",
+  "prompts": {
+    "d200ab05a757eaa2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c16a2eb-d05f-4ed2-a4b0-eefa327cf3c9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 150,
+      "total_deletions": 242,
+      "accepted_lines": 34,
+      "overriden_lines": 8
+    }
+  }
+}
