@@ -35,7 +35,9 @@ jobs:
           prompt: |
             You are triaging issues for the open-source repository KaaS. The issue
             at hand is #${{ github.event.issue.number }}. Be friendly and
-            professional, and reply in the language the issue body is written in.
+            professional, and always reply in English, whatever language the issue
+            is written in -- English is this repository's working language, so a
+            reply in it stays useful to every later reader of the thread.
             Do only the following:
             1. Read the issue title and body, then apply the closest-fitting labels
                from the ones that **already exist** in the repository (type:
