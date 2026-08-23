@@ -413,10 +413,11 @@ func (s *Store) MarkFailed(ctx context.Context, id, errMsg string, retry bool, n
 // ReleaseTask un-claims a task the owner still holds: back to pending with the
 // claim's attempt handed back and no error recorded.
 //
-// MAX(attempts - 1, 0) rather than a bare decrement: ClaimNext is the only
-// writer of status=running and always increments, so every releasable row has
-// attempts >= 1, but a negative attempts would read as "retries left forever" in
-// queue.Nack and no longer terminate.
+// MAX(attempts - 1, 0) rather than a bare decrement: a row only ever reaches
+// status=running through ClaimNext, which always increments, so every releasable
+// row has attempts >= 1 (queue.Submit is the sole CreateTask caller and always
+// inserts pending). The floor is there because a negative attempts would read as
+// "retries left forever" in queue.Nack and stop terminating.
 func (s *Store) ReleaseTask(ctx context.Context, id, owner string, now int64) error {
 	const q = `UPDATE tasks
 		SET status = ?, stage = ?, attempts = MAX(attempts - 1, 0),

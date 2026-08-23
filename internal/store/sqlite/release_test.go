@@ -98,10 +98,11 @@ func TestReleaseTaskIsOwnerScoped(t *testing.T) {
 	}
 }
 
-// TestReleaseTaskFloorsAttemptsAtZero pins the floor on the decrement. ClaimNext
-// is the only writer of status=running and always increments, so every
-// releasable row has attempts >= 1; the floor matters because a negative
-// attempts reads as "retries left forever" in queue.Nack.
+// TestReleaseTaskFloorsAttemptsAtZero pins the floor on the decrement. The row
+// it builds cannot arise in production — queue.Submit is the sole CreateTask
+// caller and always inserts pending with attempts=0, so status=running is
+// reachable only through ClaimNext, which increments — but the floor matters
+// because a negative attempts reads as "retries left forever" in queue.Nack.
 func TestReleaseTaskFloorsAttemptsAtZero(t *testing.T) {
 	s := newStore(t)
 	ctx := context.Background()

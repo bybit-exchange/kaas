@@ -53,7 +53,7 @@ type Task struct {
 	ContentHash string // sha256 of the raw content; unique (dedup / incremental)
 	Status      string // see Status* constants
 	Stage       string // see Stage* constants
-	Attempts    int    // number of times this task has been claimed and failed
+	Attempts    int    // deliveries: ClaimNext spends one, ReleaseTask hands one back
 	MaxAttempts int    // retry ceiling
 	Error       string // last failure message
 	Result      string // JSON blob: cost, article counts, etc.

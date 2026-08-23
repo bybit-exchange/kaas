@@ -3,6 +3,8 @@ package worker
 import (
 	"context"
 	"errors"
+	"log"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -264,6 +266,70 @@ func TestDispatcherHandsOutOneProbeWhileHalfOpen(t *testing.T) {
 	if claimN > recoverN {
 		t.Errorf("Claim calls = %d over %d poll ticks, want at most one per tick while half-open",
 			claimN, recoverN)
+	}
+}
+
+// captureStdLog redirects the standard logger for the duration of the test. The
+// dispatcher reports through it, so this is the only way to observe what an
+// operator would see.
+func captureStdLog(t *testing.T) *strings.Builder {
+	t.Helper()
+	buf := &strings.Builder{}
+	prevOut, prevFlags := log.Writer(), log.Flags()
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(prevOut)
+		log.SetFlags(prevFlags)
+	})
+	return buf
+}
+
+// TestDispatcherLogsBreakerTransitionsOnce asserts an outage stays visible. A
+// refused task is handed back with no error recorded on it, so this line is all
+// an operator gets — and it has to survive a long probe without drowning in
+// per-tick repeats.
+func TestDispatcherLogsBreakerTransitionsOnce(t *testing.T) {
+	buf := captureStdLog(t)
+	brk := halfOpenBrk(t)
+	release := make(chan struct{})
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	close(release)
+	stop() // returns only after Run and every worker goroutine have stopped writing
+
+	logged := buf.String()
+	const want = "circuit breaker closed -> half-open"
+	if n := strings.Count(logged, want); n != 1 {
+		t.Errorf("%q logged %d times over 6+ poll ticks, want exactly 1; log was:\n%s",
+			want, n, logged)
+	}
+	// Every logged line must be a real transition. A line whose two sides match
+	// means the dispatcher is reporting the state each tick rather than on change.
+	const prefix = "worker: circuit breaker "
+	for _, line := range strings.Split(strings.TrimSpace(logged), "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		from, to, ok := strings.Cut(strings.TrimPrefix(line, prefix), " -> ")
+		if ok && from == to {
+			t.Errorf("logged %q, want the line only when the state actually changes", line)
+		}
 	}
 }
 

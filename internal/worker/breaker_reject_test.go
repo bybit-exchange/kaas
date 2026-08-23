@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,27 +128,40 @@ func TestProcessBreakerRejectionAtPipelineKeepsTheAttempt(t *testing.T) {
 // TestProcessEngineErrorStillSpendsTheAttempt guards the opposite direction: the
 // hand-back is for breaker rejections only. A real engine failure is the
 // document's problem and must keep counting against max_attempts, otherwise a
-// poison document retries forever.
+// poison document retries forever. It also pins which stage the recorded message
+// names, because the task's error column is the operator's only clue about where
+// a document died.
 func TestProcessEngineErrorStillSpendsTheAttempt(t *testing.T) {
-	q, st := newQ(t)
-	task := submitAndClaim(t, q, "w1")
-	eng := &fakeEngine{extractErr: errors.New("llm down")}
-	w := NewWorker(q, eng, newBrk(), "w1", wcfg())
+	tests := []struct {
+		name       string
+		eng        *fakeEngine
+		wantPrefix string
+	}{
+		{"extract fails", &fakeEngine{extractErr: errors.New("llm down")}, "extract: "},
+		{"pipeline fails", &fakeEngine{pipelineErr: errors.New("llm down")}, "pipeline: "},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			q, st := newQ(t)
+			task := submitAndClaim(t, q, "w1")
+			w := NewWorker(q, tc.eng, newBrk(), "w1", wcfg())
 
-	w.Process(context.Background(), task)
+			w.Process(context.Background(), task)
 
-	got, err := st.GetTask(context.Background(), "t1")
-	if err != nil {
-		t.Fatalf("GetTask: %v", err)
-	}
-	if got.Status != store.StatusPending {
-		t.Fatalf("Status = %q, want %q with one retry left", got.Status, store.StatusPending)
-	}
-	if got.Attempts != 1 {
-		t.Errorf("Attempts = %d, want 1 — a real failure spends a retry", got.Attempts)
-	}
-	if got.Error == "" {
-		t.Error("Error is empty, want the engine failure recorded")
+			got, err := st.GetTask(context.Background(), "t1")
+			if err != nil {
+				t.Fatalf("GetTask: %v", err)
+			}
+			if got.Status != store.StatusPending {
+				t.Fatalf("Status = %q, want %q with one retry left", got.Status, store.StatusPending)
+			}
+			if got.Attempts != 1 {
+				t.Errorf("Attempts = %d, want 1 — a real failure spends a retry", got.Attempts)
+			}
+			if !strings.HasPrefix(got.Error, tc.wantPrefix) {
+				t.Errorf("Error = %q, want it to start with %q", got.Error, tc.wantPrefix)
+			}
+		})
 	}
 }
 

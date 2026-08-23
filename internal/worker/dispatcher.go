@@ -46,6 +46,12 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	ticker := time.NewTicker(d.poll)
 	defer ticker.Stop()
 
+	// A refused task is handed back silently — no error is recorded on it,
+	// because it did nothing wrong. That leaves the breaker itself as the only
+	// place an outage is visible, so log every transition once. Per-tick logging
+	// would bury it: a long probe keeps the breaker half-open for many ticks.
+	lastState := circuit.StateClosed
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -57,18 +63,26 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			} else if n > 0 {
 				log.Printf("worker: recovered %d expired task(s)", n)
 			}
+			state := d.brk.State()
+			if state != lastState {
+				log.Printf("worker: circuit breaker %s -> %s", lastState, state)
+				lastState = state
+			}
 			// Scale the batch to what the breaker will actually admit. Fully
 			// open (still cooling down) it admits nothing. Once the cooldown
 			// elapses State() reports half-open, where it admits exactly one
 			// trial call: claiming a whole semaphore's worth there means one
 			// task becomes the recovery probe and every other comes straight
 			// back with ErrOpen, so we hand out a single task per tick instead.
-			switch d.brk.State() {
+			// The half-open tick still claims and hands back one task while a
+			// probe is in flight, which is two writes a tick and the cheapest
+			// thing that needs no extra breaker state.
+			switch state {
 			case circuit.StateOpen:
 				continue
 			case circuit.StateHalfOpen:
 				d.drain(ctx, sem, &wg, 1)
-			default:
+			default: // StateClosed
 				d.drain(ctx, sem, &wg, d.maxConc)
 			}
 		}
@@ -76,7 +90,9 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 }
 
 // drain claims and dispatches up to limit tasks, stopping early when the queue
-// is empty or no slot is free.
+// is empty or no slot is free. limit also caps a tick: the loop no longer reuses
+// slots freed while it runs, so a backlog of fast-failing tasks drains at
+// maxConc per poll interval rather than all at once.
 func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup, limit int) {
 	for i := 0; i < limit; i++ {
 		select {
