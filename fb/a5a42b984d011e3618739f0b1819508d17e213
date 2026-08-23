@@ -1,0 +1,29 @@
+.github/ISSUE_TEMPLATE/bug_report.yml
+  f7de2b6a30b867ee 37
+scripts/release.sh
+  f7de2b6a30b867ee 4,24,105,119
+.github/ISSUE_TEMPLATE/feature_request.yml
+  f7de2b6a30b867ee 8-9
+.github/ISSUE_TEMPLATE/config.yml
+  f7de2b6a30b867ee 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "fba5a42b984d011e3618739f0b1819508d17e213",
+  "prompts": {
+    "f7de2b6a30b867ee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3a1a04-42c3-4b8d-9ccd-7f4d34bfa09e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 10,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
