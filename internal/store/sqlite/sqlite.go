@@ -413,6 +413,12 @@ func (s *Store) MarkFailed(ctx context.Context, id, errMsg string, retry bool, n
 // ReleaseTask un-claims a task the owner still holds: back to pending with the
 // claim's attempt handed back and no error recorded.
 //
+// The error column is left as it is, not cleared. If an earlier delivery failed
+// for real and a later one was merely refused, that message is the last thing
+// actually known about the document and deleting it would cost the operator the
+// only diagnosis they have. It does mean attempts can go down while an older
+// error stays on display.
+//
 // MAX(attempts - 1, 0) rather than a bare decrement: a row only ever reaches
 // status=running through ClaimNext, which always increments, so every releasable
 // row has attempts >= 1 (queue.Submit is the sole CreateTask caller and always

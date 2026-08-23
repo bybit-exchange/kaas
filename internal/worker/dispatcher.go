@@ -50,6 +50,12 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	// because it did nothing wrong. That leaves the breaker itself as the only
 	// place an outage is visible, so log every transition once. Per-tick logging
 	// would bury it: a long probe keeps the breaker half-open for many ticks.
+	//
+	// Two gaps come from State()'s semantics, not from this loop: a probe that
+	// fails and re-opens between two ticks logs nothing, so repeated recovery
+	// attempts can pass unseen; and once the cooldown elapses with an empty
+	// queue, State() keeps answering half-open with no probe running, so the
+	// last line reads half-open for the rest of a total outage.
 	lastState := circuit.StateClosed
 
 	for {
@@ -76,7 +82,10 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			// back with ErrOpen, so we hand out a single task per tick instead.
 			// The half-open tick still claims and hands back one task while a
 			// probe is in flight, which is two writes a tick and the cheapest
-			// thing that needs no extra breaker state.
+			// thing that needs no extra breaker state. The visible cost: the
+			// oldest pending row flips running → pending once per poll interval
+			// and its updated_at moves with it, so a task list sorted by
+			// updated_at churns during a long probe. Expected, not a bug.
 			switch state {
 			case circuit.StateOpen:
 				continue

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/bridge"
 	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
@@ -330,6 +332,136 @@ func TestDispatcherLogsBreakerTransitionsOnce(t *testing.T) {
 		if ok && from == to {
 			t.Errorf("logged %q, want the line only when the state actually changes", line)
 		}
+	}
+}
+
+// scriptedEngine fails every call until the test lets it succeed, so one
+// dispatcher run can walk the breaker through its whole cycle. calls counts only
+// the calls the breaker admitted — a rejected task never reaches the engine.
+type scriptedEngine struct {
+	mu      sync.Mutex
+	failing bool
+	calls   int
+}
+
+func (e *scriptedEngine) admit() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.calls++
+	return !e.failing
+}
+
+func (e *scriptedEngine) callCount() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.calls
+}
+
+func (e *scriptedEngine) heal() {
+	e.mu.Lock()
+	e.failing = false
+	e.mu.Unlock()
+}
+
+func (e *scriptedEngine) Extract(ctx context.Context, req bridge.ExtractRequest) (*bridge.ExtractResponse, error) {
+	if !e.admit() {
+		return nil, errors.New("engine down")
+	}
+	return &bridge.ExtractResponse{
+		Extraction: json.RawMessage(`{"concepts":[]}`),
+		Cost:       json.RawMessage(`{}`),
+	}, nil
+}
+
+func (e *scriptedEngine) Pipeline(ctx context.Context, req bridge.PipelineRequest) (*bridge.PipelineResponse, error) {
+	if !e.admit() {
+		return nil, errors.New("engine down")
+	}
+	return &bridge.PipelineResponse{Results: json.RawMessage(`[]`), Cost: json.RawMessage(`{}`)}, nil
+}
+
+// TestDispatcherLogsEveryBreakerTransition walks the real cycle — trip, cool
+// down, failed probe, cool down, successful probe — and pins every line in
+// order. `closed -> open` is the one an operator actually needs, and asserting
+// only the recovery line leaves it deletable: gating the log on half-open, or on
+// coming from closed, passes a test that starts the breaker half-open.
+func TestDispatcherLogsEveryBreakerTransition(t *testing.T) {
+	buf := captureStdLog(t)
+	clk := &qClock{t: time.Unix(1000, 0)}
+	brk := circuit.New(circuit.Options{
+		FailureThreshold: 1, Cooldown: time.Minute, Clock: clk.now,
+	})
+	eng := &scriptedEngine{failing: true}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	// One slot: the in-flight probe then blocks all other claiming, which keeps
+	// the number of admitted calls a usable phase counter.
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 1)
+
+	stop := runDispatcher(t, d)
+
+	// Trip it: the first dispatched task fails for real → closed -> open.
+	waitFor(t, func() bool { return eng.callCount() >= 1 }, 5*time.Second)
+	c.waitTicks(t, 2)
+
+	// Cooldown elapses → open -> half-open, and the probe fails → half-open -> open.
+	clk.advance(2 * time.Minute)
+	waitFor(t, func() bool { return eng.callCount() >= 2 }, 5*time.Second)
+	c.waitTicks(t, 2)
+
+	// Heal, cool down again → open -> half-open, and the probe closes it.
+	eng.heal()
+	clk.advance(2 * time.Minute)
+	waitFor(t, func() bool { return eng.callCount() >= 4 }, 5*time.Second) // extract + pipeline
+	c.waitTicks(t, 2)
+	stop()
+
+	want := []string{
+		"circuit breaker closed -> open",
+		"circuit breaker open -> half-open",
+		"circuit breaker half-open -> open",
+		"circuit breaker open -> half-open",
+		"circuit breaker half-open -> closed",
+	}
+	logged := buf.String()
+	at := 0
+	for _, w := range want {
+		i := strings.Index(logged[at:], w)
+		if i < 0 {
+			t.Fatalf("log is missing %q after the transitions before it; log was:\n%s", w, logged)
+		}
+		at += i + len(w)
+	}
+}
+
+// TestDispatcherClaimsNothingWhileCoolingDown pins the third arm of the batch
+// rule. TestDispatcherPausesWhenBreakerOpen only checks that the task stays
+// pending and the engine is untouched, and both stay true if the dispatcher
+// claims the task and hands it straight back — so it cannot tell pausing from
+// churning through the whole queue once a second.
+func TestDispatcherClaimsNothingWhileCoolingDown(t *testing.T) {
+	brk := openBrk(t) // open, with an hour of cooldown left
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, &fakeEngine{}, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	claimN, _ := c.counts()
+	stop()
+
+	if claimN != 0 {
+		t.Errorf("Claim calls = %d over 6 poll ticks, want 0 while the breaker is cooling down", claimN)
 	}
 }
 
