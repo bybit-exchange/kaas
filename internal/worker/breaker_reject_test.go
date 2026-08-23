@@ -169,6 +169,7 @@ func TestProcessEngineErrorStillSpendsTheAttempt(t *testing.T) {
 // panicked or escalated into a Nack — the task stays for RecoverExpired, which
 // costs it the attempt but keeps the queue moving.
 func TestProcessReleaseFailureIsSwallowed(t *testing.T) {
+	buf := captureStdLog(t)
 	sq := &stubQueue{releaseErr: errors.New("store gone")}
 	w := NewWorker(sq, &fakeEngine{}, openBrk(t), "w1", wcfg())
 
@@ -179,6 +180,11 @@ func TestProcessReleaseFailureIsSwallowed(t *testing.T) {
 	}
 	if _, _, nackN := sq.snapshot(); nackN != 0 {
 		t.Errorf("a failed Release must not turn into a Nack, got %d", nackN)
+	}
+	// Logged, not just swallowed: a hand-back writes nothing to the task, so a
+	// hand-back that failed leaves no trace anywhere else.
+	if logged := buf.String(); !strings.Contains(logged, "release failed") {
+		t.Errorf("log does not report the failed release; log was:\n%s", logged)
 	}
 }
 

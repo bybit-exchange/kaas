@@ -196,6 +196,12 @@ func TestReleaseHandsTheAttemptBack(t *testing.T) {
 	if got.Error != "" {
 		t.Errorf("Error = %q, want empty — a release is not a failure", got.Error)
 	}
+	// The queue owns the clock, so it has to pass one: updated_at is a sortable
+	// column in the task list and a zero would file the release under the epoch.
+	// newQueue pins the fake clock at Unix(1_000, 0).
+	if got.UpdatedAt != 1_000_000 {
+		t.Errorf("UpdatedAt = %d, want 1000000 from the injected clock", got.UpdatedAt)
+	}
 
 	// The wrong-owner sentinel must survive the queue layer, same as SetStage's:
 	// the worker treats it as "lease lost, abandon".

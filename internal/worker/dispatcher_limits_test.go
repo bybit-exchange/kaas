@@ -269,6 +269,14 @@ func TestDispatcherHandsOutOneProbeWhileHalfOpen(t *testing.T) {
 		t.Errorf("Claim calls = %d over %d poll ticks, want at most one per tick while half-open",
 			claimN, recoverN)
 	}
+	// The lower bound matters as much as the upper one: handing out nothing while
+	// half-open is a breaker that can never recover, and only the upper bound
+	// would let `continue` or drain(0) pass the test named after the probe. An
+	// exact count is not available — the probe blocks, so later ticks legitimately
+	// claim and hand back one each.
+	if claimN == 0 {
+		t.Errorf("no task was handed out over %d half-open poll ticks, want a recovery probe", recoverN)
+	}
 }
 
 // syncBuffer is a log sink a test can read while the dispatcher is still
