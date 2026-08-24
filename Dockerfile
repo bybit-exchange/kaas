@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 #
-# KaaS Go+Python 联合镜像：Go binary 提供 REST/SSE API 和 Web UI（单源，端口
-# 8080），同时通过 daemon 模式在进程内驱动 Python AI 引擎（uv run）。不再需要
-# 独立的 AI HTTP 容器。
+# KaaS combined Go+Python image: the Go binary serves the REST/SSE API and Web UI
+# (single origin, port 8080) and drives the Python AI engine in-process via daemon
+# mode (uv run). No separate AI HTTP container is needed.
 
 # --- Stage 1: build the Web UI (React + Vite) ---
 # Node 24: the pinned pnpm@11.8.0 relies on builtins absent from Node 20.

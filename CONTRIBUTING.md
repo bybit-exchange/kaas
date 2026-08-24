@@ -41,8 +41,8 @@ override via environment variables:
 
 ```bash
 export LLM_API_KEY="sk-xxx"
-export LLM_BASE_URL="https://api.openai.com/v1"   # 可选，默认 OpenAI
-export LLM_MODEL="gpt-4o-mini"                    # 可选，默认 gpt-4o-mini
+export LLM_BASE_URL="https://api.openai.com/v1"   # optional, defaults to OpenAI
+export LLM_MODEL="gpt-4o-mini"                    # optional, defaults to gpt-4o-mini
 ```
 
 ### Run everything (local dev)
