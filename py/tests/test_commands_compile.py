@@ -68,13 +68,15 @@ def fakes(monkeypatch):
         result = state["classification"]
         return json.loads(json.dumps(result))   # deep copy per call
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if title in state["fail_write"]:
             raise RuntimeError(f"write failed for {title}")
         state["created"].append((article_type, title, source_path))
         return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
 
-    def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+    def fake_merge(article_path, article_content, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         if article_path in state["fail_write"]:
             raise RuntimeError(f"merge failed for {article_path}")
         state["merged"].append((article_path, source_path))
@@ -227,7 +229,8 @@ def test_write_phase_attributes_cost_to_the_article_that_spent_it(kb, fakes, mon
                 "create_new": [{"path": f"wiki/concept/{stem}.md",
                                 "title": stem, "type": "concept"}]}
 
-    def create_costing_three_dollars(article_type, title, extraction, source_path, model="m"):
+    def create_costing_three_dollars(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         # Hold every worker inside its own measurement window, so a global delta
         # cannot help but see all four charges.
         holding.wait()
@@ -284,7 +287,8 @@ def test_compile_passes_models_through(kb, fakes, monkeypatch):
         seen["categories"] = categories
         return creates("wiki/concept/a.md")
 
-    def fake_create(article_type, title, extraction, source_path, model="m"):
+    def fake_create(article_type, title, sources, model="m"):
+        source_path = ", ".join(b.source_path for b in sources)
         seen["write_model"] = model
         return "article"
 
@@ -726,8 +730,8 @@ def test_the_write_phase_composes_from_the_file_on_disk(kb, fakes, monkeypatch):
     """D1: the extraction is handed over through extraction/, not in memory."""
     seen: list[str] = []
 
-    def capture(article_type, title, extraction, source_path, model="m"):
-        seen.append(extraction.summary)
+    def capture(article_type, title, sources, model="m"):
+        seen.extend(block.extraction.summary for block in sources)
         return "article"
 
     fakes["classification"] = creates("wiki/concept/a.md")
@@ -883,6 +887,197 @@ def test_a_first_extraction_is_not_reported_as_revised(kb, fakes):
     out = cm.compile_kb(str(kb.base_dir))
 
     assert out["revised"] == {}
+
+
+def test_a_revised_duplicate_still_names_its_article(kb, fakes):
+    """RP2 against WP7: two paths holding identical bytes collapse into one block,
+    and the collapsed one is still a revised document whose article a human should
+    re-read. Dropping it from the report would hide the revision behind a
+    deduplication that only ever concerned the payload.
+    """
+    kb.write_raw("raw/a.md", "shared bytes")
+    kb.write_raw("raw/b.md", "shared bytes")
+    fakes["classification"] = merges("wiki/concept/shared.md")
+    cm.compile_kb(str(kb.base_dir))
+
+    kb.write_raw("raw/a.md", "shared bytes, revised")
+    kb.write_raw("raw/b.md", "shared bytes, revised")
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["revised"] == {"raw/a.md": ["wiki/concept/shared.md"],
+                             "raw/b.md": ["wiki/concept/shared.md"]}
+
+
+# ── the lineage report (RP3-RP5) ────────────────────────────────────
+
+def _dated(title, doc_id, day, source="docs", body="body"):
+    return (f"---\nsource: {source}\nid: \"{doc_id}\"\ndate: {day}\n"
+            f"title: \"{title}\"\n---\n\n{body}\n")
+
+
+@pytest.fixture
+def versions(tmp_path) -> KBStore:
+    """A KB holding v1 and v2 of one document as two separate documents."""
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/gw-v15.md", _dated("Gateway Design v1.5", "id-a", "2026-03-23"))
+    store.write_raw("raw/gw-v17.md", _dated("Gateway Design v1.7", "id-b", "2026-03-30"))
+    return store
+
+
+def test_two_versions_in_one_article_are_reported_as_a_lineage_group(versions, fakes):
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"] == {"wiki/concept/gw.md": [{
+        "title": "Gateway Design",
+        "source": "docs",
+        "members": ["raw/gw-v15.md", "raw/gw-v17.md"],
+        "versioned": True,
+    }]}
+    log = (versions.base_dir / ".compile.log").read_text()
+    assert "[lineage] wiki/concept/gw.md" in log
+    assert "Gateway Design" in log
+
+
+def test_an_earlier_version_only_named_in_the_articles_sources_is_reported(versions,
+                                                                          fakes):
+    """The staged fixture's shape (FX2): v1 was composed by an earlier run, so it is
+    in the article's `sources:` and not in this run's ops. Reading only this run
+    would leave the report silent on exactly the merge paths A1 is measured on.
+    """
+    versions.write_article("wiki/concept/gw.md",
+                           "---\ntitle: Gateway\nsources:\n  - raw/gw-v15.md\n---\n\nbody\n")
+    state = {"raw/gw-v15.md": {"checksum": _compute_checksum(
+        versions.read_raw("raw/gw-v15.md")), "compiled_at": "2026-03-23T00:00:00",
+        "prompt_version": exl.extract_prompt_version(),
+        "write_prompt_version": mg.write_prompt_version()}}
+    versions.save_compile_state(state)
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"]["wiki/concept/gw.md"][0]["members"] == [
+        "raw/gw-v15.md", "raw/gw-v17.md"]
+
+
+def test_the_same_document_revised_is_not_a_lineage_group(kb, fakes):
+    """One `id` over two files is shape A, which the revised report already names.
+    Reporting it twice would double-count the only failure the corpus adjudicated.
+    """
+    kb.write_raw("raw/a.md", _dated("Onboarding Plan", "id-a", "2026-04-08"))
+    kb.write_raw("raw/b.md", _dated("Onboarding Plan", "id-a", "2026-04-17"))
+    fakes["classification"] = merges("wiki/concept/onboarding.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_a_cross_source_collision_is_not_reported(kb, fakes):
+    kb.write_raw("raw/a.md", _dated("Card MoneySend", "id-a", "2026-04-13",
+                                    source="docs"))
+    kb.write_raw("raw/b.md", _dated("Card MoneySend", "id-b", "2026-04-25",
+                                    source="meetings"))
+    fakes["classification"] = merges("wiki/concept/card.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_a_recurring_one_to_one_titled_with_a_persons_name_is_not_reported(kb, fakes):
+    kb.write_article("wiki/person/cara.md", "---\ntitle: Cara\ntype: person\n---\n\nbio\n")
+    kb.write_raw("raw/a.md", _dated("Cara", "id-a", "2026-01-01", source="meetings"))
+    kb.write_raw("raw/b.md", _dated("Cara", "id-b", "2026-04-21", source="meetings"))
+    fakes["classification"] = merges("wiki/decision/one-to-ones.md")
+
+    out = cm.compile_kb(str(kb.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_an_allowlisted_person_is_excluded_before_their_article_exists(kb, fakes):
+    """The person articles are stubs a later phase generates, so on the run that
+    first ingests a one-to-one there is nothing on disk to match against.
+    """
+    kb.write_raw("raw/a.md", _dated("Cara", "id-a", "2026-01-01", source="meetings"))
+    kb.write_raw("raw/b.md", _dated("Cara", "id-b", "2026-04-21", source="meetings"))
+    fakes["classification"] = merges("wiki/decision/one-to-ones.md")
+
+    out = cm.compile_kb(str(kb.base_dir),
+                        people_cfg=[{"canonical": "Cara", "aliases": ["cara.zhang"]}])
+
+    assert out["lineage"] == {}
+
+
+def test_marked_groups_lead_the_report_and_both_counts_are_stated(tmp_path, fakes):
+    """A version marker is the operator's triage key: on the reference corpus 40 of
+    44 reported groups are recurring series and 4 are real version chains, so the
+    marked ones are named first and the summary line states how many of each.
+    """
+    store = KBStore(str(tmp_path))
+    store.write_raw("raw/daily-1.md", _dated("AI Daily", "id-1", "2026-05-01",
+                                            source="meetings"))
+    store.write_raw("raw/daily-2.md", _dated("AI Daily", "id-2", "2026-05-02",
+                                            source="meetings"))
+    store.write_raw("raw/gw-v15.md", _dated("Gateway Design v1.5", "id-a", "2026-03-23"))
+    store.write_raw("raw/gw-v17.md", _dated("Gateway Design v1.7", "id-b", "2026-03-30"))
+    fakes["classification"] = merges("wiki/concept/all.md")
+
+    out = cm.compile_kb(str(store.base_dir))
+
+    groups = out["lineage"]["wiki/concept/all.md"]
+    assert [g["title"] for g in groups] == ["Gateway Design", "AI Daily"]
+    log = (store.base_dir / ".compile.log").read_text()
+    assert "2 lineage group(s)" in log
+    assert "1 with a version marker" in log
+
+
+def test_an_article_whose_write_failed_reports_no_lineage(versions, fakes):
+    fakes["classification"] = merges("wiki/concept/gw.md")
+    fakes["fail_write"] = {"Gw"}          # the merge→create path titles from the stem
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"] == {}
+
+
+def test_nothing_from_the_lineage_report_reaches_the_writer(versions, fakes,
+                                                           monkeypatch):
+    """RP5. The report is a title heuristic, and a heuristic that steers what gets
+    written is what D2's gate on build path B refuses. So the writer's arguments are
+    the source blocks and nothing else -- there is no argument a group could ride in
+    on, and the report is built after the last write op.
+    """
+    seen: list = []
+
+    def capture_merge(article_path, article_content, sources, model="m"):
+        seen.append((article_path, article_content, sources, model))
+        return article_content + "merged\n"
+
+    def capture_create(article_type, title, sources, model="m"):
+        seen.append((article_type, title, sources, model))
+        return f"---\ntitle: {title}\n---\nbody\n"
+
+    monkeypatch.setattr(cm, "merge_into_article", capture_merge)
+    monkeypatch.setattr(cm, "create_new_article", capture_create)
+    fakes["classification"] = merges("wiki/concept/gw.md")
+
+    out = cm.compile_kb(str(versions.base_dir))
+
+    assert out["lineage"]                     # the report fired ...
+    assert seen                               # ... and the writer ran
+    for call in seen:
+        for arg in call:
+            if isinstance(arg, list):
+                # The blocks are the only thing the writer is handed, and a block
+                # carries a document -- never a judgement about one.
+                for block in arg:
+                    assert set(vars(block)) == {"source_path", "extraction", "date"}
+            else:
+                assert "lineage" not in str(arg)
+                assert "Gateway Design" not in str(arg)
 
 
 def test_unreadable_prompts_stop_the_run_without_extracting(kb, fakes, monkeypatch,

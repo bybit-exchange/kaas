@@ -14,8 +14,11 @@ would be worse than the lag it fixes: both merge paths are additive -- merge-dif
 offers only append_to_section and new_section, and merge-rewrite says nothing
 about supersession -- so re-composing an article layers new content on top of the
 old rather than replacing it. A prompt edit would inflate every article and pay
-the whole write phase to do it. Until a supersession path exists, an operator
-reading the count is the useful thing.
+the whole write phase to do it. The write prompts now state how their source
+blocks are ordered, which moved the write version for every existing KB without
+changing that argument -- an article that exists is re-composed through the merge
+paths, which are still the additive ones. write_prompt_version's own docstring
+carries the full reasoning.
 
 One function for both callers rather than a comparison in each: compile records
 the versions and reports the lag it noticed while it had work to do, and kb-ai

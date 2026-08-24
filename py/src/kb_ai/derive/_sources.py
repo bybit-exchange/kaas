@@ -62,10 +62,12 @@ def parse_sources(store: KBStore, article_path: str) -> tuple[list[str] | None, 
     else:
         return None, "unparseable_frontmatter"
 
-    # A batch merge records several documents in ONE entry: commands/compile.py
-    # passes ", ".join(merge_rels) as source_path and core.merge appends it as a
-    # single "  - raw/a.md, raw/b.md" line. Treating that as one path would lose
-    # every document behind a batch-merged article.
+    # Articles written before per-source blocks record several documents in ONE
+    # entry: the batch merge paths passed ", ".join(merge_rels) as the source
+    # path and core.merge appended it as a single "  - raw/a.md, raw/b.md" line.
+    # Treating that as one path would lose every document behind a batch-merged
+    # article. Kept for those articles, not for new ones: core.merge now appends
+    # one item per source (supersession spec WP4), and no KB is rewritten.
     out: list[str] = []
     for entry in entries:
         out.extend(piece.strip() for piece in entry.split(",") if piece.strip())

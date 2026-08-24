@@ -104,6 +104,6 @@ def test_apply_diff_appends_to_section():
     diff = {"patches": [
         {"action": "append_to_section", "section": "## Overview", "content": "New line."},
     ]}
-    out = _apply_diff(article, diff, "raw/src.md", "2026-06-20")
+    out = _apply_diff(article, diff, ["raw/src.md"], "2026-06-20")
     assert "Existing line." in out
     assert "New line." in out
