@@ -5,7 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        KaaS is **single-user self-hosted**. Multi-tenant, auth, or admin-console features are out of scope.
+        KaaS is **single-user self-hosted**. Multi-tenant, auth, and admin-console features
+        are out of scope — if you want one anyway, describe your use case first.
   - type: textarea
     id: problem
     attributes:

@@ -2,4 +2,4 @@ blank_issues_enabled: true
 contact_links:
   - name: Usage question
     url: https://github.com/bybit-exchange/kaas/discussions
-    about: Questions and usage help go to Discussions.
+    about: Questions and usage help go to Discussions (if enabled).

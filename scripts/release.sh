@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# === Colour output ===
+# === Color output ===
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
@@ -21,7 +21,7 @@ fi
 
 SEMVER_REGEX='^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'
 if [[ ! "$TAG" =~ $SEMVER_REGEX ]]; then
-    die "tag format invalid: '$TAG'; expected semver like v0.1.0 or v1.0.0-rc.1"
+    die "invalid tag format: '$TAG'; expected semver like v0.1.0 or v1.0.0-rc.1"
 fi
 
 # === Locate repository root ===
@@ -102,7 +102,7 @@ fi
 
 # === Tag ===
 git tag -a "$TAG" -m "Release $TAG"
-info "tag $TAG created"
+info "Tag $TAG created"
 
 # === Push ===
 info "Pushing release branch and tag to remote..."
@@ -116,5 +116,5 @@ echo ""
 info "========================================="
 info "Release complete!"
 info "  Branch: release (pushed)"
-info "  Tag:  $TAG (pushed)"
+info "  Tag:    $TAG (pushed)"
 info "========================================="

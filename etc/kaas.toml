@@ -35,8 +35,9 @@ cb_cooldown_sec = 30
 
 [ai]
 # Upstream address of a remote MCP (streamable-http) server. Empty leaves the
-# /mcp reverse proxy unregistered, i.e. remote MCP disabled. Under compose this
-# is http://ai-mcp:8082; the KAAS_AI_MCP_URL environment variable overrides it.
+# /mcp reverse proxy unregistered, i.e. remote MCP disabled. Under a compose
+# deployment set this to http://ai-mcp:8082; the KAAS_AI_MCP_URL environment
+# variable overrides it.
 mcp_url = ""
 
 [ai.daemon]
@@ -68,7 +69,7 @@ api_key = ""
 base_url = "https://api.openai.com/v1"
 model = "gpt-4o-mini"
 # summarize_model defaults to model. Set it explicitly to summarize with a
-# cheaper or lighter model than the one doing extraction.
+# cheaper or lighter model than `model`.
 # summarize_model = ""
 # How extraction reads a document. "chunked" (default) sends the document text to
 # the structured extractor, splitting only when it exceeds the model window;

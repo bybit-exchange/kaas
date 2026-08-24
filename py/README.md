@@ -50,7 +50,7 @@ requests from stdin.
 | Command | Purpose |
 |------|------|
 | `ping` | Liveness check; returns uptime |
-| `init` | Initialise the OpenAI client (api_key / base_url / model) |
+| `init` | Initialize the OpenAI client (api_key / base_url / model) |
 | `shutdown` | Graceful shutdown |
 | `extract` | Extract knowledge from raw content |
 | `pipeline` | Run the classify → write pipeline |
