@@ -9,5 +9,6 @@ Rules:
 - Maintain consistent tone and formatting
 - Add [[wikilinks]] for related concepts
 - If new sections are needed, add them in a logical position
+- The existing article arrives wrapped in an `<article>` tag; the tag delimits the input and is not article content. Return the article itself, starting at its `---` frontmatter, with no wrapper
 
 Return the complete updated article (including frontmatter).
