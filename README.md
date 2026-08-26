@@ -237,6 +237,7 @@ TOML at startup:
 | `KAAS_WEB_DIR` | `[server] web_dir` | `/app/web/dist` (in Docker) |
 | `KAAS_AI_MCP_URL` | `[ai] mcp_url` | _(deprecated — use `KAAS_MCP_ENABLED`)_ |
 | `KB_AI_WRITE_TIMEOUT_S` | _(env only)_ | `300` |
+| `KB_AI_EXTRACT_TIMEOUT_S` | _(env only)_ | `180` |
 
 Raise `KB_AI_WRITE_TIMEOUT_S` when compiling with a slow local model. A write call
 rewrites a whole article, so its latency tracks the article's length rather than the
@@ -249,6 +250,24 @@ model alone. The same call on the same machine took 349s with one model resident
 over 900s with a second model sharing the GPU. Size it from the slowest write you
 actually observe, and note the budget is per attempt — a timeout is retried twice,
 so the wall-clock cost of a value that is still too low is three times over.
+
+`KB_AI_EXTRACT_TIMEOUT_S` is the same knob for the extract phase, and the phase that
+usually needs it first: extract runs on every document, so it is where a slow model
+fails earliest. Its 180s default is deliberately tighter than the write phase's,
+because extract calls are bounded in size and a single hung one blocks the whole job
+— but that figure assumes a hosted model's generation speed. A local 12B model
+exhausted all three attempts on a 4386-character prompt, which is a small document.
+
+Size extract more conservatively than the write phase, because it retries in two
+places rather than one: the LLM layer retries a timeout twice, and the summarize
+strategy's second phase re-dispatches its entire call set once on any failure. A
+hung call there costs six attempts to discover — about 1140s at the 180s default,
+and over 90 minutes at 900s — so a value that is still too low is expensive twice
+over.
+
+Both variables ignore an unusable value (zero, negative, non-numeric, NaN, or
+infinite) and say so once on stderr, rather than letting a typo in an env var decide
+how a compile behaves.
 
 The docs site has a
 [full configuration reference](https://bybit-exchange.github.io/kaas-doc/getting-started/configuration.html)

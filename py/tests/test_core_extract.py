@@ -881,6 +881,136 @@ def test_with_extract_timeout_preserves_metadata():
     assert documented.__doc__ == "A docstring."
 
 
+# ── raising the extract timeout for a slow model ─────────────────────
+#
+# 180s is sized for a hosted model. A local one generates at a fraction of that
+# speed, and extract then fails on documents a hosted model handles easily: a
+# 12B model served on localhost exhausted all three attempts on a 4386-character
+# prompt, which is a small document by this corpus's standards. Without an
+# override the only way past it was to edit the source.
+#
+# Mirrors KB_AI_WRITE_TIMEOUT_S in kb_ai.core.merge deliberately, down to the
+# fallback and warn-once behaviour, so an operator who has learned one knob has
+# learned both.
+
+def test_a_slower_model_can_raise_the_extract_timeout(monkeypatch):
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "900.5")
+
+    assert ex._extract_call_timeout() == 900.5
+
+
+def test_the_extract_timeout_is_read_per_call_not_frozen_at_import(
+    fresh_context, monkeypatch
+):
+    """Whoever launches a compile sets the env var, usually long after import."""
+    from kb_ai.llm import get_call_timeout
+
+    observed = []
+
+    @ex._with_extract_timeout
+    def probe():
+        observed.append(get_call_timeout())
+
+    probe()
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "900")
+    probe()
+
+    assert observed == [180.0, 900.0]
+
+
+@pytest.mark.parametrize("junk", ["abc", "180s", "900ms", "0", "-5", "nan", "inf"])
+def test_an_unusable_extract_timeout_falls_back_to_the_default(monkeypatch, junk):
+    """A typo must not decide how a compile behaves.
+
+    '0' and '-5' would fail every extract call instantly; 'inf' would silently
+    remove the cap this override exists to impose, reinstating the hung-call
+    stall the 180s default was introduced to bound.
+    """
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", junk)
+
+    assert ex._extract_call_timeout() == 180.0
+
+
+def test_an_unusable_extract_timeout_says_so_once(monkeypatch, capsys):
+    """Silence here means believing an override took effect when it did not."""
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "900ms")
+    ex._extract_call_timeout()
+    ex._extract_call_timeout()
+
+    warnings = [line for line in capsys.readouterr().err.splitlines()
+                if "KB_AI_EXTRACT_TIMEOUT_S" in line]
+    assert len(warnings) == 1
+    # The value has to appear, or the reader cannot tell which typo was ignored.
+    assert "900ms" in warnings[0]
+    assert "180.0" in warnings[0]
+
+
+def test_a_usable_extract_timeout_is_not_warned_about(monkeypatch, capsys):
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "600")
+    assert ex._extract_call_timeout() == 600.0
+    assert "KB_AI_EXTRACT_TIMEOUT_S" not in capsys.readouterr().err
+
+
+def test_an_absent_extract_timeout_is_not_warned_about(capsys):
+    """Unset is the normal case, not a misconfiguration."""
+    assert ex._extract_call_timeout() == 180.0
+    assert capsys.readouterr().err == ""
+
+
+def test_a_raised_extract_timeout_reaches_the_llm_call(fresh_context, monkeypatch):
+    """The knob is worthless if it stops at _extract_call_timeout.
+
+    Asserts the value observed from inside a decorated call, which is where the
+    LLM seam reads it, and that it does not leak out past the call.
+    """
+    from kb_ai.llm import get_call_timeout
+
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "1800")
+    seen = {}
+
+    @ex._with_extract_timeout
+    def probe():
+        seen["timeout"] = get_call_timeout()
+
+    probe()
+
+    assert seen["timeout"] == 1800.0
+    assert get_call_timeout() is None, "the override must not leak past the call"
+
+
+def _drive_summarized(monkeypatch, record):
+    monkeypatch.setattr(ex, "completion", lambda **kw: (record(), "summary")[1])
+    monkeypatch.setattr(ex, "completion_json", lambda **kw: (record(), {})[1])
+    ex.extract_knowledge_summarized(["a", "b"], {}, "sum", "ext")
+
+
+def _drive_chunked(monkeypatch, record):
+    monkeypatch.setattr(ex, "completion_json", lambda **kw: (record(), {})[1])
+    ex.extract_knowledge_chunked("a short body", model="ext")
+
+
+@pytest.mark.parametrize("drive", [_drive_summarized, _drive_chunked],
+                         ids=["summarized", "chunked"])
+def test_a_raised_extract_timeout_reaches_every_extract_entry_point(
+    drive, fresh_context, monkeypatch
+):
+    """Both decorated entry points, not just the decorator in isolation.
+
+    A knob that reaches one extract path and not the other is worse than none: the
+    dispatch between them depends on document size and transcript detection, so the
+    gap would show up as a timeout that only some documents respect.
+    """
+    from kb_ai.llm import get_call_timeout
+
+    monkeypatch.setenv("KB_AI_EXTRACT_TIMEOUT_S", "1800")
+    seen = {}
+
+    drive(monkeypatch, lambda: seen.setdefault("timeout", get_call_timeout()))
+
+    assert seen["timeout"] == 1800.0
+    assert get_call_timeout() is None, "the override must not leak past the call"
+
+
 # ── worker context adoption ─────────────────────────────────────────
 #
 # Every fan-out here submits with a bare pool.submit, so a worker starts on a
