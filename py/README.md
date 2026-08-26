@@ -122,6 +122,7 @@ run's cost. `--force` replaces an existing `derived/<slug>/` from a previous run
 | `KAAS_PROMPTS_DIR` | built-in `prompts/defaults/` | Directory of custom prompt templates |
 | `KB_AI_MAX_PROMPT_CHARS` | `80000` | Prompt character limit; longer prompts are truncated |
 | `KB_AI_PRICING` | — | JSON object of `{model: {"input": per-1M-USD, "output": per-1M-USD}}`. Prices models the built-in table lacks; unpriced models report 0.00 USD and warn once. Example: `{"gpt-4o": {"input": 2.5, "output": 10.0}}` |
+| `KB_AI_WRITE_TIMEOUT_S` | `300` | Per-call timeout for the write phase. Raise it for a slow local model: a write rewrites the whole article, so its latency tracks the article's length, and a 9-source merge on a local 27B model took 349s. The budget is per attempt and a timeout is retried twice. An unusable value is ignored with a warning |
 | `KB_WORKERS` | `16` | Compile-pipeline worker concurrency |
 | `KAAS_DAEMON_MAX_WORKERS` | `8` | Daemon thread-pool size |
 | `KAAS_KB_DIR` | `./data` | Knowledge-base root for the MCP server |

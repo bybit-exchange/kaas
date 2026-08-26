@@ -1071,6 +1071,90 @@ def test_write_timeout_sits_between_extract_and_the_client_default():
     assert _EXTRACT_CALL_TIMEOUT_S < mg._WRITE_CALL_TIMEOUT_S < DEFAULT_CLIENT_TIMEOUT_S
 
 
+def test_the_default_is_unchanged_by_adding_the_override():
+    """Hardcoded, and deliberately still 300.
+
+    A local 27B model needs longer than this -- a 9-source merge was measured at
+    348.8s -- but raising the default would double the worst case for everyone:
+    _TIMEOUT_RETRIES gives three attempts, so 300 costs at most 930s to discover a
+    hung gateway where 600 would cost 1830s. The override carries that case
+    instead, so this pins that the shared default did not move.
+    """
+    assert mg._write_call_timeout() == 300.0
+
+
+def test_a_slower_model_can_raise_the_write_timeout(monkeypatch):
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", "1200.5")
+
+    assert mg._write_call_timeout() == 1200.5
+
+
+def test_the_write_timeout_is_read_per_call_not_frozen_at_import(
+    fresh_context, monkeypatch
+):
+    """Whoever launches a compile sets the env var, usually long after import.
+
+    The neighbouring MAX_PROMPT_CHARS knob reads os.environ at import time; doing
+    the same here would make the override depend on import order.
+    """
+    from kb_ai.llm import get_call_timeout
+
+    observed = []
+
+    @mg._with_write_timeout
+    def probe():
+        observed.append(get_call_timeout())
+
+    probe()
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", "1500")
+    probe()
+
+    assert observed == [300.0, 1500.0]
+
+
+@pytest.mark.parametrize("junk", ["abc", "300s", "1200ms", "0", "-5", "nan", "inf"])
+def test_an_unusable_write_timeout_falls_back_to_the_default(monkeypatch, junk):
+    """A typo must not decide how a compile behaves.
+
+    '0' and '-5' would fail every write call instantly; 'inf' would silently
+    remove the cap that this override exists to impose. '300s' and '1200ms' are
+    the plausible typos, given the _S suffix in the variable's own name.
+    """
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", junk)
+
+    assert mg._write_call_timeout() == 300.0
+
+
+def test_an_unusable_write_timeout_says_so_once(monkeypatch, capsys):
+    """Silence here means believing an override took effect when it did not.
+
+    Matches _cost.py's handling of a malformed KB_AI_PRICING: warn to stderr,
+    ignore the value, carry on -- and once per value, not once per write call.
+    """
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", "1200ms")
+    mg._write_call_timeout()
+    mg._write_call_timeout()
+
+    warnings = [line for line in capsys.readouterr().err.splitlines()
+                if "KB_AI_WRITE_TIMEOUT_S" in line]
+    assert len(warnings) == 1
+    # The value has to appear, or the reader cannot tell which typo was ignored.
+    assert "1200ms" in warnings[0]
+    assert "300" in warnings[0]
+
+
+def test_a_usable_write_timeout_is_not_warned_about(monkeypatch, capsys):
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", "900")
+    assert mg._write_call_timeout() == 900.0
+    assert "KB_AI_WRITE_TIMEOUT_S" not in capsys.readouterr().err
+
+
+def test_an_absent_write_timeout_is_not_warned_about(capsys):
+    """Unset is the normal case, not a misconfiguration."""
+    assert mg._write_call_timeout() == 300.0
+    assert capsys.readouterr().err == ""
+
+
 def test_create_new_article_applies_the_write_timeout(fresh_context, monkeypatch):
     from kb_ai.llm import get_call_timeout
 
@@ -1128,3 +1212,44 @@ def test_merge_into_article_applies_the_write_timeout_on_the_diff_path(
 
     assert seen["timeout"] == mg._WRITE_CALL_TIMEOUT_S
     assert get_call_timeout() is None
+
+
+def _drive_create(monkeypatch, record):
+    monkeypatch.setattr(mg, "completion", lambda **kw: (record(), "article")[1])
+    mg.create_new_article("concept", "T", _extraction(), "raw/a.md")
+
+
+def _drive_merge_rewrite(monkeypatch, record):
+    monkeypatch.setattr(mg, "completion", lambda **kw: (record(), "merged")[1])
+    mg.merge_into_article("wiki/a.md", "short body", _extraction(), "raw/a.md")
+
+
+def _drive_merge_diff(monkeypatch, record):
+    monkeypatch.setattr(mg, "completion_json", lambda **kw: (record(), {"patches": []})[1])
+    big = "\n".join(f"## S{i}\n" + "x" * 2000 for i in range(20))
+    assert len(big.encode("utf-8")) >= mg._LARGE_ARTICLE_THRESHOLD
+    mg.merge_into_article("wiki/a.md", big, _extraction(topics=["s1"]), "raw/a.md")
+
+
+@pytest.mark.parametrize("drive", [_drive_create, _drive_merge_rewrite, _drive_merge_diff],
+                         ids=["create", "merge_rewrite", "merge_diff"])
+def test_a_raised_write_timeout_reaches_every_write_entry_point(
+    drive, fresh_context, monkeypatch
+):
+    """The override has to arrive through the real functions, not just the decorator.
+
+    The tests above drive a locally-decorated probe, so they would stay green if one
+    of these three entry points lost its decorator or got a hardcoded default. 1800
+    is deliberately above DEFAULT_CLIENT_TIMEOUT_S: an override is honoured verbatim
+    rather than clamped to the client's default, and README.md tells operators to
+    size the value from what they measure, which can exceed 900.
+    """
+    from kb_ai.llm import get_call_timeout
+
+    monkeypatch.setenv("KB_AI_WRITE_TIMEOUT_S", "1800")
+    seen = {}
+
+    drive(monkeypatch, lambda: seen.setdefault("timeout", get_call_timeout()))
+
+    assert seen["timeout"] == 1800.0
+    assert get_call_timeout() is None, "the override must not leak past the call"

@@ -22,7 +22,9 @@ _TIMEOUT_RETRIES = 2
 _TIMEOUT_BACKOFF_BASE = 10  # seconds
 _MAX_TOKENS_CEILING = 64000  # Bedrock Haiku 4.5 limit
 
-# Client-wide HTTP timeout, and the ceiling every per-call override sits under.
+# Client-wide HTTP timeout: the default every call gets, not a ceiling. A per-call
+# override goes through client.with_options(timeout=...), which replaces this value
+# in either direction, so KB_AI_WRITE_TIMEOUT_S can legitimately exceed it.
 # Deliberately generous because it has to cover the slowest call any phase makes;
 # a phase that knows its own calls are smaller overrides it via set_call_timeout.
 DEFAULT_CLIENT_TIMEOUT_S = 900.0

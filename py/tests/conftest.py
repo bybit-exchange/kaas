@@ -11,6 +11,26 @@ from kb_ai._cost import CostTracker
 from kb_ai._context import ThreadContext, set_context, _current_context
 
 
+@pytest.fixture(autouse=True)
+def _no_write_timeout_override(monkeypatch):
+    """Keep KB_AI_WRITE_TIMEOUT_S out of the suite's view.
+
+    Tests across three files assert the write phase's default call timeout. The
+    operator that override exists for -- someone running a slow local model -- will
+    have it exported, and would otherwise get a red suite for a reason that has
+    nothing to do with their change. A test that wants the override sets it in its
+    own body, which runs after this.
+
+    The warn-once cache is module-level state keyed on the value it warned about, so
+    it is reset here too: otherwise the first test to warn would decide whether a
+    later one sees its own warning, making the order matter.
+    """
+    from kb_ai.core.merge import _warn_unusable_write_timeout
+
+    monkeypatch.delenv("KB_AI_WRITE_TIMEOUT_S", raising=False)
+    _warn_unusable_write_timeout.cache_clear()
+
+
 @pytest.fixture
 def cost_tracker():
     """Fresh CostTracker with store_details=True for inspection."""

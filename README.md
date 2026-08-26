@@ -236,6 +236,19 @@ TOML at startup:
 | `KAAS_MCP_TOKEN` | `[ai.mcp] token` | _(empty = no auth)_ |
 | `KAAS_WEB_DIR` | `[server] web_dir` | `/app/web/dist` (in Docker) |
 | `KAAS_AI_MCP_URL` | `[ai] mcp_url` | _(deprecated — use `KAAS_MCP_ENABLED`)_ |
+| `KB_AI_WRITE_TIMEOUT_S` | _(env only)_ | `300` |
+
+Raise `KB_AI_WRITE_TIMEOUT_S` when compiling with a slow local model. A write call
+rewrites a whole article, so its latency tracks the article's length rather than the
+prompt's: merging nine documents into one article on a local 27B model took 349s,
+past the 300s default, and a call that runs out of budget surfaces as a per-document
+entry in the run's `errors` rather than as a failed command.
+
+There is no single right value, because local throughput is not a property of the
+model alone. The same call on the same machine took 349s with one model resident and
+over 900s with a second model sharing the GPU. Size it from the slowest write you
+actually observe, and note the budget is per attempt — a timeout is retried twice,
+so the wall-clock cost of a value that is still too low is three times over.
 
 The docs site has a
 [full configuration reference](https://bybit-exchange.github.io/kaas-doc/getting-started/configuration.html)
