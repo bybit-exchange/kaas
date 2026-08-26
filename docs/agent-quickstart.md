@@ -109,6 +109,14 @@ was built (`unknown` for a KB that was not derived), how far the wiki is behind
 the prompts that produced it, and whether any article names something that
 appears in none of its sources. Safe to point at a read-only KB or someone else's.
 
+Each list in the JSON is cut to 20 items by default, because on a 1024-document
+knowledge base the full payload ran to 482KB and buried the four lines that
+mattered. Nothing is lost to the cut: every list reports the `count` it was cut
+from and sets `truncated`, and the stderr summaries always speak for the whole
+set. Pass `--limit 0` for every row, or `--limit N` for a different slice — worth
+doing when the lists you care about are the actionable ones (`mismatched`,
+`unsourced`), since they are capped at the same 20 as the benign ones.
+
 The lag half is what a `compile` cannot tell you: editing a write prompt changes
 no document, so the next compile finds nothing to do and reports nothing. The
 counts are report-only — re-composing an article adds to it rather than replacing

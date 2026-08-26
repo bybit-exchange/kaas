@@ -33,6 +33,27 @@ findings, so the pair cannot be read as a clean bill.
 
 Spends nothing and rewrites nothing, so it is safe to point at a read-only KB or
 at someone else's.
+
+One more thing the output has to survive: scale. Pointed at a 1024-document
+knowledge base this printed 482KB of JSON, of which 1024 rows were
+`{"document": ..., "reason": "missing"}` -- the same reason every time, for a
+condition check_extractions itself documents as not a fault. A diagnostic that
+takes a screenful to say "nothing is wrong" does not get read, and the one thing
+it did have to say (0 mismatched, and grounding able to check none of the 698
+articles it found) was buried in it.
+
+So every finding list is capped and reports the total it was cut from. The cap
+is a display limit, never a measurement: `count` is the real number whatever
+--limit does, and `truncated` says outright that rows were dropped. Truncating
+into a bare list would be worse than not truncating -- twenty rows that look like
+the whole set is a wrong answer, where twenty rows labelled "of 1024" is a short
+one.
+
+The cap is uniform across every list, which means the actionable ones
+(`mismatched`, `unsourced`) are cut at the same twenty as the benign `missing`
+that motivated it. That is the right default -- a KB with thousands of genuine
+faults has a bigger problem than its report length -- but it is why --limit 0
+exists.
 """
 from __future__ import annotations
 
@@ -67,10 +88,43 @@ def _prompt_version(compute) -> str:
         return ""
 
 
+DEFAULT_LIMIT = 20
+
+
+def _capped(items: list, limit: int) -> dict:
+    """Render one finding list as its total, a shown slice, and whether it was cut.
+
+    limit 0 means no limit. A negative limit never reaches here -- the parser
+    rejects it, because reading -1 as "unlimited" would hand back the whole
+    payload to someone who was asking for less of it.
+
+    The slice is copied rather than aliased: the caller's list is a check result,
+    and handing a live reference to it into the response payload is a
+    same-object coupling nobody would expect from a function named for cutting.
+    """
+    shown = items[:] if limit == 0 else items[:limit]
+    return {"count": len(items), "items": shown,
+            "truncated": len(shown) < len(items)}
+
+
+def nonnegative_int(value: str) -> int:
+    """argparse renders type.__name__ in its error text, so this name is
+    operator-facing: `invalid _limit value: 'abc'` leaked a private helper."""
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError(
+            f"--limit must not be negative (got {n}); use 0 for no limit")
+    return n
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="kb-ai check")
     parser.add_argument("--kb", default="./.kaas",
                         help="knowledge-base directory to check (default: ./.kaas)")
+    parser.add_argument("--limit", type=nonnegative_int, default=DEFAULT_LIMIT,
+                        help="how many items to show per finding list; the "
+                             "reported count is always the full total "
+                             f"(default: {DEFAULT_LIMIT}, 0 for no limit)")
     return parser
 
 
@@ -109,32 +163,39 @@ def run_check(argv: list[str]) -> None:
     print(f"[check] wiki: {lag.summary()}", file=sys.stderr)
     print(f"[check] grounding: {grounding.summary()}", file=sys.stderr)
 
+    # Every list below goes through capped(): the summaries above and the count
+    # inside each wrapper carry the totals, so shrinking the payload cannot shrink
+    # the answer.
+    def cap(items: list) -> dict:
+        return _capped(items, args.limit)
+
     respond_ok(data={
         "kb": args.kb,
+        "limit": args.limit,
         "extractions": {
-            "matches": extractions.matches,
+            "matches": cap(extractions.matches),
             # Reasons are carried per document rather than summarised: "missing"
             # and "invalid: counts disagree with body" call for different actions.
-            "missing": [{"document": rel, "reason": why}
-                        for rel, why in extractions.missing],
-            "mismatched": [{"document": rel, "reason": why}
-                           for rel, why in extractions.mismatched],
+            "missing": cap([{"document": rel, "reason": why}
+                            for rel, why in extractions.missing]),
+            "mismatched": cap([{"document": rel, "reason": why}
+                               for rel, why in extractions.mismatched]),
             "summary": extractions.summary(),
         },
         "parent": {
             "source_kb": parent.source_kb,
             "verdict": parent.verdict,
-            "in_sync": parent.in_sync,
-            "changed_in_parent": parent.changed_in_parent,
-            "gone_from_parent": parent.gone_from_parent,
+            "in_sync": cap(parent.in_sync),
+            "changed_in_parent": cap(parent.changed_in_parent),
+            "gone_from_parent": cap(parent.gone_from_parent),
             "reason": parent.reason,
             "summary": parent.summary(),
         },
         # Named rather than counted: the count is what compile already reports,
         # and what an operator needs here is which articles to re-read.
         "wiki": {
-            "behind_extract_prompt": lag.behind_extract,
-            "behind_write_prompt": lag.behind_write,
+            "behind_extract_prompt": cap(lag.behind_extract),
+            "behind_write_prompt": cap(lag.behind_write),
             "extract_first_run": lag.extract_first_run,
             "write_first_run": lag.write_first_run,
             "summary": lag.summary(),
@@ -143,14 +204,14 @@ def run_check(argv: list[str]) -> None:
         # operator's next move is deciding whether the article really claims the
         # thing, and a bare name sends them opening files to find out.
         "grounding": {
-            "checked": grounding.checked,
-            "unsourced": [{"article": f.article, "name": f.name, "line": f.line}
-                          for f in grounding.unsourced],
+            "checked": cap(grounding.checked),
+            "unsourced": cap([{"article": f.article, "name": f.name,
+                               "line": f.line} for f in grounding.unsourced]),
             # An article that could not be checked is neither clean nor flagged.
             # Its reason usually points at the extraction layer, which is the
             # check above.
-            "skipped": [{"article": rel, "reason": why}
-                        for rel, why in grounding.skipped],
+            "skipped": cap([{"article": rel, "reason": why}
+                            for rel, why in grounding.skipped]),
             "summary": grounding.summary(),
         },
     })
