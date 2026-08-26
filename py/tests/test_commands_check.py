@@ -64,8 +64,9 @@ def test_a_kb_whose_extractions_all_match(monkeypatch, tmp_path):
 
     assert resp["ok"] is True
     ext = resp["data"]["extractions"]
-    assert ext["matches"] == ["raw/a.md", "raw/nested/b.md"]
-    assert ext["missing"] == [] and ext["mismatched"] == []
+    assert ext["matches"]["items"] == ["raw/a.md", "raw/nested/b.md"]
+    assert ext["matches"]["count"] == 2
+    assert ext["missing"]["items"] == [] and ext["mismatched"]["items"] == []
     assert "2 match" in ext["summary"]
 
 
@@ -77,9 +78,9 @@ def test_a_mismatched_extraction_carries_the_document_and_the_reason(monkeypatch
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
     mismatched = resp["data"]["extractions"]["mismatched"]
-    assert len(mismatched) == 1
-    assert mismatched[0]["document"] == "raw/a.md"
-    assert "document hashes to" in mismatched[0]["reason"]
+    assert mismatched["count"] == 1 and len(mismatched["items"]) == 1
+    assert mismatched["items"][0]["document"] == "raw/a.md"
+    assert "document hashes to" in mismatched["items"][0]["reason"]
 
 
 def test_a_missing_extraction_is_reported_without_being_called_a_fault(monkeypatch,
@@ -90,7 +91,7 @@ def test_a_missing_extraction_is_reported_without_being_called_a_fault(monkeypat
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
     assert resp["ok"] is True
-    assert resp["data"]["extractions"]["missing"] == [
+    assert resp["data"]["extractions"]["missing"]["items"] == [
         {"document": "raw/a.md", "reason": "missing"}]
 
 
@@ -118,9 +119,9 @@ def test_a_derived_kb_reports_both_checks(monkeypatch, tmp_path):
 
     resp = _run(monkeypatch, ["--kb", str(derived_dir)])
 
-    assert resp["data"]["extractions"]["matches"] == ["raw/a.md", "raw/b.md"]
+    assert resp["data"]["extractions"]["matches"]["items"] == ["raw/a.md", "raw/b.md"]
     assert resp["data"]["parent"]["verdict"] == "in_sync"
-    assert resp["data"]["parent"]["in_sync"] == ["raw/a.md", "raw/b.md"]
+    assert resp["data"]["parent"]["in_sync"]["items"] == ["raw/a.md", "raw/b.md"]
     assert resp["data"]["parent"]["source_kb"] == str(parent.base_dir)
 
 
@@ -132,7 +133,7 @@ def test_a_document_changed_in_the_parent_is_named(monkeypatch, tmp_path):
     resp = _run(monkeypatch, ["--kb", str(derived_dir)])
 
     assert resp["data"]["parent"]["verdict"] == "changed_in_parent"
-    assert resp["data"]["parent"]["changed_in_parent"] == ["raw/a.md"]
+    assert resp["data"]["parent"]["changed_in_parent"]["items"] == ["raw/a.md"]
 
 
 def test_both_summaries_are_printed_for_an_operator_to_read(tmp_path, capsys):
@@ -171,8 +172,8 @@ def test_check_names_the_documents_behind_the_write_prompt(monkeypatch, tmp_path
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
     wiki = resp["data"]["wiki"]
-    assert wiki["behind_write_prompt"] == ["raw/a.md"]
-    assert wiki["behind_extract_prompt"] == []
+    assert wiki["behind_write_prompt"]["items"] == ["raw/a.md"]
+    assert wiki["behind_extract_prompt"]["items"] == []
     assert "1 behind the write prompt" in wiki["summary"]
 
 
@@ -183,10 +184,11 @@ def test_check_reports_an_empty_lag_for_a_kb_that_was_never_compiled(monkeypatch
 
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
+    empty = {"count": 0, "items": [], "truncated": False}
     assert resp["data"]["wiki"] == {
-        "behind_extract_prompt": [], "behind_write_prompt": [],
+        "behind_extract_prompt": empty, "behind_write_prompt": empty,
         "extract_first_run": False, "write_first_run": False,
-        "summary": resp["data"]["wiki"]["summary"]}
+        "summary": "0 behind the extract prompt, 0 behind the write prompt"}
 
 
 def test_an_unreadable_prompt_set_still_reports_the_checks_that_do_not_need_it(
@@ -207,8 +209,8 @@ def test_an_unreadable_prompt_set_still_reports_the_checks_that_do_not_need_it(
     captured = capsys.readouterr()
     resp = json.loads(captured.out)
     assert resp["ok"] is True
-    assert resp["data"]["extractions"]["matches"] == ["raw/a.md"]
-    assert resp["data"]["wiki"]["behind_write_prompt"] == []
+    assert resp["data"]["extractions"]["matches"]["items"] == ["raw/a.md"]
+    assert resp["data"]["wiki"]["behind_write_prompt"]["items"] == []
     assert "write prompt version unavailable" in resp["data"]["wiki"]["summary"]
     assert "merge-diff" in captured.err
 
@@ -233,8 +235,8 @@ def test_check_names_the_unsourced_items_and_the_line_they_are_on(monkeypatch,
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
     found = resp["data"]["grounding"]
-    assert found["checked"] == ["wiki/c.md"]
-    assert found["unsourced"] == [
+    assert found["checked"]["items"] == ["wiki/c.md"]
+    assert found["unsourced"]["items"] == [
         {"article": "wiki/c.md", "name": "Auth", "line": "| `Auth` | bool |"}]
     assert "1 unsourced" in found["summary"]
 
@@ -247,8 +249,8 @@ def test_check_reports_a_clean_wiki_as_clean(monkeypatch, tmp_path):
 
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
-    assert resp["data"]["grounding"]["unsourced"] == []
-    assert resp["data"]["grounding"]["skipped"] == []
+    assert resp["data"]["grounding"]["unsourced"]["items"] == []
+    assert resp["data"]["grounding"]["skipped"]["items"] == []
 
 
 def test_check_carries_the_reason_an_article_could_not_be_checked(monkeypatch,
@@ -259,12 +261,12 @@ def test_check_carries_the_reason_an_article_could_not_be_checked(monkeypatch,
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
     skipped = resp["data"]["grounding"]["skipped"]
-    assert len(skipped) == 1
-    assert skipped[0]["article"] == "wiki/c.md"
-    assert "missing" in skipped[0]["reason"]
+    assert skipped["count"] == 1 and len(skipped["items"]) == 1
+    assert skipped["items"][0]["article"] == "wiki/c.md"
+    assert "missing" in skipped["items"][0]["reason"]
     # Not counted as a clean article, and not counted as a finding either.
-    assert resp["data"]["grounding"]["checked"] == []
-    assert resp["data"]["grounding"]["unsourced"] == []
+    assert resp["data"]["grounding"]["checked"]["items"] == []
+    assert resp["data"]["grounding"]["unsourced"]["items"] == []
 
 
 def test_a_kb_with_no_wiki_yet_reports_an_empty_grounding_check(monkeypatch,
@@ -274,9 +276,10 @@ def test_a_kb_with_no_wiki_yet_reports_an_empty_grounding_check(monkeypatch,
 
     resp = _run(monkeypatch, ["--kb", str(tmp_path)])
 
+    empty = {"count": 0, "items": [], "truncated": False}
     assert resp["data"]["grounding"] == {
-        "checked": [], "unsourced": [], "skipped": [],
-        "summary": resp["data"]["grounding"]["summary"]}
+        "checked": empty, "unsourced": empty, "skipped": empty,
+        "summary": "no articles"}
 
 
 def test_the_grounding_summary_is_printed_for_an_operator_to_read(tmp_path, capsys):
@@ -299,6 +302,123 @@ def test_the_command_neither_spends_nor_rewrites(monkeypatch, tmp_path):
 
     after = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
     assert after == before
+
+
+def test_capped_reports_the_true_total_alongside_the_items_it_shows():
+    """A truncated list must not be readable as a complete one.
+
+    The whole point of the cap is that the payload stays small on a large KB, and
+    the whole risk of a cap is that the reader takes 20 rows for the whole story.
+    count is the real total whatever the limit does.
+    """
+    got = check_cmd._capped(list(range(100)), 20)
+
+    assert got["count"] == 100
+    assert got["items"] == list(range(20))
+    assert got["truncated"] is True
+
+
+def test_capped_does_not_claim_truncation_it_did_not_perform():
+    under = check_cmd._capped(["a", "b"], 20)
+    assert under == {"count": 2, "items": ["a", "b"], "truncated": False}
+
+    # Exactly at the limit: nothing was dropped, so nothing may say otherwise.
+    exact = check_cmd._capped(["a", "b"], 2)
+    assert exact["truncated"] is False and exact["items"] == ["a", "b"]
+
+
+def test_capped_treats_a_zero_limit_as_no_limit():
+    """The escape hatch for anyone who needs every row."""
+    got = check_cmd._capped(list(range(50)), 0)
+
+    assert got["count"] == 50 and len(got["items"]) == 50
+    assert got["truncated"] is False
+
+
+def test_the_limit_defaults_to_a_value_that_keeps_the_payload_readable():
+    assert check_cmd.build_parser().parse_args([]).limit == 20
+
+
+def test_a_negative_limit_is_rejected_at_the_boundary(capsys):
+    """Silently reinterpreting -1 as "no limit" would hand back the 482KB the cap
+    exists to prevent, to someone who thought they were shrinking the output."""
+    try:
+        check_cmd.build_parser().parse_args(["--limit", "-1"])
+    except SystemExit:
+        # Pinned to the validator's own wording. "limit" alone would also match
+        # argparse's "unrecognized arguments: --limit -1", so this assertion
+        # would pass on a build where the option does not exist at all.
+        assert "negative" in capsys.readouterr().err
+    else:
+        raise AssertionError("a negative --limit was accepted")
+
+
+def test_a_large_finding_list_is_capped_in_the_payload(monkeypatch, tmp_path):
+    """On a real KB this list ran to 1024 rows of identical reason, which is how
+    one diagnostic command came to print 482KB of JSON."""
+    # Documents written with no extractions: every one lands in missing.
+    _kb(tmp_path, {f"raw/d{i:03}.md": f"body {i}" for i in range(25)})
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path)])
+
+    missing = resp["data"]["extractions"]["missing"]
+    assert missing["count"] == 25
+    assert len(missing["items"]) == 20
+    assert missing["truncated"] is True
+    # The summary still speaks for the whole set, not for the shown slice.
+    assert "25 missing" in resp["data"]["extractions"]["summary"]
+
+
+def test_limit_zero_restores_every_row(monkeypatch, tmp_path):
+    _kb(tmp_path, {f"raw/d{i:03}.md": f"body {i}" for i in range(25)})
+
+    resp = _run(monkeypatch, ["--kb", str(tmp_path), "--limit", "0"])
+
+    missing = resp["data"]["extractions"]["missing"]
+    assert missing["count"] == 25 and len(missing["items"]) == 25
+    assert missing["truncated"] is False
+
+
+def test_no_bare_list_survives_anywhere_in_the_payload(monkeypatch, tmp_path):
+    """Uniform shape: a reader should not have to remember which lists can be
+    truncated and which cannot.
+
+    Stated structurally rather than as a whitelist of today's eleven paths. A
+    whitelist cannot fail when a twelfth check adds an unbounded list, which is
+    the one regression this test exists to catch -- it would have passed on the
+    very payload it is supposed to reject.
+    """
+    store = _kb(tmp_path, {"raw/a.md": "a body"})
+    _extract(store, "raw/a.md")
+    _article(store, "wiki/c.md", "| `Auth` | bool |\n", ["raw/a.md"])
+
+    data = _run(monkeypatch, ["--kb", str(tmp_path)])["data"]
+
+    def bare_lists(node, path="data"):
+        if isinstance(node, dict):
+            # A wrapper's own "items" is the shown slice and is meant to be a list.
+            inner = {k: v for k, v in node.items()
+                     if not (k == "items" and set(node) == {"count", "items",
+                                                            "truncated"})}
+            for k, v in inner.items():
+                yield from bare_lists(v, f"{path}.{k}")
+        elif isinstance(node, list):
+            yield path
+
+    offenders = list(bare_lists(data))
+    assert offenders == [], f"unwrapped list(s) in the payload: {offenders}"
+
+
+def test_the_payload_records_the_limit_it_was_produced_under(monkeypatch, tmp_path):
+    """Without it a reader holding a saved payload cannot tell whether a 20-item
+    list was capped at 20 or merely happened to have 20 rows."""
+    _kb(tmp_path, {"raw/a.md": "a body"})
+
+    default = _run(monkeypatch, ["--kb", str(tmp_path)])
+    assert default["data"]["limit"] == 20
+
+    unlimited = _run(monkeypatch, ["--kb", str(tmp_path), "--limit", "0"])
+    assert unlimited["data"]["limit"] == 0
 
 
 def test_a_path_that_is_not_a_knowledge_base_is_an_error_not_a_clean_bill(
