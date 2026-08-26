@@ -122,8 +122,8 @@ run's cost. `--force` replaces an existing `derived/<slug>/` from a previous run
 | `KAAS_PROMPTS_DIR` | built-in `prompts/defaults/` | Directory of custom prompt templates |
 | `KB_AI_MAX_PROMPT_CHARS` | `80000` | Prompt character limit; longer prompts are truncated |
 | `KB_AI_PRICING` | — | JSON object of `{model: {"input": per-1M-USD, "output": per-1M-USD}}`. Prices models the built-in table lacks; unpriced models report 0.00 USD and warn once. Example: `{"gpt-4o": {"input": 2.5, "output": 10.0}}` |
-| `KB_WORKERS` | `16` | Compile-pipeline worker concurrency |
-| `KAAS_DAEMON_MAX_WORKERS` | `8` | Daemon thread-pool size |
+| `KB_WORKERS` | `16` | Compile-pipeline worker concurrency, read at two levels: `kb-ai compile`'s document pool, and (in both routes) each phase's per-chunk fan-out in `core/extract.py`. A document over 16,000 chars splits, so the concurrent-call ceiling is documents x chunk workers, which for the queue route is 12 x 16 = 192; the queue route takes its document count from `worker.extract_workers` and reads this only for the fan-out. Real loads sit far below that ceiling, since the fan-out is `min(chunks, KB_WORKERS)` and a 108-document reference corpus averaged 2.8 chunks. |
+| `KAAS_DAEMON_MAX_WORKERS` | `8` | Daemon thread-pool size. The 8 applies to a standalone `kb-ai daemon`; when the Go backend spawns it, `ai.daemon.concurrency` is passed here instead (16 by default, and refused at startup if below `worker.extract_workers`). |
 | `KAAS_KB_DIR` | `./data` | Knowledge-base root for the MCP server |
 | `KAAS_MCP_TOKEN` | — | Bearer token for MCP HTTP mode |
 

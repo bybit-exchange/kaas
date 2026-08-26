@@ -12,7 +12,6 @@ from kb_ai.core.classify import (
     dedup_create_new,
     hash_existing_articles,
     resolve_categories,
-    _title_words,
 )
 from kb_ai.core.extract import ExtractionResult
 from kb_ai import prompts as prompts_module
@@ -23,13 +22,6 @@ from kb_ai.storage.store import ArticleMeta, KBStore
 def test_classify_importable_from_core():
     """classify_article is importable from kb_ai.core.classify."""
     assert callable(classify_article)
-
-
-def test_title_words():
-    """_title_words extracts lowercase word set from a title."""
-    words = _title_words("Hello World-Test")
-    assert "hello" in words
-    assert "worldtest" in words
 
 
 def test_default_categories_hold_the_measured_six():

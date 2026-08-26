@@ -46,6 +46,18 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 	ticker := time.NewTicker(d.poll)
 	defer ticker.Stop()
 
+	// A refused task is handed back silently — no error is recorded on it,
+	// because it did nothing wrong. That leaves the breaker itself as the only
+	// place an outage is visible, so log every transition once. Per-tick logging
+	// would bury it: a long probe keeps the breaker half-open for many ticks.
+	//
+	// Two gaps come from State()'s semantics, not from this loop: a probe that
+	// fails and re-opens between two ticks logs nothing, so repeated recovery
+	// attempts can pass unseen; and once the cooldown elapses with an empty
+	// queue, State() keeps answering half-open with no probe running, so the
+	// last line reads half-open for the rest of a total outage.
+	lastState := circuit.StateClosed
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -57,20 +69,41 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			} else if n > 0 {
 				log.Printf("worker: recovered %d expired task(s)", n)
 			}
-			// Pause claiming only while fully open. Once the cooldown elapses,
-			// State() reports half-open, so we resume and the next claimed task
-			// acts as the breaker's single recovery probe via brk.Do.
-			if d.brk.State() == circuit.StateOpen {
-				continue
+			state := d.brk.State()
+			if state != lastState {
+				log.Printf("worker: circuit breaker %s -> %s", lastState, state)
+				lastState = state
 			}
-			d.drain(ctx, sem, &wg)
+			// Scale the batch to what the breaker will actually admit. Fully
+			// open (still cooling down) it admits nothing. Once the cooldown
+			// elapses State() reports half-open, where it admits exactly one
+			// trial call: claiming a whole semaphore's worth there means one
+			// task becomes the recovery probe and every other comes straight
+			// back with ErrOpen, so we hand out a single task per tick instead.
+			// The half-open tick still claims and hands back one task while a
+			// probe is in flight, which is two writes a tick and the cheapest
+			// thing that needs no extra breaker state. The visible cost: the
+			// oldest pending row flips running → pending once per poll interval
+			// and its updated_at moves with it, so a task list sorted by
+			// updated_at churns during a long probe. Expected, not a bug.
+			switch state {
+			case circuit.StateOpen:
+				continue
+			case circuit.StateHalfOpen:
+				d.drain(ctx, sem, &wg, 1)
+			default: // StateClosed
+				d.drain(ctx, sem, &wg, d.maxConc)
+			}
 		}
 	}
 }
 
-// drain claims and dispatches tasks until the queue is empty or no slot is free.
-func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup) {
-	for {
+// drain claims and dispatches up to limit tasks, stopping early when the queue
+// is empty or no slot is free. limit also caps a tick: the loop no longer reuses
+// slots freed while it runs, so a backlog of fast-failing tasks drains at
+// maxConc per poll interval rather than all at once.
+func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup, limit int) {
+	for i := 0; i < limit; i++ {
 		select {
 		case sem <- struct{}{}: // acquire a slot
 		default:

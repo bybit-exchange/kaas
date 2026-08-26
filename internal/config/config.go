@@ -66,7 +66,41 @@ type StorageConf struct {
 
 // WorkerConf tunes the compile worker pool.
 type WorkerConf struct {
-	ExtractWorkers      int `json:"extract_workers,default=4"`
+	// ExtractWorkers is how many documents the dispatcher runs at once, and it is
+	// the ceiling on a bulk ingest's throughput: each queue task carries a single
+	// document, so this is the only document-level parallelism the queue route
+	// has. At 4 it made the queue route roughly 3x slower than `kb-ai compile`,
+	// which defaults to 16 documents for the same work.
+	//
+	// It is NOT the ceiling on simultaneous LLM calls. A document over 16,000
+	// characters splits into chunks (chunk_content's 4,000-token default), and
+	// each phase then fans out to min(chunks, KB_WORKERS) calls of its own
+	// (py/src/kb_ai/core/extract.py:306,648,759; KB_WORKERS defaults to 16). So
+	// the ceiling is the product, 12 x 16 = 192 in-flight calls. KB_WORKERS is
+	// env-only and has no field here; the daemon inherits the backend's
+	// environment (internal/bridge/daemon.go:98 passes os.Environ() through), so
+	// setting KB_WORKERS on the backend process is how that factor gets bounded.
+	//
+	// 192 is a ceiling and not an observation, which is the distinction the
+	// sentence this comment replaced got wrong in the other direction. The
+	// fan-out is min(chunks, KB_WORKERS) and real documents are short:
+	// data/distill-2026-06.log's 108 documents hold 302 chunks (mean 2.8, max 9),
+	// so even its twelve largest together could only put 80 calls in flight, and
+	// the typical peak sat near 34. A corpus of uniformly long documents is what
+	// would reach 192.
+	//
+	// Why 12 and not the CLI's 16 — and it is NOT that 16 is unmeasured, which is
+	// the claim this comment used to make. 16 is the better-measured figure: the
+	// CLI ran 359 documents at KB_WORKERS unset through a live gateway with 0
+	// errors (docs/articles/kaas-distill-a-codebase.md:351). But the CLI owns its
+	// process, while a queue-route ingest shares the daemon's 16-slot semaphore
+	// with chat, derive and retrieval; at 16 a bulk ingest saturates it and locks
+	// interactive requests out for the length of the run. 12 buys that margin,
+	// and it is itself measured (data/distill-2026-06.log: 108 documents,
+	// workers=12, zero extract errors). Every worker holds a daemon slot for its
+	// whole pipeline, so AIConf.Daemon.Concurrency has to stay at or above this —
+	// enforced in validate(), not just by the defaults.
+	ExtractWorkers      int `json:"extract_workers,default=12"`
 	PipelineConcurrency int `json:"pipeline_concurrency,default=2"`
 	PollIntervalMS      int `json:"poll_interval_ms,default=1000"`
 	LeaseTimeoutSec     int `json:"lease_timeout_sec,default=300"`
@@ -95,11 +129,15 @@ type MCPConf struct {
 
 // DaemonConf configures the multiplexed Python daemon process lifecycle.
 type DaemonConf struct {
-	Command          string   `json:"command,default=uv"`
-	Args             []string `json:"args,optional"`
-	Concurrency      int      `json:"concurrency,default=8"`
-	WarmupTimeoutSec int      `json:"warmup_timeout_sec,default=30"`
-	MaxRestarts      int      `json:"max_restarts,default=5"`
+	Command string   `json:"command,default=uv"`
+	Args    []string `json:"args,optional"`
+	// Concurrency sizes the daemon's in-flight semaphore, and validate() refuses a
+	// value below WorkerConf.ExtractWorkers. The reasoning for the pair, and for
+	// the margin that keeps chat, derive and retrieval out of a bulk ingest's way,
+	// lives on WorkerConf.ExtractWorkers — stated once so the two cannot drift.
+	Concurrency      int `json:"concurrency,default=16"`
+	WarmupTimeoutSec int `json:"warmup_timeout_sec,default=30"`
+	MaxRestarts      int `json:"max_restarts,default=5"`
 }
 
 // LLMConf holds OpenAI-compatible LLM credentials forwarded to the AI engine.
@@ -203,6 +241,16 @@ func (c *Config) validate() error {
 	}
 	if c.Worker.LeaseTimeoutSec <= 0 {
 		return fmt.Errorf("worker.lease_timeout_sec must be > 0")
+	}
+	// Every dispatched document holds a daemon slot for its whole pipeline, so a
+	// daemon pool below the worker pool is the real cap and raising
+	// extract_workers alone buys nothing. Refused rather than clamped, because
+	// clamping would silently ignore the figure the operator wrote down.
+	if c.AI.Daemon.Concurrency < c.Worker.ExtractWorkers {
+		return fmt.Errorf("ai.daemon.concurrency (%d) must be >= worker.extract_workers (%d): "+
+			"each dispatched document holds a daemon slot for its whole pipeline, so a smaller "+
+			"pool caps ingest instead of the dispatcher",
+			c.AI.Daemon.Concurrency, c.Worker.ExtractWorkers)
 	}
 	if !slices.Contains(extractStrategies, c.LLM.ExtractStrategy) {
 		return fmt.Errorf("llm.extract_strategy must be one of %s, got %q",

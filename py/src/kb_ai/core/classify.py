@@ -6,6 +6,7 @@ import re
 import sys
 from datetime import datetime, timezone
 
+from kb_ai._text import bigram_sequence, overlap, tokens
 from kb_ai._types import ClassificationResult, CreateTarget, MergeTarget
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
@@ -119,43 +120,64 @@ def category_definitions_block(categories: list[str]) -> str:
 
 
 def _relevance_score(article: ArticleMeta, topics: list) -> float:
-    """Score article by title word overlap with extraction topics."""
-    title_words = _title_words(article.title)
-    if not title_words:
-        return 0.0
-    topic_words: set[str] = set()
-    for t in topics:
-        topic_words.update(re.sub(r'[^a-zA-Z0-9\s]', '', str(t).lower()).split())
-    if not topic_words:
-        return 0.0
-    return len(title_words & topic_words) / min(len(title_words), len(topic_words))
+    """Score an article's title against the extraction's topics.
+
+    Tokenised by the shared lexical tokeniser rather than a local ASCII-only
+    regexp: that regexp scored every Chinese title 0.0, which left the sort below
+    stable and therefore a no-op, so the budget cut kept whichever articles came
+    first. Topics arrive from LLM output and are not guaranteed to be strings.
+    """
+    return overlap(tokens(article.title), tokens(" ".join(str(t) for t in topics)))
+
+
+# json.dumps(list, indent=2) wraps the entries in "[\n" ... "\n]" and joins them
+# with ",\n", each entry indented one level. The fit below needs each entry's
+# exact cost, so it renders them one at a time and reassembles the array;
+# test_fit_articles_renders_exactly_what_json_dumps_would pins the equivalence.
+_ARRAY_OVERHEAD = len("[\n") + len("\n]")
+_ENTRY_SEPARATOR = ",\n"
+
+
+def _entry_block(entry: dict) -> str:
+    # Indented by hand rather than with textwrap.indent, which breaks lines on
+    # everything str.splitlines() accepts: a title carrying U+0085, U+2028 or
+    # U+2029 (ensure_ascii=False emits all three raw) came back with two spaces
+    # injected into it, so the model read a title the article does not have.
+    return "  " + json.dumps(entry, ensure_ascii=False, indent=2).replace("\n", "\n  ")
 
 
 def _fit_articles_to_budget(articles: list[dict], budget_chars: int) -> str:
-    """Fit articles JSON into budget using exponential backoff truncation."""
-    full = json.dumps(articles, ensure_ascii=False, indent=2)
-    if len(full) <= budget_chars:
-        return full
+    """Keep the highest-ranked entries whose rendered JSON fits the budget.
 
-    total = len(articles)
-    n = total
-    while n > 0:
-        n = n // 2
-        candidate = json.dumps(articles[:n], ensure_ascii=False, indent=2)
-        if len(candidate) <= budget_chars:
-            print(
-                f"[truncation] classify articles: {total} → {n} items",
-                file=sys.stderr,
-                flush=True,
-            )
-            return candidate
+    The previous version halved the list until it fit, so a budget with room for
+    30 of 32 entries kept 16 -- and at 500 articles, where the catalog is cut for
+    real, the classifier saw a quarter of the KB and created a duplicate article
+    whenever the merge target was in the discarded half. Every entry the budget
+    holds is one more article a merge can land in.
+    """
+    kept: list[str] = []
+    used = 0
+    for entry in articles:
+        block = _entry_block(entry)
+        cost = len(block) + (len(_ENTRY_SEPARATOR) if kept else _ARRAY_OVERHEAD)
+        if used + cost > budget_chars:
+            # Skip rather than stop: the list is ranked, so one entry whose block
+            # does not fit must not discard every shorter one below it (same rule
+            # as retrieve._fit_catalog).
+            continue
+        kept.append(block)
+        used += cost
 
-    print(
-        f"[truncation] classify articles: {total} → 0 items (budget too small)",
-        file=sys.stderr,
-        flush=True,
-    )
-    return "[]"
+    if len(kept) < len(articles):
+        print(
+            f"[truncation] classify articles: {len(articles)} → {len(kept)} items "
+            f"({budget_chars:,}-char budget)",
+            file=sys.stderr,
+            flush=True,
+        )
+    if not kept:
+        return "[]"
+    return "[\n" + _ENTRY_SEPARATOR.join(kept) + "\n]"
 
 
 def classify_article(
@@ -217,11 +239,146 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
-def _title_words(title: str) -> set[str]:
-    return set(re.sub(r'[^a-zA-Z0-9\s]', '', title.lower()).split())
+# Measured over the 675 titles of data/kb-knowledge: this rule merges 23 pairs
+# against the pre-branch ASCII rule's 46. All 23 were read: 16 are one article
+# titled twice (capitalisation, "&" against "And", or a trailing date), 1 is this
+# corpus's near-duplicate "AI-Native workflow" cluster, and 6 are a rolling 发言复盘
+# article beside its dated instalments (see the docstring below). Deleting the number
+# gate adds one more merge and that pair is a genuine duplicate, so the gate is not
+# free here: it is kept for the series shape the docstring names, and _NUMBER_TOKEN is
+# narrow enough that the `p2p` and `top5` in that pair's titles are not numbers.
+_DUPLICATE_THRESHOLD = 0.7
+
+# A one-token difference is enough to invert a claim, and these are the tokens that
+# do it. Every entry is exercised by a test, and the list stays short because a
+# spurious match costs a real duplicate: `rollback`, `revert` and `non` are NOT here
+# because they appear in 28 of this corpus's 675 titles as ordinary domain nouns
+# ("Abnormal Trade Rollback Methodology", "Non-Middleware Integration Scope"), while
+# none of the entries below appears in any of the 675.
+#
+# An omission is NOT free on the Chinese side, which is why the list carries more
+# than a negation particle: before this branch every CJK pair scored 0.0, so a
+# marker missing here creates a merge that could not happen before -- measured,
+# 拒绝跨境数据传输方案 lands in 跨境数据传输方案 at 0.88 without an entry for 拒绝.
+_POLARITY_MARKERS = frozenset({
+    "不", "非", "无", "未", "停", "禁", "取消", "拒绝", "反对", "废止", "撤销",
+    "not", "no", "without", "disable", "disabled", "reject", "rejected",
+})
+
+# The shapes a period or a version takes: bare digits (`2026`, `01`) and a one- or
+# two-letter prefix over digits (`q1`, `v2`, `h1`). Reading every digit-bearing
+# token as a number instead made `p2p` and `top5` numbers, which refused a real
+# duplicate in data/kb-knowledge; reading only bare digits let `2026 Q1 Planning
+# Review` pass as the same article as `Q1 Planning Review`.
+_NUMBER_TOKEN = re.compile(r"\d+|[^\W\d_]{1,2}\d+")
+
+
+def _numbers(title: str) -> set[str]:
+    # Read off tokens rather than off the raw string, so `(2026-01)` and `2026 01`
+    # carry the same numbers -- the corpus writes trailing dates both ways.
+    return {t for t in tokens(title) if _NUMBER_TOKEN.fullmatch(t)}
+
+
+def _is_subsequence(shorter: list[str], longer: list[str]) -> bool:
+    """Do `shorter`'s tokens appear in `longer`, in the same order?
+
+    Set containment is not enough, because it cannot see a swap: as sets,
+    腾讯云到阿里云迁移方案 and 阿里云到腾讯云迁移方案 are equal and mean opposite
+    things. Order costs nothing here -- every rewording the corpus actually
+    contains keeps its words in sequence and only inserts.
+    """
+    it = iter(longer)
+    return all(token in it for token in shorter)
+
+
+def _polarity(title: str) -> set[str]:
+    # tokens() emits one token per CJK character, so a single-character marker is
+    # found there. The substring arm is for the multi-character ones (取消), which
+    # are neither a token nor guaranteed to survive bigramming.
+    words = tokens(title)
+    return {m for m in _POLARITY_MARKERS
+            if m in words or (not m.isascii() and m in title)}
+
+
+def _duplicate_score(new_title: str, existing_title: str) -> float:
+    """How strongly two titles claim to name the same article.
+
+    In one sentence: a duplicate is the same title with words ADDED IN PLACE, and
+    nothing replaced -- no substituted word, no reordering, no disagreeing number,
+    no unpaired negation.
+
+    This is not the ranking's score, and the difference is the cost of being wrong.
+    Ranking divides by the smaller token set because it wants recall and a loose
+    match only reorders a list. Here a merge writes a document's knowledge into an
+    article that never named the subject, and nothing later undoes it. One
+    substituted token is all it takes to change the subject, and on a Dice score it
+    is also nearly free: for two titles of n tokens differing in one, the score is
+    exactly 1 - 1/n, so 内部用户数据访问审计方案 against 外部用户数据访问审计方案
+    reaches 0.91 and `允许跨境数据传输…` against `拒绝跨境数据传输…` 0.86. A
+    threshold cannot separate those from a genuine rewording, because the corpus's
+    one real reworded pair (`Bi-Weekly` against `Biweekly`) sits BELOW them at 0.88.
+    So substitution is refused outright and only addition can merge, which is also
+    the collision the cross-group dedup phase exists for: "Vector Search Basics"
+    beside "Vector Search", 向量检索基础 beside 向量检索.
+
+    Numbers gate the addition, because a number in a title is a period, a version
+    or a date: two titles whose numbers DISAGREE are consecutive instances of a
+    series (`发言复盘 2026` is not the January instalment). A title that merely ADDS
+    a date still matches its undated twin, which is 9 of the duplicate pairs in
+    data/kb-knowledge -- and the price of that, accepted deliberately, is that a
+    dated instalment also matches a rolling archive of the same name
+    (`发言复盘 2026-07` into `发言复盘`). The two shapes are lexically identical, so
+    nothing here separates them.
+
+    Polarity markers gate it too, because an addition can invert a claim as easily
+    as a substitution can: `不支持向量检索` contains every token of `支持向量检索`
+    and scores 0.91.
+
+    Three limitations, all measured and none closable by another threshold:
+    - An addition can change the subject without carrying a marker, so
+      `Gateway Migration Plan Deprecation` still merges into `Gateway Migration
+      Plan` (0.86), as does 全球数据安全规范 into 数据安全规范 (0.83). Separating
+      those needs meaning, not tokens. One of the corpus's 23 merges is this shape
+      rather than one article twice (`Openclaw Agent Memory Transfer &
+      Offboarding Archival Decisions` at 0.77, whose sources are disjoint from
+      those of `Openclaw Agent Memory Transfer Decisions`); the pre-branch rule
+      merged it too.
+    - A re-spelling that splits a token is a substitution and is refused:
+      `May 6` against `May6`, `Bi-Weekly` against `Biweekly`. Of the 30 pairs the
+      pre-branch rule merged and this one refuses, 5 are genuinely one article and
+      fall in this class or under the threshold. That costs a duplicate, which is
+      the cheap direction.
+    - The relation is not transitive, and _phase_dedup walks it pairwise, so a
+      short generic title acts as a hub: `Big Data Team OKR Decisions` and
+      `DBA Team OKR Decisions` score 0.0 against each other yet both merge into
+      `Team OKR Decisions`. That example is constructed; the 15 hub triples in
+      data/kb-knowledge all belong to the one 发言复盘 archive named above.
+    """
+    new_numbers, existing_numbers = _numbers(new_title), _numbers(existing_title)
+    if new_numbers and existing_numbers and new_numbers != existing_numbers:
+        return 0.0
+    if _polarity(new_title) != _polarity(existing_title):
+        return 0.0
+    new_seq, existing_seq = bigram_sequence(new_title), bigram_sequence(existing_title)
+    if not new_seq or not existing_seq:
+        return 0.0
+    if not _is_subsequence(new_seq, existing_seq) and not _is_subsequence(existing_seq, new_seq):
+        return 0.0
+    a, b = set(new_seq), set(existing_seq)
+    return 2 * len(a & b) / (len(a) + len(b))
 
 
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:
+    """Turn a create that duplicates an existing title into a merge.
+
+    This is the backstop for a classification that missed its merge target, and
+    it read titles through an ASCII-only tokeniser -- so on a Chinese KB it scored
+    every pair 0.0 and never fired. It now scores through _duplicate_score, which
+    shares kb_ai._text with the ranking but is deliberately stricter: this
+    function writes a document's knowledge into an article it did not name, and
+    nothing later undoes that, while a missed duplicate leaves an article a later
+    compile can still merge.
+    """
     if not classification.create_new or not existing:
         return classification
 
@@ -229,23 +386,18 @@ def dedup_create_new(classification: ClassificationResult, existing: list[Articl
     kept_new: list[CreateTarget] = []
 
     for item in classification.create_new:
-        new_words = _title_words(item.title)
-        if not new_words:
-            kept_new.append(item)
-            continue
-
         best_match = None
         best_overlap = 0.0
         for art in existing:
-            art_words = _title_words(art.title)
-            if not art_words:
-                continue
-            overlap = len(new_words & art_words) / min(len(new_words), len(art_words))
-            if overlap > best_overlap:
-                best_overlap = overlap
+            # _duplicate_score returns 0.0 when either title tokenises to nothing,
+            # which never beats the 0.0 seed -- so an untitled article, and an
+            # untitled create, need no guard of their own.
+            score = _duplicate_score(item.title, art.title)
+            if score > best_overlap:
+                best_overlap = score
                 best_match = art
 
-        if best_overlap >= 0.7 and best_match:
+        if best_overlap >= _DUPLICATE_THRESHOLD and best_match:
             merge_into.append(MergeTarget(
                 path=best_match.path,
                 reason=f"dedup: title overlap {best_overlap:.0%} with existing article",

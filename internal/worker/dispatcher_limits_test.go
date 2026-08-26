@@ -2,11 +2,16 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"log"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/bridge"
+	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -210,5 +215,318 @@ func TestDispatcherRespectsConcurrencyCap(t *testing.T) {
 
 	if claimN, _ := c.counts(); claimN < 2 {
 		t.Errorf("Claim calls = %d, want claiming to resume after the slot freed", claimN)
+	}
+}
+
+// halfOpenBrk returns a breaker that is open with its cooldown already elapsed,
+// so State() reports half-open and the next dispatched task becomes the single
+// recovery probe.
+func halfOpenBrk(t *testing.T) *circuit.Breaker {
+	t.Helper()
+	clk := &qClock{t: time.Unix(1000, 0)}
+	brk := circuit.New(circuit.Options{
+		FailureThreshold: 1, Cooldown: time.Minute, Clock: clk.now,
+	})
+	_ = brk.Do(func() error { return errors.New("engine down") })
+	clk.advance(2 * time.Minute)
+	if got := brk.State(); got != circuit.StateHalfOpen {
+		t.Fatalf("breaker state = %v, want half-open", got)
+	}
+	return brk
+}
+
+// TestDispatcherHandsOutOneProbeWhileHalfOpen asserts the dispatcher stops
+// filling the semaphore the moment the breaker admits only one call. Claiming a
+// whole batch there is pure churn: one task becomes the probe and every other
+// comes straight back with ErrOpen.
+func TestDispatcherHandsOutOneProbeWhileHalfOpen(t *testing.T) {
+	brk := halfOpenBrk(t)
+	release := make(chan struct{})
+	// The probe stays in Extract for the whole measurement, so the breaker
+	// cannot close and reopen the floodgates mid-test.
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	claimN, recoverN := c.counts()
+	close(release) // let the probe finish so shutdown can drain
+	stop()
+
+	if claimN > recoverN {
+		t.Errorf("Claim calls = %d over %d poll ticks, want at most one per tick while half-open",
+			claimN, recoverN)
+	}
+	// The lower bound matters as much as the upper one: handing out nothing while
+	// half-open is a breaker that can never recover, and only the upper bound
+	// would let `continue` or drain(0) pass the test named after the probe. An
+	// exact count is not available — the probe blocks, so later ticks legitimately
+	// claim and hand back one each.
+	if claimN == 0 {
+		t.Errorf("no task was handed out over %d half-open poll ticks, want a recovery probe", recoverN)
+	}
+}
+
+// syncBuffer is a log sink a test can read while the dispatcher is still
+// running: the writes come from Run's goroutine, and gating a test phase on a
+// line having been logged means polling the sink mid-run.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf strings.Builder
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// captureStdLog redirects the standard logger for the duration of the test. The
+// dispatcher reports through it, so this is the only way to observe what an
+// operator would see.
+func captureStdLog(t *testing.T) *syncBuffer {
+	t.Helper()
+	buf := &syncBuffer{}
+	prevOut, prevFlags := log.Writer(), log.Flags()
+	log.SetOutput(buf)
+	log.SetFlags(0)
+	t.Cleanup(func() {
+		log.SetOutput(prevOut)
+		log.SetFlags(prevFlags)
+	})
+	return buf
+}
+
+// TestDispatcherLogsBreakerTransitionsOnce asserts an outage stays visible. A
+// refused task is handed back with no error recorded on it, so this line is all
+// an operator gets — and it has to survive a long probe without drowning in
+// per-tick repeats.
+func TestDispatcherLogsBreakerTransitionsOnce(t *testing.T) {
+	buf := captureStdLog(t)
+	brk := halfOpenBrk(t)
+	release := make(chan struct{})
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	close(release)
+	stop() // returns only after Run and every worker goroutine have stopped writing
+
+	logged := buf.String()
+	const want = "circuit breaker closed -> half-open"
+	if n := strings.Count(logged, want); n != 1 {
+		t.Errorf("%q logged %d times over 6+ poll ticks, want exactly 1; log was:\n%s",
+			want, n, logged)
+	}
+	// Every logged line must be a real transition. A line whose two sides match
+	// means the dispatcher is reporting the state each tick rather than on change.
+	const prefix = "worker: circuit breaker "
+	for _, line := range strings.Split(strings.TrimSpace(logged), "\n") {
+		if !strings.HasPrefix(line, prefix) {
+			continue
+		}
+		from, to, ok := strings.Cut(strings.TrimPrefix(line, prefix), " -> ")
+		if ok && from == to {
+			t.Errorf("logged %q, want the line only when the state actually changes", line)
+		}
+	}
+}
+
+// scriptedEngine fails every call until the test lets it succeed, so one
+// dispatcher run can walk the breaker through its whole cycle.
+type scriptedEngine struct {
+	mu      sync.Mutex
+	failing bool
+}
+
+func (e *scriptedEngine) admit() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return !e.failing
+}
+
+func (e *scriptedEngine) heal() {
+	e.mu.Lock()
+	e.failing = false
+	e.mu.Unlock()
+}
+
+func (e *scriptedEngine) Extract(ctx context.Context, req bridge.ExtractRequest) (*bridge.ExtractResponse, error) {
+	if !e.admit() {
+		return nil, errors.New("engine down")
+	}
+	return &bridge.ExtractResponse{
+		Extraction: json.RawMessage(`{"concepts":[]}`),
+		Cost:       json.RawMessage(`{}`),
+	}, nil
+}
+
+func (e *scriptedEngine) Pipeline(ctx context.Context, req bridge.PipelineRequest) (*bridge.PipelineResponse, error) {
+	if !e.admit() {
+		return nil, errors.New("engine down")
+	}
+	return &bridge.PipelineResponse{Results: json.RawMessage(`[]`), Cost: json.RawMessage(`{}`)}, nil
+}
+
+// TestDispatcherLogsEveryBreakerTransition walks the real cycle — trip, cool
+// down, failed probe, cool down, successful probe — and pins every line in
+// order. `closed -> open` is the one an operator actually needs, and asserting
+// only the recovery line leaves it deletable: gating the log on half-open, or on
+// coming from closed, passes a test that starts the breaker half-open.
+func TestDispatcherLogsEveryBreakerTransition(t *testing.T) {
+	buf := captureStdLog(t)
+	clk := &qClock{t: time.Unix(1000, 0)}
+	brk := circuit.New(circuit.Options{
+		FailureThreshold: 1, Cooldown: time.Minute, Clock: clk.now,
+	})
+	eng := &scriptedEngine{failing: true}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	// One slot: the in-flight probe then blocks all other claiming, which keeps
+	// the number of admitted calls a usable phase counter.
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 1)
+
+	stop := runDispatcher(t, d)
+
+	// Each phase waits for the line that phase must produce. A tick count would
+	// not do: stubClaimer pushes its token from RecoverExpired, which runs before
+	// the state is read and logged, so observing a tick proves nothing about the
+	// log — and advancing the clock too early changes which transition happens.
+	waitForLog := func(want string) {
+		t.Helper()
+		waitFor(t, func() bool { return strings.Contains(buf.String(), want) }, 5*time.Second)
+	}
+
+	waitForLog("circuit breaker closed -> open") // the first task fails for real
+	clk.advance(2 * time.Minute)
+	waitForLog("circuit breaker open -> half-open") // cooldown elapsed
+	waitForLog("circuit breaker half-open -> open") // and the probe failed too
+	eng.heal()
+	// Safe to heal here: the breaker is open and its fake cooldown cannot elapse
+	// on its own, so no probe runs until the clock moves.
+	clk.advance(2 * time.Minute)
+	waitForLog("circuit breaker half-open -> closed") // the healed probe closes it
+	stop()
+
+	// Order, on the settled buffer. Duplicates and interleaving are tolerated
+	// here; TestDispatcherLogsBreakerTransitionsOnce pins the no-repeat property,
+	// so the two together cover it.
+	want := []string{
+		"circuit breaker closed -> open",
+		"circuit breaker open -> half-open",
+		"circuit breaker half-open -> open",
+		"circuit breaker open -> half-open",
+		"circuit breaker half-open -> closed",
+	}
+	logged := buf.String()
+	at := 0
+	for _, w := range want {
+		i := strings.Index(logged[at:], w)
+		if i < 0 {
+			t.Fatalf("log is missing %q after the transitions before it; log was:\n%s", w, logged)
+		}
+		at += i + len(w)
+	}
+}
+
+// TestDispatcherClaimsNothingWhileCoolingDown pins the third arm of the batch
+// rule. TestDispatcherPausesWhenBreakerOpen only checks that the task stays
+// pending and the engine is untouched, and both stay true if the dispatcher
+// claims the task and hands it straight back — so it cannot tell pausing from
+// churning through the whole queue once a second.
+func TestDispatcherClaimsNothingWhileCoolingDown(t *testing.T) {
+	brk := openBrk(t) // open, with an hour of cooldown left
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	w := NewWorker(&stubQueue{}, &fakeEngine{}, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 6)
+	claimN, _ := c.counts()
+	stop()
+
+	if claimN != 0 {
+		t.Errorf("Claim calls = %d over 6 poll ticks, want 0 while the breaker is cooling down", claimN)
+	}
+}
+
+// TestDispatcherFillsAllSlotsInOneTickWhenClosed is the counterweight to the
+// half-open probe: a closed breaker must still fill every slot in a single tick,
+// so the one-probe rule cannot be implemented by throttling every tick.
+//
+// The count is exact rather than a bound. Every dispatched task blocks in
+// Extract while holding its slot, and drain takes the slot before it claims, so
+// the semaphore is full the moment the first tick's drain returns and no later
+// tick can add a claim. Observing the second tick therefore reads a settled
+// count: waiting for it proves the first tick's drain ran to completion.
+func TestDispatcherFillsAllSlotsInOneTickWhenClosed(t *testing.T) {
+	const maxConc = 4
+	release := make(chan struct{})
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	brk := newBrk()
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, maxConc)
+
+	stop := runDispatcher(t, d)
+	c.waitTicks(t, 2)
+	claimN, _ := c.counts()
+	close(release) // let the tasks finish so shutdown can drain
+	stop()
+
+	if claimN != maxConc {
+		t.Errorf("Claim calls = %d after the first tick drained, want %d — a closed breaker must fill every slot at once",
+			claimN, maxConc)
 	}
 }

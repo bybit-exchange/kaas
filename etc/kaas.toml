@@ -10,7 +10,21 @@ sqlite_path = "./data/kaas.db"
 kb_dir = "./data"
 
 [worker]
-extract_workers = 4
+# How many documents the dispatcher runs at once. This is the ceiling on a bulk
+# ingest: one queue task carries one document, so it is the only document-level
+# parallelism there is. Lower it on a machine or gateway that cannot take 12
+# concurrent extractions, and keep ai.daemon.concurrency at or above it (startup
+# fails if it is below).
+#
+# It is not the ceiling on concurrent LLM calls. A document longer than 16,000
+# characters splits into chunks and each phase fans out to min(chunks,
+# KB_WORKERS) further calls, so the ceiling is the product: 12 x 16 = 192
+# in-flight calls at these defaults. That is a ceiling and not a typical load —
+# real documents are short, and a 108-document reference corpus averaged 2.8
+# chunks, peaking around 34 concurrent calls. KB_WORKERS has no setting here: it
+# is read from the environment, which the daemon inherits from this process, so
+# export KB_WORKERS to bound the second factor.
+extract_workers = 12
 pipeline_concurrency = 2
 poll_interval_ms = 1000
 lease_timeout_sec = 300
@@ -31,7 +45,11 @@ mcp_url = ""
 # stdin/stdout protocol to it.
 command = "uv"
 args = ["run", "--directory", "py", "kb-ai", "daemon"]
-concurrency = 8
+# Must cover worker.extract_workers, and startup refuses the config if it does
+# not: every dispatched document holds a slot for its whole pipeline, so a
+# smaller pool here caps ingest instead of the dispatcher. The margin leaves
+# room for chat, derive and retrieval calls.
+concurrency = 16
 warmup_timeout_sec = 30
 max_restarts = 5
 

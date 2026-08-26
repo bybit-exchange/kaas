@@ -53,7 +53,7 @@ type Task struct {
 	ContentHash string // sha256 of the raw content; unique (dedup / incremental)
 	Status      string // see Status* constants
 	Stage       string // see Stage* constants
-	Attempts    int    // number of times this task has been claimed and failed
+	Attempts    int    // deliveries: ClaimNext spends one, ReleaseTask hands one back
 	MaxAttempts int    // retry ceiling
 	Error       string // last failure message
 	Result      string // JSON blob: cost, article counts, etc.
@@ -127,6 +127,12 @@ type Store interface {
 	// Returns ErrNotFound if the task is no longer running (lease lost), same as
 	// MarkSucceeded.
 	MarkFailed(ctx context.Context, id, errMsg string, retry bool, now int64) error
+	// ReleaseTask is the inverse of ClaimNext: it returns a task the owner holds
+	// to pending and hands back the attempt the claim spent, recording no error.
+	// Callers use it when the delivery did no work at all, so the task must not
+	// be charged a retry. Owner-scoped like SetStage, returning ErrNotFound when
+	// the task is gone, no longer running, or held by somebody else.
+	ReleaseTask(ctx context.Context, id, owner string, now int64) error
 	// RecoverExpired returns running tasks whose lease deadline is <= now to
 	// pending so another worker can claim them. Returns the count recovered.
 	RecoverExpired(ctx context.Context, now int64) (int, error)

@@ -101,6 +101,14 @@ func (q *Queue) Nack(ctx context.Context, task *store.Task, errMsg string) (requ
 	return retry, nil
 }
 
+// Release returns a claimed task to the queue without charging it an attempt.
+// Use it when the delivery did no work — the caller was refused before reaching
+// the engine — so the task's retry budget is untouched. Unlike Nack it records
+// no error and never marks the task failed.
+func (q *Queue) Release(ctx context.Context, id, owner string) error {
+	return q.store.ReleaseTask(ctx, id, owner, q.nowMS())
+}
+
 // RecoverExpired re-queues tasks whose lease has elapsed. Returns the count.
 func (q *Queue) RecoverExpired(ctx context.Context) (int, error) {
 	return q.store.RecoverExpired(ctx, q.nowMS())
