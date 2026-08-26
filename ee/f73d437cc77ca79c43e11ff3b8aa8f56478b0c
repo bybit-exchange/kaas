@@ -1,0 +1,27 @@
+internal/worker/breaker_reject_test.go
+  23d38fadaf652289 172,184-187
+internal/worker/dispatcher_limits_test.go
+  23d38fadaf652289 272-279
+internal/queue/queue_test.go
+  23d38fadaf652289 199-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "eef73d437cc77ca79c43e11ff3b8aa8f56478b0c",
+  "prompts": {
+    "23d38fadaf652289": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1899f3e0-d015-4572-b75b-7132ccb4dd6e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 0,
+      "accepted_lines": 455,
+      "overriden_lines": 0
+    }
+  }
+}

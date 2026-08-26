@@ -1,0 +1,27 @@
+py/tests/test_text.py
+  4301bc8f2a0e209e 1-55
+py/src/kb_ai/retrieval/retrieve.py
+  4301bc8f2a0e209e 28-29,32-35,48-91,103-107
+py/src/kb_ai/_text.py
+  4301bc8f2a0e209e 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "868786f775d6c372ff50ec0a9db157dbc0b4a773",
+  "prompts": {
+    "4301bc8f2a0e209e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7182262a-d3c5-4750-a6b8-7e165833873a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 9172,
+      "total_deletions": 9331,
+      "accepted_lines": 146,
+      "overriden_lines": 0
+    }
+  }
+}

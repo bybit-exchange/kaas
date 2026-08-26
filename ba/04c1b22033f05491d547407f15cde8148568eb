@@ -1,0 +1,31 @@
+internal/e2e/timing_test.go
+  0df85e299b890cc2 1-497
+internal/e2e/corpus.go
+  0df85e299b890cc2 1-217
+internal/e2e/corpus_test.go
+  0df85e299b890cc2 1-444
+internal/e2e/timing.go
+  0df85e299b890cc2 1-324
+internal/e2e/compile_locallm_test.go
+  0df85e299b890cc2 1-948
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "ba04c1b22033f05491d547407f15cde8148568eb",
+  "prompts": {
+    "0df85e299b890cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8160d4ed-fe87-4947-838e-7450e5a26a3e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 2442,
+      "total_deletions": 1,
+      "accepted_lines": 2490,
+      "overriden_lines": 0
+    }
+  }
+}

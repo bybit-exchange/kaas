@@ -1,0 +1,48 @@
+py/src/kb_ai/commands/compile.py
+  0df85e299b890cc2 37-44,55-71,503-593,685
+py/src/kb_ai/llm/__init__.py
+  0df85e299b890cc2 103-127
+py/src/kb_ai/_context.py
+  0df85e299b890cc2 44-49
+py/tests/test_compile_paths.py
+  0df85e299b890cc2 18-19,51-53,61,78-79,260-567,593-598
+py/src/kb_ai/llm/_completion.py
+  0df85e299b890cc2 107-113
+py/tests/test_context_propagation.py
+  0df85e299b890cc2 163-165
+py/tests/test_llm_completion_paths.py
+  0df85e299b890cc2 187-218,491-517
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3ef9e271e70aaf0a79e339151a2e6a96c1c138b9",
+  "prompts": {
+    "0df85e299b890cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8160d4ed-fe87-4947-838e-7450e5a26a3e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 576,
+      "total_deletions": 60,
+      "accepted_lines": 539,
+      "overriden_lines": 0
+    },
+    "9e99a49145c84e1c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9d658664-4a62-4fcb-9915-976aa2d5afc4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3364,
+      "total_deletions": 205,
+      "accepted_lines": 2438,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -1,0 +1,29 @@
+py/src/kb_ai/retrieval/retrieve.py
+  2b8d7613f5fc9527 114-128,133
+py/src/kb_ai/_frontmatter.py
+  2b8d7613f5fc9527 10-14,83-89
+py/tests/test_frontmatter.py
+  2b8d7613f5fc9527 118-123
+py/tests/test_retrieve.py
+  2b8d7613f5fc9527 132-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d224063b34b9e53ff6c0cdb8033e7b55be07b47e",
+  "prompts": {
+    "2b8d7613f5fc9527": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2f964a2-df18-4eaa-b6e2-933e6a5da35a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 70,
+      "total_deletions": 8,
+      "accepted_lines": 69,
+      "overriden_lines": 0
+    }
+  }
+}

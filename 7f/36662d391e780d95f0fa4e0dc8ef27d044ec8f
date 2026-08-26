@@ -1,0 +1,46 @@
+py/tests/test_commands_compile.py
+  8410d8286f318d0e 649-718
+py/tests/test_pipeline_write.py
+  8410d8286f318d0e 678-701
+py/src/kb_ai/commands/compile.py
+  8410d8286f318d0e 605-612,616,618,688,690,709,711,778-781
+  e097625e1c41ed7b 681,703,769-773,775-777,782-783,843-846
+py/src/kb_ai/commands/pipeline/_phase_write.py
+  8410d8286f318d0e 84-87,91
+  e097625e1c41ed7b 80-83
+docs/features/supersession/spec-a2.md
+  8410d8286f318d0e 5-8,389-391
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "7f36662d391e780d95f0fa4e0dc8ef27d044ec8f",
+  "prompts": {
+    "8410d8286f318d0e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3d7f46-ff6f-4f2b-b0a1-1edc69e1c30f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 148,
+      "total_deletions": 7921,
+      "accepted_lines": 124,
+      "overriden_lines": 0
+    },
+    "e097625e1c41ed7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23bb99db-77aa-4190-bdd3-16639a0ae97f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 7795,
+      "total_deletions": 20,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    }
+  }
+}

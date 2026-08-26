@@ -1,0 +1,25 @@
+internal/worker/worker.go
+  f7de2b6a30b867ee 35
+internal/worker/process_test.go
+  f7de2b6a30b867ee 289,309-310,315-319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "7c26ed3fb76006fa47f8ce2923a6c2accff5a0c1",
+  "prompts": {
+    "f7de2b6a30b867ee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3a1a04-42c3-4b8d-9ccd-7f4d34bfa09e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 10,
+      "total_deletions": 4,
+      "accepted_lines": 10,
+      "overriden_lines": 0
+    }
+  }
+}

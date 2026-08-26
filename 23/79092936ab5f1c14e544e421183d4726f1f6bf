@@ -1,0 +1,23 @@
+.github/workflows/claude-issue-triage.yml
+  d200ab05a757eaa2 38-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "2379092936ab5f1c14e544e421183d4726f1f6bf",
+  "prompts": {
+    "d200ab05a757eaa2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c16a2eb-d05f-4ed2-a4b0-eefa327cf3c9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 1,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}

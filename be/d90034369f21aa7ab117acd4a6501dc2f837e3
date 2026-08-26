@@ -1,0 +1,25 @@
+etc/kaas.toml
+  f7de2b6a30b867ee 24-26
+py/README.md
+  f7de2b6a30b867ee 53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "bed90034369f21aa7ab117acd4a6501dc2f837e3",
+  "prompts": {
+    "f7de2b6a30b867ee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3a1a04-42c3-4b8d-9ccd-7f4d34bfa09e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 20,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}

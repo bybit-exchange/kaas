@@ -1,0 +1,25 @@
+py/tests/test_core_classify_scoring.py
+  444913fee6de40f2 4-5,61-85,88-92,99-116,118,121-124,127-133,135-147,152-157,160,163,174-185,250-279,325-354
+py/src/kb_ai/core/classify.py
+  444913fee6de40f2 7,9,123-142,146,148-176,239-246,254,262-266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "895424da8856dbbb8e2f15602d8367b360a8fcf6",
+  "prompts": {
+    "444913fee6de40f2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24b17603-d0db-4e7c-b235-13a512b921bc",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1103,
+      "total_deletions": 1075,
+      "accepted_lines": 660,
+      "overriden_lines": 0
+    }
+  }
+}

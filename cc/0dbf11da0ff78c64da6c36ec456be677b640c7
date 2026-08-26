@@ -1,0 +1,35 @@
+py/src/kb_ai/retrieval/retrieve.py
+  2b8d7613f5fc9527 13-16,27,30,97-129,147-151,166,168-169,178-179,190-192
+py/tests/test_commands_chat.py
+  2b8d7613f5fc9527 248-252,282-317
+py/tests/test_retrieval_paths.py
+  2b8d7613f5fc9527 224
+py/src/kb_ai/_frontmatter.py
+  2b8d7613f5fc9527 9-12,16-19,46-92
+py/src/kb_ai/commands/chat.py
+  2b8d7613f5fc9527 133-146,177,184
+py/tests/test_retrieve.py
+  2b8d7613f5fc9527 96-131,238-241,243-245
+py/tests/test_frontmatter.py
+  2b8d7613f5fc9527 4-6,81-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "cc0dbf11da0ff78c64da6c36ec456be677b640c7",
+  "prompts": {
+    "2b8d7613f5fc9527": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2f964a2-df18-4eaa-b6e2-933e6a5da35a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 253,
+      "total_deletions": 24,
+      "accepted_lines": 248,
+      "overriden_lines": 0
+    }
+  }
+}

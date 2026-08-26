@@ -1,0 +1,25 @@
+internal/worker/dispatcher_limits_test.go
+  23d38fadaf652289 274-293,297,299,359,419-426,428,430-431,433-434,436,439-441
+internal/store/sqlite/release_test.go
+  23d38fadaf652289 66-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "7ca8a123c60e8d9d208e0b976fadf4c86c12dde0",
+  "prompts": {
+    "23d38fadaf652289": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1899f3e0-d015-4572-b75b-7132ccb4dd6e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 78,
+      "total_deletions": 22,
+      "accepted_lines": 513,
+      "overriden_lines": 0
+    }
+  }
+}

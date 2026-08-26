@@ -1,0 +1,37 @@
+py/tests/test_write_route_parity.py
+  e097625e1c41ed7b 20,24,136-217
+py/tests/test_pipeline_write.py
+  e097625e1c41ed7b 16,31-34,43,48-54,81,432,637-752
+py/tests/test_commands_compile.py
+  e097625e1c41ed7b 58-62,83,88-96,510-648,1236-1295
+py/tests/test_core_merge.py
+  e097625e1c41ed7b 288,290,293,295,1512,1678-1909,1933
+py/src/kb_ai/core/merge.py
+  e097625e1c41ed7b 662-715,722,730-734,737-748,750-756,758-771,777,804,807-811,813,820,847-849,852-853
+py/src/kb_ai/commands/pipeline/_phase_write.py
+  e097625e1c41ed7b 27-34,77-79,81-93,97,139,300-301,325-327
+py/tests/test_compile_paths.py
+  e097625e1c41ed7b 73,196,357,600
+py/src/kb_ai/commands/compile.py
+  e097625e1c41ed7b 6,40-41,44,569-585,594,603-604,609-610,672,678,680-681,693,698,700-701,750-768,826-829
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d7892d4607450077912fbe39e898718a87ce437f",
+  "prompts": {
+    "e097625e1c41ed7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "23bb99db-77aa-4190-bdd3-16639a0ae97f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 1239,
+      "total_deletions": 8650,
+      "accepted_lines": 27210,
+      "overriden_lines": 0
+    }
+  }
+}

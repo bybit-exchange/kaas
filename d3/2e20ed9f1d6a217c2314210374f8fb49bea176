@@ -1,0 +1,43 @@
+.github/ISSUE_TEMPLATE/config.yml
+  9398b7b5671f95ea 3,5
+.github/ISSUE_TEMPLATE/bug_report.yml
+  9398b7b5671f95ea 2,12-13,19-20,30,36-37,39,48
+cmd/kaas/main.go
+  9398b7b5671f95ea 52,56,165-167,170
+.github/ISSUE_TEMPLATE/feature_request.yml
+  9398b7b5671f95ea 2,8,12-13,19,25
+.github/workflows/claude-interactive.yml
+  9398b7b5671f95ea 9,18,23-26,42
+CONTRIBUTING.md
+  9398b7b5671f95ea 44-45
+scripts/release.sh
+  9398b7b5671f95ea 4,14,17-18,24,27,31,33,37,42,47,50,52,64,67-68,70,77,91,93,95,100,103,105,107-108,112,117-119
+internal/api/wiki.go
+  9398b7b5671f95ea 157-158
+internal/mcp/types.go
+  9398b7b5671f95ea 5
+Dockerfile
+  9398b7b5671f95ea 3-5
+scripts/smoke-test.sh
+  9398b7b5671f95ea 2-3,5-9,26,32,44,56,77,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d32e20ed9f1d6a217c2314210374f8fb49bea176",
+  "prompts": {
+    "9398b7b5671f95ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bdec563-4784-482a-b400-5079aa88440b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 377,
+      "total_deletions": 83,
+      "accepted_lines": 807,
+      "overriden_lines": 0
+    }
+  }
+}

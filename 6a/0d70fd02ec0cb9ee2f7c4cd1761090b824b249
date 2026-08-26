@@ -1,0 +1,25 @@
+py/src/kb_ai/retrieval/retrieve.py
+  2c17884361a360de 40-42,50-52,55-60,63,65,68-72,81-87,94-95,100,142-145,147,149,162-164,172-173
+py/tests/test_retrieve.py
+  2c17884361a360de 124-130,215-301
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "6a0d70fd02ec0cb9ee2f7c4cd1761090b824b249",
+  "prompts": {
+    "2c17884361a360de": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "df14f1d4-687e-456f-a82f-e939946219e3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 134,
+      "total_deletions": 18,
+      "accepted_lines": 134,
+      "overriden_lines": 0
+    }
+  }
+}

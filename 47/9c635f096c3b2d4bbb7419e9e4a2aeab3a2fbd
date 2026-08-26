@@ -1,0 +1,41 @@
+py/README.md
+  9398b7b5671f95ea 3-7,9,15,21-22,24,26,34,41,48,50,52,54-63,69,72,76-77,84,86-90,92-93,95,98-102,106-107,114,116,118-123,125-128,132-134,136
+  f7de2b6a30b867ee 53
+etc/kaas.toml
+  4301bc8f2a0e209e 13,33
+  9398b7b5671f95ea 17,19,23,29-30,38-39,41-42,44-45,52-53
+  f7de2b6a30b867ee 24-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "479c635f096c3b2d4bbb7419e9e4a2aeab3a2fbd",
+  "prompts": {
+    "9398b7b5671f95ea": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5bdec563-4784-482a-b400-5079aa88440b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 377,
+      "total_deletions": 83,
+      "accepted_lines": 70,
+      "overriden_lines": 0
+    },
+    "f7de2b6a30b867ee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8e3a1a04-42c3-4b8d-9ccd-7f4d34bfa09e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 24,
+      "total_deletions": 20,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}

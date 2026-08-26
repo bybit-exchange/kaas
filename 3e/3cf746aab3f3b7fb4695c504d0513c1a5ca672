@@ -1,0 +1,23 @@
+py/src/kb_ai/llm/_completion.py
+  4301bc8f2a0e209e 41-67,131-135,138-148,161-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3e3cf746aab3f3b7fb4695c504d0513c1a5ca672",
+  "prompts": {
+    "4301bc8f2a0e209e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7182262a-d3c5-4750-a6b8-7e165833873a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 669,
+      "total_deletions": 909,
+      "accepted_lines": 47,
+      "overriden_lines": 0
+    }
+  }
+}

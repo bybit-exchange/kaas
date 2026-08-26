@@ -1,0 +1,39 @@
+internal/e2e/corpus_test.go
+  0df85e299b890cc2 1-444
+internal/e2e/compile_locallm_test.go
+  0df85e299b890cc2 1-948
+internal/e2e/timing_test.go
+  0df85e299b890cc2 1-497
+py/tests/test_commands_check.py
+  0df85e299b890cc2 67-69,81-83,94,122,124,136,175-176,187,189,212-213,238-239,252-253,264-266,268-269,279,281,307-356,359-421
+Makefile
+  0df85e299b890cc2 1,25-34
+docs/agent-quickstart.md
+  0df85e299b890cc2 112-119
+internal/e2e/timing.go
+  0df85e299b890cc2 1-237,239-278,280-324
+internal/e2e/corpus.go
+  0df85e299b890cc2 1-106,108-217
+py/src/kb_ai/commands/check.py
+  0df85e299b890cc2 36-56,92-104,106,108-119,124-127,166-171,174,176,179-182,188-190,197-198,207-209,213-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c00688c78c6a23bce6e19c64406c5d029d01fd9e",
+  "prompts": {
+    "0df85e299b890cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8160d4ed-fe87-4947-838e-7450e5a26a3e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 3723,
+      "total_deletions": 91,
+      "accepted_lines": 2717,
+      "overriden_lines": 10
+    }
+  }
+}

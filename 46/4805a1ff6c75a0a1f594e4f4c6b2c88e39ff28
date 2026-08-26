@@ -1,0 +1,23 @@
+.github/workflows/codeql.yml
+  d89892df93f4b88c 22,33-37,58-59,61-62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "464805a1ff6c75a0a1f594e4f4c6b2c88e39ff28",
+  "prompts": {
+    "d89892df93f4b88c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7671b38c-3fc0-4497-b00f-d90c99048558",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 444,
+      "total_deletions": 2,
+      "accepted_lines": 444,
+      "overriden_lines": 0
+    }
+  }
+}
