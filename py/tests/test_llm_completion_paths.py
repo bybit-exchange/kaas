@@ -108,6 +108,42 @@ class TestClientOptions:
         assert mock_client.with_options.call_args.kwargs == {"timeout": 42.5}
         assert mock_client.chat.completions.create.call_count == 0
 
+    def test_a_call_timeout_above_the_client_default_is_not_clamped(self, fresh_context):
+        """The client timeout is a default, not a ceiling.
+
+        KB_AI_WRITE_TIMEOUT_S is documented as honoured verbatim, including past
+        DEFAULT_CLIENT_TIMEOUT_S, and _infra.py says so in a comment. Both rest on
+        with_options replacing the value rather than lowering it, which is the SDK's
+        behaviour and not ours -- so this reads the timeout off the outgoing request
+        through a real client, where the neighbouring MagicMock-based tests could not
+        tell a clamp from a passthrough.
+        """
+        from openai import OpenAI
+
+        from kb_ai.llm._infra import DEFAULT_CLIENT_TIMEOUT_S
+
+        seen: list[object] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(request.extensions.get("timeout"))
+            return httpx.Response(200, json={
+                "id": "x", "object": "chat.completion", "created": 0, "model": "m",
+                "choices": [{"index": 0, "finish_reason": "stop",
+                             "message": {"role": "assistant", "content": "ok"}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            })
+
+        real = OpenAI(base_url="http://test:8080/v1", api_key="k", max_retries=0,
+                      timeout=DEFAULT_CLIENT_TIMEOUT_S,
+                      http_client=httpx.Client(transport=httpx.MockTransport(handler)))
+        fresh_context.call_timeout = 1800.0
+
+        with patch.object(llm_pkg, "get_client", return_value=real):
+            _completion_inner("model", MSGS)
+
+        assert seen[0]["read"] == 1800.0
+        assert 1800.0 > DEFAULT_CLIENT_TIMEOUT_S, "the point is a value above the default"
+
     def test_no_call_timeout_uses_shared_client(self, mock_client, fresh_context):
         assert fresh_context.call_timeout is None
 

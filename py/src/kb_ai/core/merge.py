@@ -3,6 +3,8 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import math
+import os
 import sys
 
 from kb_ai.core.extract import ExtractionResult
@@ -29,20 +31,101 @@ _ARTICLE_CLOSE = "</article>"
 # that to a single stalled call (issue #26).
 #
 # Sized above extract's 180s because a merge prompt carries the whole existing
-# article on top of the extraction, and below the client default because that is
-# the number this exists to replace. The one stall-free reference run
-# (docs/articles/kaas-bootstrap-case-study: 48 article groups, 16 workers) spent
-# 255.27s on the *entire* write phase, so no single call in it came close to this.
+# article on top of the extraction, and below the client default, because that is
+# the number it exists to replace: at DEFAULT_CLIENT_TIMEOUT_S a stalled write costs
+# 3*900+30 = 2730s to discover, so this buys back 1800s of that.
+#
+# _WRITE_TIMEOUT_ENV is honoured verbatim, including past DEFAULT_CLIENT_TIMEOUT_S.
+# The client timeout is a default, not a ceiling -- _completion.py applies an override
+# with client.with_options(timeout=...), which replaces the value rather than clamping
+# it, so an operator who needs 1200 gets 1200.
+#
+# Calibrated on one cloud reference run (docs/articles/kaas-bootstrap-case-study:
+# 48 article groups, 16 workers) that spent 255.27s on the *entire* write phase, so
+# no single call in it came close. That is the regime this default serves.
+#
+# A local model is a different regime, and 300 is too small for it. qwen3.8:27b-mlx
+# generates at roughly 23 output tok/s against roughly 540 tok/s of prefill, and a
+# merge emits the whole rewritten article, so latency tracks the article's size
+# rather than the prompt's. Measured on that model, all three under one load
+# condition -- which turns out to matter, see below:
+#
+#   9 sources into a 6101-char article -> 29024 chars   348.8s
+#   4 sources into a 6101-char article -> 18245 chars   257.9s
+#   5 sources into an 18245-char one   -> 34981 chars   507.7s
+#
+# The first of those exceeded this cap and cost a derive run nine documents'
+# content. The default still does not move, for three reasons.
+#
+# It is not free: a timeout is retried, so at _TIMEOUT_RETRIES=2 plus backoff a hung
+# gateway costs 3*300+30 = 930s to discover here, and every 300s added to the default
+# adds 900s to that.
+#
+# No constant fixes the local case anyway. These calls are allowed 16384 output
+# tokens (see the max_tokens below), which at 23 tok/s is ~712s, and a derive-merged
+# article only grows. Worse, throughput is not a property of the model: the same
+# 9-source call measured at 348.8s above needed more than 900s when a second model
+# was sharing the GPU, a 2.4x swing on one machine. A number that fits today is
+# outrun by tomorrow's article or by tomorrow's co-tenant.
+#
+# And the retry is doing real work, so shortening the budget to fail faster would be
+# the wrong trade. The same call that exceeded a 900s budget twice succeeded on the
+# third attempt with an unchanged prompt: a write timeout here is throughput-driven,
+# not a deterministic function of prompt size, so an identical retry genuinely can
+# land.
+#
+# So the local case is carried by _WRITE_TIMEOUT_ENV rather than by a number
+# extrapolated from three calls under one load. README.md says how to size it.
 #
 # Known bound: completion() retries a truncated response with max_tokens doubled,
 # and a write escalated past its 16384 default could plausibly need longer than
 # this. No run has produced one -- an article that overruns 16K output tokens is
 # already pathological -- so this is not scaled per attempt until one shows up.
 _WRITE_CALL_TIMEOUT_S = 300.0
+_WRITE_TIMEOUT_ENV = "KB_AI_WRITE_TIMEOUT_S"
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_unusable_write_timeout(raw: str) -> None:
+    """Report an ignored override once, not once per write call.
+
+    Keyed on the raw string, matching _cost.py's handling of KB_AI_PRICING, so a
+    corrected value is reported afresh rather than swallowed by the cache.
+    """
+    print(f"[write] ignoring {_WRITE_TIMEOUT_ENV}={raw!r}: expected a positive "
+          f"number of seconds — using {_WRITE_CALL_TIMEOUT_S}", file=sys.stderr)
+
+
+def _write_call_timeout() -> float:
+    """The per-call write timeout, re-read on every write entry.
+
+    Read per call rather than at import like the neighbouring MAX_PROMPT_CHARS, so
+    that setting the variable does not have to happen before kb_ai is imported.
+    Under the Go bridge the two are indistinguishable -- it snapshots the
+    environment when it spawns the daemon -- so the difference shows up for a
+    direct caller and for the tests.
+
+    A value that cannot serve as a timeout is reported and ignored rather than
+    honoured: '0' or a negative would fail every write call instantly, and a
+    non-finite one would silently remove the cap this override exists to impose.
+    Failing a whole compile over a typo in an env var is the worse outcome, and
+    saying nothing would leave the typo looking like it took effect.
+    """
+    raw = os.environ.get(_WRITE_TIMEOUT_ENV, "")
+    if not raw:
+        return _WRITE_CALL_TIMEOUT_S
+    try:
+        seconds = float(raw)
+    except ValueError:
+        seconds = 0.0
+    if seconds > 0 and math.isfinite(seconds):
+        return seconds
+    _warn_unusable_write_timeout(raw)
+    return _WRITE_CALL_TIMEOUT_S
 
 
 def _with_write_timeout(fn):
-    """Apply _WRITE_CALL_TIMEOUT_S to all LLM calls within fn, restoring on exit.
+    """Apply the write-phase call timeout to all LLM calls within fn.
 
     On the entry points rather than on their callers, so that every write path
     reaching them is covered: both compile_kb's write phase and the pipeline's
@@ -54,7 +137,7 @@ def _with_write_timeout(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         prev = get_call_timeout()
-        set_call_timeout(_WRITE_CALL_TIMEOUT_S)
+        set_call_timeout(_write_call_timeout())
         try:
             return fn(*args, **kwargs)
         finally:
