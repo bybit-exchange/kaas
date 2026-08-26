@@ -1,4 +1,4 @@
-.PHONY: dev build test cover clean tarball verify-install verify-tarball release
+.PHONY: dev build test test-locallm cover clean tarball verify-install verify-tarball release
 
 VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 GIT_COMMIT = $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -21,6 +21,17 @@ test:
 	@go test ./... -v -count=1
 	@cd py && uv run pytest tests/ -v
 	@cd web && pnpm test
+
+# Compile a sample of real raw documents end to end against a locally served
+# model. The `locallm` build tag keeps this one test out of `make test` and CI,
+# because it needs uv, an OpenAI-compatible server on localhost, and minutes of
+# wall-clock per document, so the long -timeout is deliberate. The rest of
+# internal/e2e is untagged and does run in `make test`. See internal/e2e for the
+# environment variables that select the model, corpus and sample size, and for
+# KAAS_LOCALLM_METRICS, which records each run's per-phase latency so a
+# regression is visible.
+test-locallm:
+	@go test ./internal/e2e/ -tags locallm -v -count=1 -timeout 60m
 
 # Run all tests with coverage and print one total per component.
 # Note: the Python figure does not include lines executed only inside a
