@@ -1,0 +1,27 @@
+py/src/kb_ai/commands/check.py
+  0df85e299b890cc2 36-56,91-119,124-127,166-171,174,176,179-182,188-190,197-198,207-209,213-214
+docs/agent-quickstart.md
+  0df85e299b890cc2 112-119
+py/tests/test_commands_check.py
+  0df85e299b890cc2 67-69,81-83,94,122,124,136,175-176,187,189,191,212-213,238-239,252-253,264-266,268-269,279,281-282,307-421
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "1375b9350a6c2349b8779bc63ee9b22239881804",
+  "prompts": {
+    "0df85e299b890cc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8160d4ed-fe87-4947-838e-7450e5a26a3e",
+        "model": "claude-opus-5"
+      },
+      "human_author": "lucasmaan",
+      "messages": [],
+      "total_additions": 231,
+      "total_deletions": 53,
+      "accepted_lines": 279,
+      "overriden_lines": 0
+    }
+  }
+}
