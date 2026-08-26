@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import math
 import os
 import re
 import sys
@@ -27,11 +28,65 @@ _DEFAULT_WORKERS = 16
 # Per-call timeout for extract pipeline. Tighter than the default 900s because
 # extract calls have predictable size (≤16K max_tokens) and a single hung call
 # blocks the whole job (see diagnose log 2026-06-01, T4 d35bec86 stall 914s).
+#
+# "Predictable size" is not the same as predictable duration: the figure assumes a
+# hosted model's generation speed. A model served on localhost can be an order of
+# magnitude slower, at which point 180s fails on documents a hosted model handles
+# without trouble -- a 12B local model exhausted all three attempts on a
+# 4386-character prompt. _EXTRACT_TIMEOUT_ENV exists so that is a configuration
+# change rather than a source edit.
+#
+# Size it knowing this phase retries in two places, unlike write: the LLM layer
+# retries a timeout twice, and _phase2_with_retry re-dispatches its entire K-call
+# set once on any failure, so a hung phase-2 call costs 6*timeout+60s to discover
+# rather than 3*timeout+30s.
+#
+# _EXTRACT_TIMEOUT_ENV is honoured verbatim, including past DEFAULT_CLIENT_TIMEOUT_S.
+# The client timeout is a default, not a ceiling -- _completion.py applies an override
+# with client.with_options(timeout=...), which replaces the value rather than clamping
+# it, so an operator who needs 1200 gets 1200.
 _EXTRACT_CALL_TIMEOUT_S = 180.0
+_EXTRACT_TIMEOUT_ENV = "KB_AI_EXTRACT_TIMEOUT_S"
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_unusable_extract_timeout(raw: str) -> None:
+    """Report an ignored override once, not once per extract call.
+
+    Keyed on the raw string, matching merge.py's write-phase twin and _cost.py's
+    handling of KB_AI_PRICING, so a corrected value is reported afresh rather than
+    swallowed by the cache.
+    """
+    print(f"[extract] ignoring {_EXTRACT_TIMEOUT_ENV}={raw!r}: expected a positive "
+          f"number of seconds — using {_EXTRACT_CALL_TIMEOUT_S}", file=sys.stderr)
+
+
+def _extract_call_timeout() -> float:
+    """The per-call extract timeout, re-read on every decorated entry.
+
+    Read per call rather than at import like the neighbouring MAX_PROMPT_CHARS, so
+    that setting the variable does not have to happen before kb_ai is imported.
+
+    A value that cannot serve as a timeout is reported and ignored rather than
+    honoured: '0' or a negative would fail every extract call instantly, and a
+    non-finite one would silently remove the cap -- reinstating the hung-call stall
+    the default was introduced to bound.
+    """
+    raw = os.environ.get(_EXTRACT_TIMEOUT_ENV, "")
+    if not raw:
+        return _EXTRACT_CALL_TIMEOUT_S
+    try:
+        seconds = float(raw)
+    except ValueError:
+        seconds = 0.0
+    if seconds > 0 and math.isfinite(seconds):
+        return seconds
+    _warn_unusable_extract_timeout(raw)
+    return _EXTRACT_CALL_TIMEOUT_S
 
 
 def _with_extract_timeout(fn):
-    """Apply _EXTRACT_CALL_TIMEOUT_S to all LLM calls within fn, restoring on exit.
+    """Apply the extract-phase call timeout to all LLM calls within fn.
 
     Restoring to prev (not None) keeps nested invocations safe — if a future
     caller wraps extract in its own timeout context, we don't clobber it.
@@ -39,7 +94,7 @@ def _with_extract_timeout(fn):
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         prev = get_call_timeout()
-        set_call_timeout(_EXTRACT_CALL_TIMEOUT_S)
+        set_call_timeout(_extract_call_timeout())
         try:
             return fn(*args, **kwargs)
         finally:
