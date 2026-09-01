@@ -270,7 +270,7 @@ def spy_modes(monkeypatch):
 
     def fake_diff(article_path, article_content, extraction, source_path, model):
         chosen["mode"] = "diff"
-        return "diffed"
+        return "diffed", False
 
     monkeypatch.setattr(mg, "_merge_full_rewrite", fake_rewrite)
     monkeypatch.setattr(mg, "_merge_diff", fake_diff)
@@ -305,6 +305,147 @@ def test_article_over_prompt_budget_uses_diff(monkeypatch, spy_modes):
     mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
 
     assert spy_modes["mode"] == "diff"
+
+
+# ── configurable full-rewrite threshold ─────────────────────────────
+
+def test_full_rewrite_limit_reads_the_env(monkeypatch):
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "12000")
+    assert mg._full_rewrite_limit() == 12_000
+
+
+def test_full_rewrite_limit_without_env_uses_the_default(monkeypatch):
+    monkeypatch.delenv("KB_MERGE_FULL_REWRITE_LIMIT", raising=False)
+    assert mg._full_rewrite_limit() == 30_000
+
+
+def test_full_rewrite_limit_invalid_env_warns_and_uses_the_default(monkeypatch, capsys):
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "not-a-number")
+
+    assert mg._full_rewrite_limit() == 30_000
+
+    err = capsys.readouterr().err
+    assert "KB_MERGE_FULL_REWRITE_LIMIT" in err
+    assert "not-a-number" in err
+
+
+def test_env_lowered_threshold_routes_a_midsize_article_to_diff(spy_modes, monkeypatch):
+    """A 15KB article is a full-rewrite article at the shipped default but a
+    diff article at the deployment-recommended 12000 -- the whole point of the
+    env knob."""
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "12000")
+
+    mg.merge_into_article("wiki/a.md", "x" * 15_000, _extraction(), "raw/a.md")
+
+    assert spy_modes["mode"] == "diff"
+
+
+# ── diff degradation fallback ───────────────────────────────────────
+
+def test_unparsable_diff_falls_back_to_full_rewrite(monkeypatch, capsys):
+    """A degraded diff must not silently drop the new extraction's content:
+    when the article fits the rewrite budget, the rewrite is paid instead."""
+    calls: list[str] = []
+
+    def fake_diff(article_path, article_content, extraction, source_path, model):
+        calls.append("diff")
+        return "diffed", True
+
+    def fake_rewrite(article_path, article_content, extraction, source_path, model):
+        calls.append("rewrite")
+        return "rewritten"
+
+    monkeypatch.setattr(mg, "_merge_diff", fake_diff)
+    monkeypatch.setattr(mg, "_merge_full_rewrite", fake_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["diff", "rewrite"]
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("exc", [
+    json.JSONDecodeError("bad", "{}", 0),
+    RuntimeError("llm down"),
+], ids=["json-decode-error", "runtime-error"])
+def test_merge_into_article_falls_back_when_diff_result_is_unparsable(
+    monkeypatch, capsys, exc
+):
+    """End-to-end wiring: the real _merge_diff flags the failure and
+    merge_into_article pays the rewrite, emitting the fallback log line that
+    Phase 5 counts as the fallback-rate metric."""
+    def boom(**kwargs):
+        raise exc
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    monkeypatch.setattr(mg, "_merge_full_rewrite", lambda *args: "rewritten")
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+def test_a_legitimate_empty_patches_diff_does_not_fall_back(monkeypatch, capsys):
+    """`{"patches": []}` is the model answering "nothing to add" -- a healthy
+    diff result, not degradation, so no rewrite is paid and no fallback line
+    is logged."""
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {"patches": []})
+
+    def must_not_rewrite(*args):
+        raise AssertionError("full rewrite must not run on a healthy diff")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == big
+    assert "falling back to full-rewrite" not in capsys.readouterr().err
+
+
+def test_a_degraded_diff_that_cannot_fit_a_rewrite_is_returned_as_is(monkeypatch, capsys):
+    """Over the prompt budget there is no rewrite to fall back to, so the
+    degraded diff content (article kept intact, no patches applied) is the
+    result, without the fallback path or its log line."""
+    monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5000)
+    monkeypatch.setattr(mg, "_merge_diff", lambda *args: ("kept content", True))
+
+    def must_not_rewrite(*args):
+        raise AssertionError("rewrite cannot fit the budget and must not run")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "kept content"
+    assert "falling back to full-rewrite" not in capsys.readouterr().err
+
+
+def test_default_env_non_degraded_diff_result_is_returned_verbatim(monkeypatch):
+    """Regression for the Phase 4 refactor: with the env unset, a healthy
+    large-article merge is byte-identical to the pre-change behaviour -- the
+    diff result is returned exactly as _merge_diff produced it."""
+    monkeypatch.delenv("KB_MERGE_FULL_REWRITE_LIMIT", raising=False)
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "patches": [{"action": "append_to_section", "section": "## One",
+                     "content": "added"}],
+    })
+    monkeypatch.setattr(mg, "_merge_full_rewrite", lambda *args: "REWRITTEN")
+
+    article = "## One\nbody\n" + "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+
+    expected, degraded = mg._merge_diff(
+        "wiki/a.md", article, _extraction(), "raw/a.md", "claude-sonnet-4-6")
+
+    assert degraded is False
+    assert out == expected
+    assert "added" in out
 
 
 # ── _merge_user_message ─────────────────────────────────────────────
@@ -678,9 +819,10 @@ def test_merge_diff_applies_the_returned_patches(monkeypatch):
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
     })
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "added" in out
+    assert degraded is False
 
 
 def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):
@@ -691,9 +833,10 @@ def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "body" in out
+    assert degraded is True
 
 
 def test_merge_diff_degrades_on_runtime_error(monkeypatch):
@@ -702,9 +845,10 @@ def test_merge_diff_degrades_on_runtime_error(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "body" in out
+    assert degraded is True
 
 
 def test_merge_diff_truncates_an_oversized_article(monkeypatch):

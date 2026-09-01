@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bybit-exchange/kaas/internal/bridge"
+	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -335,41 +336,67 @@ func TestProcessFailsWhenTheRawPathIsOutsideTheKB(t *testing.T) {
 }
 
 // recordingEngine captures the requests it receives and returns fixed payloads.
+// Pipeline results default to echoing every item back as a successful result,
+// which lets one instance serve both the worker (Extract) and a batcher
+// (multi-item Pipeline) in the dual-path tests; pipeResults/pipeCost override
+// the echo when set.
 type recordingEngine struct {
-	onExtract  func(bridge.ExtractRequest)
-	onPipeline func(bridge.PipelineRequest)
+	mu          sync.Mutex
+	pipelineN   int
+	onExtract   func(bridge.ExtractRequest)
+	onPipeline  func(bridge.PipelineRequest)
+	pipeResults json.RawMessage
+	pipeCost    json.RawMessage
 }
 
 func (e *recordingEngine) Extract(ctx context.Context, req bridge.ExtractRequest) (*bridge.ExtractResponse, error) {
-	e.onExtract(req)
+	if e.onExtract != nil {
+		e.onExtract(req)
+	}
 	return &bridge.ExtractResponse{Extraction: json.RawMessage(`{}`), Cost: json.RawMessage(`{}`)}, nil
 }
 
 func (e *recordingEngine) Pipeline(ctx context.Context, req bridge.PipelineRequest) (*bridge.PipelineResponse, error) {
-	e.onPipeline(req)
-	return &bridge.PipelineResponse{Results: json.RawMessage(`[]`), Cost: json.RawMessage(`{}`)}, nil
+	e.mu.Lock()
+	e.pipelineN++
+	e.mu.Unlock()
+	if e.onPipeline != nil {
+		e.onPipeline(req)
+	}
+	if e.pipeResults != nil {
+		return &bridge.PipelineResponse{Results: e.pipeResults, Cost: e.pipeCost}, nil
+	}
+	return &bridge.PipelineResponse{Results: echoResults(req), Cost: e.pipeCost}, nil
+}
+
+func (e *recordingEngine) pipelineCalls() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.pipelineN
 }
 
 // --- buildResult ---
 
 func TestBuildResult(t *testing.T) {
-	ext := &bridge.ExtractResponse{Cost: json.RawMessage(`{"p":1}`)}
-	pipe := &bridge.PipelineResponse{Results: json.RawMessage(`[1]`), Cost: json.RawMessage(`{"p":2}`)}
+	extCost := &bridge.ExtractResponse{Cost: json.RawMessage(`{"p":1}`)}
+	item := json.RawMessage(`{"content_hash":"h1","status":"created"}`)
+	batchCost := json.RawMessage(`{"p":2}`)
 
 	tests := []struct {
-		name string
-		ext  *bridge.ExtractResponse
-		pipe *bridge.PipelineResponse
-		want string
+		name      string
+		ext       *bridge.ExtractResponse
+		itemRes   json.RawMessage
+		batchCost json.RawMessage
+		want      string
 	}{
-		{"both phases", ext, pipe, `{"extract_cost":{"p":1},"pipeline_cost":{"p":2},"pipeline_results":[1]}`},
-		{"extract only", ext, nil, `{"extract_cost":{"p":1}}`},
-		{"pipeline only", nil, pipe, `{"pipeline_cost":{"p":2},"pipeline_results":[1]}`},
-		{"neither", nil, nil, `{}`},
+		{"both phases", extCost, item, batchCost, `{"extract_cost":{"p":1},"pipeline_cost":{"p":2},"pipeline_results":[{"content_hash":"h1","status":"created"}]}`},
+		{"extract only", extCost, nil, nil, `{"extract_cost":{"p":1}}`},
+		{"pipeline only", nil, item, batchCost, `{"pipeline_cost":{"p":2},"pipeline_results":[{"content_hash":"h1","status":"created"}]}`},
+		{"neither", nil, nil, nil, `{}`},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := buildResult(tc.ext, tc.pipe); got != tc.want {
+			if got := buildResult(tc.ext, tc.itemRes, tc.batchCost); got != tc.want {
 				t.Errorf("buildResult() = %s, want %s", got, tc.want)
 			}
 		})
@@ -381,7 +408,7 @@ func TestBuildResult(t *testing.T) {
 // the Web UI parses it as JSON, so an empty object must be written.
 func TestBuildResultUnmarshalableFallsBackToEmptyObject(t *testing.T) {
 	bad := &bridge.ExtractResponse{Cost: json.RawMessage(`{"unterminated":`)}
-	if got := buildResult(bad, nil); got != "{}" {
+	if got := buildResult(bad, nil, nil); got != "{}" {
 		t.Errorf("buildResult() = %s, want {}", got)
 	}
 }
@@ -405,5 +432,115 @@ func TestProcessForwardsTheConfiguredStrategy(t *testing.T) {
 
 	if extReq.Strategy != "summarize" {
 		t.Errorf("extract strategy = %q, want %q", extReq.Strategy, "summarize")
+	}
+}
+
+// --- Process with a batcher (dual path) ---
+
+// batcherCfg returns a worker config that fans pipeline items into b.
+func batcherCfg(b *PipelineBatcher) Config {
+	c := wcfg()
+	c.Batcher = b
+	return c
+}
+
+// TestProcessBatcherAckResultShape asserts the batched path keeps the result
+// blob shape the UI reads: pipeline_results stays a single-element array for
+// this task and pipeline_cost carries the batch-shared blob.
+func TestProcessBatcherAckResultShape(t *testing.T) {
+	q := &stubQueue{}
+	eng := &recordingEngine{pipeCost: json.RawMessage(`{"prompt":20}`)}
+	b := newTestBatcher(eng, newBrk(), BatcherConfig{
+		MaxItems:    4,
+		FlushWait:   10 * time.Millisecond,
+		MaxInflight: 2,
+	})
+	runBatcher(t, b)
+
+	NewWorker(q, eng, newBrk(), "w1", batcherCfg(b)).Process(context.Background(), taskWithRaw(t, "body"))
+
+	setStageN, ackN, nackN := q.snapshot()
+	if ackN != 1 || nackN != 0 || setStageN != 1 {
+		t.Fatalf("want stage→pipeline then Ack, got setStage=%d ack=%d nack=%d", setStageN, ackN, nackN)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(q.ackResult), &got); err != nil {
+		t.Fatalf("ack result is not JSON: %v (%q)", err, q.ackResult)
+	}
+	if string(got["pipeline_results"]) != `[{"content_hash":"h1","status":"created"}]` {
+		t.Errorf("pipeline_results = %s, want this task's single-element array", got["pipeline_results"])
+	}
+	if string(got["pipeline_cost"]) != `{"prompt":20}` {
+		t.Errorf("pipeline_cost = %s, want the batch-shared blob", got["pipeline_cost"])
+	}
+}
+
+// TestProcessBatcherItemErrorStillAcks locks the current semantics under
+// batching: an item-level error status is embedded in the result blob and the
+// task still Acks — only call-level failures Nack.
+func TestProcessBatcherItemErrorStillAcks(t *testing.T) {
+	q := &stubQueue{}
+	eng := &recordingEngine{
+		pipeResults: json.RawMessage(`[{"content_hash":"h1","status":"error","error":"write boom"}]`),
+		pipeCost:    json.RawMessage(`{"prompt":7}`),
+	}
+	b := newTestBatcher(eng, newBrk(), BatcherConfig{MaxItems: 4, FlushWait: 10 * time.Millisecond})
+	runBatcher(t, b)
+
+	NewWorker(q, eng, newBrk(), "w1", batcherCfg(b)).Process(context.Background(), taskWithRaw(t, "body"))
+
+	_, ackN, nackN := q.snapshot()
+	if ackN != 1 || nackN != 0 {
+		t.Fatalf("item-level error must Ack, got ack=%d nack=%d", ackN, nackN)
+	}
+	if !strings.Contains(q.ackResult, "write boom") {
+		t.Errorf("ack result = %q, want it to embed the item error", q.ackResult)
+	}
+}
+
+// TestProcessBatcherCallErrorNacks: a batch call-level failure Nacks per
+// attempts, like the direct path's pipeline failure.
+func TestProcessBatcherCallErrorNacks(t *testing.T) {
+	q := &stubQueue{}
+	eng := &echoEngine{err: errors.New("batch transport down")}
+	b := newTestBatcher(eng, newBrk(), BatcherConfig{MaxItems: 4, FlushWait: 10 * time.Millisecond})
+	runBatcher(t, b)
+
+	NewWorker(q, eng, newBrk(), "w1", batcherCfg(b)).Process(context.Background(), taskWithRaw(t, "body"))
+
+	_, ackN, nackN := q.snapshot()
+	if nackN != 1 || ackN != 0 {
+		t.Fatalf("call-level failure must Nack, got ack=%d nack=%d", ackN, nackN)
+	}
+	if !strings.Contains(q.nackMsg, "pipeline") {
+		t.Errorf("nack message = %q, want it to name the pipeline phase", q.nackMsg)
+	}
+}
+
+// TestProcessBatcherErrOpenAbandons: when Submit reports circuit.ErrOpen the
+// breaker rejected the batch without issuing a call, so the task is abandoned
+// — no Ack, no Nack — and RecoverExpired requeues it after the lease TTL
+// without burning an attempt.
+func TestProcessBatcherErrOpenAbandons(t *testing.T) {
+	q := &stubQueue{}
+	openBrk := circuit.New(circuit.Options{FailureThreshold: 1, Cooldown: time.Hour})
+	if err := openBrk.Do(func() error { return errors.New("open the breaker") }); err == nil {
+		t.Fatal("failed to open the breaker")
+	}
+	eng := &recordingEngine{}
+	b := newTestBatcher(eng, openBrk, BatcherConfig{MaxItems: 1, FlushWait: time.Second})
+	runBatcher(t, b)
+
+	NewWorker(q, eng, newBrk(), "w1", batcherCfg(b)).Process(context.Background(), taskWithRaw(t, "body"))
+
+	setStageN, ackN, nackN := q.snapshot()
+	if ackN != 0 || nackN != 0 {
+		t.Fatalf("ErrOpen must abandon the task, got ack=%d nack=%d", ackN, nackN)
+	}
+	if setStageN != 1 {
+		t.Errorf("SetStage calls = %d, want 1 (abandon happens after the stage advance)", setStageN)
+	}
+	if got := eng.pipelineCalls(); got != 0 {
+		t.Errorf("pipeline calls = %d, want 0 (breaker rejected without issuing)", got)
 	}
 }

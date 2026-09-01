@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/conf"
@@ -66,12 +67,84 @@ type StorageConf struct {
 
 // WorkerConf tunes the compile worker pool.
 type WorkerConf struct {
-	ExtractWorkers      int `json:"extract_workers,default=4"`
+	// DocumentWorkers is the dispatcher's document-level concurrency: how many
+	// tasks run through the full extract + pipeline lifecycle in parallel. It
+	// was historically named extract_workers, which never limited only the
+	// extract stage despite the name.
+	DocumentWorkers int `json:"document_workers,optional"`
+	// ExtractWorkers is the deprecated alias of DocumentWorkers, kept one
+	// release so existing config files keep loading. When both keys are set,
+	// DocumentWorkers wins.
+	ExtractWorkers      int `json:"extract_workers,optional"`
 	PipelineConcurrency int `json:"pipeline_concurrency,default=2"`
 	PollIntervalMS      int `json:"poll_interval_ms,default=1000"`
 	LeaseTimeoutSec     int `json:"lease_timeout_sec,default=300"`
 	CBFailureThreshold  int `json:"cb_failure_threshold,default=5"`
 	CBCooldownSec       int `json:"cb_cooldown_sec,default=30"`
+	// PipelineBatchMaxItems is the maximum number of pipeline items per
+	// batched Pipeline call (grouped write). The default 1 disables batching:
+	// every task issues its own call, the pre-batching behaviour.
+	PipelineBatchMaxItems int `json:"pipeline_batch_max_items,default=1"`
+	// PipelineBatchFlushMS is the batching window in milliseconds: a partial
+	// batch flushes when its oldest pending item is this old.
+	PipelineBatchFlushMS int `json:"pipeline_batch_flush_ms,default=500"`
+	// PipelineBatchMaxInflight caps concurrent in-flight batch calls. Write
+	// LLM concurrency is bounded by this × pipeline_concurrency, because the
+	// bridge semaphore counts daemon commands, not a batch's internal write
+	// fan-out.
+	PipelineBatchMaxInflight int `json:"pipeline_batch_max_inflight,default=1"`
+	// IndexDebounceSec is the index-refresh debounce interval: pipeline
+	// completions mark the indexes dirty and one refresh follows this many
+	// seconds after the last completion. 0 (default) disables the Go-side
+	// refresher and every pipeline call rebuilds the indexes itself (legacy
+	// behaviour, rollback switch).
+	IndexDebounceSec int `json:"index_debounce_sec,default=0"`
+	// IndexMaxStaleSec bounds index staleness under continuous load: a dirty
+	// state older than this forces a refresh even while completions keep
+	// re-arming the debounce timer. 0 (default) auto-sizes to 5x
+	// IndexDebounceSec. Only meaningful when IndexDebounceSec > 0.
+	IndexMaxStaleSec int `json:"index_max_stale_sec,default=0"`
+}
+
+// defaultDocumentWorkers is the document-level concurrency used when neither
+// document_workers nor the deprecated extract_workers alias is set.
+const defaultDocumentWorkers = 4
+
+// EffectiveDocumentWorkers resolves the dispatcher's document-level
+// concurrency: document_workers wins over the deprecated extract_workers
+// alias, falling back to the built-in default when neither is set. Pure —
+// both validate() and startup logging call it, so the shadowed-alias warning
+// lives in validate() where it fires exactly once.
+func (w WorkerConf) EffectiveDocumentWorkers() int {
+	if w.DocumentWorkers > 0 {
+		return w.DocumentWorkers
+	}
+	if w.ExtractWorkers > 0 {
+		return w.ExtractWorkers
+	}
+	// Neither key holds a usable value. Pass an explicitly negative one
+	// through so validate() rejects it instead of masking it with the default.
+	if w.DocumentWorkers != 0 {
+		return w.DocumentWorkers
+	}
+	if w.ExtractWorkers != 0 {
+		return w.ExtractWorkers
+	}
+	return defaultDocumentWorkers
+}
+
+// DocumentWorkersSource names where EffectiveDocumentWorkers resolves its
+// value from: "document_workers", the deprecated "extract_workers" alias, or
+// "default". Startup logging reports it instead of re-deriving the switch.
+func (w WorkerConf) DocumentWorkersSource() string {
+	switch {
+	case w.DocumentWorkers > 0:
+		return "document_workers"
+	case w.ExtractWorkers > 0:
+		return "extract_workers"
+	default:
+		return "default"
+	}
 }
 
 // AIConf configures the AI engine (daemon) and optional MCP reverse proxy.
@@ -131,7 +204,9 @@ func Load(path string) (*Config, error) {
 	if err := conf.Load(path, &c); err != nil {
 		return nil, fmt.Errorf("load config %q: %w", path, err)
 	}
-	applyEnvOverrides(&c)
+	if err := applyEnvOverrides(&c); err != nil {
+		return nil, err
+	}
 	applyDefaults(&c)
 	if err := c.validate(); err != nil {
 		return nil, err
@@ -142,12 +217,29 @@ func Load(path string) (*Config, error) {
 	return &c, nil
 }
 
+// envInt reads an integer tuning override. An invalid value warns and reports
+// not-ok so the file/default value stands: a typo in an env var must not abort
+// startup, and validate() still rejects resolved values that are unusable.
+func envInt(name string) (int, bool) {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0, false
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		log.Printf("[config] invalid %s=%q, ignoring (must be an integer)", name, v)
+		return 0, false
+	}
+	return n, true
+}
+
 // applyEnvOverrides lets a few environment variables override file values, so
-// the same kaas.toml works in a container without baking deployment topology or
-// secrets into it. A set-but-empty var is treated as unset (no clobbering).
-// Used by docker-compose to point the backend at the AI service (ai:8081) and
-// to inject the LLM key without writing it to disk.
-func applyEnvOverrides(c *Config) {
+// the same kaas.toml works in a container without baking deployment topology,
+// secrets, or tuning knobs into it. A set-but-empty var is treated as unset
+// (no clobbering). Used by docker-compose to point the backend at the AI
+// service (ai:8081), to inject the LLM key without writing it to disk, and to
+// retune worker concurrency without rebuilding the image.
+func applyEnvOverrides(c *Config) error {
 	if v := os.Getenv("KAAS_AI_MCP_URL"); v != "" {
 		c.AI.MCPURL = v
 		log.Printf("[config] KAAS_AI_MCP_URL is deprecated and will be removed in v2.0 (2026 Q4). " +
@@ -177,6 +269,30 @@ func applyEnvOverrides(c *Config) {
 	if v := os.Getenv("LLM_EXTRACT_STRATEGY"); v != "" {
 		c.LLM.ExtractStrategy = v
 	}
+	if n, ok := envInt("KAAS_WORKER_DOCUMENT_WORKERS"); ok {
+		c.Worker.DocumentWorkers = n
+	}
+	if n, ok := envInt("KAAS_WORKER_EXTRACT_WORKERS"); ok {
+		c.Worker.ExtractWorkers = n
+		log.Printf("[config] KAAS_WORKER_EXTRACT_WORKERS is deprecated and will be removed in the next release. " +
+			"Use KAAS_WORKER_DOCUMENT_WORKERS or worker.document_workers in kaas.toml instead.")
+	}
+	if n, ok := envInt("KAAS_AI_DAEMON_CONCURRENCY"); ok {
+		c.AI.Daemon.Concurrency = n
+	}
+	if n, ok := envInt("KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS"); ok {
+		c.Worker.PipelineBatchMaxItems = n
+	}
+	if n, ok := envInt("KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT"); ok {
+		c.Worker.PipelineBatchMaxInflight = n
+	}
+	if n, ok := envInt("KAAS_WORKER_INDEX_DEBOUNCE_SEC"); ok {
+		c.Worker.IndexDebounceSec = n
+	}
+	if n, ok := envInt("KAAS_WORKER_INDEX_MAX_STALE_SEC"); ok {
+		c.Worker.IndexMaxStaleSec = n
+	}
+	return nil
 }
 
 func applyDefaults(c *Config) {
@@ -203,6 +319,29 @@ func (c *Config) validate() error {
 	}
 	if c.Worker.LeaseTimeoutSec <= 0 {
 		return fmt.Errorf("worker.lease_timeout_sec must be > 0")
+	}
+	if c.Worker.DocumentWorkers > 0 && c.Worker.ExtractWorkers > 0 {
+		log.Printf("[config] worker.extract_workers is deprecated and will be removed in the next release; "+
+			"both it and worker.document_workers are set, using document_workers=%d.", c.Worker.DocumentWorkers)
+	}
+	if n := c.Worker.EffectiveDocumentWorkers(); n < 1 {
+		return fmt.Errorf("worker.document_workers resolves to %d, must be >= 1", n)
+	}
+	// A non-positive inflight with batching enabled starves the batcher's
+	// semaphore -- every flushed batch would wait on a slot that never frees.
+	if c.Worker.PipelineBatchMaxItems > 1 && c.Worker.PipelineBatchMaxInflight < 1 {
+		return fmt.Errorf("worker.pipeline_batch_max_inflight must be >= 1 when pipeline_batch_max_items > 1")
+	}
+	if c.Worker.IndexDebounceSec < 0 {
+		return fmt.Errorf("worker.index_debounce_sec must be >= 0 (0 disables the debounced index refresher)")
+	}
+	if c.Worker.IndexMaxStaleSec < 0 {
+		return fmt.Errorf("worker.index_max_stale_sec must be >= 0")
+	}
+	if c.Worker.IndexDebounceSec > 0 && c.Worker.IndexMaxStaleSec > 0 &&
+		c.Worker.IndexMaxStaleSec < c.Worker.IndexDebounceSec {
+		return fmt.Errorf("worker.index_max_stale_sec (%d) must be 0 (auto) or >= worker.index_debounce_sec (%d)",
+			c.Worker.IndexMaxStaleSec, c.Worker.IndexDebounceSec)
 	}
 	if !slices.Contains(extractStrategies, c.LLM.ExtractStrategy) {
 		return fmt.Errorf("llm.extract_strategy must be one of %s, got %q",

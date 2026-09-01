@@ -79,6 +79,11 @@ type PipelineRequest struct {
 	TopicIndexMinArticles int             `json:"topic_index_min_articles,omitempty"`
 	DeadlineSeconds       int             `json:"deadline_seconds,omitempty"`
 	People                json.RawMessage `json:"people,omitempty"`
+	// RebuildIndex is a pointer so an explicit false (the Go side owns index
+	// refresh via the debounced IndexRefresher) is sent rather than dropped by
+	// omitempty; nil lets the engine rebuild the indexes at the end of the
+	// call (legacy behaviour). Pattern follows ChatRequest.Temperature.
+	RebuildIndex *bool `json:"rebuild_index,omitempty"`
 }
 
 // PipelineResponse holds the per-article results plus a cost summary.

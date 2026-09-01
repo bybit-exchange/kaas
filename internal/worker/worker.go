@@ -34,6 +34,21 @@ type Config struct {
 	Model             string        // forwarded as ExtractRequest.Model
 	SummarizeModel    string        // forwarded as ExtractRequest.SummarizeModel
 	ExtractStrategy   string        // forwarded as ExtractRequest.Strategy
+	// Batcher, when non-nil, fans this task's pipeline item into batched
+	// Pipeline calls shared with other tasks. nil keeps the legacy direct
+	// per-task call (tests and the pipeline_batch_max_items=1 rollback).
+	Batcher *PipelineBatcher
+	// OnPipelineDone, when non-nil, is called after the pipeline phase
+	// returns (both the batched and the direct path, but not on the ErrOpen
+	// abandon where no call was made). The debounced IndexRefresher wires
+	// MarkDirty here so index rebuilds coalesce across tasks. nil keeps the
+	// legacy behaviour (no notification).
+	OnPipelineDone func()
+	// RebuildIndex is forwarded to PipelineRequest.RebuildIndex on the direct
+	// path (the batcher carries it on its base request). nil keeps the
+	// engine-side per-call index rebuild (legacy behaviour); an explicit
+	// false hands index ownership to the Go-side refresher.
+	RebuildIndex *bool
 }
 
 // Worker processes a single claimed task end to end.
@@ -148,21 +163,49 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		return
 	}
 
-	// Pipeline (single item; Python builds the markdown index internally).
-	var pipe *bridge.PipelineResponse
-	err = w.brk.Do(func() error {
-		var e error
-		pipe, e = w.eng.Pipeline(ctx, bridge.PipelineRequest{
-			KBDir:   w.cfg.KBDir,
-			Model:   w.cfg.Model,
-			Workers: w.cfg.PipelineWorkers,
-			Items: []bridge.PipelineItem{{
-				ContentHash: task.ContentHash,
-				SourceRef:   sourceRef,
-			}},
+	// Pipeline: fan the item into a batched call when a batcher is configured
+	// (one circuit-breaker-wrapped call per batch, results split per item),
+	// else issue the historical direct single-item call.
+	var itemRes, batchCost json.RawMessage
+	if w.cfg.Batcher != nil {
+		itemRes, batchCost, err = w.cfg.Batcher.Submit(ctx, bridge.PipelineItem{
+			ContentHash: task.ContentHash,
+			SourceRef:   sourceRef,
 		})
-		return e
-	})
+		if errors.Is(err, circuit.ErrOpen) {
+			// The breaker rejected the batch without issuing the call: abandon
+			// without Ack/Nack so attempts are not burned; RecoverExpired
+			// requeues the task after the lease TTL.
+			log.Printf("worker: %s pipeline abandoned: circuit breaker open", task.ID)
+			return
+		}
+	} else {
+		var pipe *bridge.PipelineResponse
+		err = w.brk.Do(func() error {
+			var e error
+			pipe, e = w.eng.Pipeline(ctx, bridge.PipelineRequest{
+				KBDir:        w.cfg.KBDir,
+				Model:        w.cfg.Model,
+				Workers:      w.cfg.PipelineWorkers,
+				RebuildIndex: w.cfg.RebuildIndex,
+				Items: []bridge.PipelineItem{{
+					ContentHash: task.ContentHash,
+					SourceRef:   sourceRef,
+				}},
+			})
+			return e
+		})
+		if err == nil {
+			itemRes, batchCost = pickItemResult(pipe, task.ContentHash), pipe.Cost
+		}
+	}
+	// Fired even when the pipeline errored, deliberately: a mid-write failure
+	// can still have changed articles on disk, and a missed dirty mark would
+	// serve stale indexes until the next successful call -- one coalesced
+	// rebuild is the cheaper side to be wrong on.
+	if w.cfg.OnPipelineDone != nil {
+		w.cfg.OnPipelineDone()
+	}
 	if err != nil {
 		w.fail(ctx, task, fmt.Sprintf("pipeline: %v", err))
 		return
@@ -172,7 +215,7 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		// Lease lost / shutdown between pipeline and ack: abandon (RecoverExpired requeues).
 		return
 	}
-	if err := w.q.Ack(ctx, task.ID, buildResult(ext, pipe)); err != nil {
+	if err := w.q.Ack(ctx, task.ID, buildResult(ext, itemRes, batchCost)); err != nil {
 		// Lease lost at ack (recovered & reclaimed elsewhere): drop.
 		log.Printf("worker: %s ack failed (lease lost?): %v", task.ID, err)
 	}
@@ -190,14 +233,19 @@ func (w *Worker) fail(ctx context.Context, task *store.Task, msg string) {
 }
 
 // buildResult assembles the task result JSON from the phase cost/result blobs.
-func buildResult(ext *bridge.ExtractResponse, pipe *bridge.PipelineResponse) string {
+// pipeline_results keeps its historical single-element array shape (the Web UI
+// reads it per task); pipeline_cost is the batch-wide cost blob shared by every
+// task in the batch — summing it across tasks double-counts.
+func buildResult(ext *bridge.ExtractResponse, itemRes, batchCost json.RawMessage) string {
 	m := map[string]json.RawMessage{}
 	if ext != nil {
 		m["extract_cost"] = ext.Cost
 	}
-	if pipe != nil {
-		m["pipeline_results"] = pipe.Results
-		m["pipeline_cost"] = pipe.Cost
+	if itemRes != nil {
+		m["pipeline_results"] = json.RawMessage("[" + string(itemRes) + "]")
+	}
+	if batchCost != nil {
+		m["pipeline_cost"] = batchCost
 	}
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -205,6 +253,19 @@ func buildResult(ext *bridge.ExtractResponse, pipe *bridge.PipelineResponse) str
 		return "{}"
 	}
 	return string(b)
+}
+
+// pickItemResult returns this task's element from a direct-path pipeline
+// response, keyed by content_hash; a missing hash (contract violation)
+// degrades to the synthesized error item result, matching the batcher path.
+func pickItemResult(pipe *bridge.PipelineResponse, hash string) json.RawMessage {
+	if pipe == nil {
+		return missingItemResult(hash)
+	}
+	if res, ok := resultsByHash(pipe.Results)[hash]; ok {
+		return res
+	}
+	return missingItemResult(hash)
 }
 
 // isRichDoc returns true for document extensions that require MarkItDown conversion.

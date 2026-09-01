@@ -50,17 +50,22 @@ def orchestrator(monkeypatch):
 
 @pytest.fixture
 def indexers(monkeypatch):
-    """Stub the two index writers, recording their arguments."""
-    state: dict = {"index": [], "people": []}
+    """Stub the three index refresh functions, recording their arguments."""
+    state: dict = {"index": [], "doc_index": [], "people": []}
 
     def fake_index(store, *, min_articles=3, summary_max_chars=SUMMARY_MAX_CHARS):
         state["index"].append({"base_dir": str(store.base_dir), "min_articles": min_articles,
                                "summary_max_chars": summary_max_chars})
 
+    def fake_document_index(store, *, summary_max_chars=SUMMARY_MAX_CHARS):
+        state["doc_index"].append({"base_dir": str(store.base_dir),
+                                   "summary_max_chars": summary_max_chars})
+
     def fake_people(store, people_cfg):
         state["people"].append({"base_dir": str(store.base_dir), "cfg": people_cfg})
 
     monkeypatch.setattr(_entry, "update_markdown_index", fake_index)
+    monkeypatch.setattr(_entry, "update_document_index", fake_document_index)
     monkeypatch.setattr(_entry, "update_people_stubs", fake_people)
     return state
 
@@ -278,6 +283,33 @@ def test_pipeline_input_skips_the_index_refresh_when_the_pipeline_fails(
         _entry.run_server_pipeline_with_input(payload(kb_dir))
 
     assert indexers["index"] == []
+
+
+def test_pipeline_input_skips_all_index_refreshes_when_rebuild_index_is_false(
+        kb_dir, fresh_context, orchestrator, indexers):
+    """The Go backend's debounced IndexRefresher sends an explicit false to
+    own index timing, so none of the three index refreshes runs here."""
+    _entry.run_server_pipeline_with_input(payload(kb_dir, rebuild_index=False))
+
+    assert indexers["index"] == []
+    assert indexers["doc_index"] == []
+    assert indexers["people"] == []
+
+
+@pytest.mark.parametrize("raw", [None, True])
+def test_pipeline_input_refreshes_all_indices_when_rebuild_index_is_absent_or_true(
+        kb_dir, fresh_context, orchestrator, indexers, raw):
+    """Absent (CLI/HTTP default) or an explicit true keeps the per-call index
+    refresh — the legacy behaviour is preserved byte-for-byte."""
+    data = payload(kb_dir)
+    if raw is not None:
+        data["rebuild_index"] = raw
+
+    _entry.run_server_pipeline_with_input(data)
+
+    assert len(indexers["index"]) == 1
+    assert len(indexers["doc_index"]) == 1
+    assert len(indexers["people"]) == 1
 
 
 # ── run_server_pipeline: stdin/stdout bridge ────────────────────────

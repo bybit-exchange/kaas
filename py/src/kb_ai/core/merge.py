@@ -338,7 +338,39 @@ def _truncate_article_by_sections(article_content: str, topics: list[str], budge
     return result
 
 
+# Articles at or above this many UTF-8 bytes merge via the diff path instead of
+# a full rewrite. This is the *default* of the configurable threshold below --
+# deployments lower it through KB_MERGE_FULL_REWRITE_LIMIT (recommended 12000
+# for hot, large-article KBs; see the distillation-throughput plan), never by
+# editing code. Keeping the shipped default unchanged is deliberate: a lower
+# threshold shifts merges onto the diff path, a quality/latency tradeoff that
+# belongs to the operator, not to a release.
 _LARGE_ARTICLE_THRESHOLD = 30_000
+
+
+def _full_rewrite_limit() -> int:
+    """The UTF-8 byte threshold at or above which merge_into_article takes the
+    diff path: KB_MERGE_FULL_REWRITE_LIMIT when it holds a valid positive
+    integer, else the shipped default. An invalid value warns on stderr and
+    falls back to the default rather than raising -- a typo in an env var must
+    not take down the write phase.
+    """
+    raw = os.environ.get("KB_MERGE_FULL_REWRITE_LIMIT")
+    if not raw:
+        return _LARGE_ARTICLE_THRESHOLD
+    try:
+        limit = int(raw)
+    except ValueError:
+        limit = None
+    if limit is None or limit <= 0:
+        print(
+            f"[merge] invalid KB_MERGE_FULL_REWRITE_LIMIT={raw!r}, "
+            f"using default {_LARGE_ARTICLE_THRESHOLD}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return _LARGE_ARTICLE_THRESHOLD
+    return limit
 
 
 # Appended to all three write-stage system prompts (issue #42).
@@ -414,17 +446,29 @@ def merge_into_article(
     # compiled wiki once is deliberately out of scope here.
     article_content = _strip_article_wrapper(article_content)
 
-    if len(article_content.encode("utf-8")) >= _LARGE_ARTICLE_THRESHOLD:
-        return _merge_diff(article_path, article_content, extraction, source_path, model)
-
     # Budget-aware: check if full rewrite fits.
     # Registry caches per-process, so this call here + same call inside
     # _merge_full_rewrite both hit the cache after the first lookup.
     full_rewrite_system = _merge_rewrite_system()
     budget = MAX_PROMPT_CHARS - len(full_rewrite_system) - _SAFETY_MARGIN
     min_extraction_chars = len(source_path) + 50
-    if len(article_content) + min_extraction_chars > budget:
-        return _merge_diff(article_path, article_content, extraction, source_path, model)
+    fits_full_rewrite = len(article_content) + min_extraction_chars <= budget
+
+    over_size_limit = len(article_content.encode("utf-8")) >= _full_rewrite_limit()
+    if over_size_limit or not fits_full_rewrite:
+        new_content, degraded = _merge_diff(
+            article_path, article_content, extraction, source_path, model)
+        # A degraded diff means the model's response was unparsable and the
+        # article came back without the new extraction merged in. When a full
+        # rewrite fits the prompt budget anyway, pay it rather than silently
+        # dropping the new content -- correctness over tail latency (plan risk
+        # R6). The log line doubles as the fallback-rate metric for Phase 5.
+        if degraded and fits_full_rewrite:
+            print("[merge] diff result unparsable, falling back to full-rewrite",
+                  file=sys.stderr, flush=True)
+            return _merge_full_rewrite(
+                article_path, article_content, extraction, source_path, model)
+        return new_content
 
     return _merge_full_rewrite(article_path, article_content, extraction, source_path, model)
 
@@ -449,14 +493,29 @@ def _merge_full_rewrite(
 def _merge_diff(
     article_path: str, article_content: str,
     extraction: ExtractionResult, source_path: str, model: str,
-) -> str:
+) -> tuple[str, bool]:
+    """Merge via patches. Returns (new_content, degraded); degraded is True
+    only when the LLM's diff response was unparsable (JSONDecodeError or
+    RuntimeError from completion_json) -- a legitimate {"patches": []} is a
+    valid "nothing to add" answer, not degradation.
+    """
     from datetime import date
     today = date.today().isoformat()
 
     system = _merge_diff_system()
     budget = MAX_PROMPT_CHARS - len(system) - _SAFETY_MARGIN
 
-    # If article exceeds 70% of budget, apply section-based truncation
+    # Residual silent-loss paths the degraded flag below does NOT cover.
+    # Recorded during the distillation-throughput RCA (optimization #6) with
+    # behavior deliberately unchanged:
+    # 1. Section truncation just below: an article over 70% of the prompt
+    #    budget is cut to its topic-relevant sections before the diff call,
+    #    and the merged result is rebuilt from that skeleton -- bodies of
+    #    non-relevant sections are dropped from the article on disk.
+    # 2. json_repair in the LLM layer (kb_ai/llm/_completion.py) can "repair"
+    #    a truncated diff response into a valid dict carrying only the
+    #    patches that survived the repair -- no exception is raised, so
+    #    degraded stays False and the partial patch set is applied as-is.
     article_budget = int(budget * 0.7)
     if len(article_content) > article_budget:
         article_content = _truncate_article_by_sections(
@@ -464,6 +523,7 @@ def _merge_diff(
 
     user = _merge_user_message(article_content, extraction, source_path, budget)
 
+    degraded = False
     try:
         raw = completion_json(model=model, messages=[
             {"role": "system", "content": system},
@@ -471,8 +531,9 @@ def _merge_diff(
         ], max_tokens=4096, cache=True)
     except (json.JSONDecodeError, RuntimeError):
         raw = {"patches": []}
+        degraded = True
 
-    return _apply_diff(article_content, raw, source_path, today)
+    return _apply_diff(article_content, raw, source_path, today), degraded
 
 
 def _merge_user_message(article_content: str, extraction: ExtractionResult,

@@ -30,6 +30,21 @@ from kb_ai.core.merge import create_new_article, merge_into_article
 if TYPE_CHECKING:
     from kb_ai.storage.store import KBStore
 
+# Serializes same-article writes across concurrent pipeline calls: each call
+# has its own write_lock, and with pipeline_batch_max_inflight > 1 two calls
+# can target the same article and race a lost update (read -> merge -> write).
+# The lock must span the exists() check through write_article, so it is held
+# across the LLM call itself; different articles take different locks and
+# never contend. Process-wide by design -- one daemon process serves all
+# in-flight calls.
+_article_locks: dict[str, threading.Lock] = {}
+_article_locks_guard = threading.Lock()
+
+
+def _article_lock(art_path: str) -> threading.Lock:
+    with _article_locks_guard:
+        return _article_locks.setdefault(art_path, threading.Lock())
+
 
 def _process_article(
     art_path: str,
@@ -57,50 +72,54 @@ def _process_article(
     first_create = next((det for _ch, _ref, _ext, action, det in ops if action == "create"), None)
 
     full_path = store.base_dir / art_path
-    action = "merge" if full_path.exists() else "create"
 
-    try:
-        with cancellable(cancel_event):
-            if action == "merge":
-                # Article exists -- merge all sources in one LLM call
-                combined, merge_refs = _combine_extractions(all_sources)
-                old_content = store.read_article(art_path)
-                new_content = merge_into_article(art_path, old_content, combined, ", ".join(merge_refs), model=model)
-                store.write_article(art_path, new_content)
-                with write_lock:
-                    for ch in all_hashes:
-                        _ensure_write_result(write_results, ch)
-                        write_results[ch]["merged"].append(art_path)
-            else:
-                # Article doesn't exist -- combine all sources and create in one LLM call
-                full_path.parent.mkdir(parents=True, exist_ok=True)
-                path_parts = art_path.split("/")
-                article_type = path_parts[1] if len(path_parts) > 2 else "concept"
-                title = Path(art_path).stem.replace("-", " ").title()
-                if first_create:
-                    article_type = first_create.type or article_type
-                    title = first_create.title or title
+    # Re-checks exists() under the lock: an article another call created while
+    # this op waited turns a planned create into a merge, which is the point.
+    with _article_lock(art_path):
+        action = "merge" if full_path.exists() else "create"
 
-                combined, merge_refs = _combine_extractions(all_sources)
-                new_content = create_new_article(article_type, title, combined, ", ".join(merge_refs), model=model)
-                store.write_article(art_path, new_content)
-                with write_lock:
-                    for ch in all_hashes:
-                        _ensure_write_result(write_results, ch)
-                        write_results[ch]["created"].append(art_path)
-    except PipelineCancelledError:
-        err_msg = "pipeline cancelled: client disconnected"
-        with write_lock:
-            for ch in all_hashes:
-                _ensure_write_result(write_results, ch)
-                write_results[ch]["errors"].append({"path": art_path, "error": err_msg})
-    except Exception as e:
-        prefix = "LLM Error" if isinstance(e, LLMAPIError) else "Error"
-        err_msg = f"{prefix} (Write/{action}: {art_path}): {e}"
-        with write_lock:
-            for ch in all_hashes:
-                _ensure_write_result(write_results, ch)
-                write_results[ch]["errors"].append({"path": art_path, "error": err_msg})
+        try:
+            with cancellable(cancel_event):
+                if action == "merge":
+                    # Article exists -- merge all sources in one LLM call
+                    combined, merge_refs = _combine_extractions(all_sources)
+                    old_content = store.read_article(art_path)
+                    new_content = merge_into_article(art_path, old_content, combined, ", ".join(merge_refs), model=model)
+                    store.write_article(art_path, new_content)
+                    with write_lock:
+                        for ch in all_hashes:
+                            _ensure_write_result(write_results, ch)
+                            write_results[ch]["merged"].append(art_path)
+                else:
+                    # Article doesn't exist -- combine all sources and create in one LLM call
+                    full_path.parent.mkdir(parents=True, exist_ok=True)
+                    path_parts = art_path.split("/")
+                    article_type = path_parts[1] if len(path_parts) > 2 else "concept"
+                    title = Path(art_path).stem.replace("-", " ").title()
+                    if first_create:
+                        article_type = first_create.type or article_type
+                        title = first_create.title or title
+
+                    combined, merge_refs = _combine_extractions(all_sources)
+                    new_content = create_new_article(article_type, title, combined, ", ".join(merge_refs), model=model)
+                    store.write_article(art_path, new_content)
+                    with write_lock:
+                        for ch in all_hashes:
+                            _ensure_write_result(write_results, ch)
+                            write_results[ch]["created"].append(art_path)
+        except PipelineCancelledError:
+            err_msg = "pipeline cancelled: client disconnected"
+            with write_lock:
+                for ch in all_hashes:
+                    _ensure_write_result(write_results, ch)
+                    write_results[ch]["errors"].append({"path": art_path, "error": err_msg})
+        except Exception as e:
+            prefix = "LLM Error" if isinstance(e, LLMAPIError) else "Error"
+            err_msg = f"{prefix} (Write/{action}: {art_path}): {e}"
+            with write_lock:
+                for ch in all_hashes:
+                    _ensure_write_result(write_results, ch)
+                    write_results[ch]["errors"].append({"path": art_path, "error": err_msg})
 
     art_duration = time.time() - t_art
     print(

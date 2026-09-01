@@ -10,8 +10,42 @@ sqlite_path = "./data/kaas.db"
 kb_dir = "./data"
 
 [worker]
-extract_workers = 4
-pipeline_concurrency = 2
+# Document-level task concurrency: how many documents the dispatcher runs
+# through the full extract + pipeline lifecycle in parallel. The effective
+# cap is min(document_workers, ai.daemon.concurrency) — move both together.
+# LLM concurrency arithmetic: extract calls are bounded by document_workers,
+# and batched write calls by pipeline_batch_max_inflight x
+# pipeline_concurrency, so peak LLM concurrency is the sum of the two.
+# The old name extract_workers still works (deprecated alias, removed next
+# release). Container overrides without an image rebuild:
+# KAAS_WORKER_DOCUMENT_WORKERS / KAAS_WORKER_EXTRACT_WORKERS (deprecated).
+document_workers = 16
+# Per-call write fan-out inside one (batched) pipeline call.
+pipeline_concurrency = 8
+# Batched pipeline calls: per-task items are fanned in and sent as grouped
+# Pipeline calls, so documents distilled in the same window that target the
+# same article share one write LLM call. pipeline_batch_max_items caps items
+# per batch (default 1 = one call per task, the pre-batching behaviour;
+# rollback by setting 1), pipeline_batch_flush_ms is the batching window
+# measured from the oldest pending item (default/rollback 500), and
+# pipeline_batch_max_inflight caps concurrent in-flight batch calls
+# (default/rollback 1). Each batch call carries a 2400s deadline (code
+# constant defaultBatchDeadlineSec), which also bounds the shutdown drain.
+# Container overrides without an image rebuild:
+# KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS / KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT.
+pipeline_batch_max_items = 16
+pipeline_batch_flush_ms = 2000
+pipeline_batch_max_inflight = 2
+# Debounced index rebuilds: pipeline calls stop rebuilding the KB indexes per
+# call (rebuild_index=false) and completions mark them dirty; one index
+# rebuild follows index_debounce_sec after the last completion. Under
+# continuous ingestion a dirty state older than index_max_stale_sec forces a
+# refresh, so index staleness stays bounded (0 auto-sizes to 5x the debounce).
+# Setting index_debounce_sec = 0 disables the Go-side refresher and restores
+# the per-call rebuild (rollback). Container overrides without an image
+# rebuild: KAAS_WORKER_INDEX_DEBOUNCE_SEC / KAAS_WORKER_INDEX_MAX_STALE_SEC.
+index_debounce_sec = 30
+index_max_stale_sec = 300
 poll_interval_ms = 1000
 lease_timeout_sec = 300
 # Consecutive LLM failures that open the circuit breaker.
@@ -31,7 +65,10 @@ mcp_url = ""
 # stdin/stdout protocol to it.
 command = "uv"
 args = ["run", "--directory", "py", "kb-ai", "daemon"]
-concurrency = 8
+# Daemon command concurrency (Python thread pool). Keep it >=
+# worker.document_workers or the smaller value silently caps document-level
+# concurrency. Override with KAAS_AI_DAEMON_CONCURRENCY.
+concurrency = 16
 warmup_timeout_sec = 30
 max_restarts = 5
 

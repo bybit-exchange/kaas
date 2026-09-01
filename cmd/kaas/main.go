@@ -176,6 +176,13 @@ Examples:
 `)
 }
 
+// defaultBatchDeadlineSec bounds a single batched pipeline call: it is wired
+// to PipelineRequest.DeadlineSeconds so a wedged daemon call cannot hold a
+// whole batch's dispatcher slots forever, and it also caps the batcher's
+// shutdown drain. 2400s covers the worst expected batch (two ~723s write
+// waves).
+const defaultBatchDeadlineSec = 2400
+
 func run(configFile string) error {
 	cfg, err := config.Load(configFile)
 	if err != nil {
@@ -224,6 +231,52 @@ func run(configFile string) error {
 		Cooldown:         time.Duration(cfg.Worker.CBCooldownSec) * time.Second,
 	})
 
+	// The index refresher owns index rebuilds when debouncing is enabled:
+	// pipeline calls stop rebuilding the indexes per call (rebuild_index=false)
+	// and completions MarkDirty, coalescing bursts into one rebuild one
+	// debounce later, with a forced rebuild once the dirty state is maxStale
+	// old. An engine without the index command keeps the legacy per-call
+	// rebuild.
+	var indexer *worker.IndexRefresher
+	var rebuildIndex *bool
+	if cfg.Worker.IndexDebounceSec > 0 {
+		if idx, ok := workerEng.(worker.Indexer); ok {
+			// NewIndexRefresher auto-sizes maxStale to 5x the debounce and logs
+			// the effective values, so the raw config passes straight through.
+			indexer = worker.NewIndexRefresher(idx, brk, cfg.Storage.KBDir,
+				time.Duration(cfg.Worker.IndexDebounceSec)*time.Second,
+				time.Duration(cfg.Worker.IndexMaxStaleSec)*time.Second)
+			rebuildOff := false
+			rebuildIndex = &rebuildOff
+		} else {
+			log.Printf("kaas: engine has no index command; keeping per-call index rebuilds")
+		}
+	}
+
+	// The pipeline batcher fans per-task pipeline items into batched Pipeline
+	// calls (grouped write). Built only when batching is enabled; a nil
+	// batcher keeps the legacy one-call-per-task path.
+	var batcher *worker.PipelineBatcher
+	if cfg.Worker.PipelineBatchMaxItems > 1 {
+		batcher = worker.NewPipelineBatcher(workerEng, brk, worker.BatcherConfig{
+			MaxItems:      cfg.Worker.PipelineBatchMaxItems,
+			FlushWait:     time.Duration(cfg.Worker.PipelineBatchFlushMS) * time.Millisecond,
+			MaxInflight:   cfg.Worker.PipelineBatchMaxInflight,
+			BatchDeadline: defaultBatchDeadlineSec * time.Second,
+		}, func() bridge.PipelineRequest {
+			return bridge.PipelineRequest{
+				KBDir:        cfg.Storage.KBDir,
+				Model:        cfg.LLM.Model,
+				Workers:      cfg.Worker.PipelineConcurrency,
+				RebuildIndex: rebuildIndex,
+			}
+		})
+	}
+
+	var onPipelineDone func()
+	if indexer != nil {
+		onPipelineDone = indexer.MarkDirty
+	}
 	owner := worker.WorkerID()
 	w := worker.NewWorker(q, workerEng, brk, owner, worker.Config{
 		KBDir:             cfg.Storage.KBDir,
@@ -232,10 +285,16 @@ func run(configFile string) error {
 		Model:             cfg.LLM.Model,
 		SummarizeModel:    cfg.LLM.SummarizeModel,
 		ExtractStrategy:   cfg.LLM.ExtractStrategy,
+		Batcher:           batcher,
+		OnPipelineDone:    onPipelineDone,
+		RebuildIndex:      rebuildIndex,
 	})
+	docWorkers := cfg.Worker.EffectiveDocumentWorkers()
+	log.Printf("kaas: effective document workers: %d (source: %s); daemon concurrency: %d",
+		docWorkers, cfg.Worker.DocumentWorkersSource(), cfg.AI.Daemon.Concurrency)
 	d := worker.NewDispatcher(q, w, brk, owner,
 		time.Duration(cfg.Worker.PollIntervalMS)*time.Millisecond,
-		cfg.Worker.ExtractWorkers,
+		docWorkers,
 	)
 
 	logger := newLogger(cfg.Log)
@@ -295,6 +354,12 @@ func run(configFile string) error {
 		"server":     srv.Run,
 		"dispatcher": d.Run,
 	}
+	if batcher != nil {
+		runnables["pipeline-batcher"] = batcher.Run
+	}
+	if indexer != nil {
+		runnables["index-refresher"] = indexer.Run
+	}
 	if deriveRunner != nil {
 		runnables["derive-runner"] = deriveRunner.Run
 	}
@@ -311,6 +376,13 @@ func run(configFile string) error {
 	}
 	wg.Wait()
 	close(errc)
+
+	// All runnables (including the dispatcher's in-flight tasks and the
+	// batcher's collect loop) have returned; stop collecting and drain any
+	// leftover batch, bounded by the batch deadline.
+	if batcher != nil {
+		batcher.Close()
+	}
 
 	var firstErr error
 	for err := range errc {
