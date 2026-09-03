@@ -341,8 +341,9 @@ func (c *Config) validate() error {
 	// The deadline is what bounds a wedged daemon call and the shutdown
 	// drain; 0 or negative would silently lift both bounds (no
 	// DeadlineSeconds, no Go-side call timeout, Close waits forever), so only
-	// positive values are accepted. The TOML default tag maps an omitted or
-	// zero key to 2400; an explicit zero/negative reaches here via env.
+	// positive values are accepted. The TOML default tag maps an omitted key
+	// to 2400 (go-zero does not substitute an explicitly written 0), so an
+	// explicit zero/negative -- file or env -- is rejected here, loudly.
 	if c.Worker.PipelineBatchDeadlineSec < 1 {
 		return fmt.Errorf("worker.pipeline_batch_deadline_sec must be >= 1, got %d",
 			c.Worker.PipelineBatchDeadlineSec)

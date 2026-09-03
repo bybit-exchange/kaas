@@ -579,6 +579,23 @@ pipeline_batch_deadline_sec = 4800
 	}
 }
 
+// TestPipelineBatchDeadlineExplicitZeroInFileRejected: go-zero's default tag
+// applies only when the key is absent, so a zero written in the file reaches
+// validation and must be rejected there (an omitted key is what maps to 2400).
+func TestPipelineBatchDeadlineExplicitZeroInFileRejected(t *testing.T) {
+	t.Setenv("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC", "")
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[worker]
+pipeline_batch_deadline_sec = 0
+`)
+	if _, err := Load(p); err == nil {
+		t.Fatal("expected Load to reject an explicit pipeline_batch_deadline_sec = 0 in the file")
+	}
+}
+
 // TestEffectiveDocumentWorkersNegativeNotMasked: an explicitly invalid
 // document_workers must reach validate() even when the deprecated alias is
 // positive, instead of being silently masked by it.

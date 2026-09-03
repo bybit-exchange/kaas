@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
-from openai import APIStatusError
+from openai import APIStatusError, APITimeoutError
 
 import kb_ai.llm as llm_pkg
 from kb_ai._errors import (
@@ -57,6 +57,11 @@ def _status_error(status_code: int, message: str = "boom") -> APIStatusError:
     """Build a real openai.APIStatusError carrying the given HTTP status."""
     request = httpx.Request("POST", "http://test:8080/v1/chat/completions")
     return APIStatusError(message, response=httpx.Response(status_code, request=request), body=None)
+
+
+def _timeout_error() -> APITimeoutError:
+    """Build a real openai.APITimeoutError for the same test endpoint."""
+    return APITimeoutError(httpx.Request("POST", "http://test:8080/v1/chat/completions"))
 
 
 @pytest.fixture
@@ -204,6 +209,36 @@ class TestReasoningEffortPassthrough:
         completion("model", [{"role": "user", "content": "Hi"}])
         assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
 
+    def test_probe_interrupted_by_timeout_keeps_the_knob(
+            self, mock_client, monkeypatch, capsys):
+        # The probe's own request timed out and the ladder retry succeeded:
+        # that success is not evidence about the param (the param was already
+        # stripped for the whole in-flight attempt sequence), so the knob
+        # stays enabled for the process and no unsupported-alert fires. Only
+        # a probe that succeeds outright disables it.
+        monkeypatch.setenv("KB_AI_REASONING_EFFORT", "low")
+        monkeypatch.setattr("kb_ai.llm._completion._TIMEOUT_BACKOFF_BASE", 0)
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(400, "invalid request"),
+            _timeout_error(),
+            _make_response(content="recovered", finish_reason="stop"),
+        ]
+
+        result = completion("model", [{"role": "user", "content": "Hi"}])
+
+        assert result == "recovered"
+        assert "reasoning_effort_unsupported" not in capsys.readouterr().err
+        calls = mock_client.chat.completions.create.call_args_list
+        assert "reasoning_effort" in calls[0].kwargs      # the original 400
+        assert "reasoning_effort" not in calls[1].kwargs  # the probe
+        assert "reasoning_effort" not in calls[2].kwargs  # ladder retry (param already stripped)
+
+        # The process state is what matters: the next call still carries it.
+        mock_client.chat.completions.create.reset_mock()
+        mock_client.chat.completions.create.side_effect = None
+        completion("model", [{"role": "user", "content": "Hi"}])
+        assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+
 
 class TestBatchDeadlineClamp:
     """The batch deadline clamps every per-request HTTP timeout to what
@@ -235,7 +270,7 @@ class TestBatchDeadlineClamp:
         llm_pkg.set_pipeline_deadline(500)
         _completion_inner("model", [{"role": "user", "content": "Hi"}])
         assert mock_client.with_options.call_args.kwargs["timeout"] == 2
-        assert "timeout" not in mock_client.chat.completions.create.call_args.kwargs
+        assert mock_client.chat.completions.create.call_args.kwargs["timeout"] == 2
 
     def test_deadline_clamps_a_longer_override(self, mock_client):
         mock_client.with_options = MagicMock(return_value=mock_client)
@@ -245,6 +280,31 @@ class TestBatchDeadlineClamp:
         assert mock_client.with_options.call_args.kwargs["timeout"] == 300
         got = mock_client.chat.completions.create.call_args.kwargs["timeout"]
         assert got == pytest.approx(5, abs=1)
+
+    def test_retry_recomputes_the_timeout_from_the_shrunk_deadline(
+            self, mock_client, monkeypatch):
+        # The clamp is per attempt: a timeout retry after the deadline shrank
+        # must carry the new remainder, not the first attempt's frozen value
+        # (which could outrun the deadline by a whole write ladder, past the
+        # caller's watchdog margin).
+        monkeypatch.setattr("kb_ai.llm._completion._TIMEOUT_BACKOFF_BASE", 0)
+        attempts: list[float | None] = []
+
+        def flaky(**kwargs):
+            attempts.append(kwargs.get("timeout"))
+            if len(attempts) == 1:
+                llm_pkg.set_pipeline_deadline_abs(time.monotonic() + 120)
+                raise _timeout_error()
+            return _make_response(content="recovered")
+
+        mock_client.chat.completions.create.side_effect = flaky
+        llm_pkg.set_pipeline_deadline(800)
+
+        text, finish_reason, _ = _completion_inner("model", [{"role": "user", "content": "Hi"}])
+
+        assert text == "recovered" and finish_reason == "stop"
+        assert attempts[0] == pytest.approx(800, abs=5)
+        assert attempts[1] == pytest.approx(120, abs=5)
 
     def test_passed_deadline_fails_before_the_call(self, mock_client):
         llm_pkg.set_pipeline_deadline_abs(time.monotonic() - 1)

@@ -623,7 +623,10 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
     alert -- a hallucinated route must not corrupt the reassembly -- and the
     returned headings are the article's own strings, so downstream matching is
     exact. Duplicate sections are collapsed; a new section's heading keeps the
-    model's text, anchored to the article's own spelling of "after".
+    model's text, anchored to the article's own spelling of "after" -- except
+    that a proposal naming a heading the article already carries is remapped
+    to a route onto that section (dropping it would silently unmerge its
+    material), and one duplicating another proposal drops with an alert.
 
     Returns None on call failure (parse error, garbage shape, exhausted
     truncation ladder, empty completion, batch deadline) or when nothing valid
@@ -691,14 +694,21 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
             emit_alert(f"router new_section anchors after {after!r} which the article "
                        f"does not carry, dropping it", model, 0, "section_route_dropped")
             continue
-        # New-section bodies are keyed by heading text downstream, so a
-        # proposed heading that duplicates the article's own sections or
-        # another proposal would overwrite one body and insert the other
-        # twice -- or mint a duplicate heading on disk. Drop it here.
+        # A proposal naming a heading the article already carries is a route
+        # onto that existing section, not a new section: remap it instead of
+        # dropping it -- a partial drop here would silently leave the
+        # material unmerged while the task Acks "merged". A heading
+        # duplicating another PROPOSAL has no unambiguous placement, so it
+        # drops with an alert (and only that -- the first proposal carries
+        # the placement).
         key = heading.strip()
-        if key in known or key in proposed:
-            emit_alert(f"router new_section heading {heading!r} duplicates the "
-                       f"article's own or another proposed section, dropping it",
+        if key in known:
+            if known[key] not in sections:
+                sections.append(known[key])
+            continue
+        if key in proposed:
+            emit_alert(f"router new_section heading {heading!r} duplicates another "
+                       f"proposed section, dropping it",
                        model, 0, "section_route_dropped")
             continue
         proposed.add(key)
@@ -968,13 +978,17 @@ def merge_into_article(
                 article_path, article_content, extraction, source_path, model)
         if degraded:
             # No rewrite fits either (over the size limit and the prompt
-            # budget): the article keeps its current content and the new
-            # extraction is NOT merged. Say so loudly -- silence here is how a
-            # compile Acked "done" while a document's knowledge never landed.
-            print(f"[merge] diff result unparsable and no rewrite fits: "
-                  f"{article_path} keeps its current content; the extraction "
-                  f"from {source_path} was not merged",
-                  file=sys.stderr, flush=True)
+            # budget): the extraction was NOT merged. Raise rather than return
+            # the unchanged article -- both callers' per-article handlers
+            # record the error into the task's Ack payload / the compile
+            # error list, so the failure is visible instead of a task that
+            # reports "merged" while a document's knowledge never landed.
+            # Raising also skips the write, so the frontmatter does not
+            # record a source whose content is absent.
+            raise RuntimeError(
+                f"diff result unparsable and no rewrite fits: {article_path} "
+                f"keeps its current content (extraction from {source_path} "
+                f"was not merged)")
         return new_content
 
     return _merge_full_rewrite(article_path, article_content, extraction, source_path, model)

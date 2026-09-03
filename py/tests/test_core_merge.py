@@ -417,11 +417,12 @@ def test_a_legitimate_empty_patches_diff_does_not_fall_back(monkeypatch, capsys)
     assert "falling back to full-rewrite" not in capsys.readouterr().err
 
 
-def test_a_degraded_diff_that_cannot_fit_a_rewrite_is_returned_as_is(monkeypatch, capsys):
-    """Over the prompt budget there is no rewrite to fall back to, so the
-    degraded diff content (article kept intact, no patches applied) is the
-    result, without the fallback path or its log line -- but never silently:
-    the no-rewrite drop line must say the extraction was not merged."""
+def test_a_degraded_diff_that_cannot_fit_a_rewrite_raises(monkeypatch):
+    """Over the prompt budget there is no rewrite to fall back to: raising
+    (instead of returning the unchanged article) routes the failure into the
+    write phase's per-article handler, so the task's Ack payload carries the
+    error instead of reporting "merged" -- and the write is skipped, so the
+    frontmatter never records a source whose content is absent."""
     monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5000)
     monkeypatch.setattr(mg, "_merge_diff", lambda *args: ("kept content", True))
 
@@ -431,13 +432,8 @@ def test_a_degraded_diff_that_cannot_fit_a_rewrite_is_returned_as_is(monkeypatch
     monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
 
     big = "x" * mg._LARGE_ARTICLE_THRESHOLD
-    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
-
-    assert out == "kept content"
-    err = capsys.readouterr().err
-    assert "falling back to full-rewrite" not in err
-    assert ("[merge] diff result unparsable and no rewrite fits: wiki/a.md keeps "
-            "its current content") in err
+    with pytest.raises(RuntimeError, match="no rewrite fits"):
+        mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
 
 
 def test_default_env_non_degraded_diff_result_is_returned_verbatim(monkeypatch):
@@ -1972,15 +1968,16 @@ def test_merge_one_section_recognizes_a_whitespace_padded_echo(monkeypatch, echo
     assert out == "rewritten body"
 
 
-def test_route_sections_drops_duplicate_new_section_headings(monkeypatch, capsys):
-    """New-section bodies are keyed by heading downstream, so a proposed
-    heading duplicating the article's own sections or another proposal would
-    overwrite one body and insert another twice (or mint a duplicate heading
-    on disk). Both shapes drop with an alert; the valid proposal survives."""
+def test_route_sections_remaps_existing_heading_proposals(monkeypatch, capsys):
+    """A new-section proposal naming a heading the article already carries is
+    a route onto that section, not a new section: dropping it (the earlier
+    guard) silently left its material unmerged while the task Acked
+    "merged". A heading duplicating another proposal has no unambiguous
+    placement and still drops with an alert."""
     route = {
         "sections": [],
         "new_sections": [
-            {"heading": "## Alpha", "after": "## Beta"},          # existing
+            {"heading": "## Alpha", "after": "## Beta"},          # existing -> remap
             {"heading": "## Fresh", "after": "## Beta"},          # valid
             {"heading": "## Fresh", "after": "## Gamma"},         # duplicate proposal
         ],
@@ -1989,10 +1986,10 @@ def test_route_sections_drops_duplicate_new_section_headings(monkeypatch, capsys
 
     out = mg._route_sections(_section_article(), _extraction(), "raw/a.md", "m")
 
-    assert out == {"sections": [], "new_sections": [
-        {"heading": "## Fresh", "after": "## Beta"}]}
+    assert out == {"sections": ["## Alpha"],
+                   "new_sections": [{"heading": "## Fresh", "after": "## Beta"}]}
     err = capsys.readouterr().err
-    assert err.count("section_route_dropped") == 2
+    assert err.count("section_route_dropped") == 1
 
 
 def test_a_section_failing_twice_degrades_after_one_retry(monkeypatch, capsys):

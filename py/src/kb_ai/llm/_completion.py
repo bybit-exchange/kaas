@@ -155,26 +155,6 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
     override = ctx.call_timeout
     if override is not None:
         client = client.with_options(timeout=override)
-    # The batch deadline is one wall clock shared by every item in the
-    # pipeline call, so clamp each request's HTTP timeout to what remains
-    # (passed per-request, on top of whatever the client default or the
-    # call-timeout override set). The retry/continuation guards stop the
-    # ladders near the deadline, but a FIRST attempt is otherwise never gated
-    # and can outrun it by a whole write-timeout ladder -- the caller's own
-    # watchdog would then kill a healthy batch whose orphaned daemon request
-    # kept running and writing. The clamp only tightens.
-    request_timeout: float | None = None
-    dl = ctx.deadline_abs
-    if dl:
-        remaining = dl - time.monotonic()
-        if remaining <= 0:
-            raise DeadlineExceededError(
-                f"deadline_too_close: op={ctx.phase} model={model} batch "
-                f"deadline already passed, not issuing the call"
-            )
-        effective = DEFAULT_CLIENT_TIMEOUT_S if override is None else override
-        if remaining < effective:
-            request_timeout = remaining
     msgs = enable_prompt_caching(messages) if use_cache else messages
 
     kwargs: dict = {
@@ -183,8 +163,6 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    if request_timeout is not None:
-        kwargs["timeout"] = request_timeout
     if response_format is not None:
         kwargs["response_format"] = response_format
     global _reasoning_effort_disabled
@@ -211,14 +189,42 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
     t0 = time.monotonic()
     attempt = 0
     probed_reasoning_effort: str | None = None
+    dl = ctx.deadline_abs
     while True:
         cancel_ev = ctx.cancel_event
         if cancel_ev is not None and cancel_ev.is_set():
             raise PipelineCancelledError("pipeline cancelled: client disconnected")
+        # The batch deadline is one wall clock shared by every item in the
+        # pipeline call, so clamp EVERY attempt's HTTP timeout to what
+        # remains, recomputed per attempt. A value frozen at the first attempt
+        # would let a retry that starts just inside the deadline still outrun
+        # it by (frozen timeout - the ~wait+60 the retry guard insists on) --
+        # up to a whole write-timeout ladder past the deadline, beyond the
+        # caller's watchdog margin, whose orphaned daemon request then keeps
+        # running and writing. The clamp only tightens: an override or the
+        # client default shorter than the remainder stays as-is.
+        if dl:
+            remaining = dl - time.monotonic()
+            if remaining <= 0:
+                raise DeadlineExceededError(
+                    f"deadline_too_close: op={op} model={model} batch "
+                    f"deadline already passed, not issuing this attempt"
+                )
+            effective = DEFAULT_CLIENT_TIMEOUT_S if override is None else override
+            kwargs["timeout"] = effective if effective < remaining else remaining
         try:
             response = client.chat.completions.create(**kwargs)
             break
         except (APITimeoutError, APIStatusError) as e:
+            if probed_reasoning_effort is not None:
+                # The probe's own request failed -- for any reason, not just a
+                # repeat 400. Its outcome no longer attributes the original
+                # 400 to the param: only a probe that succeeds outright
+                # disables the knob, so an eventual ladder success after e.g.
+                # a timeout retry leaves the knob on, self-correcting on the
+                # next call instead of disabling an operator setting on a
+                # coincidence.
+                probed_reasoning_effort = None
             # A 400 while reasoning_effort was sent may be the gateway
             # rejecting the param itself, not the request: strip it, retry the
             # same attempt once, and never send it again in this process. It
@@ -239,11 +245,13 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
                 # A generic body is ambiguous: some gateways refuse unknown
                 # fields without naming them, and a 400 about the request
                 # itself (wrong model, malformed messages) looks identical.
-                # Probe this attempt once without the param -- success pins
-                # the blame on the param (disabled after the loop); a repeat
-                # 400 raises below with the knob intact. Refusing to probe
-                # would trade the old silent degrade for a hard outage on
-                # every call until an operator noticed the env var.
+                # Probe this attempt once without the param: only a probe that
+                # succeeds outright pins the blame on the param (disabled
+                # after the loop); any failure of the probe's own request -- a
+                # repeat 400, a timeout, anything -- cancels the attribution
+                # and the knob stays on. Refusing to probe would trade the old
+                # silent degrade for a hard outage on every call until an
+                # operator noticed the env var.
                 probed_reasoning_effort = kwargs["reasoning_effort"]
                 del kwargs["reasoning_effort"]
                 continue
