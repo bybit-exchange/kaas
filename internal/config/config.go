@@ -338,8 +338,14 @@ func (c *Config) validate() error {
 	if c.Worker.PipelineBatchMaxItems > 1 && c.Worker.PipelineBatchMaxInflight < 1 {
 		return fmt.Errorf("worker.pipeline_batch_max_inflight must be >= 1 when pipeline_batch_max_items > 1")
 	}
-	if c.Worker.PipelineBatchDeadlineSec < 0 {
-		return fmt.Errorf("worker.pipeline_batch_deadline_sec must be >= 0")
+	// The deadline is what bounds a wedged daemon call and the shutdown
+	// drain; 0 or negative would silently lift both bounds (no
+	// DeadlineSeconds, no Go-side call timeout, Close waits forever), so only
+	// positive values are accepted. The TOML default tag maps an omitted or
+	// zero key to 2400; an explicit zero/negative reaches here via env.
+	if c.Worker.PipelineBatchDeadlineSec < 1 {
+		return fmt.Errorf("worker.pipeline_batch_deadline_sec must be >= 1, got %d",
+			c.Worker.PipelineBatchDeadlineSec)
 	}
 	if c.Worker.IndexDebounceSec < 0 {
 		return fmt.Errorf("worker.index_debounce_sec must be >= 0 (0 disables the debounced index refresher)")

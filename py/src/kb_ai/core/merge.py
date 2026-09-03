@@ -368,6 +368,12 @@ def _full_rewrite_limit() -> int:
     integer, else the shipped default. An invalid value warns on stderr and
     falls back to the default rather than raising -- a typo in an env var must
     not take down the write phase.
+
+    In auto mode the section-merge path runs AHEAD of this threshold for
+    articles that fit the prompt budget (see _LARGE_ARTICLE_THRESHOLD); this
+    threshold then selects the section path's own degraded fallback.
+    KB_MERGE_SECTION_MODE=off restores its unconditional "at or above → diff"
+    routing.
     """
     raw = os.environ.get("KB_MERGE_FULL_REWRITE_LIMIT")
     if not raw:
@@ -669,6 +675,7 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
                        f"dropping it", model, 0, "section_route_dropped")
 
     new_sections: list[dict] = []
+    proposed: set[str] = set()
     for entry in raw_new_sections:
         if not isinstance(entry, dict):
             emit_alert(f"router new_section {entry!r} is not a JSON object, dropping it",
@@ -684,7 +691,18 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
             emit_alert(f"router new_section anchors after {after!r} which the article "
                        f"does not carry, dropping it", model, 0, "section_route_dropped")
             continue
-        new_sections.append({"heading": heading.strip(), "after": known[after.strip()]})
+        # New-section bodies are keyed by heading text downstream, so a
+        # proposed heading that duplicates the article's own sections or
+        # another proposal would overwrite one body and insert the other
+        # twice -- or mint a duplicate heading on disk. Drop it here.
+        key = heading.strip()
+        if key in known or key in proposed:
+            emit_alert(f"router new_section heading {heading!r} duplicates the "
+                       f"article's own or another proposed section, dropping it",
+                       model, 0, "section_route_dropped")
+            continue
+        proposed.add(key)
+        new_sections.append({"heading": key, "after": known[after.strip()]})
 
     if not sections and not new_sections:
         return None
@@ -730,12 +748,19 @@ def _merge_one_section(heading: str, body: str, extraction: ExtractionResult,
 
     # The prompt says body only, but an echoed fence or heading would corrupt
     # the deterministic reassembly (which emits the heading itself), so both
-    # are stripped from whatever came back. The echo match requires the
-    # heading's own newline: "## Notes" prefix-matching a different echoed
-    # heading like "## Notes on X" would eat the start of the body.
+    # are stripped from whatever came back. The echo match compares the first
+    # line, normalized, against the whole heading: "## Notes" prefix-matching
+    # a different echoed heading like "## Notes on X" must not eat the start
+    # of the body, while an echo carrying trailing whitespace or a CR must
+    # still be recognized -- a heading that slips through renders twice and
+    # trips the duplicate-heading guard on every later merge.
     out = _strip_markdown_fencing(text).strip()
-    if heading and (out.startswith(heading + "\n") or out == heading):
-        out = out[len(heading):].lstrip("\n").strip()
+    if heading:
+        split = out.split("\n", 1)
+        if len(split) == 2 and split[0].strip() == heading.strip():
+            out = split[1].lstrip("\n").strip()
+        elif out.strip() == heading.strip():
+            out = ""
     if not out:
         # An empty body would silently delete the section's content in the
         # reassembly -- bad generation, not a valid "nothing to say".
@@ -941,6 +966,15 @@ def merge_into_article(
                   file=sys.stderr, flush=True)
             return _merge_full_rewrite(
                 article_path, article_content, extraction, source_path, model)
+        if degraded:
+            # No rewrite fits either (over the size limit and the prompt
+            # budget): the article keeps its current content and the new
+            # extraction is NOT merged. Say so loudly -- silence here is how a
+            # compile Acked "done" while a document's knowledge never landed.
+            print(f"[merge] diff result unparsable and no rewrite fits: "
+                  f"{article_path} keeps its current content; the extraction "
+                  f"from {source_path} was not merged",
+                  file=sys.stderr, flush=True)
         return new_content
 
     return _merge_full_rewrite(article_path, article_content, extraction, source_path, model)
@@ -975,10 +1009,11 @@ def _merge_diff(
     extraction: ExtractionResult, source_path: str, model: str,
 ) -> tuple[str, bool]:
     """Merge via patches. Returns (new_content, degraded); degraded is True
-    when the LLM's diff response was unparsable (JSONDecodeError, RuntimeError
-    or EmptyCompletionError from completion_json) or when _validate_patches
-    dropped a malformed patch from it -- a legitimate {"patches": []} is a
-    valid "nothing to add" answer, not degradation.
+    when the LLM's diff response was unparsable (JSONDecodeError, RuntimeError,
+    EmptyCompletionError, DeadlineExceededError or OutputTruncatedError from
+    completion_json -- the same set the section router degrades on) or when
+    _validate_patches dropped a malformed patch from it -- a legitimate
+    {"patches": []} is a valid "nothing to add" answer, not degradation.
     """
     from datetime import date
     today = date.today().isoformat()
@@ -1020,7 +1055,8 @@ def _merge_diff(
         ], max_tokens=estimate_max_tokens(
             _estimate_full_extraction_size(extraction, source_path), minimum=4096),
            cache=True)
-    except (json.JSONDecodeError, RuntimeError, EmptyCompletionError):
+    except (json.JSONDecodeError, RuntimeError, EmptyCompletionError,
+            DeadlineExceededError, OutputTruncatedError):
         raw = {"patches": []}
         degraded = True
 

@@ -222,10 +222,12 @@ func (b *PipelineBatcher) launchFlush(ws []*batchWaiter) []*batchWaiter {
 }
 
 // flushDeadlineMargin is the slack the Go-side call timeout adds on top of
-// BatchDeadline: the daemon enforces the deadline cooperatively, and a busy
-// batch can land its results shortly after the mark, so the Go timeout exists
-// only for the daemon that cannot answer at all. Package-level so tests can
-// shorten it instead of sleeping the production margin.
+// BatchDeadline: the daemon enforces the deadline as a wall clock shared by
+// every item (each LLM call's HTTP timeout is clamped to what remains), so it
+// answers by the deadline plus response serialization. The margin covers that
+// tail; the timeout itself exists only for the daemon that cannot answer at
+// all. Package-level so tests can shorten it instead of sleeping the
+// production margin.
 var flushDeadlineMargin = 2 * time.Minute
 
 // flush issues one batched Pipeline call and splits its results back to the

@@ -543,8 +543,9 @@ func TestPipelineBatchDefaults(t *testing.T) {
 }
 
 // TestPipelineBatchDeadlineTunable confirms the deadline is raisable from the
-// file and via env (slow-model deployments), and that a negative value is
-// rejected rather than silently disabling the bound.
+// file and via env (slow-model deployments), and that values which would
+// silently lift every batch bound (no DeadlineSeconds, no Go-side call
+// timeout, unbounded Close) are rejected.
 func TestPipelineBatchDeadlineTunable(t *testing.T) {
 	p := writeTOML(t, `
 [storage]
@@ -570,9 +571,11 @@ pipeline_batch_deadline_sec = 4800
 		t.Errorf("pipeline_batch_deadline_sec = %d, want env override 3600", c2.Worker.PipelineBatchDeadlineSec)
 	}
 
-	t.Setenv("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC", "-1")
-	if _, err := Load(p); err == nil {
-		t.Fatal("expected Load to reject a negative pipeline_batch_deadline_sec")
+	for _, v := range []string{"0", "-1"} {
+		t.Setenv("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC", v)
+		if _, err := Load(p); err == nil {
+			t.Errorf("expected Load to reject pipeline_batch_deadline_sec=%s", v)
+		}
 	}
 }
 

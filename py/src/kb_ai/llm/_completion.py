@@ -26,6 +26,7 @@ from kb_ai._errors import (
 from ._cache import AdaptiveCacheState, enable_prompt_caching
 from ._cost_record import record_cost
 from ._infra import (
+    DEFAULT_CLIENT_TIMEOUT_S,
     MAX_PROMPT_CHARS,
     _ALERT_CALLER,
     _MAX_TOKENS_CEILING,
@@ -154,6 +155,26 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
     override = ctx.call_timeout
     if override is not None:
         client = client.with_options(timeout=override)
+    # The batch deadline is one wall clock shared by every item in the
+    # pipeline call, so clamp each request's HTTP timeout to what remains
+    # (passed per-request, on top of whatever the client default or the
+    # call-timeout override set). The retry/continuation guards stop the
+    # ladders near the deadline, but a FIRST attempt is otherwise never gated
+    # and can outrun it by a whole write-timeout ladder -- the caller's own
+    # watchdog would then kill a healthy batch whose orphaned daemon request
+    # kept running and writing. The clamp only tightens.
+    request_timeout: float | None = None
+    dl = ctx.deadline_abs
+    if dl:
+        remaining = dl - time.monotonic()
+        if remaining <= 0:
+            raise DeadlineExceededError(
+                f"deadline_too_close: op={ctx.phase} model={model} batch "
+                f"deadline already passed, not issuing the call"
+            )
+        effective = DEFAULT_CLIENT_TIMEOUT_S if override is None else override
+        if remaining < effective:
+            request_timeout = remaining
     msgs = enable_prompt_caching(messages) if use_cache else messages
 
     kwargs: dict = {
@@ -162,6 +183,8 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+    if request_timeout is not None:
+        kwargs["timeout"] = request_timeout
     if response_format is not None:
         kwargs["response_format"] = response_format
     global _reasoning_effort_disabled
@@ -187,6 +210,7 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
 
     t0 = time.monotonic()
     attempt = 0
+    probed_reasoning_effort: str | None = None
     while True:
         cancel_ev = ctx.cancel_event
         if cancel_ev is not None and cancel_ev.is_set():
@@ -195,28 +219,33 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             response = client.chat.completions.create(**kwargs)
             break
         except (APITimeoutError, APIStatusError) as e:
-            # A 400 whose body names reasoning_effort is the gateway rejecting
-            # the param itself, not the request: alert, strip it, retry the
+            # A 400 while reasoning_effort was sent may be the gateway
+            # rejecting the param itself, not the request: strip it, retry the
             # same attempt once, and never send it again in this process. It
             # fires at most once (the flag plus the kwargs deletion below).
-            # The body check is what keeps a 400 from any other cause (wrong
-            # model name, malformed messages, oversized request) from being
-            # mis-attributed to the param -- which would burn a pointless
-            # retry and silently disable the operator's knob process-wide.
-            # Gateways that refuse the param name it in the error; one that
-            # answers a generic 400 keeps the knob on and the real error
-            # surfaces on this same attempt's raise path.
             if (isinstance(e, APIStatusError) and e.status_code == 400
-                    and "reasoning_effort" in kwargs
-                    and "reasoning_effort" in str(e)):
-                emit_alert(
-                    f"op={op} model={model} reasoning_effort={kwargs['reasoning_effort']} "
-                    f"unsupported, retrying without it",
-                    model, attempt + 1, "reasoning_effort_unsupported",
-                    content_hash=content_hash, caller=_ALERT_CALLER,
-                )
+                    and "reasoning_effort" in kwargs):
+                if "reasoning_effort" in str(e):
+                    # The body names the param: definite rejection.
+                    emit_alert(
+                        f"op={op} model={model} reasoning_effort={kwargs['reasoning_effort']} "
+                        f"unsupported, retrying without it",
+                        model, attempt + 1, "reasoning_effort_unsupported",
+                        content_hash=content_hash, caller=_ALERT_CALLER,
+                    )
+                    del kwargs["reasoning_effort"]
+                    _reasoning_effort_disabled = True
+                    continue
+                # A generic body is ambiguous: some gateways refuse unknown
+                # fields without naming them, and a 400 about the request
+                # itself (wrong model, malformed messages) looks identical.
+                # Probe this attempt once without the param -- success pins
+                # the blame on the param (disabled after the loop); a repeat
+                # 400 raises below with the knob intact. Refusing to probe
+                # would trade the old silent degrade for a hard outage on
+                # every call until an operator noticed the env var.
+                probed_reasoning_effort = kwargs["reasoning_effort"]
                 del kwargs["reasoning_effort"]
-                _reasoning_effort_disabled = True
                 continue
             elapsed = round(time.monotonic() - t0, 1)
             # Must not shadow ctx -- the retry path below still reads
@@ -256,6 +285,18 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             print(f"  [{label}] {detail}, retrying in {wait}s...", file=sys.stderr)
             time.sleep(wait)
             attempt += 1
+
+    # The generic-400 probe (see the except branch) succeeded with the param
+    # removed: the 400 was the gateway refusing the param after all. Disable
+    # it for the process, like the named-body case does.
+    if probed_reasoning_effort is not None:
+        _reasoning_effort_disabled = True
+        emit_alert(
+            f"op={op} model={model} reasoning_effort={probed_reasoning_effort} "
+            f"unsupported (generic 400), retrying without it",
+            model, attempt + 1, "reasoning_effort_unsupported",
+            content_hash=content_hash, caller=_ALERT_CALLER,
+        )
 
     # Parse usage and record cost
     usage_info = parse_usage(response)

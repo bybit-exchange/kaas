@@ -154,10 +154,9 @@ class TestReasoningEffortPassthrough:
 
     def test_400_unrelated_to_the_param_is_not_blamed_on_it(
             self, mock_client, monkeypatch, capsys):
-        # A 400 from any other cause (wrong model name, malformed messages)
-        # must not strip the operator's knob or disable it process-wide: the
-        # error raises immediately, the real failure kind is alerted, and the
-        # next call still carries the param.
+        # A generic 400 while the param was sent is ambiguous: the probe (one
+        # retry without the param) also 400s, so the error raises with the
+        # knob intact -- no process-wide disable over someone else's 400.
         monkeypatch.setenv("KB_AI_REASONING_EFFORT", "low")
         mock_client.chat.completions.create.side_effect = _status_error(
             400, "model `nope` not found")
@@ -166,8 +165,9 @@ class TestReasoningEffortPassthrough:
             completion("model", [{"role": "user", "content": "Hi"}])
 
         calls = mock_client.chat.completions.create.call_args_list
-        assert len(calls) == 1  # no strip-and-retry round
+        assert len(calls) == 2  # the initial 400 plus one probe without the param
         assert calls[0].kwargs["reasoning_effort"] == "low"
+        assert "reasoning_effort" not in calls[1].kwargs
         err = capsys.readouterr().err
         assert "reasoning_effort_unsupported" not in err
         assert "http_400:" in err
@@ -177,6 +177,80 @@ class TestReasoningEffortPassthrough:
         mock_client.chat.completions.create.side_effect = None
         completion("model", [{"role": "user", "content": "Hi"}])
         assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+
+    def test_generic_400_probes_once_and_disables_only_on_success(
+            self, mock_client, monkeypatch, capsys):
+        # Some gateways refuse unknown fields without naming them. The probe
+        # succeeds without the param, which pins the blame on it: alert +
+        # process-wide disable, the same end state as the named-body refusal.
+        monkeypatch.setenv("KB_AI_REASONING_EFFORT", "low")
+        mock_client.chat.completions.create.side_effect = [
+            _status_error(400, "invalid request"),
+            _make_response(content="recovered", finish_reason="stop"),
+        ]
+
+        result = completion("model", [{"role": "user", "content": "Hi"}])
+
+        assert result == "recovered"
+        calls = mock_client.chat.completions.create.call_args_list
+        assert calls[0].kwargs["reasoning_effort"] == "low"
+        assert "reasoning_effort" not in calls[1].kwargs
+        err = capsys.readouterr().err
+        assert "reasoning_effort_unsupported" in err
+        assert "generic 400" in err
+
+        mock_client.chat.completions.create.reset_mock()
+        mock_client.chat.completions.create.side_effect = None
+        completion("model", [{"role": "user", "content": "Hi"}])
+        assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
+
+
+class TestBatchDeadlineClamp:
+    """The batch deadline clamps every per-request HTTP timeout to what
+    remains, so a pipeline call cannot outrun its deadline by a full
+    write-timeout ladder while the Go-side batch watchdog then kills it as
+    wedged and its orphaned daemon request keeps running and writing."""
+
+    def setup_method(self):
+        llm_pkg.set_pipeline_deadline(None)
+        llm_pkg.set_call_timeout(None)
+
+    def teardown_method(self):
+        llm_pkg.set_pipeline_deadline(None)
+        llm_pkg.set_call_timeout(None)
+
+    def test_no_deadline_sends_no_per_request_timeout(self, mock_client):
+        _completion_inner("model", [{"role": "user", "content": "Hi"}])
+        assert "timeout" not in mock_client.chat.completions.create.call_args.kwargs
+
+    def test_deadline_clamps_to_the_remainder(self, mock_client):
+        llm_pkg.set_pipeline_deadline(5)
+        _completion_inner("model", [{"role": "user", "content": "Hi"}])
+        got = mock_client.chat.completions.create.call_args.kwargs["timeout"]
+        assert got == pytest.approx(5, abs=1)
+
+    def test_deadline_never_tightens_below_the_call_timeout_override(self, mock_client):
+        mock_client.with_options = MagicMock(return_value=mock_client)
+        llm_pkg.set_call_timeout(2)
+        llm_pkg.set_pipeline_deadline(500)
+        _completion_inner("model", [{"role": "user", "content": "Hi"}])
+        assert mock_client.with_options.call_args.kwargs["timeout"] == 2
+        assert "timeout" not in mock_client.chat.completions.create.call_args.kwargs
+
+    def test_deadline_clamps_a_longer_override(self, mock_client):
+        mock_client.with_options = MagicMock(return_value=mock_client)
+        llm_pkg.set_call_timeout(300)
+        llm_pkg.set_pipeline_deadline(5)
+        _completion_inner("model", [{"role": "user", "content": "Hi"}])
+        assert mock_client.with_options.call_args.kwargs["timeout"] == 300
+        got = mock_client.chat.completions.create.call_args.kwargs["timeout"]
+        assert got == pytest.approx(5, abs=1)
+
+    def test_passed_deadline_fails_before_the_call(self, mock_client):
+        llm_pkg.set_pipeline_deadline_abs(time.monotonic() - 1)
+        with pytest.raises(DeadlineExceededError, match="deadline_too_close"):
+            _completion_inner("model", [{"role": "user", "content": "Hi"}])
+        mock_client.chat.completions.create.assert_not_called()
 
 
 class TestCompletion:

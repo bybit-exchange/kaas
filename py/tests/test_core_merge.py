@@ -13,7 +13,11 @@ from datetime import date
 
 import pytest
 
-from kb_ai._errors import DeadlineExceededError, EmptyCompletionError
+from kb_ai._errors import (
+    DeadlineExceededError,
+    EmptyCompletionError,
+    OutputTruncatedError,
+)
 from kb_ai.core import merge as mg
 from kb_ai.core.extract import ExtractionResult
 
@@ -371,7 +375,11 @@ def test_unparsable_diff_falls_back_to_full_rewrite(monkeypatch, capsys):
 @pytest.mark.parametrize("exc", [
     json.JSONDecodeError("bad", "{}", 0),
     RuntimeError("llm down"),
-], ids=["json-decode-error", "runtime-error"])
+    EmptyCompletionError("LLM returned an empty body twice"),
+    DeadlineExceededError("deadline_too_close to continue"),
+    OutputTruncatedError("LLM output truncated at ceiling"),
+], ids=["json-decode-error", "runtime-error", "empty-completion",
+        "deadline-exceeded", "output-truncated"])
 def test_merge_into_article_falls_back_when_diff_result_is_unparsable(
     monkeypatch, capsys, exc
 ):
@@ -412,7 +420,8 @@ def test_a_legitimate_empty_patches_diff_does_not_fall_back(monkeypatch, capsys)
 def test_a_degraded_diff_that_cannot_fit_a_rewrite_is_returned_as_is(monkeypatch, capsys):
     """Over the prompt budget there is no rewrite to fall back to, so the
     degraded diff content (article kept intact, no patches applied) is the
-    result, without the fallback path or its log line."""
+    result, without the fallback path or its log line -- but never silently:
+    the no-rewrite drop line must say the extraction was not merged."""
     monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5000)
     monkeypatch.setattr(mg, "_merge_diff", lambda *args: ("kept content", True))
 
@@ -425,7 +434,10 @@ def test_a_degraded_diff_that_cannot_fit_a_rewrite_is_returned_as_is(monkeypatch
     out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
 
     assert out == "kept content"
-    assert "falling back to full-rewrite" not in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "falling back to full-rewrite" not in err
+    assert ("[merge] diff result unparsable and no rewrite fits: wiki/a.md keeps "
+            "its current content") in err
 
 
 def test_default_env_non_degraded_diff_result_is_returned_verbatim(monkeypatch):
@@ -1943,6 +1955,44 @@ def test_merge_one_section_strips_only_a_true_heading_echo(monkeypatch):
     out = mg._merge_one_section("## Notes", "old body", _extraction(),
                                 "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
     assert out == "rewritten body"
+
+
+@pytest.mark.parametrize("echo", [
+    "## Notes \n\nrewritten body",   # trailing space on the echoed line
+    "## Notes\r\n\nrewritten body",  # CRLF line ending
+], ids=["trailing-space", "crlf"])
+def test_merge_one_section_recognizes_a_whitespace_padded_echo(monkeypatch, echo):
+    """An echo whose line differs only in trailing whitespace must still be
+    stripped: a heading that slips through renders twice, and the duplicate
+    then trips the duplicate-heading guard on every later merge of the
+    article."""
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: echo)
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "rewritten body"
+
+
+def test_route_sections_drops_duplicate_new_section_headings(monkeypatch, capsys):
+    """New-section bodies are keyed by heading downstream, so a proposed
+    heading duplicating the article's own sections or another proposal would
+    overwrite one body and insert another twice (or mint a duplicate heading
+    on disk). Both shapes drop with an alert; the valid proposal survives."""
+    route = {
+        "sections": [],
+        "new_sections": [
+            {"heading": "## Alpha", "after": "## Beta"},          # existing
+            {"heading": "## Fresh", "after": "## Beta"},          # valid
+            {"heading": "## Fresh", "after": "## Gamma"},         # duplicate proposal
+        ],
+    }
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: route)
+
+    out = mg._route_sections(_section_article(), _extraction(), "raw/a.md", "m")
+
+    assert out == {"sections": [], "new_sections": [
+        {"heading": "## Fresh", "after": "## Beta"}]}
+    err = capsys.readouterr().err
+    assert err.count("section_route_dropped") == 2
 
 
 def test_a_section_failing_twice_degrades_after_one_retry(monkeypatch, capsys):
