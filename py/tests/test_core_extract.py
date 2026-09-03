@@ -14,7 +14,11 @@ import pytest
 
 from kb_ai._context import ThreadContext, get_context
 from kb_ai._cost import CostTracker
-from kb_ai._errors import ExtractionFailedError
+from kb_ai._errors import (
+    ExtractionFailedError,
+    PipelineCancelledError,
+    PromptTooLargeError,
+)
 from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult
 
@@ -178,6 +182,29 @@ def test_the_single_shot_prompt_asks_for_every_payload_field():
 
     for fname in ex._FIELD_JSON_SCHEMAS:
         assert f'"{fname}"' in text, f"extract.md never asks for {fname}"
+
+
+def test_extract_prompt_version_golden_hash():
+    """Golden hash of the extraction stage's prompt set over the shipped files.
+
+    s2-feat-008 (F3a, plan 2026-09-02-distill-real-throughput.md §3.2) tightened
+    extract.md and extract-types.md to suppress pre-JSON prose — the "answer each
+    question, then output the combined result" framing licensed full prose answers
+    before duplicating them into JSON (the measured ~70% extract reasoning waste)
+    and moved this hash from 40ddd5525792 to a258de954493, by design: prompt edits
+    change provenance and the extraction freshness gate must see them. Any further
+    edit that moves the hash must update this literal together with a justification
+    here, so the one-time re-extraction cost it triggers stays a conscious act.
+
+    The follow-up edit (same day) added the "your reply MUST end with the JSON
+    object" hard constraint to both files: deepseek-v4-flash stopped after
+    reasoning with an empty content body on one document (finish=stop,
+    content="", 3/3 reproduction), so the prompt now forbids reasoning-only
+    replies and the LLM layer retries empty bodies (EmptyCompletionError).
+    Hash a258de954493 -> 371105e209ca.
+    """
+    ex.extract_prompt_version.cache_clear()
+    assert ex.extract_prompt_version() == "371105e209ca"
 
 
 @pytest.mark.parametrize("k", [0, 1, 4, 5, -1])
@@ -405,6 +432,23 @@ def test_summarize_chunk_without_frontmatter_sends_bare_text(monkeypatch, stub_p
     assert captured["user"] == "chunk text"
 
 
+def test_summarize_chunk_sizes_for_continuation(monkeypatch, stub_prompts):
+    """2048 with a discard ladder became 3072 with raw-text continuation: a
+    truncated summary is kept work instead of discarded and re-generated."""
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen.update(kwargs)
+        return "s"
+
+    monkeypatch.setattr(ex, "completion", fake_completion)
+
+    ex.summarize_chunk("chunk text", {}, "m")
+
+    assert seen["max_tokens"] == 3072
+    assert seen["continue_on_length"] is True
+
+
 # ── merge_summaries_l2 ──────────────────────────────────────────────
 
 def test_merge_summaries_l2_empty():
@@ -468,6 +512,23 @@ def test_merge_summaries_l2_bounds_the_fallback_slot(monkeypatch):
 
     for slot in out:
         assert len(slot) <= ex._SUPER_SUMMARY_FALLBACK_LIMIT
+
+
+def test_merge_one_group_sizes_for_continuation(monkeypatch, stub_prompts):
+    """Same sizing change as summarize_chunk: 3072 plus raw-text continuation,
+    so a truncated super-summary is kept work instead of discarded."""
+    seen = {}
+
+    def fake_completion(**kwargs):
+        seen.update(kwargs)
+        return "super"
+
+    monkeypatch.setattr(ex, "completion", fake_completion)
+
+    ex._merge_one_group(["a", "b"], model="haiku")
+
+    assert seen["max_tokens"] == 3072
+    assert seen["continue_on_length"] is True
 
 
 # ── type-split extraction ───────────────────────────────────────────
@@ -536,51 +597,115 @@ def test_extract_knowledge_type_split_propagates_failure(monkeypatch, stub_promp
 
 # ── _phase2_with_retry ──────────────────────────────────────────────
 
-def test_phase2_retries_once_then_succeeds(monkeypatch, capsys):
-    calls = {"n": 0}
+def _group_of(system_prompt: str, groups: dict) -> str:
+    """Identify which group a rendered type-split prompt belongs to."""
+    for name, fields in groups.items():
+        if f"fields={', '.join(fields)}" in system_prompt:
+            return name
+    raise AssertionError(f"unrecognised prompt: {system_prompt}")
 
-    def flaky(content, k, model, max_tokens):
-        calls["n"] += 1
-        if calls["n"] == 1:
-            raise RuntimeError("transient")
-        return ExtractionResult(summary="ok")
 
-    monkeypatch.setattr(ex, "extract_knowledge_type_split", flaky)
+def test_phase2_retries_only_the_failed_group(monkeypatch, stub_prompts, capsys):
+    """One group failing once must cost one extra call, not a full K re-dispatch.
+
+    The old retry re-ran the entire K-call set; fields are group-owned, so
+    re-dispatching the failing group alone composes the same complete result.
+    """
+    groups = ex.TYPE_SPLIT_GROUPS_K2
+    calls: list[str] = []
+
+    def flaky_completion_json(*, model, messages, **kwargs):
+        name = _group_of(messages[0]["content"], groups)
+        calls.append(name)
+        if name == "B" and calls.count("B") == 1:
+            raise RuntimeError("transient group-B failure")
+        return _group_response(groups[name], name)
+
+    monkeypatch.setattr(ex, "completion_json", flaky_completion_json)
 
     out = ex._phase2_with_retry("content", k=2, model="m", max_tokens=100)
 
-    assert out.summary == "ok"
-    assert calls["n"] == 2
+    # Round 1 dispatched both groups; the retry re-dispatched only B
+    # (3 calls total, not the 4 a full K re-dispatch would pay).
+    assert len(calls) == 3
+    assert sorted(calls[:2]) == ["A", "B"]
+    assert calls[2] == "B"
+    # The composed result still carries each field's owning group.
+    for name, fields in groups.items():
+        for fname in fields:
+            value = getattr(out, fname)
+            if fname == "summary":
+                assert value == name
+            elif fname == "topics":
+                assert value == [f"{name}-{fname}"]
+            else:
+                assert value[0]["marker"] == name
     assert "retrying once" in capsys.readouterr().err
 
 
-def test_phase2_propagates_second_failure(monkeypatch):
-    calls = {"n": 0}
+def test_phase2_propagates_when_a_group_fails_both_rounds(monkeypatch, stub_prompts):
+    """No silent partial: a group failing twice raises its original error
+    rather than composing a result with that group's fields empty."""
+    groups = ex.TYPE_SPLIT_GROUPS_K2
+    calls: list[str] = []
 
-    def always_fail(content, k, model, max_tokens):
-        calls["n"] += 1
-        raise RuntimeError(f"attempt {calls['n']}")
+    def b_always_fails(*, model, messages, **kwargs):
+        name = _group_of(messages[0]["content"], groups)
+        calls.append(name)
+        if name == "B":
+            raise RuntimeError("group B down")
+        return _group_response(groups[name], name)
 
-    monkeypatch.setattr(ex, "extract_knowledge_type_split", always_fail)
+    monkeypatch.setattr(ex, "completion_json", b_always_fails)
 
-    with pytest.raises(RuntimeError, match="attempt 2"):
+    with pytest.raises(RuntimeError, match="group B down"):
         ex._phase2_with_retry("content", k=2, model="m", max_tokens=100)
 
-    assert calls["n"] == 2
+    # Both groups in round 1, only B re-dispatched in the retry round.
+    assert len(calls) == 3
+    assert calls[2] == "B"
 
 
-def test_phase2_no_retry_on_success(monkeypatch):
+def test_phase2_no_retry_on_success(monkeypatch, stub_prompts):
+    groups = ex.TYPE_SPLIT_GROUPS_K2
+    calls: list[str] = []
+
+    def ok_completion_json(*, model, messages, **kwargs):
+        name = _group_of(messages[0]["content"], groups)
+        calls.append(name)
+        return _group_response(groups[name], name)
+
+    monkeypatch.setattr(ex, "completion_json", ok_completion_json)
+
+    out = ex._phase2_with_retry("content", k=2, model="m", max_tokens=100)
+
+    assert sorted(calls) == ["A", "B"]
+    # K=2 group A owns summary; the composed result is real, not a stub.
+    assert out.summary == "A"
+
+
+@pytest.mark.parametrize("error", [
+    PipelineCancelledError("cancelled mid-call"),
+    PromptTooLargeError("prompt exceeds budget"),
+], ids=["cancelled", "prompt_too_large"])
+def test_phase2_reraises_non_retryable_failures_without_retry(
+    monkeypatch, stub_prompts, error
+):
+    """Cancellation and prompt overflow never enter the retry path: retrying a
+    cancelled call is noise, and a too-large prompt fails deterministically."""
     calls = {"n": 0}
 
-    def ok(content, k, model, max_tokens):
+    def raising(*, model, messages, **kwargs):
         calls["n"] += 1
-        return ExtractionResult(summary="fine")
+        raise error
 
-    monkeypatch.setattr(ex, "extract_knowledge_type_split", ok)
+    monkeypatch.setattr(ex, "completion_json", raising)
 
-    ex._phase2_with_retry("content", k=2, model="m", max_tokens=100)
+    with pytest.raises(type(error), match=str(error)):
+        ex._phase2_with_retry("content", k=2, model="m", max_tokens=100)
 
-    assert calls["n"] == 1
+    # Both round-1 group calls ran; no retry round was dispatched.
+    assert calls["n"] == 2
 
 
 # ── K-adaptive dispatch (extract_knowledge_summarized) ──────────────

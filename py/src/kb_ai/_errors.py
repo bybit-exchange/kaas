@@ -46,6 +46,18 @@ class OutputTruncatedError(KBError):
     code = "OUTPUT_TRUNCATED"
 
 
+class EmptyCompletionError(KBError):
+    """LLM returned an empty content body twice (finish_reason not truncation).
+
+    Reasoning-style models can stop with the whole answer in the reasoning
+    channel and nothing in content; an empty body is never a valid answer for
+    any kb-ai caller, so it is retried once and then fails loudly rather than
+    surfacing as a JSONDecodeError or an empty article downstream.
+    """
+
+    code = "EMPTY_COMPLETION"
+
+
 class ExtractionFailedError(KBError):
     """Extraction produced nothing because every chunk summarization failed.
 

@@ -28,11 +28,17 @@ pipeline_concurrency = 8
 # per batch (default 1 = one call per task, the pre-batching behaviour;
 # rollback by setting 1), pipeline_batch_flush_ms is the batching window
 # measured from the oldest pending item (default/rollback 500), and
-# pipeline_batch_max_inflight caps concurrent in-flight batch calls
-# (default/rollback 1). Each batch call carries a 2400s deadline (code
-# constant defaultBatchDeadlineSec), which also bounds the shutdown drain.
-# Container overrides without an image rebuild:
-# KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS / KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT.
+# pipeline_batch_max_inflight caps concurrent in-flight batch calls. The
+# Go code default for inflight is 1; this deployment pins 2 as a measured
+# trade-off (150-doc replay, issue wangdahoo/kaas#1): inflight=8 buys
+# wall clock (58.9 min vs 95.3 min) at +41% total LLM work via batch
+# fragmentation (1.3 items/batch vs 3.0), while inflight=2 keeps batches
+# dense (3.0 items/batch) and total LLM work bounded. Rollback to the
+# code default: KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT=1. Each batch call
+# carries a 2400s deadline (code constant defaultBatchDeadlineSec), which
+# also bounds the shutdown drain. Container overrides without an image
+# rebuild: KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS /
+# KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT.
 pipeline_batch_max_items = 16
 pipeline_batch_flush_ms = 2000
 pipeline_batch_max_inflight = 2

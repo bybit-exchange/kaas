@@ -65,8 +65,9 @@ def test_merge_one_group_sends_joined_summaries_to_the_merge_prompt(monkeypatch)
 
     monkeypatch.setattr(ex, "load_prompt", lambda name: f"[{name}] instructions")
 
-    def fake_completion(*, model, messages, max_tokens):
-        captured.update(model=model, messages=messages, max_tokens=max_tokens)
+    def fake_completion(*, model, messages, max_tokens, continue_on_length):
+        captured.update(model=model, messages=messages, max_tokens=max_tokens,
+                        continue_on_length=continue_on_length)
         return "super summary"
 
     monkeypatch.setattr(ex, "completion", fake_completion)
@@ -75,7 +76,10 @@ def test_merge_one_group_sends_joined_summaries_to_the_merge_prompt(monkeypatch)
 
     assert out == "super summary"
     assert captured["model"] == "claude-haiku-4-5"
-    assert captured["max_tokens"] == 2048
+    # s2-feat-009 sized the call at 3072 with raw-text continuation: a
+    # truncated super-summary is kept work instead of discarded.
+    assert captured["max_tokens"] == 3072
+    assert captured["continue_on_length"] is True
     assert captured["messages"][0] == {
         "role": "system",
         "content": "[merge-summaries] instructions",

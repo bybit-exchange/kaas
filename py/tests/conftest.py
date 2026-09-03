@@ -19,19 +19,30 @@ def _no_phase_timeout_overrides(monkeypatch):
     timeouts. The operator those overrides exist for -- someone running a slow local
     model -- will have them exported, and would otherwise get a red suite for a
     reason that has nothing to do with their change. A test that wants an override
-    sets it in its own body, which runs after this.
+    sets it in its own body, which runs after this. KB_AI_REASONING_EFFORT joins
+    them for the same reason: an exported knob would silently add a kwarg to
+    every mocked request in the suite. The two section-merge knobs join as
+    well: an exported mode or concurrency bound would decide dispatch routing
+    and semaphore sizing for every merge test.
 
     The warn-once caches are module-level state keyed on the value they warned about,
     so they are reset here too: otherwise the first test to warn would decide whether
-    a later one sees its own warning, making the order matter.
+    a later one sees its own warning, making the order matter. The reasoning-effort
+    disable flag is the same kind of state: the first test whose mock answers 400
+    would otherwise decide for every later test whether the param is ever sent.
     """
     from kb_ai.core.extract import _warn_unusable_extract_timeout
     from kb_ai.core.merge import _warn_unusable_write_timeout
+    from kb_ai.llm import _completion as completion_module
 
     monkeypatch.delenv("KB_AI_WRITE_TIMEOUT_S", raising=False)
     monkeypatch.delenv("KB_AI_EXTRACT_TIMEOUT_S", raising=False)
+    monkeypatch.delenv("KB_AI_REASONING_EFFORT", raising=False)
+    monkeypatch.delenv("KB_MERGE_SECTION_MODE", raising=False)
+    monkeypatch.delenv("KB_MERGE_SECTION_MAX_CONCURRENT", raising=False)
     _warn_unusable_write_timeout.cache_clear()
     _warn_unusable_extract_timeout.cache_clear()
+    monkeypatch.setattr(completion_module, "_reasoning_effort_disabled", False)
 
 
 @pytest.fixture

@@ -14,7 +14,11 @@ from pathlib import Path
 import yaml
 
 from kb_ai._context import adopt_context, get_context
-from kb_ai._errors import ExtractionFailedError
+from kb_ai._errors import (
+    ExtractionFailedError,
+    PipelineCancelledError,
+    PromptTooLargeError,
+)
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
     completion,
@@ -37,9 +41,9 @@ _DEFAULT_WORKERS = 16
 # change rather than a source edit.
 #
 # Size it knowing this phase retries in two places, unlike write: the LLM layer
-# retries a timeout twice, and _phase2_with_retry re-dispatches its entire K-call
-# set once on any failure, so a hung phase-2 call costs 6*timeout+60s to discover
-# rather than 3*timeout+30s.
+# retries a timeout twice, and _phase2_with_retry re-dispatches a failing group
+# once, so a hung phase-2 call costs 6*timeout+60s to discover rather than
+# 3*timeout+30s.
 #
 # _EXTRACT_TIMEOUT_ENV is honoured verbatim, including past DEFAULT_CLIENT_TIMEOUT_S.
 # The client timeout is a default, not a ceiling -- _completion.py applies an override
@@ -317,13 +321,17 @@ def _merge_one_group(
     """
     instructions = load_prompt("merge-summaries")
     user_content = "\n---\n".join(summaries)
+    # Plain-text output sized one rung above the old 2048 with continuation
+    # instead of discard: a truncated super-summary is kept work, and the
+    # headroom avoids most continuation round-trips entirely.
     return completion(
         model=model,
         messages=[
             {"role": "system", "content": instructions},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=2048,
+        max_tokens=3072,
+        continue_on_length=True,
     )
 
 
@@ -391,6 +399,91 @@ def merge_summaries_l2(
     return [r for r in results if r is not None]
 
 
+def _type_split_groups(k: int) -> dict[str, tuple[str, ...]]:
+    """The group table for a K-way split. Shared by the helpers below so the
+    k-validation (and its message) exists in exactly one place."""
+    if k == 2:
+        return TYPE_SPLIT_GROUPS_K2
+    if k == 3:
+        return TYPE_SPLIT_GROUPS_K3
+    raise ValueError(f"unsupported K for type-split: {k} (expected 2 or 3)")
+
+
+def _extract_groups(
+    content: str,
+    k: int,
+    model: str,
+    max_tokens: int,
+    *,
+    only: tuple[str, ...] | None = None,
+) -> tuple[dict[str, dict], dict[str, BaseException]]:
+    """Run the type-split group calls in parallel, collecting single-group
+    failures instead of raising them.
+
+    Returns (raw_by_group, errors_by_group): each successful group's raw
+    response dict and each failing group's exception, both keyed by group
+    name — the keys are the failed group names, and keeping the exception
+    objects is what lets callers re-raise the original error verbatim.
+    Collecting rather than raising is what lets _phase2_with_retry
+    re-dispatch only the failed groups: fields are group-owned, so a K-1
+    partial composes with the retried group's answer.
+
+    Two failures re-raise immediately instead of entering the retry path:
+    PipelineCancelledError — retrying a cancelled call is noise — and
+    PromptTooLargeError — deterministic, the same content would fail again.
+
+    `only` restricts the run to a subset of the K groups; the retry round
+    uses it to re-dispatch exactly the groups that failed.
+    """
+    groups = _type_split_groups(k)
+    to_run = tuple(groups) if only is None else only
+
+    parent_ctx = get_context()
+
+    def _extract_one_group(group: str) -> dict:
+        adopt_context(parent_ctx)
+        prompt = _render_type_split_prompt(group, k)
+        return completion_json(
+            model=model,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"<document>\n{content}\n</document>"},
+            ],
+            max_tokens=max_tokens,
+        )
+
+    raw_by_group: dict[str, dict] = {}
+    errors_by_group: dict[str, BaseException] = {}
+    with ThreadPoolExecutor(max_workers=len(to_run)) as pool:
+        futures = {pool.submit(_extract_one_group, g): g for g in to_run}
+        for future in as_completed(futures):
+            g = futures[future]
+            try:
+                raw_by_group[g] = future.result()
+            except (PipelineCancelledError, PromptTooLargeError):
+                raise
+            except Exception as e:
+                errors_by_group[g] = e
+    return raw_by_group, errors_by_group
+
+
+def _compose_groups(raw_by_group: dict[str, dict], k: int) -> ExtractionResult:
+    """Merge per-group raw responses into one result by field ownership.
+
+    Each ExtractionResult field is filled by exactly one group's response (the
+    tables partition the fields), so composition is a straight copy per group
+    with no merge logic — which is what makes a K-1 partial composable with
+    the retried group's answer.
+    """
+    merged_dict: dict = {}
+    for group, fields in _type_split_groups(k).items():
+        parsed = parse_extraction_result(raw_by_group[group])
+        for fname in fields:
+            merged_dict[fname] = getattr(parsed, fname)
+
+    return parse_extraction_result(merged_dict)
+
+
 def extract_knowledge_type_split(
     content: str,
     k: int,
@@ -408,44 +501,14 @@ def extract_knowledge_type_split(
     for K-way output parallelism. Prompt cache deliberately not used — parallel
     K calls all cache-miss + write costs more than no-cache.
 
-    Failure handling: any K call raising propagates immediately; caller is
-    responsible for retry (see _phase2_with_retry in s27-feat-004).
+    Failure handling: any failed group re-raises its original error here —
+    callers get no partial result. The failed-group-only retry lives in
+    _phase2_with_retry.
     """
-    if k == 2:
-        groups = TYPE_SPLIT_GROUPS_K2
-    elif k == 3:
-        groups = TYPE_SPLIT_GROUPS_K3
-    else:
-        raise ValueError(f"unsupported K for type-split: {k} (expected 2 or 3)")
-
-    parent_ctx = get_context()
-
-    def _extract_one_group(group: str) -> dict:
-        adopt_context(parent_ctx)
-        prompt = _render_type_split_prompt(group, k)
-        return completion_json(
-            model=model,
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": f"<document>\n{content}\n</document>"},
-            ],
-            max_tokens=max_tokens,
-        )
-
-    raw_by_group: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=k) as pool:
-        futures = {pool.submit(_extract_one_group, g): g for g in groups}
-        for future in as_completed(futures):
-            g = futures[future]
-            raw_by_group[g] = future.result()
-
-    merged_dict: dict = {}
-    for group, fields in groups.items():
-        parsed = parse_extraction_result(raw_by_group[group])
-        for fname in fields:
-            merged_dict[fname] = getattr(parsed, fname)
-
-    return parse_extraction_result(merged_dict)
+    raw_by_group, errors_by_group = _extract_groups(content, k, model, max_tokens)
+    if errors_by_group:
+        raise next(iter(errors_by_group.values()))
+    return _compose_groups(raw_by_group, k)
 
 
 def chunk_content(content: str, max_tokens: int = 4000) -> list[str]:
@@ -659,13 +722,17 @@ def summarize_chunk(chunk_text: str, frontmatter: dict, model: str) -> str:
     else:
         user_content = chunk_text
 
+    # Plain-text output sized one rung above the old 2048 with continuation
+    # instead of discard: a truncated summary is kept work, and the headroom
+    # avoids most continuation round-trips entirely.
     return completion(
         model=model,
         messages=[
             {"role": "system", "content": instructions},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=2048,
+        max_tokens=3072,
+        continue_on_length=True,
     )
 
 
@@ -772,23 +839,32 @@ def _phase2_with_retry(
     model: str,
     max_tokens: int,
 ) -> ExtractionResult:
-    """Run K-call type-split, retrying the entire Phase 2 once on any failure.
+    """Run the K-call type-split, re-dispatching only the groups that failed.
 
-    Any of the K parallel calls failing causes the entire K-call set to be
-    retried (full re-dispatch). Partial-K-result degradation is intentionally
-    NOT used: leaving empty fields in ExtractionResult would silently pollute
-    downstream wiki output. Two consecutive failures propagate to the caller
-    (Go bridge surfaces the error in the extract job protocol).
+    Round 1 collects single-group failures instead of propagating them (fields
+    are group-owned, so the surviving K-1 partial composes with the retried
+    group's answer). One retry round re-dispatches exactly the failed groups —
+    the previous full re-dispatch paid K calls to recover one.
+
+    The no-silent-partial contract is preserved: a group still failing after
+    its retry propagates its original error, so an empty field never reaches
+    the wiki (the Go bridge surfaces the error in the extract job protocol).
     """
-    try:
-        return extract_knowledge_type_split(content, k=k, model=model, max_tokens=max_tokens)
-    except Exception as e:
+    raw_by_group, errors_by_group = _extract_groups(content, k, model, max_tokens)
+    if errors_by_group:
         print(
-            f"[warn] _phase2_with_retry: K={k} type-split failed, retrying once: {e}",
+            f"[warn] _phase2_with_retry: K={k} groups {sorted(errors_by_group)} "
+            f"failed, retrying once: {next(iter(errors_by_group.values()))}",
             file=sys.stderr,
             flush=True,
         )
-        return extract_knowledge_type_split(content, k=k, model=model, max_tokens=max_tokens)
+        retried, still_failing = _extract_groups(
+            content, k, model, max_tokens, only=tuple(errors_by_group)
+        )
+        raw_by_group.update(retried)
+        if still_failing:
+            raise next(iter(still_failing.values()))
+    return _compose_groups(raw_by_group, k)
 
 
 @_with_extract_timeout

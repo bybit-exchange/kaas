@@ -102,7 +102,7 @@ class TestClientOptions:
         mock_client.with_options.return_value = override_client
         fresh_context.call_timeout = 42.5
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "from override client"
         assert mock_client.with_options.call_args.kwargs == {"timeout": 42.5}
@@ -147,7 +147,7 @@ class TestClientOptions:
     def test_no_call_timeout_uses_shared_client(self, mock_client, fresh_context):
         assert fresh_context.call_timeout is None
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "Hello world"
         assert mock_client.with_options.call_count == 0
@@ -213,7 +213,7 @@ class TestErrorClassification:
             _make_response(content="recovered"),
         ]
 
-        text, reason = _completion_inner("model", MSGS)
+        text, reason, _ = _completion_inner("model", MSGS)
 
         assert text == "recovered"
         assert reason == "stop"
@@ -232,7 +232,7 @@ class TestRetryBackoff:
             _make_response(content="third time lucky"),
         ]
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "third time lucky"
         assert mock_client.chat.completions.create.call_count == 3
@@ -251,7 +251,7 @@ class TestRetryBackoff:
             _make_response(content="gateway recovered"),
         ]
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "gateway recovered"
         assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
@@ -300,7 +300,7 @@ class TestRetryBackoff:
         ]
         fresh_context.deadline_abs = time.monotonic() + 600
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "retried in time"
         assert no_sleep == [completion_mod._TIMEOUT_BACKOFF_BASE]
@@ -319,7 +319,7 @@ class TestRetryBackoff:
             _make_response(content="recovered", prompt_tokens=1000, completion_tokens=200),
         ]
 
-        text, _ = _completion_inner("claude-sonnet-4-6", MSGS)
+        text, _, _ = _completion_inner("claude-sonnet-4-6", MSGS)
 
         assert text == "recovered"
         # The per-request tracker and the emitted event both come from closures over ctx.
@@ -395,7 +395,7 @@ class TestAdaptiveCacheBookkeeping:
         tracker = llm_pkg.CostTracker(store_details=True)
         fresh_context.request_tracker = tracker
 
-        text, _ = _completion_inner("model", MSGS)
+        text, _, _ = _completion_inner("model", MSGS)
 
         assert text == "Hello world"
         assert tracker.calls == 0
