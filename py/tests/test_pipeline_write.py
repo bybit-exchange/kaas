@@ -622,3 +622,95 @@ def test_the_write_timeout_override_lands_on_the_workers_own_context(
     assert seen["worker"] == _WRITE_CALL_TIMEOUT_S
     assert seen["caller"] is None, "the override must not touch the shared context"
     assert caller_ctx.call_timeout is None
+
+
+# ── cross-call same-article serialization ───────────────────────────
+
+@pytest.fixture(autouse=True)
+def _fresh_article_locks():
+    """Isolate the process-level lock registry per test."""
+    pw._article_locks.clear()
+    yield
+    pw._article_locks.clear()
+
+
+def test_article_lock_is_per_path():
+    assert pw._article_lock("wiki/a.md") is pw._article_lock("wiki/a.md")
+    assert pw._article_lock("wiki/a.md") is not pw._article_lock("wiki/b.md")
+
+
+def test_same_article_writes_from_two_calls_serialize(store, monkeypatch):
+    """Two concurrent pipeline calls merging the SAME article must serialize:
+    the second merge reads what the first wrote (lost-update regression)."""
+    events: list[str] = []
+
+    def slow_merge(art_path, old_content, extraction, source_path, model="m"):
+        events.append("enter")
+        threading.Event().wait(0.05)
+        events.append("exit")
+        return old_content + "\nmerged\n"
+
+    monkeypatch.setattr(pw, "merge_into_article", slow_merge)
+    store.write_article("wiki/concept/topic.md", "base\n")
+
+    def one_call(ch: str) -> None:
+        ops = [(ch, "raw/a.md", ExtractionResult(summary="s"), "merge",
+                MergeTarget(path="wiki/concept/topic.md"))]
+        pw._process_article("wiki/concept/topic.md", ops, store, "m",
+                            None, {}, threading.Lock())
+
+    threads = [threading.Thread(target=one_call, args=(ch,)) for ch in ("h1", "h2")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert events == ["enter", "exit", "enter", "exit"]
+    final = (store.base_dir / "wiki/concept/topic.md").read_text(encoding="utf-8")
+    assert final.count("\nmerged\n") == 2, "second merge must see the first's content"
+
+
+def test_create_flips_to_merge_when_another_call_won_the_lock(store, monkeypatch):
+    """Without the per-article lock both calls see the path missing and both
+    create (last writer wins, one doc's content lost). With it, the loser
+    re-checks exists() under the lock and merges instead."""
+    created = threading.Event()
+
+    def slow_create(article_type, title, extraction, source_path, model="m"):
+        created.set()
+        threading.Event().wait(0.05)
+        return f"---\ntitle: {title}\n---\nbody {source_path}\n"
+
+    def real_merge(art_path, old_content, extraction, source_path, model="m"):
+        return old_content + f"\nmerged {source_path}\n"
+
+    monkeypatch.setattr(pw, "create_new_article", slow_create)
+    monkeypatch.setattr(pw, "merge_into_article", real_merge)
+
+    results_by_hash: dict[str, dict] = {}
+
+    def one_call(ch: str) -> None:
+        ops = [(ch, f"raw/{ch}.md", ExtractionResult(summary="s"), "create",
+                CreateTarget(path="wiki/concept/topic.md", type="concept", title="Topic"))]
+        results: dict[str, dict] = {}
+        pw._process_article("wiki/concept/topic.md", ops, store, "m",
+                            None, results, threading.Lock())
+        results_by_hash[ch] = results[ch]
+
+    t1 = threading.Thread(target=one_call, args=("h1",))
+    t1.start()
+    created.wait(1)
+    t2 = threading.Thread(target=one_call, args=("h2",))
+    t2.start()
+    t1.join()
+    t2.join()
+
+    roles = sorted((ch, "created" if r["created"] else "merged")
+                   for ch, r in results_by_hash.items())
+    assert [role for _, role in roles] == ["created", "merged"]
+    created_hash, merged_hash = roles[0][0], roles[1][0]
+    assert results_by_hash[created_hash]["created"] == ["wiki/concept/topic.md"]
+    assert results_by_hash[merged_hash]["merged"] == ["wiki/concept/topic.md"]
+    final = (store.base_dir / "wiki/concept/topic.md").read_text(encoding="utf-8")
+    assert f"body raw/{created_hash}.md" in final, "winner's content intact"
+    assert f"merged raw/{merged_hash}.md" in final, "loser's content merged, not lost"

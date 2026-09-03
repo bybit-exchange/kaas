@@ -8,10 +8,16 @@ markdown without corrupting frontmatter.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date
 
 import pytest
 
+from kb_ai._errors import (
+    DeadlineExceededError,
+    EmptyCompletionError,
+    OutputTruncatedError,
+)
 from kb_ai.core import merge as mg
 from kb_ai.core.extract import ExtractionResult
 
@@ -270,7 +276,7 @@ def spy_modes(monkeypatch):
 
     def fake_diff(article_path, article_content, extraction, source_path, model):
         chosen["mode"] = "diff"
-        return "diffed"
+        return "diffed", False
 
     monkeypatch.setattr(mg, "_merge_full_rewrite", fake_rewrite)
     monkeypatch.setattr(mg, "_merge_diff", fake_diff)
@@ -305,6 +311,170 @@ def test_article_over_prompt_budget_uses_diff(monkeypatch, spy_modes):
     mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
 
     assert spy_modes["mode"] == "diff"
+
+
+# ── configurable full-rewrite threshold ─────────────────────────────
+
+def test_full_rewrite_limit_reads_the_env(monkeypatch):
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "12000")
+    assert mg._full_rewrite_limit() == 12_000
+
+
+def test_full_rewrite_limit_without_env_uses_the_default(monkeypatch):
+    monkeypatch.delenv("KB_MERGE_FULL_REWRITE_LIMIT", raising=False)
+    assert mg._full_rewrite_limit() == 30_000
+
+
+def test_full_rewrite_limit_invalid_env_warns_and_uses_the_default(monkeypatch, capsys):
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "not-a-number")
+
+    assert mg._full_rewrite_limit() == 30_000
+
+    err = capsys.readouterr().err
+    assert "KB_MERGE_FULL_REWRITE_LIMIT" in err
+    assert "not-a-number" in err
+
+
+def test_env_lowered_threshold_routes_a_midsize_article_to_diff(spy_modes, monkeypatch):
+    """A 15KB article is a full-rewrite article at the shipped default but a
+    diff article at the deployment-recommended 12000 -- the whole point of the
+    env knob."""
+    monkeypatch.setenv("KB_MERGE_FULL_REWRITE_LIMIT", "12000")
+
+    mg.merge_into_article("wiki/a.md", "x" * 15_000, _extraction(), "raw/a.md")
+
+    assert spy_modes["mode"] == "diff"
+
+
+# ── diff degradation fallback ───────────────────────────────────────
+
+def test_unparsable_diff_falls_back_to_full_rewrite(monkeypatch, capsys):
+    """A degraded diff must not silently drop the new extraction's content:
+    when the article fits the rewrite budget, the rewrite is paid instead."""
+    calls: list[str] = []
+
+    def fake_diff(article_path, article_content, extraction, source_path, model):
+        calls.append("diff")
+        return "diffed", True
+
+    def fake_rewrite(article_path, article_content, extraction, source_path, model):
+        calls.append("rewrite")
+        return "rewritten"
+
+    monkeypatch.setattr(mg, "_merge_diff", fake_diff)
+    monkeypatch.setattr(mg, "_merge_full_rewrite", fake_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["diff", "rewrite"]
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("exc", [
+    json.JSONDecodeError("bad", "{}", 0),
+    RuntimeError("llm down"),
+    EmptyCompletionError("LLM returned an empty body twice"),
+    OutputTruncatedError("LLM output truncated at ceiling"),
+], ids=["json-decode-error", "runtime-error", "empty-completion",
+        "output-truncated"])
+def test_merge_into_article_falls_back_when_diff_result_is_unparsable(
+    monkeypatch, capsys, exc
+):
+    """End-to-end wiring: the real _merge_diff flags the failure and
+    merge_into_article pays the rewrite, emitting the fallback log line that
+    Phase 5 counts as the fallback-rate metric."""
+    def boom(**kwargs):
+        raise exc
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    monkeypatch.setattr(mg, "_merge_full_rewrite", lambda *args: "rewritten")
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+def test_a_deadline_exhausted_diff_propagates_the_deadline_error(monkeypatch):
+    """DeadlineExceededError is not degradation: "no batch time left" must
+    reach the item error as itself, not be relabelled "diff result unparsable
+    and no rewrite fits" -- an operator would go debug the model and the
+    prompts instead of the batch clock."""
+    def boom(**kwargs):
+        raise DeadlineExceededError("deadline_too_close: batch deadline passed")
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+
+    def must_not_rewrite(*args):
+        raise AssertionError("a rewrite cannot run inside an expired deadline")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    with pytest.raises(DeadlineExceededError, match="deadline_too_close"):
+        mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+
+def test_a_legitimate_empty_patches_diff_does_not_fall_back(monkeypatch, capsys):
+    """`{"patches": []}` is the model answering "nothing to add" -- a healthy
+    diff result, not degradation, so no rewrite is paid and no fallback line
+    is logged."""
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {"patches": []})
+
+    def must_not_rewrite(*args):
+        raise AssertionError("full rewrite must not run on a healthy diff")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == big
+    assert "falling back to full-rewrite" not in capsys.readouterr().err
+
+
+def test_a_degraded_diff_that_cannot_fit_a_rewrite_raises(monkeypatch):
+    """Over the prompt budget there is no rewrite to fall back to: raising
+    (instead of returning the unchanged article) routes the failure into the
+    write phase's per-article handler, so the task's Ack payload carries the
+    error instead of reporting "merged" -- and the write is skipped, so the
+    frontmatter never records a source whose content is absent."""
+    monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5000)
+    monkeypatch.setattr(mg, "_merge_diff", lambda *args: ("kept content", True))
+
+    def must_not_rewrite(*args):
+        raise AssertionError("rewrite cannot fit the budget and must not run")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    with pytest.raises(RuntimeError, match="no rewrite fits"):
+        mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+
+def test_default_env_non_degraded_diff_result_is_returned_verbatim(monkeypatch):
+    """Regression for the Phase 4 refactor: with the env unset, a healthy
+    large-article merge is byte-identical to the pre-change behaviour -- the
+    diff result is returned exactly as _merge_diff produced it."""
+    monkeypatch.delenv("KB_MERGE_FULL_REWRITE_LIMIT", raising=False)
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "patches": [{"action": "append_to_section", "section": "## One",
+                     "content": "added"}],
+    })
+    monkeypatch.setattr(mg, "_merge_full_rewrite", lambda *args: "REWRITTEN")
+
+    article = "## One\nbody\n" + "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+
+    expected, degraded = mg._merge_diff(
+        "wiki/a.md", article, _extraction(), "raw/a.md", "claude-sonnet-4-6")
+
+    assert degraded is False
+    assert out == expected
+    assert "added" in out
 
 
 # ── _merge_user_message ─────────────────────────────────────────────
@@ -425,6 +595,28 @@ def test_apply_diff_fills_an_empty_sources_key_at_the_end_of_frontmatter():
 
     assert "sources:\n  - raw/a.md\n---" in out
     assert f"updated: {TODAY}" in out
+
+
+@pytest.mark.parametrize("article", [
+    # updated refresh + source append, the base case
+    "---\ntitle: A\nupdated: 2024-01-01\nsources:\n  - raw/old.md\n---\n## Body\ntext\n",
+    # source inserted before a following key
+    "---\ntitle: A\nsources:\n  - raw/a.md\ncreated: 2024-01-01\n---\nbody\n",
+    # empty sources key at the end of frontmatter
+    "---\ntitle: A\nupdated: 2024-01-01\nsources:\n---\nbody\n",
+    # no updated key to refresh
+    "---\ntitle: A\nsources:\n  - raw/a.md\n---\nbody\n",
+    # unterminated frontmatter: returned unchanged
+    "---\ntitle: A\nno closing delimiter\n",
+    # no frontmatter at all: returned unchanged
+    "## Body\njust text\n",
+])
+def test_update_frontmatter_equals_apply_diff_without_patches(article):
+    """The factoring was verbatim: with no patches to apply, _apply_diff must
+    produce exactly what _update_frontmatter produces, byte for byte, across
+    every frontmatter shape the _apply_diff tests above cover."""
+    assert mg._update_frontmatter(article, "raw/new.md", TODAY) == \
+        mg._apply_diff(article, {"patches": []}, "raw/new.md", TODAY)
 
 
 # ── _apply_diff: patches ────────────────────────────────────────────
@@ -678,9 +870,10 @@ def test_merge_diff_applies_the_returned_patches(monkeypatch):
         "patches": [{"action": "append_to_section", "section": "## One", "content": "added"}],
     })
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "added" in out
+    assert degraded is False
 
 
 def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):
@@ -691,9 +884,10 @@ def test_merge_diff_degrades_to_no_patches_on_bad_json(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "body" in out
+    assert degraded is True
 
 
 def test_merge_diff_degrades_on_runtime_error(monkeypatch):
@@ -702,9 +896,10 @@ def test_merge_diff_degrades_on_runtime_error(monkeypatch):
 
     monkeypatch.setattr(mg, "completion_json", boom)
 
-    out = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
 
     assert "body" in out
+    assert degraded is True
 
 
 def test_merge_diff_truncates_an_oversized_article(monkeypatch):
@@ -721,6 +916,192 @@ def test_merge_diff_truncates_an_oversized_article(monkeypatch):
     mg._merge_diff("wiki/a.md", article, _extraction(topics=["s1"]), "raw/a.md", "m")
 
     assert len(captured["user"]) <= 4000
+
+
+def test_merge_diff_applies_patches_to_the_full_article_not_the_truncated_view(
+    monkeypatch,
+):
+    """BUG 1 regression: the diff prompt is built from a section-truncated view,
+    but the patches are applied to the full on-disk article. The pre-fix apply
+    rebuilt the article from the view, so every non-relevant section body was
+    silently dropped from disk -- and in the extreme branch the frontmatter,
+    which _apply_diff's frontmatter pass requires, went with it."""
+    captured = {}
+
+    def fake_completion_json(**kwargs):
+        captured["user"] = kwargs["messages"][1]["content"]
+        return {"patches": [
+            {"action": "append_to_section", "section": "## Pricing", "content": "added line"},
+        ]}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+    # Low enough that the 70%-of-budget section truncation cuts the view down
+    # to the topic-relevant section's body alone -- the frontmatter preamble is
+    # sized so it does not fit in what remains, matching the loss the old
+    # truncated-view apply produced.
+    monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 20_000)
+
+    article = (
+        "---\n"
+        "title: A\n"
+        "updated: 2024-01-01\n"
+        "summary: " + "m" * 3_000 + "\n"
+        "sources:\n"
+        "  - raw/old.md\n"
+        "---\n"
+        "## Pricing\n" + "P" * 10_000 + "\n"
+        "## Operations\n" + "O" * 10_000 + "\n"
+        "## Security\n" + "S" * 10_000 + "\n"
+        "## History\n" + "H" * 10_000 + "\n"
+    )
+    assert len(article) >= 40_000
+
+    out, degraded = mg._merge_diff(
+        "wiki/a.md", article, _extraction(topics=["pricing"]), "raw/new.md", "m")
+
+    # The model really only saw the relevant section -- the regression is about
+    # what happens to the rest of the article.
+    assert "P" * 10_000 in captured["user"]
+    assert "O" * 10_000 not in captured["user"]
+    assert "m" * 3_000 not in captured["user"]
+    assert degraded is False
+    # The merged result keeps every non-relevant section body anyway.
+    assert "O" * 10_000 in out
+    assert "S" * 10_000 in out
+    assert "H" * 10_000 in out
+    # The frontmatter survived on the full article and was updated by it.
+    assert out.startswith("---")
+    assert "title: A" in out
+    assert "updated: 2024-01-01" not in out
+    assert f"updated: {TODAY}" in out
+    assert "  - raw/old.md" in out
+    assert "  - raw/new.md" in out
+    # And the patch itself landed.
+    assert "added line" in out
+
+
+def test_merge_diff_drops_a_malformed_patch_and_degrades(monkeypatch, capsys):
+    """BUG 2: a malformed patch is dropped with an alert, and the drop marks
+    the response suspect (degraded=True) so the caller can pay the rewrite."""
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "patches": [
+            {"action": "append_to_section", "section": "## One", "content": "kept"},
+            {"action": "append_to_section", "section": "", "content": "dropped"},
+        ],
+    })
+
+    out, degraded = mg._merge_diff("wiki/a.md", "## One\nbody\n", _extraction(), "raw/a.md", "m")
+
+    assert degraded is True
+    assert "kept" in out
+    assert "dropped" not in out
+    assert "[LLM-WARN] merge_patch_dropped" in capsys.readouterr().err
+
+
+def test_a_dropped_patch_degrades_into_the_full_rewrite_fallback(monkeypatch, capsys):
+    """BUG 2 end-to-end: the dropped-patch degraded flag drives the existing
+    fallback -- a full rewrite is paid when the article fits its budget, with
+    the same log line the fallback-rate metric counts."""
+    calls: list[str] = []
+
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "patches": [
+            {"action": "new_section", "after": "## One", "heading": "## Two",
+             "content": "valid"},
+            {"action": "rewrite_section", "section": "## One", "content": "bogus"},
+        ],
+    })
+    monkeypatch.setattr(
+        mg, "_merge_full_rewrite",
+        lambda *args: (calls.append("rewrite"), "rewritten")[1])
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    err = capsys.readouterr().err
+    assert "[LLM-WARN] merge_patch_dropped" in err
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in err
+
+
+def test_merge_diff_sizes_the_call_from_the_extraction_estimate(monkeypatch):
+    """The patch payload scales with the extraction, not the article, so the
+    first max_tokens rung is estimate_max_tokens(extraction_estimate) with a
+    4096 floor -- over-provisioning is free, under-sizing costs a restart."""
+    from kb_ai.llm import estimate_max_tokens
+
+    captured = {}
+
+    def fake_completion_json(**kwargs):
+        captured["max_tokens"] = kwargs["max_tokens"]
+        return {"patches": []}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    e = _extraction(summary="s" * 2_000, topics=["t"])
+    mg._merge_diff("wiki/a.md", "## One\nbody\n", e, "raw/a.md", "m")
+
+    assert captured["max_tokens"] == estimate_max_tokens(
+        mg._estimate_full_extraction_size(e, "raw/a.md"), minimum=4096)
+
+
+# ── _validate_patches ───────────────────────────────────────────────
+
+def test_validate_patches_keeps_well_formed_patches(capsys):
+    patches = [
+        {"action": "append_to_section", "section": "## One", "content": "text"},
+        {"action": "new_section", "after": "## One", "heading": "## Two", "content": "text"},
+    ]
+
+    valid, dropped = mg._validate_patches({"patches": patches}, "m")
+
+    assert valid == patches
+    assert dropped == 0
+    assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize("patch", [
+    # append_to_section: empty section anchor
+    {"action": "append_to_section", "section": "", "content": "text"},
+    # append_to_section: content missing entirely
+    {"action": "append_to_section", "section": "## One"},
+    # new_section: empty heading
+    {"action": "new_section", "after": "## One", "heading": "", "content": "text"},
+    # new_section: anchor missing
+    {"action": "new_section", "heading": "## Two", "content": "text"},
+    # new_section: empty content
+    {"action": "new_section", "after": "## One", "heading": "## Two", "content": ""},
+    # an action the prompt never offered
+    {"action": "delete_section", "section": "## One"},
+    # not even an object
+    "not a patch",
+], ids=[
+    "append-empty-section",
+    "append-no-content",
+    "new-empty-heading",
+    "new-no-after",
+    "new-empty-content",
+    "unknown-action",
+    "not-an-object",
+])
+def test_validate_patches_drops_each_malformed_shape(patch, capsys):
+    valid, dropped = mg._validate_patches({"patches": [patch]}, "m")
+
+    assert valid == []
+    assert dropped == 1
+    err = capsys.readouterr().err
+    assert "[LLM-WARN] merge_patch_dropped" in err
+
+
+def test_validate_patches_on_an_empty_response_drops_nothing(capsys):
+    """`{"patches": []}` is the model's legitimate nothing-to-add answer and
+    must not alert or degrade anything."""
+    valid, dropped = mg._validate_patches({"patches": []}, "m")
+
+    assert valid == []
+    assert dropped == 0
+    assert capsys.readouterr().err == ""
 
 
 # ── create_new_article ──────────────────────────────────────────────
@@ -745,6 +1126,41 @@ def test_create_new_article_builds_prompt_and_strips_fencing(monkeypatch):
     assert f"- Created/Updated: {TODAY}" in captured["user"]
     assert "Suggested sections: Overview, Details" in captured["system"]
     assert captured["cache"] is True
+
+
+def test_create_new_article_sizes_first_rung_and_continues(monkeypatch):
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured.update(kwargs)
+        return "article text"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg.create_new_article("concept", "T", _extraction(topics=["t"]), "raw/a.md")
+
+    expected = 2 * mg._estimate_full_extraction_size(
+        _extraction(topics=["t"]), "raw/a.md")
+    assert captured["max_tokens"] == mg.estimate_max_tokens(expected, minimum=16384)
+    assert captured["continue_on_length"] is True
+
+
+def test_merge_full_rewrite_sizes_first_rung_and_continues(monkeypatch):
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured.update(kwargs)
+        return "<article>\n---\ntitle: T\n---\nbody\n</article>"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    article = "---\ntitle: T\n---\n" + ("x" * 40000)
+    extraction = _extraction(topics=["t"])
+    mg._merge_full_rewrite("wiki/c/a.md", article, extraction, "raw/a.md", "m")
+
+    expected = len(article) + mg._estimate_full_extraction_size(extraction, "raw/a.md")
+    assert captured["max_tokens"] == mg.estimate_max_tokens(expected, minimum=16384)
+    assert captured["continue_on_length"] is True
 
 
 def test_create_new_article_adds_status_for_projects(monkeypatch):
@@ -808,7 +1224,7 @@ def clear_write_prompt_version_cache():
 def _prompt_dir(tmp_path, **bodies) -> object:
     prompts = tmp_path / "prompts"
     prompts.mkdir(exist_ok=True)
-    for name in ("merge-rewrite", "merge-diff"):
+    for name in ("merge-rewrite", "merge-diff", "merge-section-router", "merge-section"):
         (prompts / f"{name}.md").write_text(bodies.get(name, f"[{name}] body"))
     return prompts
 
@@ -1014,6 +1430,928 @@ def test_the_two_prompt_versions_are_independent(monkeypatch):
 
     assert mg.write_prompt_version() != write_before
     assert ex.extract_prompt_version() == extract_before
+
+
+# ── section-level merge (F2b-1): prompts, knobs, and the router ────
+#
+# The section path replaces whole-article rewrites with a tiny router call plus
+# per-section rewrites. This section covers the prompt registration, the two env
+# knobs, and the router; the rewriter, dispatch, guard, and fallback chain are
+# F2b-2.
+
+def test_write_prompt_version_golden_hash():
+    """Golden hash of the write stage's prompt set over the shipped files.
+
+    s2-feat-006 (F2b-1, plan 2026-09-02-distill-real-throughput.md §3.2) added
+    the merge-section-router and merge-section prompt files and registered both
+    in _write_stage_renderings(), moving the hash from 694b20651199 to
+    7acff9f3067b by design: the section path's prompts are write-stage system
+    prompts, so provenance must cover them even though the version remains
+    reported-never-gated (no re-extraction or rewrite cost). Any further edit
+    that moves the hash must update this literal together with a justification
+    here, mirroring the extract-side golden test.
+    """
+    mg.write_prompt_version.cache_clear()
+    assert mg.write_prompt_version() == "7acff9f3067b"
+
+
+def test_write_stage_renderings_cover_the_two_section_prompts():
+    names = [name for name, _text in mg._write_stage_renderings()]
+    assert "merge-section-router" in names
+    assert "merge-section" in names
+
+
+def test_the_section_prompts_render_file_plus_grounding():
+    """The two section prompts compose like the other merge prompts -- file
+    content plus the code-appended _GROUNDING -- and use .content so the
+    literal JSON braces in merge-section-router.md survive verbatim."""
+    registry = mg.default_registry()
+
+    assert mg._merge_section_router_system() == (
+        registry.get("merge-section-router").content + "\n" + mg._GROUNDING)
+    assert mg._merge_section_system() == (
+        registry.get("merge-section").content + "\n" + mg._GROUNDING)
+
+
+def test_write_prompt_version_moves_when_merge_section_router_changes(monkeypatch, tmp_path):
+    prompts = _prompt_dir(tmp_path)
+    _reset_registry(monkeypatch, prompts)
+    before = mg.write_prompt_version()
+
+    (prompts / "merge-section-router.md").write_text("[merge-section-router] body, one more rule")
+    _reset_registry(monkeypatch, prompts)
+
+    assert mg.write_prompt_version() != before
+
+
+def test_write_prompt_version_moves_when_merge_section_changes(monkeypatch, tmp_path):
+    prompts = _prompt_dir(tmp_path)
+    _reset_registry(monkeypatch, prompts)
+    before = mg.write_prompt_version()
+
+    (prompts / "merge-section.md").write_text("[merge-section] body, one more rule")
+    _reset_registry(monkeypatch, prompts)
+
+    assert mg.write_prompt_version() != before
+
+
+def test_section_merge_mode_off_disables_the_section_path(monkeypatch):
+    """KB_MERGE_SECTION_MODE is the section path's rollback knob: off must
+    restore the pre-section dispatch exactly."""
+    monkeypatch.setenv(mg._SECTION_MERGE_MODE_ENV, "off")
+    assert mg._section_merge_enabled() is False
+
+
+def test_section_merge_mode_default_and_auto_enable(monkeypatch):
+    monkeypatch.delenv(mg._SECTION_MERGE_MODE_ENV, raising=False)
+    assert mg._section_merge_enabled() is True
+    monkeypatch.setenv(mg._SECTION_MERGE_MODE_ENV, "auto")
+    assert mg._section_merge_enabled() is True
+
+
+def test_section_merge_mode_invalid_warns_once_and_falls_back_to_auto(monkeypatch, capsys):
+    mg._warn_invalid_section_merge_mode.cache_clear()
+    monkeypatch.setenv(mg._SECTION_MERGE_MODE_ENV, "sometimes")
+
+    assert mg._section_merge_enabled() is True
+    assert mg._section_merge_enabled() is True
+
+    err = capsys.readouterr().err
+    assert err.count(mg._SECTION_MERGE_MODE_ENV) == 1
+    assert "sometimes" in err
+
+
+def _reset_section_sem(monkeypatch):
+    """Drop the cached semaphore so a test reads the env afresh (the cache is
+    keyed on the bound; the conftest autouse fixture already deletes the env
+    per test, but the cached object would otherwise outlive the test that
+    sized it)."""
+    monkeypatch.delenv(mg._SECTION_CONCURRENCY_ENV, raising=False)
+    mg._section_call_sem = None
+    mg._section_call_sem_bound = 0
+
+
+def test_section_semaphore_defaults_to_twelve_and_caches(monkeypatch):
+    _reset_section_sem(monkeypatch)
+
+    sem = mg._get_section_sem()
+
+    assert mg._section_call_sem_bound == 12
+    assert sem is mg._get_section_sem()
+
+
+def test_section_semaphore_reads_the_env_and_resizes_when_it_changes(monkeypatch):
+    _reset_section_sem(monkeypatch)
+    monkeypatch.setenv(mg._SECTION_CONCURRENCY_ENV, "3")
+    tight = mg._get_section_sem()
+    assert mg._section_call_sem_bound == 3
+
+    monkeypatch.setenv(mg._SECTION_CONCURRENCY_ENV, "5")
+    wider = mg._get_section_sem()
+
+    assert mg._section_call_sem_bound == 5
+    assert wider is not tight
+    assert wider is mg._get_section_sem()
+
+
+@pytest.mark.parametrize("raw", ["not-a-number", "0", "-4"],
+                         ids=["unparseable", "zero", "negative"])
+def test_section_semaphore_invalid_env_warns_once_and_uses_the_default(
+        monkeypatch, capsys, raw):
+    """A bound below 1 would deadlock every section call on the semaphore, so
+    it is as invalid as a typo: warn once, use the default."""
+    mg._warn_invalid_section_concurrency.cache_clear()
+    _reset_section_sem(monkeypatch)
+    monkeypatch.setenv(mg._SECTION_CONCURRENCY_ENV, raw)
+
+    assert mg._get_section_sem() is not None
+    assert mg._section_call_sem_bound == 12
+    mg._get_section_sem()
+
+    err = capsys.readouterr().err
+    assert err.count(mg._SECTION_CONCURRENCY_ENV) == 1
+
+
+_ROUTER_ARTICLE = """---
+title: T
+---
+
+Intro preamble.
+
+## Alpha
+
+alpha body
+
+## Beta
+
+beta body
+
+## Gamma
+
+gamma body
+"""
+
+
+def test_route_sections_happy_path(monkeypatch):
+    captured = {}
+
+    def fake_completion_json(**kwargs):
+        captured.update(kwargs)
+        return {"sections": ["## Gamma", "## Alpha", "## Gamma"],
+                "new_sections": [{"heading": "## Delta", "after": "## Beta"}]}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    extraction = _extraction(summary="a summary", topics=["alpha", "delta"],
+                             concepts=[{"title": "c1"}, {"title": "c2"}])
+    out = mg._route_sections(_ROUTER_ARTICLE, extraction, "raw/a.md", "m")
+
+    # Duplicates collapse, headings come back as the article's own strings.
+    assert out == {"sections": ["## Gamma", "## Alpha"],
+                   "new_sections": [{"heading": "## Delta", "after": "## Beta"}]}
+    assert captured["max_tokens"] == 1024
+    user = captured["messages"][1]["content"]
+    assert "1. ## Alpha" in user
+    assert "3. ## Gamma" in user
+    assert "a summary" in user
+    assert "alpha, delta" in user
+
+
+def test_route_sections_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
+    captured = {}
+
+    def fake_completion_json(**kwargs):
+        captured["system"] = kwargs["messages"][0]["content"]
+        return {"sections": [], "new_sections": []}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    mg._route_sections(_ROUTER_ARTICLE, _extraction(), "raw/a.md", "m")
+
+    assert captured["system"] == mg._merge_section_router_system()
+
+
+@pytest.mark.parametrize("failure", [
+    json.JSONDecodeError("bad", "{}", 0),
+    RuntimeError("llm down"),
+    mg.OutputTruncatedError("still truncated at ceiling"),
+], ids=["json-decode-error", "runtime-error", "truncated-ladder"])
+def test_route_sections_returns_none_on_call_failure(monkeypatch, failure):
+    def boom(**kwargs):
+        raise failure
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+
+    assert mg._route_sections(
+        _ROUTER_ARTICLE, _extraction(), "raw/a.md", "m") is None
+
+
+@pytest.mark.parametrize("raw", [
+    ["not", "a", "dict"],
+    {"unrelated": True},
+    {"sections": [], "new_sections": []},
+    {"sections": ["## Nope"],
+     "new_sections": [{"heading": "## N", "after": "## Also Nope"}]},
+], ids=["non-dict", "missing-both-fields", "legitimately-empty", "everything-unknown"])
+def test_route_sections_returns_none_when_nothing_valid_survives(monkeypatch, raw):
+    """None is the degrade signal: the caller falls through to the legacy chain
+    rather than silently merging nothing, including for the router that answers
+    with empty lists (it saw a digest, not the full extraction, so "nothing
+    fits" is not trusted the way a diff path's legitimate {"patches": []} is)."""
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: raw)
+
+    assert mg._route_sections(
+        _ROUTER_ARTICLE, _extraction(), "raw/a.md", "m") is None
+
+
+def test_route_sections_drops_unknown_headings_with_an_alert(monkeypatch, capsys):
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: {
+        "sections": ["## Alpha", "## Nope"],
+        "new_sections": [
+            {"heading": "## Delta", "after": "## Beta"},
+            {"heading": "## Epsilon", "after": "## Missing"},
+            {"heading": "", "after": "## Beta"},
+        ],
+    })
+
+    out = mg._route_sections(_ROUTER_ARTICLE, _extraction(), "raw/a.md", "m")
+
+    assert out == {"sections": ["## Alpha"],
+                   "new_sections": [{"heading": "## Delta", "after": "## Beta"}]}
+    err = capsys.readouterr().err
+    assert err.count("section_route_dropped") == 3
+
+
+def test_concurrent_router_calls_are_bounded_by_the_semaphore(monkeypatch):
+    """Opt #1: the router's LLM call runs under _get_section_sem(), so the
+    section path cannot multiply the write phase's concurrent calls past the
+    bound (default 12). Barrier-style: each mocked call blocks until exactly
+    the bound's worth of callers are inside together, so 16 queued callers can
+    only finish if at most 12 are inside at once -- a 13th would strand the
+    rendezvous at a lower peak and fail the peak assertion."""
+    _reset_section_sem(monkeypatch)
+
+    bound = 12
+    callers = 16
+    lock = threading.Lock()
+    state = {"active": 0, "peak": 0}
+    over_bound: list[int] = []
+    all_inside = threading.Event()
+
+    def fake_completion_json(**kwargs):
+        with lock:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+            if state["active"] > bound:
+                over_bound.append(state["active"])
+            if state["active"] == bound:
+                all_inside.set()
+        all_inside.wait(timeout=10)
+        with lock:
+            state["active"] -= 1
+        return {"sections": [], "new_sections": []}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+
+    threads = [threading.Thread(
+        target=mg._route_sections,
+        args=(_ROUTER_ARTICLE, _extraction(), "raw/a.md", "m"))
+        for _ in range(callers)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+
+    assert not any(t.is_alive() for t in threads)
+    assert all_inside.is_set()
+    assert state["peak"] == bound
+    assert not over_bound
+
+
+# ── section-merge machinery and dispatch (F2b-2) ─────────────────────
+
+def _section_article(body_chars=3_200, names=("Alpha", "Beta", "Gamma", "Delta")):
+    """A >=12K-byte article with frontmatter, a preamble, and named ##
+    sections -- over _SECTION_MERGE_MIN_BYTES at the default size, under the
+    diff threshold, each body carrying a per-section filler token so tests
+    can tell a kept body from a rewritten one."""
+    parts = ["---\ntitle: T\nsources:\n  - raw/first.md\n---\n\nIntro preamble.\n"]
+    for name in names:
+        filler = f"[{name}-filler] " * (body_chars // (len(name) + 10))
+        parts.append(f"\n## {name}\n\n{filler}{name} body\n")
+    return "".join(parts)
+
+
+@pytest.fixture
+def spy_section(monkeypatch):
+    """Record _merge_sections runs and hand back a healthy result, so dispatch
+    tests observe routing without paying the machinery."""
+    runs: list[str] = []
+
+    def fake_sections(article_path, article_content, extraction, source_path, model):
+        runs.append(article_path)
+        return "sectioned", False
+
+    monkeypatch.setattr(mg, "_merge_sections", fake_sections)
+    return runs
+
+
+def test_a_qualifying_article_takes_the_section_path(spy_modes, spy_section):
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "sectioned"
+    assert spy_section == ["wiki/a.md"]
+    assert "mode" not in spy_modes  # neither legacy path ran
+
+
+def test_an_over_size_article_still_qualifies_for_the_section_path(
+        spy_modes, spy_section):
+    """The section path sits ahead of both legacy legs, so a >=30K article
+    with sections also merges at section granularity; only its degraded
+    fallback is the diff."""
+    out = mg.merge_into_article("wiki/a.md", _section_article(body_chars=8_000),
+                                _extraction(), "raw/a.md")
+
+    assert out == "sectioned"
+    assert spy_section == ["wiki/a.md"]
+    assert "mode" not in spy_modes
+
+
+def test_below_the_section_threshold_stays_on_the_full_rewrite(spy_modes, spy_section):
+    mg.merge_into_article("wiki/a.md", _section_article(body_chars=2_000),
+                          _extraction(), "raw/a.md")
+
+    assert spy_modes["mode"] == "rewrite"
+    assert spy_section == []
+
+
+def test_fewer_than_three_sections_stay_on_the_legacy_chain(spy_modes, spy_section):
+    article = _section_article(body_chars=7_000, names=("Alpha", "Beta"))
+    assert len(article.encode("utf-8")) >= mg._SECTION_MERGE_MIN_BYTES
+
+    mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+
+    assert spy_modes["mode"] == "rewrite"
+    assert spy_section == []
+
+
+def test_a_prompt_overflow_article_skips_the_section_path(monkeypatch, spy_modes,
+                                                          spy_section):
+    monkeypatch.setattr(mg, "MAX_PROMPT_CHARS", 5_000)
+
+    mg.merge_into_article("wiki/a.md", _section_article(), _extraction(), "raw/a.md")
+
+    assert spy_modes["mode"] == "diff"
+    assert spy_section == []
+
+
+def test_section_mode_off_restores_the_pre_section_dispatch(monkeypatch, spy_modes,
+                                                            spy_section):
+    """Rollback safety: KB_MERGE_SECTION_MODE=off must leave observable
+    dispatch exactly as it was before the section path existed -- a 12K-30K
+    article rewrites whole, an over-size article diffs."""
+    monkeypatch.setenv(mg._SECTION_MERGE_MODE_ENV, "off")
+
+    mg.merge_into_article("wiki/a.md", _section_article(), _extraction(), "raw/a.md")
+    assert spy_modes["mode"] == "rewrite"
+
+    spy_modes.pop("mode")
+    mg.merge_into_article("wiki/b.md", _section_article(body_chars=8_000),
+                          _extraction(), "raw/a.md")
+    assert spy_modes["mode"] == "diff"
+    assert spy_section == []
+
+
+def test_a_degraded_section_merge_falls_back_to_the_full_rewrite_once(monkeypatch):
+    """A 12K-30K article's legacy fallback leg is the full rewrite (§3.3 step
+    5), paid exactly once -- no loop back into the section path."""
+    calls: list[str] = []
+
+    monkeypatch.setattr(mg, "_merge_sections",
+                        lambda *a: (calls.append("section"), ("kept", True))[1])
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    def must_not_diff(*args):
+        raise AssertionError("a 12K-30K article falls back to the rewrite, not the diff")
+
+    monkeypatch.setattr(mg, "_merge_diff", must_not_diff)
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["section", "rewrite"]
+
+
+def test_a_degraded_section_merge_on_an_over_size_article_falls_back_to_diff(
+        monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setattr(mg, "_merge_sections",
+                        lambda *a: (calls.append("section"), ("kept", True))[1])
+    monkeypatch.setattr(mg, "_merge_diff",
+                        lambda *a: (calls.append("diff"), ("diffed", False))[1])
+
+    def must_not_rewrite(*args):
+        raise AssertionError("an over-size article never pays a full rewrite")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(body_chars=8_000),
+                                _extraction(), "raw/a.md")
+
+    assert out == "diffed"
+    assert calls == ["section", "diff"]
+
+
+def test_a_router_failure_runs_the_full_rewrite_exactly_once(monkeypatch, capsys):
+    """End to end through the real _route_sections: the router call fails, the
+    fallback line is logged, and the legacy rewrite leg runs once."""
+    def boom(**kwargs):
+        raise RuntimeError("llm down")
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "[merge] section-merge fallback: wiki/a.md:" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("exc", [
+    EmptyCompletionError("LLM returned an empty body twice"),
+    DeadlineExceededError("deadline_too_close to continue"),
+], ids=["empty-completion", "deadline-exceeded"])
+def test_router_kb_errors_degrade_to_the_legacy_chain(monkeypatch, capsys, exc):
+    """EmptyCompletionError and DeadlineExceededError inherit KBError, not
+    RuntimeError, so the router's degrade tuple names them explicitly --
+    otherwise the escape is swallowed per-article by the write phase's generic
+    handler and the task Acks as an error instead of falling back (the
+    empty-body mode was measured on deepseek-v4-flash, the deadline mode
+    exists only on batched calls)."""
+    def boom(**kwargs):
+        raise exc
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "[merge] section-merge fallback: wiki/a.md:" in capsys.readouterr().err
+
+
+def test_an_empty_completion_in_the_diff_degrades_to_the_full_rewrite(
+        monkeypatch, capsys):
+    """Same contract on the diff leg: an EmptyCompletionError from the patch
+    call marks the response degraded, and an article that fits the rewrite
+    budget pays the rewrite rather than Acking unmerged."""
+    def boom(**kwargs):
+        raise EmptyCompletionError("LLM returned an empty body twice")
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+def test_duplicate_headings_degrade_to_the_legacy_chain(monkeypatch, capsys):
+    """Two sections sharing one heading line: the section path keys bodies by
+    heading text, so proceeding would replace BOTH occurrences with one
+    rewrite built from the last body -- silently deleting the first
+    occurrence's content on disk. The guard fires before the router call."""
+    article = _section_article(body_chars=6_000, names=("Alpha", "Beta", "Gamma"))
+    article += "\n## Alpha\n\nSECOND alpha body\n"
+    assert len(article.encode("utf-8")) >= mg._SECTION_MERGE_MIN_BYTES
+
+    def must_not_route(*args):
+        raise AssertionError("the duplicate guard must fire before the router call")
+
+    monkeypatch.setattr(mg, "_route_sections", must_not_route)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "duplicate ## headings" in capsys.readouterr().err
+
+
+def test_merge_one_section_strips_only_a_true_heading_echo(monkeypatch):
+    """The echo strip requires the heading's own newline: "## Notes"
+    prefix-matching a different echoed heading ("## Notes on X") used to eat
+    the start of the section body."""
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "## Notes on X\n\nkept body")
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "## Notes on X\n\nkept body"
+
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "## Notes\n\nrewritten body")
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "rewritten body"
+
+
+@pytest.mark.parametrize("echo", [
+    "## Notes \n\nrewritten body",   # trailing space on the echoed line
+    "## Notes\r\n\nrewritten body",  # CRLF line ending
+], ids=["trailing-space", "crlf"])
+def test_merge_one_section_recognizes_a_whitespace_padded_echo(monkeypatch, echo):
+    """An echo whose line differs only in trailing whitespace must still be
+    stripped: a heading that slips through renders twice, and the duplicate
+    then trips the duplicate-heading guard on every later merge of the
+    article."""
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: echo)
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "rewritten body"
+
+
+def test_route_sections_remaps_existing_heading_proposals(monkeypatch, capsys):
+    """A new-section proposal naming a heading the article already carries is
+    a route onto that section, not a new section: dropping it (the earlier
+    guard) silently left its material unmerged while the task Acked
+    "merged". A heading duplicating another proposal has no unambiguous
+    placement and still drops with an alert."""
+    route = {
+        "sections": [],
+        "new_sections": [
+            {"heading": "## Alpha", "after": "## Beta"},          # existing -> remap
+            {"heading": "## Fresh", "after": "## Beta"},          # valid
+            {"heading": "## Fresh", "after": "## Gamma"},         # duplicate proposal
+        ],
+    }
+    monkeypatch.setattr(mg, "completion_json", lambda **kwargs: route)
+
+    out = mg._route_sections(_section_article(), _extraction(), "raw/a.md", "m")
+
+    assert out == {"sections": ["## Alpha"],
+                   "new_sections": [{"heading": "## Fresh", "after": "## Beta"}]}
+    err = capsys.readouterr().err
+    # The remap is correct-but-diagnostic; the duplicate proposal is dropped.
+    assert err.count("section_route_remapped") == 1
+    assert err.count("section_route_dropped") == 1
+
+
+def test_a_section_failing_twice_degrades_after_one_retry(monkeypatch, capsys):
+    attempts = {"n": 0}
+
+    def boom(**kwargs):
+        attempts["n"] += 1
+        raise RuntimeError("llm down")
+
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha"], "new_sections": []})
+    monkeypatch.setattr(mg, "completion", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert attempts["n"] == 2  # one retry, then degrade -- never a third attempt
+    assert calls == ["rewrite"]
+    err = capsys.readouterr().err
+    assert "[merge] section-merge fallback: wiki/a.md:" in err
+    assert "failed twice" in err
+
+
+def test_merge_sections_happy_path_reassembly(monkeypatch, capsys):
+    """The reassembly is deterministic over _parse_sections: untouched sections
+    and the preamble survive with their own text, the routed section's body is
+    swapped in, the new section lands after its anchor, and the frontmatter
+    pass runs on the assembled result."""
+    article = _section_article()
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha"],
+        "new_sections": [{"heading": "## Epsilon", "after": "## Beta"}],
+    })
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "rewritten body")
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", article, _extraction(summary="new fact"), "raw/a.md", "m")
+
+    assert degraded is False
+    # Kept bodies carry their filler verbatim; the rewritten one does not.
+    assert "[Beta-filler]" in result
+    assert "[Gamma-filler]" in result and "[Delta-filler]" in result
+    assert "[Alpha-filler]" not in result
+    assert "rewritten body" in result
+    # Preamble text survives and the frontmatter pass refreshed it.
+    assert "Intro preamble." in result
+    assert f"updated: {TODAY}" in result
+    assert "  - raw/first.md" in result and "  - raw/a.md" in result
+    # Order: Alpha rewritten in place, Epsilon after Beta and before Gamma.
+    assert (result.index("## Alpha") < result.index("## Beta")
+            < result.index("## Epsilon") < result.index("## Gamma"))
+    err = capsys.readouterr().err
+    assert "[merge] section-merge: wiki/a.md (1/4 sections, +1 new)" in err
+
+
+def test_reassembly_leaves_untouched_parts_byte_identical(monkeypatch):
+    """Byte-level pin of the reassembly: the exact article comes back with
+    only the routed body swapped, the new section inserted after its anchor,
+    and the frontmatter keys the pass touches changed."""
+    article = (
+        "---\ntitle: T\nsources:\n  - raw/first.md\n---\n\n"
+        "Intro preamble.\n"
+        "\n## Alpha\n\nalpha body\n"
+        "\n## Beta\n\nbeta body\n"
+        "\n## Gamma\n\ngamma body\n"
+        "\n## Delta\n\ndelta body\n"
+    )
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha"],
+        "new_sections": [{"heading": "## New", "after": "## Beta"}],
+    })
+
+    def fake_completion(**kwargs):
+        user = kwargs["messages"][1]["content"]
+        return "REWRITTEN" if "alpha body" in user else "NEWBODY"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", article, _extraction(summary="s"), "raw/new.md", "m")
+
+    assert degraded is False
+    expected = (
+        "---\ntitle: T\nsources:\n  - raw/first.md\n  - raw/new.md\n"
+        f"updated: {TODAY}\n---\n\n"
+        "Intro preamble.\n\n"
+        "## Alpha\n\nREWRITTEN\n"
+        "\n## Beta\n\nbeta body\n"
+        "\n## New\n\nNEWBODY\n"
+        "\n## Gamma\n\ngamma body\n"
+        "\n## Delta\n\ndelta body\n"
+    )
+    assert result == expected
+
+
+def test_the_coverage_guard_skips_to_the_legacy_chain(monkeypatch, capsys):
+    """High affinity: past 60% of sections touched, the guard trips after the
+    router call -- one wasted 1024-token router call, counted by its own log
+    line -- and no section rewrite is paid."""
+    router_calls: list[bool] = []
+    rewrites: list[bool] = []
+
+    def fake_route(*a):
+        router_calls.append(True)
+        return {"sections": ["## Alpha", "## Beta", "## Gamma"],
+                "new_sections": []}
+
+    monkeypatch.setattr(mg, "_route_sections", fake_route)
+    monkeypatch.setattr(mg, "completion",
+                        lambda **kw: rewrites.append(True) or "body")
+
+    article = _section_article()
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", article, _extraction(), "raw/a.md", "m")
+
+    assert degraded is True
+    assert result is article
+    assert router_calls == [True]
+    assert rewrites == []
+    err = capsys.readouterr().err
+    assert "[merge] section-merge guard: wiki/a.md:" in err
+    assert "60%" in err
+
+
+def test_the_sized_guard_trips_when_the_extraction_dominates(monkeypatch, capsys):
+    """Every section call carries the whole extraction, so a fat extraction
+    routed into several sections expects more generated tokens than one full
+    rewrite -- the sized half of the guard."""
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha", "## Beta"], "new_sections": []})
+
+    def must_not_run(**kwargs):
+        raise AssertionError("the guard must trip before any section rewrite")
+
+    monkeypatch.setattr(mg, "completion", must_not_run)
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", _section_article(), _extraction(summary="s" * 12_000),
+        "raw/a.md", "m")
+
+    assert degraded is True
+    err = capsys.readouterr().err
+    assert "[merge] section-merge guard: wiki/a.md:" in err
+    assert "exceeds the sized full rewrite" in err
+
+
+def test_an_empty_section_rewrite_is_retried_then_recovers(monkeypatch):
+    """A model returning an empty body would silently delete the section's
+    content in the reassembly, so it is one more retryable failure."""
+    responses = iter(["", "real body"])
+
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha"], "new_sections": []})
+    monkeypatch.setattr(mg, "completion", lambda **kw: next(responses))
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", _section_article(), _extraction(), "raw/a.md", "m")
+
+    assert degraded is False
+    assert "real body" in result
+
+
+def test_section_calls_adopt_the_callers_context(fresh_context, monkeypatch):
+    """Pool workers must carry the write phase's context (phase label,
+    call_timeout) into their LLM calls -- the issue #26 lesson: a worker on a
+    default context reports op=unknown and loses the timeout."""
+    from kb_ai._context import get_context
+
+    ctx = fresh_context
+    ctx.phase = "write:wiki/a.md"
+    ctx.call_timeout = 123.0
+    seen: dict = {}
+
+    def fake_completion(**kwargs):
+        current = get_context()
+        seen["phase"] = current.phase
+        seen["call_timeout"] = current.call_timeout
+        return "body"
+
+    monkeypatch.setattr(mg, "_route_sections", lambda *a: {
+        "sections": ["## Alpha"], "new_sections": []})
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    mg._merge_sections("wiki/a.md", _section_article(), _extraction(),
+                       "raw/a.md", "m")
+
+    assert seen == {"phase": "write:wiki/a.md", "call_timeout": 123.0}
+
+
+def _barriered_completion(expected: int, state: dict, all_inside: threading.Event,
+                          over_cap: list[int], lock: threading.Lock):
+    """A completion mock that only returns once exactly `expected` callers are
+    inside together -- copied from the router test's rendezvous pattern."""
+    def fake_completion(**kwargs):
+        with lock:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+            if state["active"] > expected:
+                over_cap.append(state["active"])
+            if state["active"] == expected:
+                all_inside.set()
+        all_inside.wait(timeout=10)
+        with lock:
+            state["active"] -= 1
+        return "body"
+    return fake_completion
+
+
+def _five_task_article():
+    names = tuple(f"S{i}" for i in range(10))
+    return _section_article(body_chars=1_300, names=names), \
+        [f"## S{i}" for i in (0, 2, 4, 6, 8)]
+
+
+def test_the_per_merge_pool_is_capped_at_four(monkeypatch):
+    """min(_SECTION_POOL_CAP, tasks) bounds one article's fan-out even with the
+    process-wide semaphore loose (default 12): five section tasks can only
+    ever have four calls in flight together."""
+    _reset_section_sem(monkeypatch)
+    article, routed = _five_task_article()
+    monkeypatch.setattr(mg, "_route_sections",
+                        lambda *a: {"sections": routed, "new_sections": []})
+
+    expected = 4
+    lock = threading.Lock()
+    state = {"active": 0, "peak": 0}
+    over_cap: list[int] = []
+    all_inside = threading.Event()
+    monkeypatch.setattr(mg, "completion",
+                        _barriered_completion(expected, state, all_inside, over_cap, lock))
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", article, _extraction(), "raw/a.md", "m")
+
+    assert degraded is False
+    assert all_inside.is_set()
+    assert state["peak"] == expected
+    assert not over_cap
+
+
+def test_section_calls_are_bounded_by_the_semaphore(monkeypatch):
+    """The pool cap alone is not the bound -- the process-wide semaphore is.
+    With the bound at 2 and five tasks on a pool of four, at most two calls
+    are in flight together."""
+    _reset_section_sem(monkeypatch)
+    monkeypatch.setenv(mg._SECTION_CONCURRENCY_ENV, "2")
+    article, routed = _five_task_article()
+    monkeypatch.setattr(mg, "_route_sections",
+                        lambda *a: {"sections": routed, "new_sections": []})
+
+    expected = 2
+    lock = threading.Lock()
+    state = {"active": 0, "peak": 0}
+    over_cap: list[int] = []
+    all_inside = threading.Event()
+    monkeypatch.setattr(mg, "completion",
+                        _barriered_completion(expected, state, all_inside, over_cap, lock))
+
+    result, degraded = mg._merge_sections(
+        "wiki/a.md", article, _extraction(), "raw/a.md", "m")
+
+    assert degraded is False
+    assert all_inside.is_set()
+    assert state["peak"] == expected
+    assert not over_cap
+
+
+def test_merge_one_section_sizes_continues_and_strips_the_echo(monkeypatch):
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured.update(kwargs)
+        return "```markdown\n## Alpha\n\nmerged body\n```"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+    extraction = _extraction(summary="s" * 100)
+
+    out = mg._merge_one_section("## Alpha", "old body", extraction,
+                                "raw/a.md", "m", 10_000)
+
+    assert out == "merged body"  # the fence and the echoed heading are stripped
+    assert captured["continue_on_length"] is True
+    assert captured["cache"] is True
+    assert captured["max_tokens"] == mg.estimate_max_tokens(
+        len("old body") + mg._estimate_full_extraction_size(extraction, "raw/a.md"),
+        minimum=4096)
+    assert captured["messages"][0]["content"] == mg._merge_section_system()
+    user = captured["messages"][1]["content"]
+    assert "## Alpha" in user and "old body" in user
+    assert "- Source: raw/a.md" in user
+
+
+def test_merge_one_section_for_a_new_section_carries_the_anchor(monkeypatch):
+    captured = {}
+
+    def fake_completion(**kwargs):
+        captured.update(kwargs)
+        return "new section body"
+
+    monkeypatch.setattr(mg, "completion", fake_completion)
+
+    out = mg._merge_one_section("## Epsilon", "", _extraction(summary="s"),
+                                "raw/a.md", "m", 10_000, after="## Beta")
+
+    assert out == "new section body"
+    user = captured["messages"][1]["content"]
+    assert "## Epsilon" in user
+    assert "## Beta" in user
+
+
+def test_merge_into_article_section_path_end_to_end(monkeypatch, capsys):
+    """Acceptance, end to end: a >=12K-byte, >=3-section article in auto mode
+    merges at section granularity through the real router and reassembly --
+    untouched parts byte-identical, frontmatter refreshed, the section-merge
+    line logged."""
+    article = _section_article()
+
+    def fake_completion_json(**kwargs):
+        return {"sections": ["## Gamma"],
+                "new_sections": [{"heading": "## Zeta", "after": "## Delta"}]}
+
+    monkeypatch.setattr(mg, "completion_json", fake_completion_json)
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "merged section")
+
+    out = mg.merge_into_article("wiki/a.md", article,
+                                _extraction(summary="s"), "raw/a.md")
+
+    assert "[Alpha-filler]" in out and "[Beta-filler]" in out
+    assert "[Delta-filler]" in out
+    assert "[Gamma-filler]" not in out
+    assert "merged section" in out
+    assert "Intro preamble." in out
+    assert f"updated: {TODAY}" in out
+    assert "  - raw/first.md" in out and "  - raw/a.md" in out
+    assert out.index("## Delta") < out.index("## Zeta")
+    err = capsys.readouterr().err
+    assert "[merge] section-merge: wiki/a.md (1/4 sections, +1 new)" in err
 
 
 # ── write-phase call timeout ────────────────────────────────────────

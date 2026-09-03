@@ -116,10 +116,14 @@ def _run_pipeline_inner(input_data: dict, emit=None, cancel_event=None) -> list[
     item_results = extraction_errors + run_pipeline_orchestrated(pipeline_ctx, items)
 
     # ── Phase 3: Update indices once ──
-    update_markdown_index(store, min_articles=topic_index_min_articles,
-                          summary_max_chars=summary_max_chars)
-    update_document_index(store, summary_max_chars=summary_max_chars)
-    update_people_stubs(store, people_cfg)
+    # rebuild_index gates the per-call index refresh: the Go backend's
+    # debounced IndexRefresher sends an explicit false to own index timing;
+    # absent (CLI/HTTP) or true keeps the refresh here.
+    if input_data.get("rebuild_index", True):
+        update_markdown_index(store, min_articles=topic_index_min_articles,
+                              summary_max_chars=summary_max_chars)
+        update_document_index(store, summary_max_chars=summary_max_chars)
+        update_people_stubs(store, people_cfg)
 
     return item_results
 

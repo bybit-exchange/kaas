@@ -17,6 +17,7 @@ import sys
 # --- Errors (from kb_ai._errors) ---
 from kb_ai._errors import (  # noqa: F401
     DeadlineExceededError,
+    EmptyCompletionError,
     LLMTimeoutError,
     OutputTruncatedError,
     PipelineCancelledError,
@@ -46,7 +47,7 @@ from ._infra import (  # noqa: F401
 from ._cache import AdaptiveCacheState, enable_prompt_caching  # noqa: F401
 
 # --- Completion (non-streaming) ---
-from ._completion import completion, completion_json  # noqa: F401
+from ._completion import completion, completion_json, estimate_max_tokens  # noqa: F401
 # Private — NOT re-exported; accessed internally by submodules.
 from ._completion import _cache_state, _cache_lock  # noqa: F401
 

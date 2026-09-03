@@ -10,8 +10,52 @@ sqlite_path = "./data/kaas.db"
 kb_dir = "./data"
 
 [worker]
-extract_workers = 4
-pipeline_concurrency = 2
+# Document-level task concurrency: how many documents the dispatcher runs
+# through the full extract + pipeline lifecycle in parallel. The effective
+# cap is min(document_workers, ai.daemon.concurrency) — move both together.
+# LLM concurrency arithmetic: extract calls are bounded by document_workers,
+# and batched write calls by pipeline_batch_max_inflight x
+# pipeline_concurrency, so peak LLM concurrency is the sum of the two.
+# The old name extract_workers still works (deprecated alias, removed next
+# release). Container overrides without an image rebuild:
+# KAAS_WORKER_DOCUMENT_WORKERS / KAAS_WORKER_EXTRACT_WORKERS (deprecated).
+document_workers = 16
+# Per-call write fan-out inside one (batched) pipeline call.
+pipeline_concurrency = 8
+# Batched pipeline calls: per-task items are fanned in and sent as grouped
+# Pipeline calls, so documents distilled in the same window that target the
+# same article share one write LLM call. pipeline_batch_max_items caps items
+# per batch (default 1 = one call per task, the pre-batching behaviour;
+# rollback by setting 1), pipeline_batch_flush_ms is the batching window
+# measured from the oldest pending item (default/rollback 500), and
+# pipeline_batch_max_inflight caps concurrent in-flight batch calls. The
+# Go code default for inflight is 1; this deployment pins 2 as a measured
+# trade-off (150-doc replay, issue wangdahoo/kaas#1): inflight=8 buys
+# wall clock (58.9 min vs 95.3 min) at +41% total LLM work via batch
+# fragmentation (1.3 items/batch vs 3.0), while inflight=2 keeps batches
+# dense (3.0 items/batch) and total LLM work bounded. Rollback to the
+# code default: KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT=1. Each batch call
+# carries a deadline (pipeline_batch_deadline_sec, default 2400) enforced
+# by the daemon as one wall clock shared by every item in the batch; it
+# also bounds the shutdown drain. Raise it for slow models or a raised
+# write call timeout -- a batch slower than the deadline fails items a
+# direct (pre-batching) call would have finished. Container overrides
+# without an image rebuild: KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS /
+# KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT /
+# KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC.
+pipeline_batch_max_items = 16
+pipeline_batch_flush_ms = 2000
+pipeline_batch_max_inflight = 2
+# Debounced index rebuilds: pipeline calls stop rebuilding the KB indexes per
+# call (rebuild_index=false) and completions mark them dirty; one index
+# rebuild follows index_debounce_sec after the last completion. Under
+# continuous ingestion a dirty state older than index_max_stale_sec forces a
+# refresh, so index staleness stays bounded (0 auto-sizes to 5x the debounce).
+# Setting index_debounce_sec = 0 disables the Go-side refresher and restores
+# the per-call rebuild (rollback). Container overrides without an image
+# rebuild: KAAS_WORKER_INDEX_DEBOUNCE_SEC / KAAS_WORKER_INDEX_MAX_STALE_SEC.
+index_debounce_sec = 30
+index_max_stale_sec = 300
 poll_interval_ms = 1000
 lease_timeout_sec = 300
 # Consecutive LLM failures that open the circuit breaker.
@@ -31,7 +75,10 @@ mcp_url = ""
 # stdin/stdout protocol to it.
 command = "uv"
 args = ["run", "--directory", "py", "kb-ai", "daemon"]
-concurrency = 8
+# Daemon command concurrency (Python thread pool). Keep it >=
+# worker.document_workers or the smaller value silently caps document-level
+# concurrency. Override with KAAS_AI_DAEMON_CONCURRENCY.
+concurrency = 16
 warmup_timeout_sec = 30
 max_restarts = 5
 
@@ -77,5 +124,5 @@ max_file_size = 1048576            # 1 MiB — max per text file (.md/.txt/.csv)
 max_rich_file_size = 52428800      # 50 MiB — max per rich document (.pdf/.docx/.pptx/...)
 max_zip_file_size = 104857600      # 100 MiB — max for a .zip archive
 max_files_per_upload = 50          # max top-level files in one request
-max_zip_entries = 500              # max entries extracted from a zip
+max_zip_entries = 1000             # max entries extracted from a zip
 max_zip_extracted_size = 209715200 # 200 MiB — total extracted bytes cap

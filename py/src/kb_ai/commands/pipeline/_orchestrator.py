@@ -111,6 +111,14 @@ def _run_phases(
 
     classify_duration = time.time() - t0
     classify_delta = _active_tracker().delta(snap_classify)
+    c_calls = len(classify_delta.get("call_details", []))
+    c_llm = sum(d.get("duration_s", 0.0) for d in classify_delta["call_details"])
+    print(
+        f"[pipeline] classify llm: {c_calls} calls, {c_llm:.1f}s llm time, "
+        f"{classify_delta['completion']} completion tokens",
+        file=sys.stderr,
+        flush=True,
+    )
     print(
         f"[pipeline] classify done: {len(classified_items)} items in {classify_duration:.1f}s",
         file=sys.stderr,
@@ -166,6 +174,14 @@ def _run_phases(
 
     write_duration = time.time() - t_write
     write_delta = _active_tracker().delta(snap_write)
+    w_calls = len(write_delta.get("call_details", []))
+    w_llm = sum(d.get("duration_s", 0.0) for d in write_delta["call_details"])
+    print(
+        f"[pipeline] write llm: {w_calls} calls, {w_llm:.1f}s llm time, "
+        f"{write_delta['completion']} completion tokens",
+        file=sys.stderr,
+        flush=True,
+    )
     print(
         f"[pipeline] write done: {articles_written} articles in {write_duration:.1f}s",
         file=sys.stderr,
@@ -177,6 +193,8 @@ def _run_phases(
             "phase": "write",
             "duration_s": round(write_duration, 2),
             "articles": articles_written,
+            "llm_calls": w_calls,
+            "llm_duration_s": round(w_llm, 1),
             "cost": _build_cost_summary(write_delta),
         })
 
