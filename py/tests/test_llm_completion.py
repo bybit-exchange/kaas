@@ -209,13 +209,15 @@ class TestReasoningEffortPassthrough:
         completion("model", [{"role": "user", "content": "Hi"}])
         assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
 
-    def test_probe_interrupted_by_timeout_keeps_the_knob(
+    def test_probe_interrupted_by_timeout_converges_on_eventual_success(
             self, mock_client, monkeypatch, capsys):
-        # The probe's own request timed out and the ladder retry succeeded:
-        # that success is not evidence about the param (the param was already
-        # stripped for the whole in-flight attempt sequence), so the knob
-        # stays enabled for the process and no unsupported-alert fires. Only
-        # a probe that succeeds outright disables it.
+        # A flaky-but-refusing gateway (generic 400 on the param, intermittent
+        # timeouts): the probe times out, the ladder retry succeeds, and the
+        # only remaining difference from the 400-ing original is the param --
+        # so the knob disables and the alert fires on the FIRST call, instead
+        # of replaying the three-request ladder on every call until the batch
+        # deadline runs out. Only a probe refused with a 400 of its own keeps
+        # the knob on (the test above).
         monkeypatch.setenv("KB_AI_REASONING_EFFORT", "low")
         monkeypatch.setattr("kb_ai.llm._completion._TIMEOUT_BACKOFF_BASE", 0)
         mock_client.chat.completions.create.side_effect = [
@@ -227,17 +229,18 @@ class TestReasoningEffortPassthrough:
         result = completion("model", [{"role": "user", "content": "Hi"}])
 
         assert result == "recovered"
-        assert "reasoning_effort_unsupported" not in capsys.readouterr().err
+        err = capsys.readouterr().err
+        assert "reasoning_effort_unsupported" in err and "generic 400" in err
         calls = mock_client.chat.completions.create.call_args_list
         assert "reasoning_effort" in calls[0].kwargs      # the original 400
         assert "reasoning_effort" not in calls[1].kwargs  # the probe
         assert "reasoning_effort" not in calls[2].kwargs  # ladder retry (param already stripped)
 
-        # The process state is what matters: the next call still carries it.
+        # Converged: the next call omits the param without another 400 dance.
         mock_client.chat.completions.create.reset_mock()
         mock_client.chat.completions.create.side_effect = None
         completion("model", [{"role": "user", "content": "Hi"}])
-        assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+        assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
 
 
 class TestBatchDeadlineClamp:

@@ -703,6 +703,14 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
         # the placement).
         key = heading.strip()
         if key in known:
+            # Diagnostic, not an error: the remap gives the material the right
+            # home, but a router that systematically proposes existing
+            # headings is drifting placement (and cost) from "insert a new
+            # section" to "rewrite an existing one", and the degrade
+            # diagnostics only see it through this alert.
+            emit_alert(f"router proposed existing heading {heading!r} as a new "
+                       f"section; routing onto it instead",
+                       model, 0, "section_route_remapped")
             if known[key] not in sections:
                 sections.append(known[key])
             continue
@@ -1024,10 +1032,14 @@ def _merge_diff(
 ) -> tuple[str, bool]:
     """Merge via patches. Returns (new_content, degraded); degraded is True
     when the LLM's diff response was unparsable (JSONDecodeError, RuntimeError,
-    EmptyCompletionError, DeadlineExceededError or OutputTruncatedError from
-    completion_json -- the same set the section router degrades on) or when
+    EmptyCompletionError or OutputTruncatedError from completion_json) or when
     _validate_patches dropped a malformed patch from it -- a legitimate
     {"patches": []} is a valid "nothing to add" answer, not degradation.
+
+    DeadlineExceededError propagates rather than degrading: "no batch time
+    left" is not an unparsable answer, and the caller's fallback legs (a full
+    rewrite) cannot run inside an expired deadline either -- swallowing it
+    here would mislabel a clock problem as a model problem.
     """
     from datetime import date
     today = date.today().isoformat()
@@ -1070,7 +1082,7 @@ def _merge_diff(
             _estimate_full_extraction_size(extraction, source_path), minimum=4096),
            cache=True)
     except (json.JSONDecodeError, RuntimeError, EmptyCompletionError,
-            DeadlineExceededError, OutputTruncatedError):
+            OutputTruncatedError):
         raw = {"patches": []}
         degraded = True
 

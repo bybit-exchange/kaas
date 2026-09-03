@@ -216,14 +216,18 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             response = client.chat.completions.create(**kwargs)
             break
         except (APITimeoutError, APIStatusError) as e:
-            if probed_reasoning_effort is not None:
-                # The probe's own request failed -- for any reason, not just a
-                # repeat 400. Its outcome no longer attributes the original
-                # 400 to the param: only a probe that succeeds outright
-                # disables the knob, so an eventual ladder success after e.g.
-                # a timeout retry leaves the knob on, self-correcting on the
-                # next call instead of disabling an operator setting on a
-                # coincidence.
+            if (probed_reasoning_effort is not None
+                    and isinstance(e, APIStatusError) and e.status_code == 400):
+                # The probe's own request was refused with a 400 of its own:
+                # with the param already stripped, that 400 is about the
+                # request itself, so nothing attributes the original 400 to
+                # the param and the knob stays on. A TRANSIENT probe failure
+                # (timeout, 503) cancels nothing -- if the ladder then
+                # succeeds, the only remaining difference from the 400-ing
+                # original is the param, so a flaky-but-refusing gateway
+                # converges (disable + alert) on its first call instead of
+                # replaying the three-request ladder on every call until the
+                # batch deadline runs out.
                 probed_reasoning_effort = None
             # A 400 while reasoning_effort was sent may be the gateway
             # rejecting the param itself, not the request: strip it, retry the
@@ -245,13 +249,13 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
                 # A generic body is ambiguous: some gateways refuse unknown
                 # fields without naming them, and a 400 about the request
                 # itself (wrong model, malformed messages) looks identical.
-                # Probe this attempt once without the param: only a probe that
-                # succeeds outright pins the blame on the param (disabled
-                # after the loop); any failure of the probe's own request -- a
-                # repeat 400, a timeout, anything -- cancels the attribution
-                # and the knob stays on. Refusing to probe would trade the old
-                # silent degrade for a hard outage on every call until an
-                # operator noticed the env var.
+                # Probe this attempt once without the param: a probe success
+                # -- outright or after transient retries -- pins the blame on
+                # the param (disabled after the loop); a probe refused with a
+                # 400 of its own cancels the attribution and the knob stays
+                # on. Refusing to probe would trade the old silent degrade
+                # for a hard outage on every call until an operator noticed
+                # the env var.
                 probed_reasoning_effort = kwargs["reasoning_effort"]
                 del kwargs["reasoning_effort"]
                 continue

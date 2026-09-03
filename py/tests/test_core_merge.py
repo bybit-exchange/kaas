@@ -376,10 +376,9 @@ def test_unparsable_diff_falls_back_to_full_rewrite(monkeypatch, capsys):
     json.JSONDecodeError("bad", "{}", 0),
     RuntimeError("llm down"),
     EmptyCompletionError("LLM returned an empty body twice"),
-    DeadlineExceededError("deadline_too_close to continue"),
     OutputTruncatedError("LLM output truncated at ceiling"),
 ], ids=["json-decode-error", "runtime-error", "empty-completion",
-        "deadline-exceeded", "output-truncated"])
+        "output-truncated"])
 def test_merge_into_article_falls_back_when_diff_result_is_unparsable(
     monkeypatch, capsys, exc
 ):
@@ -397,6 +396,26 @@ def test_merge_into_article_falls_back_when_diff_result_is_unparsable(
 
     assert out == "rewritten"
     assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+def test_a_deadline_exhausted_diff_propagates_the_deadline_error(monkeypatch):
+    """DeadlineExceededError is not degradation: "no batch time left" must
+    reach the item error as itself, not be relabelled "diff result unparsable
+    and no rewrite fits" -- an operator would go debug the model and the
+    prompts instead of the batch clock."""
+    def boom(**kwargs):
+        raise DeadlineExceededError("deadline_too_close: batch deadline passed")
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+
+    def must_not_rewrite(*args):
+        raise AssertionError("a rewrite cannot run inside an expired deadline")
+
+    monkeypatch.setattr(mg, "_merge_full_rewrite", must_not_rewrite)
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    with pytest.raises(DeadlineExceededError, match="deadline_too_close"):
+        mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
 
 
 def test_a_legitimate_empty_patches_diff_does_not_fall_back(monkeypatch, capsys):
@@ -1989,6 +2008,8 @@ def test_route_sections_remaps_existing_heading_proposals(monkeypatch, capsys):
     assert out == {"sections": ["## Alpha"],
                    "new_sections": [{"heading": "## Fresh", "after": "## Beta"}]}
     err = capsys.readouterr().err
+    # The remap is correct-but-diagnostic; the duplicate proposal is dropped.
+    assert err.count("section_route_remapped") == 1
     assert err.count("section_route_dropped") == 1
 
 
