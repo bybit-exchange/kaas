@@ -221,6 +221,13 @@ func (b *PipelineBatcher) launchFlush(ws []*batchWaiter) []*batchWaiter {
 	return nil
 }
 
+// flushDeadlineMargin is the slack the Go-side call timeout adds on top of
+// BatchDeadline: the daemon enforces the deadline cooperatively, and a busy
+// batch can land its results shortly after the mark, so the Go timeout exists
+// only for the daemon that cannot answer at all. Package-level so tests can
+// shorten it instead of sleeping the production margin.
+var flushDeadlineMargin = 2 * time.Minute
+
 // flush issues one batched Pipeline call and splits its results back to the
 // waiters by content_hash.
 func (b *PipelineBatcher) flush(ws []*batchWaiter) {
@@ -234,16 +241,26 @@ func (b *PipelineBatcher) flush(ws []*batchWaiter) {
 		req.DeadlineSeconds = int(b.cfg.BatchDeadline / time.Second)
 	}
 
-	// Detached context on purpose: daemon.call returns ctx.Err() the moment a
+	// Detached base on purpose: daemon.call returns ctx.Err() the moment a
 	// context is cancelled, so reusing a waiter's or the app's ctx would turn
 	// every restart/shutdown into a Nack that burns task attempts. Batch
-	// calls always run to completion; the deadline bounds a wedged daemon.
-	// The breaker wrap counts a call-level failure once per batch, not once
-	// per waiter.
+	// calls always run to completion. BatchDeadline bounds the call twice:
+	// DeadlineSeconds asks the daemon to stop cooperatively, and the Go-side
+	// timeout below is the enforcement when it cannot answer at all -- without
+	// it a wedged daemon holds the flush's inflight slot forever and the
+	// shutdown drain never returns. The breaker wrap counts a call-level
+	// failure once per batch, not once per waiter.
+	callCtx := context.Background()
+	if b.cfg.BatchDeadline > 0 {
+		var cancel context.CancelFunc
+		callCtx, cancel = context.WithTimeout(context.Background(),
+			b.cfg.BatchDeadline+flushDeadlineMargin)
+		defer cancel()
+	}
 	var resp *bridge.PipelineResponse
 	err := b.brk.Do(func() error {
 		var e error
-		resp, e = b.eng.Pipeline(context.Background(), req)
+		resp, e = b.eng.Pipeline(callCtx, req)
 		return e
 	})
 	if err != nil {

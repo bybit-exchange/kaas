@@ -537,6 +537,56 @@ func TestPipelineBatchDefaults(t *testing.T) {
 		t.Fatalf("pipeline batch defaults = %d/%d/%d, want 1/500/1",
 			c.Worker.PipelineBatchMaxItems, c.Worker.PipelineBatchFlushMS, c.Worker.PipelineBatchMaxInflight)
 	}
+	if c.Worker.PipelineBatchDeadlineSec != 2400 {
+		t.Errorf("pipeline_batch_deadline_sec default = %d, want 2400", c.Worker.PipelineBatchDeadlineSec)
+	}
+}
+
+// TestPipelineBatchDeadlineTunable confirms the deadline is raisable from the
+// file and via env (slow-model deployments), and that a negative value is
+// rejected rather than silently disabling the bound.
+func TestPipelineBatchDeadlineTunable(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[worker]
+pipeline_batch_deadline_sec = 4800
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Worker.PipelineBatchDeadlineSec != 4800 {
+		t.Errorf("pipeline_batch_deadline_sec = %d, want file value 4800", c.Worker.PipelineBatchDeadlineSec)
+	}
+
+	t.Setenv("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC", "3600")
+	c2, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load with env: %v", err)
+	}
+	if c2.Worker.PipelineBatchDeadlineSec != 3600 {
+		t.Errorf("pipeline_batch_deadline_sec = %d, want env override 3600", c2.Worker.PipelineBatchDeadlineSec)
+	}
+
+	t.Setenv("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC", "-1")
+	if _, err := Load(p); err == nil {
+		t.Fatal("expected Load to reject a negative pipeline_batch_deadline_sec")
+	}
+}
+
+// TestEffectiveDocumentWorkersNegativeNotMasked: an explicitly invalid
+// document_workers must reach validate() even when the deprecated alias is
+// positive, instead of being silently masked by it.
+func TestEffectiveDocumentWorkersNegativeNotMasked(t *testing.T) {
+	w := WorkerConf{DocumentWorkers: -3, ExtractWorkers: 4}
+	if got := w.EffectiveDocumentWorkers(); got != -3 {
+		t.Errorf("EffectiveDocumentWorkers() = %d, want -3 passed through for validate() to reject", got)
+	}
+	if got := w.DocumentWorkersSource(); got != "document_workers" {
+		t.Errorf("DocumentWorkersSource() = %q, want document_workers", got)
+	}
 }
 
 // TestPipelineBatchFromFile confirms explicit TOML values map onto the struct.

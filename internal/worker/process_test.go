@@ -544,3 +544,29 @@ func TestProcessBatcherErrOpenAbandons(t *testing.T) {
 		t.Errorf("pipeline calls = %d, want 0 (breaker rejected without issuing)", got)
 	}
 }
+
+// TestProcessBatcherClosedAbandons: ErrBatcherClosed means the batcher stopped
+// collecting before this item was submitted (a shutdown racing Submit), so no
+// call was made for the task -- abandon rather than Nack, matching the ErrOpen
+// branch; RecoverExpired requeues it without burning an attempt.
+func TestProcessBatcherClosedAbandons(t *testing.T) {
+	q := &stubQueue{}
+	eng := &recordingEngine{}
+	b := newTestBatcher(eng, newBrk(), BatcherConfig{MaxItems: 1, FlushWait: time.Second})
+	cancel := runBatcher(t, b)
+	cancel() // Run returns and closes runDone; Submit now reports ErrBatcherClosed
+	<-b.runDone
+
+	NewWorker(q, eng, newBrk(), "w1", batcherCfg(b)).Process(context.Background(), taskWithRaw(t, "body"))
+
+	setStageN, ackN, nackN := q.snapshot()
+	if ackN != 0 || nackN != 0 {
+		t.Fatalf("ErrBatcherClosed must abandon the task, got ack=%d nack=%d", ackN, nackN)
+	}
+	if setStageN != 1 {
+		t.Errorf("SetStage calls = %d, want 1 (abandon happens after the stage advance)", setStageN)
+	}
+	if got := eng.pipelineCalls(); got != 0 {
+		t.Errorf("pipeline calls = %d, want 0 (nothing was submitted)", got)
+	}
+}

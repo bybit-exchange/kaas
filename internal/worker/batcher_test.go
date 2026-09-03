@@ -65,7 +65,13 @@ func (e *echoEngine) Pipeline(ctx context.Context, req bridge.PipelineRequest) (
 		time.Sleep(delay)
 	}
 	if block != nil {
-		<-block
+		// Same select shape as the real DaemonClient.call: a blocked command
+		// returns with ctx.Err() the moment its context is cancelled.
+		select {
+		case <-block:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -448,6 +454,31 @@ func TestBatcherCloseTimesOut(t *testing.T) {
 	if r := recvSubmit(t, h1ch); r.err != nil {
 		t.Fatalf("waiter err = %v, want the batch to finish after Close gave up", r.err)
 	}
+}
+
+// TestBatcherFlushWedgeBoundedByDeadline: BatchDeadline must bound the daemon
+// call itself, not just Close's wait. The daemon enforces the deadline
+// cooperatively; a daemon that cannot answer at all (a wedged process) is
+// what the Go-side timeout exists for -- without it the flush holds its
+// inflight slot forever and the shutdown drain never returns. The waiter gets
+// the deadline error and the slot is released.
+func TestBatcherFlushWedgeBoundedByDeadline(t *testing.T) {
+	prev := flushDeadlineMargin
+	flushDeadlineMargin = 100 * time.Millisecond
+	t.Cleanup(func() { flushDeadlineMargin = prev })
+
+	eng := &echoEngine{block: make(chan struct{})} // never answered
+	b := newTestBatcher(eng, newBrk(), BatcherConfig{
+		MaxItems:      1,
+		BatchDeadline: 50 * time.Millisecond,
+	})
+	runBatcher(t, b)
+
+	r := recvSubmit(t, goSubmit(b, context.Background(), "h1"))
+	if !errors.Is(r.err, context.DeadlineExceeded) {
+		t.Fatalf("Submit err = %v, want context.DeadlineExceeded from the bound call", r.err)
+	}
+	waitFor(t, func() bool { return eng.inflightNow() == 0 }, 2*time.Second)
 }
 
 // TestBatcherErrOpenRejectedWithoutCall: an open breaker rejects the batch

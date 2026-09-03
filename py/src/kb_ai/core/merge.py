@@ -13,6 +13,8 @@ from kb_ai._context import adopt_context, get_context
 from kb_ai.core.extract import ExtractionResult
 from kb_ai.llm import (
     MAX_PROMPT_CHARS,
+    DeadlineExceededError,
+    EmptyCompletionError,
     OutputTruncatedError,
     completion,
     completion_json,
@@ -351,6 +353,12 @@ def _truncate_article_by_sections(article_content: str, topics: list[str], budge
 # editing code. Keeping the shipped default unchanged is deliberate: a lower
 # threshold shifts merges onto the diff path, a quality/latency tradeoff that
 # belongs to the operator, not to a release.
+#
+# Scope: in auto mode the section-merge path sits AHEAD of this threshold for
+# articles that fit the prompt budget (its degraded fallback is the diff leg,
+# which this threshold selects). An operator who wants at-or-above-threshold
+# articles on the diff path unconditionally sets KB_MERGE_SECTION_MODE=off,
+# which restores exactly the pre-section dispatch.
 _LARGE_ARTICLE_THRESHOLD = 30_000
 
 
@@ -612,9 +620,9 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
     model's text, anchored to the article's own spelling of "after".
 
     Returns None on call failure (parse error, garbage shape, exhausted
-    truncation ladder) or when nothing valid survives -- the caller treats None
-    as degraded and falls through to the legacy chain rather than silently
-    merging nothing.
+    truncation ladder, empty completion, batch deadline) or when nothing valid
+    survives -- the caller treats None as degraded and falls through to the
+    legacy chain rather than silently merging nothing.
 
     The completion_json call runs under _get_section_sem() with restart
     semantics (JSON cannot continue mid-object), max_tokens fixed at 1024: the
@@ -635,7 +643,8 @@ def _route_sections(article_content: str, extraction: ExtractionResult,
                 {"role": "system", "content": _merge_section_router_system()},
                 {"role": "user", "content": user},
             ], max_tokens=1024)
-    except (json.JSONDecodeError, RuntimeError, OutputTruncatedError):
+    except (json.JSONDecodeError, RuntimeError, OutputTruncatedError,
+            EmptyCompletionError, DeadlineExceededError):
         return None
     if not isinstance(raw, dict):
         return None
@@ -721,9 +730,11 @@ def _merge_one_section(heading: str, body: str, extraction: ExtractionResult,
 
     # The prompt says body only, but an echoed fence or heading would corrupt
     # the deterministic reassembly (which emits the heading itself), so both
-    # are stripped from whatever came back.
+    # are stripped from whatever came back. The echo match requires the
+    # heading's own newline: "## Notes" prefix-matching a different echoed
+    # heading like "## Notes on X" would eat the start of the body.
     out = _strip_markdown_fencing(text).strip()
-    if heading and out.startswith(heading):
+    if heading and (out.startswith(heading + "\n") or out == heading):
         out = out[len(heading):].lstrip("\n").strip()
     if not out:
         # An empty body would silently delete the section's content in the
@@ -746,6 +757,20 @@ def _merge_sections(
     _merge_diff, else full rewrite). Those run at most once each, so the chain
     section -> diff -> full rewrite is acyclic by construction.
     """
+    sections = _parse_sections(article_content)
+    n_sections = sum(1 for heading, _body in sections if heading)
+
+    # The reassembly keys rewritten bodies by heading text, so a duplicated ##
+    # heading would have both occurrences replaced with one rewrite (based on
+    # the last occurrence's body) and silently delete the other's content. The
+    # legacy paths place content positionally and are duplicate-safe.
+    headings = [heading for heading, _body in sections if heading]
+    if len(set(headings)) != len(headings):
+        print(f"[merge] section-merge fallback: {article_path}: duplicate ## "
+              f"headings, the legacy paths handle them positionally",
+              file=sys.stderr, flush=True)
+        return article_content, True
+
     route = _route_sections(article_content, extraction, source_path, model)
     if route is None:
         print(f"[merge] section-merge fallback: {article_path}: router call failed",
@@ -754,8 +779,6 @@ def _merge_sections(
 
     affected = route["sections"]
     new_sections = route["new_sections"]
-    sections = _parse_sections(article_content)
-    n_sections = sum(1 for heading, _body in sections if heading)
 
     # Cost guard on the router's output. Coverage half: past 60% of the
     # sections touched, one full rewrite is cheaper than the fan-out it would
@@ -952,10 +975,10 @@ def _merge_diff(
     extraction: ExtractionResult, source_path: str, model: str,
 ) -> tuple[str, bool]:
     """Merge via patches. Returns (new_content, degraded); degraded is True
-    when the LLM's diff response was unparsable (JSONDecodeError or RuntimeError
-    from completion_json) or when _validate_patches dropped a malformed patch
-    from it -- a legitimate {"patches": []} is a valid "nothing to add"
-    answer, not degradation.
+    when the LLM's diff response was unparsable (JSONDecodeError, RuntimeError
+    or EmptyCompletionError from completion_json) or when _validate_patches
+    dropped a malformed patch from it -- a legitimate {"patches": []} is a
+    valid "nothing to add" answer, not degradation.
     """
     from datetime import date
     today = date.today().isoformat()
@@ -997,7 +1020,7 @@ def _merge_diff(
         ], max_tokens=estimate_max_tokens(
             _estimate_full_extraction_size(extraction, source_path), minimum=4096),
            cache=True)
-    except (json.JSONDecodeError, RuntimeError):
+    except (json.JSONDecodeError, RuntimeError, EmptyCompletionError):
         raw = {"patches": []}
         degraded = True
 

@@ -172,11 +172,13 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 			ContentHash: task.ContentHash,
 			SourceRef:   sourceRef,
 		})
-		if errors.Is(err, circuit.ErrOpen) {
-			// The breaker rejected the batch without issuing the call: abandon
-			// without Ack/Nack so attempts are not burned; RecoverExpired
-			// requeues the task after the lease TTL.
-			log.Printf("worker: %s pipeline abandoned: circuit breaker open", task.ID)
+		if errors.Is(err, circuit.ErrOpen) || errors.Is(err, ErrBatcherClosed) {
+			// The breaker rejected the batch without issuing the call, or the
+			// batcher stopped collecting before this item was submitted (a
+			// shutdown that raced the Submit): abandon without Ack/Nack so
+			// attempts are not burned; RecoverExpired requeues the task after
+			// the lease TTL. ErrBatcherClosed only ever means "not submitted".
+			log.Printf("worker: %s pipeline abandoned: %v", task.ID, err)
 			return
 		}
 	} else {

@@ -176,13 +176,6 @@ Examples:
 `)
 }
 
-// defaultBatchDeadlineSec bounds a single batched pipeline call: it is wired
-// to PipelineRequest.DeadlineSeconds so a wedged daemon call cannot hold a
-// whole batch's dispatcher slots forever, and it also caps the batcher's
-// shutdown drain. 2400s covers the worst expected batch (two ~723s write
-// waves).
-const defaultBatchDeadlineSec = 2400
-
 func run(configFile string) error {
 	cfg, err := config.Load(configFile)
 	if err != nil {
@@ -237,13 +230,22 @@ func run(configFile string) error {
 	// debounce later, with a forced rebuild once the dirty state is maxStale
 	// old. An engine without the index command keeps the legacy per-call
 	// rebuild.
+	//
+	// Its breaker is separate from the one gating extract/pipeline: an index
+	// rebuild reads every article, so a deterministically broken index (a
+	// corrupted article, a wedged startup) must not open the breaker that
+	// stalls all task processing while the pipeline itself is healthy.
 	var indexer *worker.IndexRefresher
 	var rebuildIndex *bool
 	if cfg.Worker.IndexDebounceSec > 0 {
 		if idx, ok := workerEng.(worker.Indexer); ok {
 			// NewIndexRefresher auto-sizes maxStale to 5x the debounce and logs
 			// the effective values, so the raw config passes straight through.
-			indexer = worker.NewIndexRefresher(idx, brk, cfg.Storage.KBDir,
+			idxBrk := circuit.New(circuit.Options{
+				FailureThreshold: cfg.Worker.CBFailureThreshold,
+				Cooldown:         time.Duration(cfg.Worker.CBCooldownSec) * time.Second,
+			})
+			indexer = worker.NewIndexRefresher(idx, idxBrk, cfg.Storage.KBDir,
 				time.Duration(cfg.Worker.IndexDebounceSec)*time.Second,
 				time.Duration(cfg.Worker.IndexMaxStaleSec)*time.Second)
 			rebuildOff := false
@@ -262,7 +264,7 @@ func run(configFile string) error {
 			MaxItems:      cfg.Worker.PipelineBatchMaxItems,
 			FlushWait:     time.Duration(cfg.Worker.PipelineBatchFlushMS) * time.Millisecond,
 			MaxInflight:   cfg.Worker.PipelineBatchMaxInflight,
-			BatchDeadline: defaultBatchDeadlineSec * time.Second,
+			BatchDeadline: time.Duration(cfg.Worker.PipelineBatchDeadlineSec) * time.Second,
 		}, func() bridge.PipelineRequest {
 			return bridge.PipelineRequest{
 				KBDir:        cfg.Storage.KBDir,

@@ -103,10 +103,16 @@ def estimate_max_tokens(expected_output_chars: int, *, minimum: int = 4096,
     return max(minimum, min(estimated, ceiling))
 
 
-def _dedup_overlap(acc: str, chunk: str, max_chars: int = 256) -> str:
+def _dedup_overlap(acc: str, chunk: str, max_chars: int = 2048) -> str:
     """Concatenate RAW strings, dropping the longest suffix of `acc` that equals
     a prefix of `chunk` (bounded scan) — removes seam repetition only. It never
     inserts or restores separator whitespace (that is the raw-text contract's job).
+
+    The window has to exceed what a model realistically re-emits when it
+    ignores the continuation instruction — a table or list block runs to
+    hundreds of chars, and a match beyond the window is silently persisted as
+    duplicated text. The scan is linear in the bound and runs at most
+    _CONTINUATION_MAX times per call, so 2048 is cheap.
     """
     limit = min(len(acc), len(chunk), max_chars)
     for overlap in range(limit, 0, -1):
@@ -189,12 +195,20 @@ def _completion_inner(model: str, messages: list[dict], temperature: float = 0,
             response = client.chat.completions.create(**kwargs)
             break
         except (APITimeoutError, APIStatusError) as e:
-            # A 400 while reasoning_effort was sent is the gateway rejecting
+            # A 400 whose body names reasoning_effort is the gateway rejecting
             # the param itself, not the request: alert, strip it, retry the
             # same attempt once, and never send it again in this process. It
             # fires at most once (the flag plus the kwargs deletion below).
+            # The body check is what keeps a 400 from any other cause (wrong
+            # model name, malformed messages, oversized request) from being
+            # mis-attributed to the param -- which would burn a pointless
+            # retry and silently disable the operator's knob process-wide.
+            # Gateways that refuse the param name it in the error; one that
+            # answers a generic 400 keeps the knob on and the real error
+            # surfaces on this same attempt's raise path.
             if (isinstance(e, APIStatusError) and e.status_code == 400
-                    and "reasoning_effort" in kwargs):
+                    and "reasoning_effort" in kwargs
+                    and "reasoning_effort" in str(e)):
                 emit_alert(
                     f"op={op} model={model} reasoning_effort={kwargs['reasoning_effort']} "
                     f"unsupported, retrying without it",

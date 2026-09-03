@@ -17,6 +17,7 @@ import sys
 # --- Errors (from kb_ai._errors) ---
 from kb_ai._errors import (  # noqa: F401
     DeadlineExceededError,
+    EmptyCompletionError,
     LLMTimeoutError,
     OutputTruncatedError,
     PipelineCancelledError,

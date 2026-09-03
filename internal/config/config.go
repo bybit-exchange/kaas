@@ -93,6 +93,15 @@ type WorkerConf struct {
 	// bridge semaphore counts daemon commands, not a batch's internal write
 	// fan-out.
 	PipelineBatchMaxInflight int `json:"pipeline_batch_max_inflight,default=1"`
+	// PipelineBatchDeadlineSec bounds a single batched Pipeline call. It is
+	// wired to PipelineRequest.DeadlineSeconds, which the daemon enforces as
+	// one absolute wall clock shared by every item in the batch, and to the
+	// batcher's shutdown drain. The default 2400 covers the worst expected
+	// batch (two ~723s write waves); raise it for slow models or deployments
+	// that raised the write call timeout, since a batch slower than the
+	// deadline fails items that a direct (pre-batching) call would have
+	// finished -- the direct path never carried a deadline.
+	PipelineBatchDeadlineSec int `json:"pipeline_batch_deadline_sec,default=2400"`
 	// IndexDebounceSec is the index-refresh debounce interval: pipeline
 	// completions mark the indexes dirty and one refresh follows this many
 	// seconds after the last completion. 0 (default) disables the Go-side
@@ -111,19 +120,13 @@ type WorkerConf struct {
 const defaultDocumentWorkers = 4
 
 // EffectiveDocumentWorkers resolves the dispatcher's document-level
-// concurrency: document_workers wins over the deprecated extract_workers
-// alias, falling back to the built-in default when neither is set. Pure —
-// both validate() and startup logging call it, so the shadowed-alias warning
-// lives in validate() where it fires exactly once.
+// concurrency: the first explicitly-set key wins, document_workers over the
+// deprecated extract_workers alias, falling back to the built-in default when
+// neither is set. An explicitly-set but unusable (negative) value passes
+// through so validate() rejects it rather than being masked by the other key
+// or the default. Pure -- both validate() and startup logging call it, so the
+// shadowed-alias warning lives in validate() where it fires exactly once.
 func (w WorkerConf) EffectiveDocumentWorkers() int {
-	if w.DocumentWorkers > 0 {
-		return w.DocumentWorkers
-	}
-	if w.ExtractWorkers > 0 {
-		return w.ExtractWorkers
-	}
-	// Neither key holds a usable value. Pass an explicitly negative one
-	// through so validate() rejects it instead of masking it with the default.
 	if w.DocumentWorkers != 0 {
 		return w.DocumentWorkers
 	}
@@ -138,9 +141,9 @@ func (w WorkerConf) EffectiveDocumentWorkers() int {
 // "default". Startup logging reports it instead of re-deriving the switch.
 func (w WorkerConf) DocumentWorkersSource() string {
 	switch {
-	case w.DocumentWorkers > 0:
+	case w.DocumentWorkers != 0:
 		return "document_workers"
-	case w.ExtractWorkers > 0:
+	case w.ExtractWorkers != 0:
 		return "extract_workers"
 	default:
 		return "default"
@@ -286,6 +289,9 @@ func applyEnvOverrides(c *Config) error {
 	if n, ok := envInt("KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT"); ok {
 		c.Worker.PipelineBatchMaxInflight = n
 	}
+	if n, ok := envInt("KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC"); ok {
+		c.Worker.PipelineBatchDeadlineSec = n
+	}
 	if n, ok := envInt("KAAS_WORKER_INDEX_DEBOUNCE_SEC"); ok {
 		c.Worker.IndexDebounceSec = n
 	}
@@ -331,6 +337,9 @@ func (c *Config) validate() error {
 	// semaphore -- every flushed batch would wait on a slot that never frees.
 	if c.Worker.PipelineBatchMaxItems > 1 && c.Worker.PipelineBatchMaxInflight < 1 {
 		return fmt.Errorf("worker.pipeline_batch_max_inflight must be >= 1 when pipeline_batch_max_items > 1")
+	}
+	if c.Worker.PipelineBatchDeadlineSec < 0 {
+		return fmt.Errorf("worker.pipeline_batch_deadline_sec must be >= 0")
 	}
 	if c.Worker.IndexDebounceSec < 0 {
 		return fmt.Errorf("worker.index_debounce_sec must be >= 0 (0 disables the debounced index refresher)")

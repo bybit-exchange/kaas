@@ -13,6 +13,7 @@ from datetime import date
 
 import pytest
 
+from kb_ai._errors import DeadlineExceededError, EmptyCompletionError
 from kb_ai.core import merge as mg
 from kb_ai.core.extract import ExtractionResult
 
@@ -1855,6 +1856,93 @@ def test_a_router_failure_runs_the_full_rewrite_exactly_once(monkeypatch, capsys
     assert out == "rewritten"
     assert calls == ["rewrite"]
     assert "[merge] section-merge fallback: wiki/a.md:" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("exc", [
+    EmptyCompletionError("LLM returned an empty body twice"),
+    DeadlineExceededError("deadline_too_close to continue"),
+], ids=["empty-completion", "deadline-exceeded"])
+def test_router_kb_errors_degrade_to_the_legacy_chain(monkeypatch, capsys, exc):
+    """EmptyCompletionError and DeadlineExceededError inherit KBError, not
+    RuntimeError, so the router's degrade tuple names them explicitly --
+    otherwise the escape is swallowed per-article by the write phase's generic
+    handler and the task Acks as an error instead of falling back (the
+    empty-body mode was measured on deepseek-v4-flash, the deadline mode
+    exists only on batched calls)."""
+    def boom(**kwargs):
+        raise exc
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", _section_article(),
+                                _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "[merge] section-merge fallback: wiki/a.md:" in capsys.readouterr().err
+
+
+def test_an_empty_completion_in_the_diff_degrades_to_the_full_rewrite(
+        monkeypatch, capsys):
+    """Same contract on the diff leg: an EmptyCompletionError from the patch
+    call marks the response degraded, and an article that fits the rewrite
+    budget pays the rewrite rather than Acking unmerged."""
+    def boom(**kwargs):
+        raise EmptyCompletionError("LLM returned an empty body twice")
+
+    monkeypatch.setattr(mg, "completion_json", boom)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    big = "x" * mg._LARGE_ARTICLE_THRESHOLD
+    out = mg.merge_into_article("wiki/a.md", big, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "[merge] diff result unparsable, falling back to full-rewrite" in capsys.readouterr().err
+
+
+def test_duplicate_headings_degrade_to_the_legacy_chain(monkeypatch, capsys):
+    """Two sections sharing one heading line: the section path keys bodies by
+    heading text, so proceeding would replace BOTH occurrences with one
+    rewrite built from the last body -- silently deleting the first
+    occurrence's content on disk. The guard fires before the router call."""
+    article = _section_article(body_chars=6_000, names=("Alpha", "Beta", "Gamma"))
+    article += "\n## Alpha\n\nSECOND alpha body\n"
+    assert len(article.encode("utf-8")) >= mg._SECTION_MERGE_MIN_BYTES
+
+    def must_not_route(*args):
+        raise AssertionError("the duplicate guard must fire before the router call")
+
+    monkeypatch.setattr(mg, "_route_sections", must_not_route)
+    calls: list[str] = []
+    monkeypatch.setattr(mg, "_merge_full_rewrite",
+                        lambda *a: (calls.append("rewrite"), "rewritten")[1])
+
+    out = mg.merge_into_article("wiki/a.md", article, _extraction(), "raw/a.md")
+
+    assert out == "rewritten"
+    assert calls == ["rewrite"]
+    assert "duplicate ## headings" in capsys.readouterr().err
+
+
+def test_merge_one_section_strips_only_a_true_heading_echo(monkeypatch):
+    """The echo strip requires the heading's own newline: "## Notes"
+    prefix-matching a different echoed heading ("## Notes on X") used to eat
+    the start of the section body."""
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "## Notes on X\n\nkept body")
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "## Notes on X\n\nkept body"
+
+    monkeypatch.setattr(mg, "completion", lambda **kwargs: "## Notes\n\nrewritten body")
+    out = mg._merge_one_section("## Notes", "old body", _extraction(),
+                                "raw/a.md", "m", mg.MAX_PROMPT_CHARS)
+    assert out == "rewritten body"
 
 
 def test_a_section_failing_twice_degrades_after_one_retry(monkeypatch, capsys):

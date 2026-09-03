@@ -35,10 +35,14 @@ pipeline_concurrency = 8
 # fragmentation (1.3 items/batch vs 3.0), while inflight=2 keeps batches
 # dense (3.0 items/batch) and total LLM work bounded. Rollback to the
 # code default: KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT=1. Each batch call
-# carries a 2400s deadline (code constant defaultBatchDeadlineSec), which
-# also bounds the shutdown drain. Container overrides without an image
-# rebuild: KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS /
-# KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT.
+# carries a deadline (pipeline_batch_deadline_sec, default 2400) enforced
+# by the daemon as one wall clock shared by every item in the batch; it
+# also bounds the shutdown drain. Raise it for slow models or a raised
+# write call timeout -- a batch slower than the deadline fails items a
+# direct (pre-batching) call would have finished. Container overrides
+# without an image rebuild: KAAS_WORKER_PIPELINE_BATCH_MAX_ITEMS /
+# KAAS_WORKER_PIPELINE_BATCH_MAX_INFLIGHT /
+# KAAS_WORKER_PIPELINE_BATCH_DEADLINE_SEC.
 pipeline_batch_max_items = 16
 pipeline_batch_flush_ms = 2000
 pipeline_batch_max_inflight = 2
@@ -120,5 +124,5 @@ max_file_size = 1048576            # 1 MiB — max per text file (.md/.txt/.csv)
 max_rich_file_size = 52428800      # 50 MiB — max per rich document (.pdf/.docx/.pptx/...)
 max_zip_file_size = 104857600      # 100 MiB — max for a .zip archive
 max_files_per_upload = 50          # max top-level files in one request
-max_zip_entries = 500              # max entries extracted from a zip
+max_zip_entries = 1000             # max entries extracted from a zip
 max_zip_extracted_size = 209715200 # 200 MiB — total extracted bytes cap

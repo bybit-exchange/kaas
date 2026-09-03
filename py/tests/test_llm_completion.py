@@ -152,6 +152,32 @@ class TestReasoningEffortPassthrough:
         completion("model", [{"role": "user", "content": "Hi"}])
         assert "reasoning_effort" not in mock_client.chat.completions.create.call_args.kwargs
 
+    def test_400_unrelated_to_the_param_is_not_blamed_on_it(
+            self, mock_client, monkeypatch, capsys):
+        # A 400 from any other cause (wrong model name, malformed messages)
+        # must not strip the operator's knob or disable it process-wide: the
+        # error raises immediately, the real failure kind is alerted, and the
+        # next call still carries the param.
+        monkeypatch.setenv("KB_AI_REASONING_EFFORT", "low")
+        mock_client.chat.completions.create.side_effect = _status_error(
+            400, "model `nope` not found")
+
+        with pytest.raises(APIStatusError):
+            completion("model", [{"role": "user", "content": "Hi"}])
+
+        calls = mock_client.chat.completions.create.call_args_list
+        assert len(calls) == 1  # no strip-and-retry round
+        assert calls[0].kwargs["reasoning_effort"] == "low"
+        err = capsys.readouterr().err
+        assert "reasoning_effort_unsupported" not in err
+        assert "http_400:" in err
+
+        # The knob survives: the disable flag was not flipped by the blame.
+        mock_client.chat.completions.create.reset_mock()
+        mock_client.chat.completions.create.side_effect = None
+        completion("model", [{"role": "user", "content": "Hi"}])
+        assert mock_client.chat.completions.create.call_args.kwargs["reasoning_effort"] == "low"
+
 
 class TestCompletion:
     """Tests for the completion wrapper."""
@@ -427,8 +453,11 @@ class TestDedupOverlap:
         # beyond the scan and nothing is removed — the dedup never reaches
         # further back into `acc` than max_chars.
         assert _dedup_overlap("abcdef", "defxyz", max_chars=2) == "abcdefdefxyz"
-        # An overlap the default bound (256) can fully see is still removed.
+        # An overlap the default bound (2048) can fully see is removed: a
+        # model that re-emits a long block (a table, a list) must not have
+        # the repeat silently persisted as duplicated text.
         assert _dedup_overlap("a" * 256, "a" * 256 + "b") == "a" * 256 + "b"
+        assert _dedup_overlap("ab" * 1024, "ab" * 1024 + "tail") == "ab" * 1024 + "tail"
 
     def test_empty_sides(self):
         assert _dedup_overlap("", "x") == "x"
