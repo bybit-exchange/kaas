@@ -1,0 +1,38 @@
+internal/api/submit_files.go
+  fff11ba3c0debdc8 321
+internal/api/submit_files_test.go
+  fff11ba3c0debdc8 257-259,261-262,264-265,268-269,403,421-423,425-426,429-430
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "d4f5723c47abb5dabc8ad5c1f73e32ab3d564e18",
+  "prompts": {
+    "59e93cba6ad38131": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8c777423-730e-4ed7-8e8b-71be463764b0",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 93,
+      "total_deletions": 130,
+      "accepted_lines": 641,
+      "overriden_lines": 91
+    },
+    "fff11ba3c0debdc8": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a06b65-eabd-79db-be73-c0e45b97bc61",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 18,
+      "total_deletions": 26,
+      "accepted_lines": 18,
+      "overriden_lines": 0
+    }
+  }
+}
