@@ -254,21 +254,19 @@ func TestSubmitFiles_NestedZip(t *testing.T) {
 
 	var resp submitFilesResponse
 	mustJSON(t, rec, &resp)
-	if len(resp.Uploaded) != 0 {
-		t.Errorf("uploaded = %d, want 0; resp=%+v", len(resp.Uploaded), resp)
+	// The nested .zip is silently skipped; only readme.md is processed.
+	if len(resp.Uploaded) != 1 {
+		t.Fatalf("uploaded = %d, want 1; resp=%+v", len(resp.Uploaded), resp)
 	}
-	if len(resp.Failed) != 1 {
-		t.Fatalf("failed = %d, want 1; resp=%+v", len(resp.Failed), resp)
+	if resp.Uploaded[0].Name != "readme.md" {
+		t.Errorf("uploaded[0].Name = %q, want \"readme.md\"", resp.Uploaded[0].Name)
 	}
-	if resp.Failed[0].Name != "outer.zip" {
-		t.Errorf("failed[0].Name = %q, want \"outer.zip\"", resp.Failed[0].Name)
-	}
-	if resp.Failed[0].Reason != "extension not allowed" {
-		t.Errorf("reason = %q, want 'extension not allowed'", resp.Failed[0].Reason)
+	if len(resp.Failed) != 0 {
+		t.Errorf("failed = %d, want 0; resp=%+v", len(resp.Failed), resp)
 	}
 	entries, _ := os.ReadDir(filepath.Join(kb, "raw"))
-	if len(entries) != 0 {
-		t.Errorf("orphan raw files remain: %d", len(entries))
+	if len(entries) != 1 {
+		t.Errorf("raw files = %d, want 1", len(entries))
 	}
 }
 
@@ -402,7 +400,7 @@ func TestSubmitFiles_ZipTooLarge(t *testing.T) {
 	}
 }
 
-func TestSubmitFiles_ZipAtomicRollback_InvalidExtension(t *testing.T) {
+func TestSubmitFiles_ZipSkipsUnsupportedExtension(t *testing.T) {
 	q := &fakeQueue{}
 	s, kb := newTestServer(t, q, &fakeStore{}, &fakeBridge{})
 
@@ -420,18 +418,16 @@ func TestSubmitFiles_ZipAtomicRollback_InvalidExtension(t *testing.T) {
 
 	var resp submitFilesResponse
 	mustJSON(t, rec, &resp)
-	if len(resp.Uploaded) != 0 {
-		t.Errorf("uploaded = %d, want 0", len(resp.Uploaded))
+	// The .exe is silently skipped; only the two .md files are processed.
+	if len(resp.Uploaded) != 2 {
+		t.Errorf("uploaded = %d, want 2; resp=%+v", len(resp.Uploaded), resp)
 	}
-	if len(resp.Failed) != 1 {
-		t.Fatalf("failed = %d, want 1", len(resp.Failed))
-	}
-	if resp.Failed[0].Name != "archive.zip" {
-		t.Errorf("failed[0].Name = %q, want \"archive.zip\"", resp.Failed[0].Name)
+	if len(resp.Failed) != 0 {
+		t.Errorf("failed = %d, want 0; resp=%+v", len(resp.Failed), resp)
 	}
 	entries, _ := os.ReadDir(filepath.Join(kb, "raw"))
-	if len(entries) != 0 {
-		t.Errorf("orphan raw files remain: %d", len(entries))
+	if len(entries) != 2 {
+		t.Errorf("raw files = %d, want 2", len(entries))
 	}
 }
 

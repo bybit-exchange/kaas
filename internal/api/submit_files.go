@@ -318,11 +318,7 @@ func (s *Server) validateZipEntries(data []byte, zipName string) ([]preparedFile
 
 		ext := strings.ToLower(filepath.Ext(baseName))
 		if !allowedInnerExtensions[ext] {
-			return nil, &submitFilesItem{
-				Name:   zipName,
-				Status: "failed",
-				Reason: "extension not allowed",
-			}
+			continue
 		}
 
 		totalExtracted += int64(f.UncompressedSize64)
