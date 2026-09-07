@@ -158,6 +158,85 @@ def _fit_articles_to_budget(articles: list[dict], budget_chars: int) -> str:
     return "[]"
 
 
+def _render_topical_classify_system(
+    categories: list[str],
+    topic: str,
+    aggregation_plan: list[dict],
+) -> str:
+    """Render the topical classify system template, articles placeholder unfilled."""
+    plan_json = json.dumps(aggregation_plan, ensure_ascii=False, indent=2)
+    return default_registry().get("classify-topical").render(
+        categories_str=", ".join(categories),
+        categories=categories,
+        category_definitions=category_definitions_block(categories),
+        topic=topic,
+        aggregation_plan_json=plan_json,
+    )
+
+
+def classify_article_topical(
+    extraction: ExtractionResult,
+    existing_articles: list[ArticleMeta],
+    topic: str,
+    aggregation_plan: list[dict],
+    *,
+    model: str = "claude-sonnet-4-6",
+    categories: list[str] | None = None,
+) -> ClassificationResult:
+    """Topic-aware classification that routes extractions to thematic articles.
+
+    Uses the aggregation plan to prefer merging into planned thematic articles
+    instead of creating per-chapter articles. Otherwise follows the same pattern
+    as classify_article().
+    """
+    categories = effective_categories(categories)
+
+    # Sort articles by relevance (descending) before building prompt
+    sorted_articles = sorted(
+        existing_articles,
+        key=lambda a: _relevance_score(a, extraction.topics),
+        reverse=True,
+    )
+
+    articles_for_prompt = [
+        {"title": a.title, "path": a.path, "summary": a.summary[:80]}
+        for a in sorted_articles
+    ]
+
+    # Build user message with budget-aware truncation.
+    user_budget = MAX_PROMPT_CHARS // 2
+    summary = extraction.summary[:user_budget // 4]
+    topics_str = str(extraction.topics)[:user_budget // 8]
+    decisions_json = json.dumps(extraction.decisions, ensure_ascii=False)
+
+    prefix = (
+        f"Extracted knowledge:\n"
+        f"- Summary: {summary}\n"
+        f"- Topics: {topics_str}\n"
+        f"- Decisions: "
+    )
+    decisions_budget = user_budget - len(prefix)
+    if len(decisions_json) > decisions_budget:
+        decisions_json = decisions_json[:max(decisions_budget, 0)]
+    user = prefix + decisions_json
+
+    system_template = _render_topical_classify_system(categories, topic, aggregation_plan)
+
+    skeleton_len = len(system_template.replace("{ARTICLES_PLACEHOLDER}", ""))
+    articles_budget = MAX_PROMPT_CHARS - skeleton_len - len(user) - _SAFETY_MARGIN
+
+    articles_summary = _fit_articles_to_budget(articles_for_prompt, articles_budget)
+
+    system = system_template.replace("{ARTICLES_PLACEHOLDER}", articles_summary)
+
+    raw = completion_json(model=model, messages=[
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ], max_tokens=2048, cache=True)
+
+    return ClassificationResult.from_dict(raw)
+
+
 def classify_article(
     extraction: ExtractionResult,
     existing_articles: list[ArticleMeta],
