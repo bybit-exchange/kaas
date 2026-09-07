@@ -679,24 +679,46 @@ def compile_kb(
                     path_parts = art_path.split("/")
                     article_type = path_parts[1] if len(path_parts) > 2 else "concept"
                     title = Path(art_path).stem.replace("-", " ").title()
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
-                try:
-                    with _measure_op_cost() as op_cost:
-                        new_content = create_new_article(
-                            article_type, title, combined, ", ".join(merge_rels), model=write_model)
-                        store.write_article(art_path, new_content)
-                    log(f"  [merge→create] {art_path} ← {len(merges)} sources "
-                        f"— ${op_cost.total_cost:.4f}")
-                    with _write_lock:
-                        for rel in merge_rels:
-                            _file_done_ops[rel] += 1
-                            _file_done_articles[rel].add(art_path)
-                except Exception as e:
-                    with _write_lock:
-                        for rel in merge_rels:
-                            errors.append({"file": rel, "error": str(e), "article": art_path})
-                    log(f"  [merge→create-error] {art_path} ← {len(merges)} sources: {e}")
+                items = [(rel, ext) for rel, _cs, ext, _det in merges]
+                total_size = sum(_estimate_full_extraction_size(ext, rel) for rel, ext in items)
+                budget = estimate_create_budget(article_type, title, items)
+                needs_split = total_size > budget and len(items) > 1
+                if needs_split:
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content, merge_rels, n_batches = _merge_batch_split(
+                                art_path, items, write_model,
+                                article_content=None, article_type=article_type, title=title)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge→create-split] {art_path} ← {len(merges)} sources "
+                            f"({n_batches} batches) — ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge→create-split-error] {art_path} ← {len(merges)} sources: {e}")
+                else:
+                    combined, merge_rels = _combine_extractions(items)
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content = create_new_article(
+                                article_type, title, combined, ", ".join(merge_rels), model=write_model)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge→create] {art_path} ← {len(merges)} sources "
+                            f"— ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge→create-error] {art_path} ← {len(merges)} sources: {e}")
                 return
 
             if len(merges) == 1:
@@ -716,25 +738,47 @@ def compile_kb(
                         errors.append({"file": rel, "error": str(e), "article": art_path})
                     log(f"  [merge-error] {art_path} ← {rel}: {e}")
             else:
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
-                try:
-                    with _measure_op_cost() as op_cost:
-                        old_content = store.read_article(art_path)
-                        new_content = merge_into_article(
-                            art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
-                        store.write_article(art_path, new_content)
-                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
-                        f"— ${op_cost.total_cost:.4f}")
-                    with _write_lock:
-                        for rel in merge_rels:
-                            _file_done_ops[rel] += 1
-                            _file_done_articles[rel].add(art_path)
-                except Exception as e:
-                    with _write_lock:
-                        for rel in merge_rels:
-                            errors.append({"file": rel, "error": str(e), "article": art_path})
-                    log(f"  [merge-batch-error] {art_path} ← {len(merges)} sources: {e}")
+                items = [(rel, ext) for rel, _cs, ext, _det in merges]
+                old_content = store.read_article(art_path)
+                total_size = sum(_estimate_full_extraction_size(ext, rel) for rel, ext in items)
+                budget = estimate_merge_budget(old_content)
+                needs_split = total_size > budget and len(items) > 1
+                if needs_split:
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content, merge_rels, n_batches = _merge_batch_split(
+                                art_path, items, write_model,
+                                article_content=old_content)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge-batch-split] {art_path} ← {len(merges)} sources "
+                            f"({n_batches} batches) — ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge-batch-split-error] {art_path} ← {len(merges)} sources: {e}")
+                else:
+                    combined, merge_rels = _combine_extractions(items)
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content = merge_into_article(
+                                art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
+                            f"— ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge-batch-error] {art_path} ← {len(merges)} sources: {e}")
 
         try:
             if article_ops:
