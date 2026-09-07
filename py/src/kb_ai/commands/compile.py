@@ -192,8 +192,12 @@ def _merge_batch_split(
     article_content: str | None,
     article_type: str = "",
     title: str = "",
-) -> tuple[str, list[str], int]:
+) -> tuple[list[tuple[str, str]], list[str], int]:
     """Iteratively merge sources into an article in batches.
+
+    When the merge budget drops below _SUB_ARTICLE_BUDGET_THRESHOLD during
+    iteration, the current article is finalized as a sub-article and a fresh
+    article starts for the remaining sources.
 
     Args:
         art_path: Target article path (e.g. "wiki/concept/foo.md").
@@ -205,10 +209,12 @@ def _merge_batch_split(
         title: Article title (used only when article_content is None).
 
     Returns:
-        (final_content, all_rel_paths, n_batches):
-            final_content: The merged article content.
-            all_rel_paths: All source rel_paths that were processed (same order as items).
-            n_batches: Number of batches actually used.
+        (articles, all_rel_paths, n_batches):
+            articles: List of (path, content) pairs. Single-element when no
+                sub-article split occurs (path == art_path); multi-element
+                with -part-N paths when a split is triggered.
+            all_rel_paths: All source rel_paths processed (same order as items).
+            n_batches: Total number of batches across all sub-articles.
 
     Raises:
         RuntimeError: if any batch's LLM call fails (propagated from
@@ -221,42 +227,77 @@ def _merge_batch_split(
         - Each batch computes its own budget dynamically from the current
           intermediate article size — batches are NOT pre-computed
         - Per-batch progress logged to stderr: [merge-split] art_path batch N: ...
+        - When budget drops below threshold, current article is finalized as
+          a sub-article and a new one begins for remaining sources
     """
     all_rels: list[str] = []
     remaining = list(items)
     current_content = article_content
     batch_num = 0
+    finalized_articles: list[tuple[str, str]] = []
+    part_num = 0
+    current_source_count = 0
 
     while remaining:
+        # Check sub-article threshold: after a merge completes and before
+        # packing the next batch, see if the current article is too large
+        # to continue receiving merges.
+        if current_content is not None:
+            budget = estimate_merge_budget(current_content)
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD:
+                # Finalize current article as a sub-article and start fresh
+                part_num += 1
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+                print(f"  [merge-split] {art_path} → sub-article {sub_path} "
+                      f"({len(current_content)} chars, {current_source_count} sources)",
+                      file=sys.stderr, flush=True)
+                current_content = None
+                current_source_count = 0
+                # budget is stale; will be recomputed below as create budget
+            # else: budget is valid, reuse it below for _pack_merge_batch
+
         batch_num += 1
 
-        # Compute budget dynamically for each batch
+        # Compute budget for batch packing
         if current_content is None:
-            # First batch, create path: budget depends on batch contents
-            budget = estimate_create_budget(article_type, title, remaining)
-        else:
-            # Merge path: budget depends on current article size
-            budget = estimate_merge_budget(current_content)
+            part_title = title if not finalized_articles else f"{title} (Part {part_num + 1})"
+            budget = estimate_create_budget(article_type, part_title, remaining)
+        # else: budget already set from the threshold check above (no redundant call)
 
         batch, remaining = _pack_merge_batch(remaining, budget)
         combined, batch_rels = _combine_extractions(batch)
         all_rels.extend(batch_rels)
+        current_source_count += len(batch)
 
         if current_content is None:
-            # First batch, no existing article: create
+            # Create a new (sub-)article
+            part_title = title if not finalized_articles else f"{title} (Part {part_num + 1})"
             print(f"  [merge-split] {art_path} batch {batch_num}: "
-                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+                  f"create ← {len(batch)} sources", file=sys.stderr, flush=True)
             current_content = create_new_article(
-                article_type, title, combined, ", ".join(batch_rels), model=write_model)
+                article_type, part_title, combined,
+                ", ".join(batch_rels), model=write_model)
         else:
             # Merge into existing/intermediate article
             print(f"  [merge-split] {art_path} batch {batch_num}: "
-                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+                  f"merge ← {len(batch)} sources", file=sys.stderr, flush=True)
             current_content = merge_into_article(
-                art_path, current_content, combined, ", ".join(batch_rels), model=write_model)
+                art_path, current_content, combined,
+                ", ".join(batch_rels), model=write_model)
 
-    return current_content, all_rels, batch_num
+    # Finalize the last article
+    if current_content is not None:
+        if finalized_articles:
+            # Was a sub-article split: the last chunk is also a sub-article
+            part_num += 1
+            sub_path = _sub_article_path(art_path, part_num)
+            finalized_articles.append((sub_path, current_content))
+        else:
+            # No split occurred: single article at the original path
+            finalized_articles.append((art_path, current_content))
 
+    return finalized_articles, all_rels, batch_num
 
 def compile_kb(
     data_dir: str,
