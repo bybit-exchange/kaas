@@ -2,7 +2,7 @@
 
 Phase 1: data structures and entity index builder.
 Phase 2: resolve_entities — LLM-based entity name canonicalization.
-Phase 3 (plan_aggregation) is in a future feature.
+Phase 3: plan_aggregation and reorganize orchestrator.
 """
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ import sys
 from dataclasses import dataclass, field
 
 from kb_ai.llm import completion_json
+from kb_ai.prompts import default_registry
 from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.store import KBStore
 
@@ -368,4 +369,207 @@ def resolve_entities(
         aliases=aliases,
         reverse=reverse,
         filtered_out=filtered_out,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Aggregation planning (Section 4.3 of the plan)
+# ---------------------------------------------------------------------------
+
+_MAX_ARTICLES = 15
+_MIN_ARTICLES = 3
+
+
+def _build_frequency_table(
+    items: dict[str, list],
+    top_n: int,
+) -> list[tuple[str, int]]:
+    """Return the *top_n* items sorted by descending occurrence count."""
+    counted = [(name, len(occurrences)) for name, occurrences in items.items()]
+    counted.sort(key=lambda x: x[1], reverse=True)
+    return counted[:top_n]
+
+
+def plan_aggregation(
+    topic: str,
+    entity_index: EntityIndex,
+    *,
+    categories: list[str],
+    model: str,
+) -> list[ThematicArticle]:
+    """Plan thematic articles from entity/topic/concept frequency data.
+
+    Renders the ``aggregate-plan`` prompt template, calls completion_json(),
+    parses and validates the returned articles list.
+
+    Raises DeriveError on LLM failure or if fewer than 3 valid articles
+    remain after filtering.
+    """
+    from kb_ai._errors import DeriveError
+
+    # Build frequency tables
+    top_entities = _build_frequency_table(entity_index.entities, 50)
+    top_topics = _build_frequency_table(entity_index.topics, 30)
+    top_concepts = _build_frequency_table(entity_index.concepts, 30)
+
+    entity_freq_lines = "\n".join(
+        f"{name} — {count}" for name, count in top_entities
+    )
+    topic_freq_lines = "\n".join(
+        f"{tag} — {count}" for tag, count in top_topics
+    )
+    concept_lines = "\n".join(title for title, _ in top_concepts)
+
+    categories_str = ", ".join(categories)
+
+    # Render prompt via registry
+    prompt_text = default_registry().get("aggregate-plan").render(
+        topic=topic,
+        extraction_count=entity_index.extraction_count,
+        entity_frequency=entity_freq_lines,
+        topic_frequency=topic_freq_lines,
+        concept_titles=concept_lines,
+        categories_str=categories_str,
+    )
+
+    messages = [
+        {"role": "system", "content": prompt_text},
+        {
+            "role": "user",
+            "content": f"Plan the article structure for a knowledge base focused on: {topic}",
+        },
+    ]
+
+    try:
+        response = completion_json(
+            model=model,
+            messages=messages,
+            max_tokens=4096,
+        )
+    except Exception as exc:
+        raise DeriveError(f"aggregation planning failed: {exc}") from exc
+
+    # Parse articles array
+    raw_articles = response.get("articles", [])
+    if not isinstance(raw_articles, list):
+        raise DeriveError("aggregation planning failed: response missing articles array")
+
+    categories_set = set(categories)
+    valid: list[ThematicArticle] = []
+
+    for item in raw_articles:
+        if not isinstance(item, dict):
+            continue
+
+        path = item.get("path", "")
+        art_type = item.get("type", "")
+        title = item.get("title", "")
+        description = item.get("description", "")
+
+        if not title:
+            print(
+                f"[reorganize] dropping planned article with empty title: {path}",
+                file=sys.stderr,
+                flush=True,
+            )
+            continue
+
+        if not _is_safe_wiki_path(path):
+            print(
+                f"[reorganize] dropping planned article with invalid path: {path!r}",
+                file=sys.stderr,
+                flush=True,
+            )
+            continue
+
+        if art_type not in categories_set:
+            print(
+                f"[reorganize] dropping planned article with invalid type {art_type!r}: {path}",
+                file=sys.stderr,
+                flush=True,
+            )
+            continue
+
+        valid.append(ThematicArticle(
+            path=path,
+            type=art_type,
+            title=title,
+            description=description,
+        ))
+
+    # Clamp to max
+    valid = valid[:_MAX_ARTICLES]
+
+    if len(valid) < _MIN_ARTICLES:
+        raise DeriveError(
+            f"aggregation planning produced only {len(valid)} valid articles "
+            f"(minimum {_MIN_ARTICLES})"
+        )
+
+    return valid
+
+
+# ---------------------------------------------------------------------------
+# Top-level orchestrator (Section 4.3 of the plan)
+# ---------------------------------------------------------------------------
+
+def _apply_canonical_mapping(
+    raw_index: EntityIndex,
+    mapping: CanonicalMapping,
+) -> EntityIndex:
+    """Merge entity occurrences under canonical names.
+
+    For each raw name that has a canonical (via mapping.reverse), merge its
+    occurrences list under the canonical name key.  Names without a mapping
+    keep their raw key.
+    """
+    merged_entities: dict[str, list[EntityOccurrence]] = {}
+
+    for raw_name, occurrences in raw_index.entities.items():
+        canonical = mapping.reverse.get(raw_name, raw_name)
+        merged_entities.setdefault(canonical, []).extend(occurrences)
+
+    return EntityIndex(
+        entities=merged_entities,
+        topics=raw_index.topics,
+        concepts=raw_index.concepts,
+        extraction_count=raw_index.extraction_count,
+    )
+
+
+def reorganize(
+    store: KBStore,
+    topic: str,
+    *,
+    categories: list[str],
+    model: str,
+) -> ReorganizePlan:
+    """Top-level orchestrator: build index → resolve entities → plan articles.
+
+    Steps:
+        1. build_entity_index(store) → raw index
+        2. resolve_entities(raw_names, model=model) → canonical mapping
+        3. Apply canonical mapping to raw index → resolved EntityIndex
+        4. plan_aggregation(topic, resolved_index, ...) → articles
+        5. Return ReorganizePlan
+    """
+    raw_index = build_entity_index(store)
+
+    raw_names = list(raw_index.entities.keys())
+    mapping = resolve_entities(raw_names, model=model)
+
+    resolved_index = _apply_canonical_mapping(raw_index, mapping)
+
+    articles = plan_aggregation(
+        topic,
+        resolved_index,
+        categories=categories,
+        model=model,
+    )
+
+    return ReorganizePlan(
+        topic=topic,
+        articles=articles,
+        canonical_mapping=mapping,
+        entity_index=resolved_index,
     )
