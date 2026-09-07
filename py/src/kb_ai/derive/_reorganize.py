@@ -1,15 +1,17 @@
 """Entity index, canonical mapping, and reorganization plan data structures.
 
-Phase 1 of the derive knowledge reorganization feature: data structures
-and the entity/topic/concept frequency index builder. No LLM calls here —
-that is Phase 2 (resolve_entities) and Phase 3 (plan_aggregation).
+Phase 1: data structures and entity index builder.
+Phase 2: resolve_entities — LLM-based entity name canonicalization.
+Phase 3 (plan_aggregation) is in a future feature.
 """
 from __future__ import annotations
 
 import os
+import re
 import sys
 from dataclasses import dataclass, field
 
+from kb_ai.llm import completion_json
 from kb_ai.storage import extraction as extraction_layer
 from kb_ai.storage.store import KBStore
 
@@ -201,3 +203,169 @@ def build_entity_index(store: KBStore) -> EntityIndex:
         raise DeriveError("no usable extractions for reorganization")
 
     return index
+
+
+# ---------------------------------------------------------------------------
+# Entity name resolution (Section 4.3 of the plan)
+# ---------------------------------------------------------------------------
+
+_ENUMERATION_RE = re.compile(
+    r"(sequence of|steps to|list of|effects of|listed|described|including|such as|for example)",
+    re.IGNORECASE,
+)
+
+_ENTITY_RESOLVE_SYSTEM = """You are an entity name resolver. Given a list of entity names extracted from multiple documents, identify groups of names that refer to the same entity (aliases, alternate names, titles, abbreviations).
+
+Return JSON:
+{
+  "groups": [
+    {"canonical": "primary name", "aliases": ["alias1", "alias2"], "type": "person|place|thing|organization"}
+  ]
+}
+
+Rules:
+- The canonical name should be the most complete/formal version
+- Only group names that clearly refer to the same entity
+- Names that appear unique should not be in any group
+- Do NOT invent entities not in the input list"""
+
+
+def _heuristic_filter(names: list[str]) -> tuple[list[str], list[str]]:
+    """Split *names* into (kept, filtered_out).
+
+    Filtered out: names longer than 60 characters or matching enumeration-like
+    patterns (e.g. "list of ...", "including ...").
+    """
+    kept: list[str] = []
+    filtered_out: list[str] = []
+    for name in names:
+        if len(name) > 60 or _ENUMERATION_RE.search(name):
+            filtered_out.append(name)
+        else:
+            kept.append(name)
+    return kept, filtered_out
+
+
+def _parse_groups(response: dict) -> dict[str, dict]:
+    """Parse LLM response into {canonical: {"aliases": [...], "type": str}}.
+
+    Returns only groups where *canonical* and *aliases* are well-formed.
+    """
+    result: dict[str, dict] = {}
+    groups = response.get("groups", [])
+    if not isinstance(groups, list):
+        return result
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        canonical = group.get("canonical", "")
+        if not canonical or not isinstance(canonical, str):
+            continue
+        aliases = group.get("aliases", [])
+        if not isinstance(aliases, list):
+            continue
+        # Keep only non-empty string aliases
+        aliases = [a for a in aliases if isinstance(a, str) and a]
+        if not aliases:
+            continue
+        entity_type = group.get("type", "")
+        if not isinstance(entity_type, str):
+            entity_type = ""
+        result[canonical] = {"aliases": aliases, "type": entity_type}
+    return result
+
+
+def _merge_batch_results(
+    batch_results: list[dict[str, dict]],
+) -> dict[str, dict]:
+    """Merge multiple batch results, unioning aliases for same canonical."""
+    merged: dict[str, dict] = {}
+    for batch in batch_results:
+        for canonical, info in batch.items():
+            if canonical in merged:
+                existing_aliases = set(merged[canonical]["aliases"])
+                existing_aliases.update(info["aliases"])
+                merged[canonical]["aliases"] = sorted(existing_aliases)
+                # Keep type from first batch that set it
+                if not merged[canonical]["type"] and info["type"]:
+                    merged[canonical]["type"] = info["type"]
+            else:
+                merged[canonical] = {
+                    "aliases": list(info["aliases"]),
+                    "type": info["type"],
+                }
+    return merged
+
+
+def resolve_entities(
+    raw_names: list[str],
+    *,
+    model: str,
+    max_batch_size: int = 500,
+) -> CanonicalMapping:
+    """Canonicalize entity names via heuristic filter + LLM resolution.
+
+    Steps:
+        1. Heuristic filter removes names >60 chars or matching enumeration
+           patterns.
+        2. Remaining names batched at *max_batch_size* boundary.
+        3. Each batch sent to completion_json() for LLM canonicalization.
+        4. Results merged across batches (same canonical → aliases unioned).
+
+    Graceful degradation: LLM failure for one batch skips that batch.
+    If all batches fail, returns an empty CanonicalMapping (not an error).
+    """
+    kept, filtered_out = _heuristic_filter(raw_names)
+
+    if not kept:
+        return CanonicalMapping(filtered_out=filtered_out)
+
+    # Split into batches
+    batches: list[list[str]] = []
+    for i in range(0, len(kept), max_batch_size):
+        batches.append(kept[i : i + max_batch_size])
+
+    batch_results: list[dict[str, dict]] = []
+    for batch in batches:
+        names_block = "\n".join(batch)
+        messages = [
+            {"role": "system", "content": _ENTITY_RESOLVE_SYSTEM},
+            {
+                "role": "user",
+                "content": f"Entity names:\n<names>\n{names_block}\n</names>",
+            },
+        ]
+        try:
+            response = completion_json(
+                model=model,
+                messages=messages,
+                max_tokens=4096,
+                cache=True,
+            )
+            parsed = _parse_groups(response)
+            batch_results.append(parsed)
+        except Exception as exc:
+            print(
+                f"[reorganize] entity resolution batch failed: {exc}",
+                file=sys.stderr,
+                flush=True,
+            )
+            # Graceful degradation: skip this batch
+            continue
+
+    # Merge batch results
+    merged = _merge_batch_results(batch_results)
+
+    # Build CanonicalMapping
+    aliases: dict[str, list[str]] = {}
+    reverse: dict[str, str] = {}
+    for canonical, info in merged.items():
+        aliases[canonical] = info["aliases"]
+        for alias in info["aliases"]:
+            reverse[alias] = canonical
+
+    return CanonicalMapping(
+        aliases=aliases,
+        reverse=reverse,
+        filtered_out=filtered_out,
+    )
