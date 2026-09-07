@@ -1,0 +1,34 @@
+internal/worker/dispatcher.go
+  49153b59dd5416ba 63-64,67-75,82-89,91-93,109
+internal/worker/dispatcher_limits_test.go
+  49153b59dd5416ba 10,103-173
+internal/worker/worker.go
+  49153b59dd5416ba 151-157
+internal/worker/process_test.go
+  49153b59dd5416ba 520-545
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "c0f0d1493c6c40ea53a0fb6df6faa395bc613fef",
+  "prompts": {
+    "49153b59dd5416ba": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a079c0-0c77-7f6a-a11a-e7c5c322877b",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 251,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
