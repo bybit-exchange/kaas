@@ -762,12 +762,22 @@ def compile_kb(
                 if needs_split:
                     try:
                         with _measure_op_cost() as op_cost:
-                            new_content, merge_rels, n_batches = _merge_batch_split(
+                            articles, merge_rels, n_batches = _merge_batch_split(
                                 art_path, items, write_model,
                                 article_content=None, article_type=article_type, title=title)
-                            store.write_article(art_path, new_content)
+                            removed = _cleanup_stale_sub_articles(store, art_path)
+                            if removed:
+                                print(f"  [merge-split] {art_path}: cleaned up {len(removed)} stale sub-article(s)",
+                                      file=sys.stderr, flush=True)
+                            if len(articles) > 1:
+                                orig = store.base_dir / art_path
+                                if orig.exists():
+                                    orig.unlink()
+                            for sub_path, sub_content in articles:
+                                store.write_article(sub_path, sub_content)
+                        sub_info = f", {len(articles)} sub-articles" if len(articles) > 1 else ""
                         log(f"  [merge→create-split] {art_path} ← {len(merges)} sources "
-                            f"({n_batches} batches) — ${op_cost.total_cost:.4f}")
+                            f"({n_batches} batches{sub_info}) — ${op_cost.total_cost:.4f}")
                         with _write_lock:
                             for rel, _cs, _ext, _det in merges:
                                 _file_done_ops[rel] += 1
@@ -822,12 +832,22 @@ def compile_kb(
                 if needs_split:
                     try:
                         with _measure_op_cost() as op_cost:
-                            new_content, merge_rels, n_batches = _merge_batch_split(
+                            articles, merge_rels, n_batches = _merge_batch_split(
                                 art_path, items, write_model,
                                 article_content=old_content)
-                            store.write_article(art_path, new_content)
+                            removed = _cleanup_stale_sub_articles(store, art_path)
+                            if removed:
+                                print(f"  [merge-split] {art_path}: cleaned up {len(removed)} stale sub-article(s)",
+                                      file=sys.stderr, flush=True)
+                            if len(articles) > 1:
+                                orig = store.base_dir / art_path
+                                if orig.exists():
+                                    orig.unlink()
+                            for sub_path, sub_content in articles:
+                                store.write_article(sub_path, sub_content)
+                        sub_info = f", {len(articles)} sub-articles" if len(articles) > 1 else ""
                         log(f"  [merge-batch-split] {art_path} ← {len(merges)} sources "
-                            f"({n_batches} batches) — ${op_cost.total_cost:.4f}")
+                            f"({n_batches} batches{sub_info}) — ${op_cost.total_cost:.4f}")
                         with _write_lock:
                             for rel, _cs, _ext, _det in merges:
                                 _file_done_ops[rel] += 1

@@ -349,7 +349,6 @@ def _log_of(store: KBStore) -> str:
     return (store.base_dir / ".compile.log").read_text()
 
 
-@pytest.mark.xfail(reason="_process_article not yet updated for new _merge_batch_split return type (p3-feat-003)")
 def test_process_article_merge_create_split(kb_two, split_fakes, monkeypatch):
     """When extractions exceed budget on the create path, the split tag
     [merge→create-split] appears in the compile log."""
@@ -374,7 +373,6 @@ def test_process_article_merge_create_split(kb_two, split_fakes, monkeypatch):
     assert out["errors"] == []
 
 
-@pytest.mark.xfail(reason="_process_article not yet updated for new _merge_batch_split return type (p3-feat-003)")
 def test_process_article_merge_batch_split(kb_two, split_fakes, monkeypatch):
     """When extractions exceed budget on the merge-batch path, the split tag
     [merge-batch-split] appears in the compile log."""
