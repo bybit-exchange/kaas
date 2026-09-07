@@ -404,3 +404,402 @@ def test_process_article_under_threshold_unchanged(kb_two, split_fakes):
     assert "[merge-batch-split]" not in log
     assert out["compiled"] == 2
     assert out["errors"] == []
+
+
+# ── Sub-article path helper ──────────────────────────────────────────
+
+
+class TestSubArticlePath:
+
+    def test_basic_part_1(self):
+        assert cm._sub_article_path("wiki/concept/foo.md", 1) == "wiki/concept/foo-part-1.md"
+
+    def test_basic_part_3(self):
+        assert cm._sub_article_path("wiki/concept/foo.md", 3) == "wiki/concept/foo-part-3.md"
+
+    def test_hyphenated_stem(self):
+        assert cm._sub_article_path("wiki/concept/foo-bar.md", 2) == "wiki/concept/foo-bar-part-2.md"
+
+    def test_nested_path(self):
+        assert cm._sub_article_path("wiki/how-to/deep/nested.md", 5) == "wiki/how-to/deep/nested-part-5.md"
+
+
+# ── Cleanup stale sub-articles ───────────────────────────────────────
+
+
+class TestCleanupStaleSubArticles:
+
+    def test_removes_matching_parts(self, tmp_path):
+        """Stale -part-N.md files for the given article are removed."""
+        store = KBStore(str(tmp_path))
+        parent = tmp_path / "wiki" / "concept"
+        parent.mkdir(parents=True)
+        (parent / "foo-part-1.md").write_text("old part 1")
+        (parent / "foo-part-2.md").write_text("old part 2")
+        (parent / "foo-part-3.md").write_text("old part 3")
+        (parent / "foo-bar-part-1.md").write_text("different article")
+        (parent / "foo.md").write_text("original")
+
+        removed = cm._cleanup_stale_sub_articles(store, "wiki/concept/foo.md")
+
+        assert len(removed) == 3
+        assert not (parent / "foo-part-1.md").exists()
+        assert not (parent / "foo-part-2.md").exists()
+        assert not (parent / "foo-part-3.md").exists()
+        assert (parent / "foo-bar-part-1.md").exists()  # not touched
+        assert (parent / "foo.md").exists()  # not touched by cleanup
+
+    def test_no_op_when_none_exist(self, tmp_path):
+        """No stale files to remove — returns empty list."""
+        store = KBStore(str(tmp_path))
+        parent = tmp_path / "wiki" / "concept"
+        parent.mkdir(parents=True)
+        (parent / "foo.md").write_text("original")
+
+        removed = cm._cleanup_stale_sub_articles(store, "wiki/concept/foo.md")
+
+        assert removed == []
+        assert (parent / "foo.md").exists()
+
+    def test_no_op_when_dir_missing(self, tmp_path):
+        """Parent directory doesn't exist — returns empty list."""
+        store = KBStore(str(tmp_path))
+
+        removed = cm._cleanup_stale_sub_articles(store, "wiki/concept/foo.md")
+
+        assert removed == []
+
+
+# ── _merge_batch_split sub-article production ────────────────────────
+
+
+class TestMergeBatchSplitSubArticles:
+
+    def test_produces_sub_articles_when_budget_exhausted(self, monkeypatch):
+        """When estimate_merge_budget drops below threshold, sub-articles are produced."""
+        call_count = {"create": 0, "merge": 0}
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            call_count["create"] += 1
+            return f"---\ntitle: {title}\n---\ncontent"
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            call_count["merge"] += 1
+            return article_content + "\nmerged\n"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+
+        # Budget below threshold triggers sub-article split after every create/merge.
+        # Use a small per-item create budget so only 1 item fits per batch.
+        item_size = _estimate_full_extraction_size(_ext("summary a"), "raw/a.md")
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: item_size + 10)
+
+        items = [
+            ("raw/a.md", _ext("summary a")),
+            ("raw/b.md", _ext("summary b")),
+            ("raw/c.md", _ext("summary c")),
+        ]
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Should produce multiple sub-articles since budget is always below threshold
+        assert len(articles) > 1
+        # Each sub-article path has -part-N suffix
+        for i, (path, content) in enumerate(articles, 1):
+            assert path == f"wiki/concept/foo-part-{i}.md"
+            assert content  # non-empty
+        # All source rels collected
+        assert all_rels == ["raw/a.md", "raw/b.md", "raw/c.md"]
+        # Part numbering is sequential starting at 1
+        assert articles[0][0].endswith("-part-1.md")
+        assert articles[-1][0].endswith(f"-part-{len(articles)}.md")
+
+    def test_single_article_when_budget_sufficient(self, monkeypatch):
+        """When budget stays above threshold, returns single article at original path."""
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            return f"created from {source_path}"
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            return article_content + f"\nmerged {source_path}"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+        # Budget always well above threshold
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 50_000)
+
+        items = [
+            ("raw/a.md", _ext()),
+            ("raw/b.md", _ext()),
+        ]
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert len(articles) == 1
+        assert articles[0][0] == "wiki/concept/foo.md"
+        assert all_rels == ["raw/a.md", "raw/b.md"]
+
+    def test_sub_article_titles_contain_part_number(self, monkeypatch):
+        """First sub-article uses original title; subsequent ones include '(Part N)'."""
+        titles_seen: list[str] = []
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            titles_seen.append(title)
+            return f"---\ntitle: {title}\n---\ncontent"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article",
+                            lambda *a, **kw: a[1] + "\nmerged")
+        # Force split after every create by returning below-threshold budget
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        items = [
+            ("raw/a.md", _ext()),
+            ("raw/b.md", _ext()),
+            ("raw/c.md", _ext()),
+        ]
+
+        cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="My Article")
+
+        # First create uses original title
+        assert titles_seen[0] == "My Article"
+        # Subsequent creates include Part N
+        for t in titles_seen[1:]:
+            assert "Part" in t
+
+    def test_budget_call_not_duplicated(self, monkeypatch):
+        """estimate_merge_budget is called once per iteration (not twice)."""
+        merge_budget_calls = 0
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            return article_content + f"\nmerged {source_path}"
+
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+
+        items = [
+            ("raw/a.md", _big_ext(15000)),
+            ("raw/b.md", _big_ext(15000)),
+            ("raw/c.md", _big_ext(15000)),
+        ]
+        single_size = _estimate_full_extraction_size(items[0][1], items[0][0])
+
+        def counting_budget(content):
+            nonlocal merge_budget_calls
+            merge_budget_calls += 1
+            return single_size + 10  # fits exactly 1 item per batch
+
+        monkeypatch.setattr(cm, "estimate_merge_budget", counting_budget)
+
+        cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content="existing content")
+
+        # 3 iterations (3 items, 1-per-batch), each checks merge budget once
+        assert merge_budget_calls == 3
+
+    def test_existing_article_split_produces_sub_articles(self, monkeypatch):
+        """When article_content is not None and budget drops, sub-articles are produced."""
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            return article_content + f"\nmerged {source_path}\n"
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            return f"---\ntitle: {title}\n---\ncreated\n"
+
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        # First call: below threshold (triggers split of existing content)
+        # Subsequent calls: above threshold
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        items = [
+            ("raw/a.md", _ext()),
+            ("raw/b.md", _ext()),
+        ]
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content="existing large article content")
+
+        # existing content finalized as part-1, remaining items become part-2
+        assert len(articles) >= 2
+        assert articles[0][0] == "wiki/concept/foo-part-1.md"
+        assert "existing large article content" in articles[0][1]
+        assert all_rels == ["raw/a.md", "raw/b.md"]
+
+
+# ── Integration: _process_article with sub-articles ──────────────────
+
+
+@pytest.fixture
+def kb_many(tmp_path) -> KBStore:
+    """A KB store with enough raw files to trigger sub-article splitting."""
+    store = KBStore(str(tmp_path))
+    for i in range(4):
+        store.write_raw(f"raw/doc_{i}.md", f"content of doc {i}")
+    return store
+
+
+def test_process_article_writes_sub_articles(kb_many, split_fakes, monkeypatch):
+    """When sub-article split occurs, multiple -part-N.md files are written."""
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    # Force the merge→create-split path by making create_budget tiny
+    monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 1)
+
+    # After the first create in _merge_batch_split, make merge_budget below threshold
+    # to trigger sub-article production.
+    monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+
+    out = cm.compile_kb(str(kb_many.base_dir))
+
+    log = _log_of(kb_many)
+    assert "sub-articles" in log
+    assert out["errors"] == []
+
+    # Check that sub-article files exist
+    concept_dir = kb_many.base_dir / "wiki" / "concept"
+    sub_articles = sorted(concept_dir.glob("target-part-*.md"))
+    assert len(sub_articles) >= 2
+    # Original file should NOT exist when sub-articles are produced
+    assert not (concept_dir / "target.md").exists()
+
+
+def test_process_article_sub_article_state_tracking(kb_many, split_fakes, monkeypatch):
+    """After sub-article split, compile state records the original art_path, not sub-article paths."""
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    # Force split
+    monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 1)
+    monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+
+    cm.compile_kb(str(kb_many.base_dir))
+
+    state_path = kb_many.base_dir / ".compile-state.json"
+    assert state_path.exists()
+    state = json.loads(state_path.read_text())
+
+    # When all ops for a file succeed, the state entry gets "compiled_at"
+    # (no "completed_ops" key). Verify that sub-article paths are NOT
+    # recorded anywhere in the state — the original art_path is used
+    # internally and the final state marks files as fully compiled.
+    for rel_path, rel_data in state.items():
+        if not isinstance(rel_data, dict):
+            continue
+        # If partially complete, completed_ops should reference the
+        # original art_path, not sub-article paths.
+        if "completed_ops" in rel_data:
+            assert not any("-part-" in op for op in rel_data["completed_ops"])
+        # Verify the rel_path key itself doesn't contain sub-article paths
+        assert "-part-" not in rel_path
+    # All 4 raw files should be marked as compiled
+    compiled_count = sum(
+        1 for v in state.values()
+        if isinstance(v, dict) and "compiled_at" in v
+    )
+    assert compiled_count == 4
+
+
+def test_process_article_sub_article_log_tag(kb_many, split_fakes, monkeypatch):
+    """Compile log contains 'sub-articles' text when a split occurs."""
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    # Force split
+    monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 1)
+    monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+
+    cm.compile_kb(str(kb_many.base_dir))
+
+    log = _log_of(kb_many)
+    assert "sub-articles" in log
+    assert "[merge\u2192create-split]" in log
+
+
+def test_stale_sub_article_cleanup_on_recompile(kb_two, split_fakes, monkeypatch, capsys):
+    """When a re-compile goes through the split path, stale -part-N files are cleaned up."""
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    # First compile: force sub-article split
+    monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 1)
+    monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+
+    cm.compile_kb(str(kb_two.base_dir))
+
+    concept_dir = kb_two.base_dir / "wiki" / "concept"
+    sub_articles_after_first = sorted(concept_dir.glob("target-part-*.md"))
+    assert len(sub_articles_after_first) >= 2, "First compile should produce sub-articles"
+
+    # Modify raw files to force re-extraction (change checksums)
+    kb_two.write_raw("raw/a.md", "updated content of a")
+    kb_two.write_raw("raw/b.md", "updated content of b")
+
+    # Clear captured stderr to isolate the second compile's output
+    capsys.readouterr()
+
+    # Second compile: still force split path with tiny budgets.
+    # The split path calls _cleanup_stale_sub_articles before writing.
+    cm.compile_kb(str(kb_two.base_dir))
+
+    # Verify cleanup happened via stderr message
+    captured = capsys.readouterr()
+    assert "cleaned up" in captured.err and "stale sub-article" in captured.err
+
+    # Sub-articles from the second compile exist
+    sub_articles_after_second = sorted(concept_dir.glob("target-part-*.md"))
+    assert len(sub_articles_after_second) >= 2
+    # All sub-article files are non-empty (were written fresh)
+    for sub in sub_articles_after_second:
+        assert sub.read_text()
+
+
+def test_merge_batch_split_deletes_original_on_sub_split(kb_two, split_fakes, monkeypatch):
+    """When merge-batch path produces sub-articles, the original file is deleted."""
+    # Create an existing article to trigger the merge-batch path
+    kb_two.write_article("wiki/concept/target.md", "---\ntitle: T\n---\nprior body\n")
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    # Force the merge budget below threshold to produce sub-articles
+    monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 1)
+    # create_budget is large so sub-article creates can pack items
+    monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+    out = cm.compile_kb(str(kb_two.base_dir))
+
+    concept_dir = kb_two.base_dir / "wiki" / "concept"
+    log = _log_of(kb_two)
+
+    # The original file should be deleted
+    assert not (concept_dir / "target.md").exists()
+    # Sub-articles should exist
+    sub_articles = sorted(concept_dir.glob("target-part-*.md"))
+    assert len(sub_articles) >= 2
+    assert "sub-articles" in log
+    assert out["errors"] == []
+
+
+def test_backward_compat_under_threshold_groups_unchanged(kb_two, split_fakes):
+    """Groups that fit within budget are processed exactly as before (no sub-articles)."""
+    split_fakes["classification"] = _merges("wiki/concept/target.md")
+
+    out = cm.compile_kb(str(kb_two.base_dir))
+
+    concept_dir = kb_two.base_dir / "wiki" / "concept"
+    # Single article written, no sub-articles
+    assert (concept_dir / "target.md").exists()
+    sub_articles = list(concept_dir.glob("target-part-*.md"))
+    assert sub_articles == []
+    assert out["compiled"] == 2
+    assert out["errors"] == []
+    log = _log_of(kb_two)
+    assert "sub-articles" not in log
