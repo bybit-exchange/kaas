@@ -517,6 +517,32 @@ func TestProcessBatcherCallErrorNacks(t *testing.T) {
 	}
 }
 
+// TestProcessExtractBreakerOpenAbandons: when the circuit breaker rejects the
+// extract call (ErrOpen), the task must be abandoned — no Ack, no Nack — so
+// RecoverExpired requeues it after the lease TTL without burning an attempt.
+// This is the extract-phase counterpart of TestProcessBatcherErrOpenAbandons.
+func TestProcessExtractBreakerOpenAbandons(t *testing.T) {
+	q := &stubQueue{}
+	openBrk := circuit.New(circuit.Options{FailureThreshold: 1, Cooldown: time.Hour})
+	if err := openBrk.Do(func() error { return errors.New("open the breaker") }); err == nil {
+		t.Fatal("failed to open the breaker")
+	}
+	eng := &fakeEngine{}
+
+	NewWorker(q, eng, openBrk, "w1", wcfg()).Process(context.Background(), taskWithRaw(t, "body"))
+
+	_, ackN, nackN := q.snapshot()
+	if ackN != 0 || nackN != 0 {
+		t.Fatalf("ErrOpen on extract must abandon the task, got ack=%d nack=%d", ackN, nackN)
+	}
+	if eng.extractN != 0 {
+		t.Errorf("extract calls = %d, want 0 (breaker rejected without issuing)", eng.extractN)
+	}
+	if eng.pipelineN != 0 {
+		t.Errorf("pipeline calls = %d, want 0", eng.pipelineN)
+	}
+}
+
 // TestProcessBatcherErrOpenAbandons: when Submit reports circuit.ErrOpen the
 // breaker rejected the batch without issuing a call, so the task is abandoned
 // — no Ack, no Nack — and RecoverExpired requeues it after the lease TTL
