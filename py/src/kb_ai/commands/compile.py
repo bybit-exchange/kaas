@@ -9,6 +9,7 @@ from pathlib import Path
 
 from kb_ai.core.classify import (
     classify_article,
+    classify_article_topical,
     classify_cache_key,
     classify_inputs_hash,
     dedup_create_new,
@@ -126,6 +127,8 @@ def compile_kb(
     extract_only: bool = False,
     extract_strategy: str = STRATEGY_CHUNKED,
     summarize_model: str = "",
+    aggregation_plan: list[dict] | None = None,
+    topic: str = "",
 ) -> dict:
     compile_t0 = time.monotonic()
 
@@ -345,6 +348,18 @@ def compile_kb(
         # Classify and write read the extraction off disk (D1), so extraction/ is
         # the only thing handing off between the two gates.
         existing_articles = store.existing_articles()
+
+        _planned_article_meta: dict[str, dict] = {}
+        if aggregation_plan is not None:
+            for planned in aggregation_plan:
+                p = planned.get("path", "")
+                t = planned.get("title", "")
+                tp = planned.get("type", "")
+                desc = planned.get("description", "")
+                if p and t:
+                    existing_articles.append(ArticleMeta(title=t, path=p, summary=desc))
+                    _planned_article_meta[p] = {"title": t, "type": tp}
+
         classify_snap = tracker.snapshot()
 
         extractions: dict[str, ExtractionResult] = {}
@@ -382,6 +397,25 @@ def compile_kb(
         if items_to_classify:
             log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
         for rf, extraction in items_to_classify:
+            if aggregation_plan is not None:
+                # Skip classify cache: the topical prompt incorporates the
+                # aggregation plan which varies per derive run.
+                try:
+                    result = classify_article_topical(
+                        extraction, existing_articles, topic, aggregation_plan,
+                        model=compile_model, categories=categories)
+                    # No dedup_create_new — topical prompt handles routing
+                    classifications[rf.rel_path] = result
+                    log(f"  [classified-topical] {rf.rel_path}")
+                    for create in result.get("create_new", []):
+                        existing_articles.append(ArticleMeta(
+                            title=create.get("title", ""), path=create.get("path", ""), summary="",
+                        ))
+                except Exception as e:
+                    errors.append({"file": rf.rel_path, "error": str(e)})
+                    log(f"  [classify-error] {rf.rel_path}: {e}")
+                continue
+
             cache_key = classify_cache_key(rf.checksum, art_hash, cat_hash)
             cached = store.load_classify_cache(cache_key)
             if cached is not None:
@@ -527,9 +561,14 @@ def compile_kb(
                     log(f"  [merge-skipped] {art_path} ← {len(merges)} sources: create failed in this run")
                     return
                 full.parent.mkdir(parents=True, exist_ok=True)
-                path_parts = art_path.split("/")
-                article_type = path_parts[1] if len(path_parts) > 2 else "concept"
-                title = Path(art_path).stem.replace("-", " ").title()
+                planned = _planned_article_meta.get(art_path)
+                if planned:
+                    article_type = planned["type"]
+                    title = planned["title"]
+                else:
+                    path_parts = art_path.split("/")
+                    article_type = path_parts[1] if len(path_parts) > 2 else "concept"
+                    title = Path(art_path).stem.replace("-", " ").title()
                 combined, merge_rels = _combine_extractions(
                     [(rel, ext) for rel, _cs, ext, _det in merges])
                 try:

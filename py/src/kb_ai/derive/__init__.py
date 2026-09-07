@@ -79,7 +79,7 @@ def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
                       titles_by_path: dict[str, str],
                       select_from: str) -> dict:
     """Serialise a report into the manifest shape (spec E2, E3)."""
-    return {
+    payload = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "source_kb": str(source_kb),
         "topic": report.topic,
@@ -110,6 +110,9 @@ def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
         "cost": report.cost,
         "warnings": report.warnings,
     }
+    if report.reorganize_plan is not None:
+        payload["reorganize_plan"] = report.reorganize_plan
+    return payload
 
 
 def derive_kb(
@@ -126,6 +129,7 @@ def derive_kb(
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
     approve: Callable[[DeriveReport], bool] | None = None,
+    reorganize: bool = False,
 ) -> DeriveReport:
     """Build <source_kb>/derived/<slug>/ from the articles matching topic.
 
@@ -273,6 +277,22 @@ def derive_kb(
         flush()
         return report
 
+    # When reorganize=True, run the reorganize phase before compile to produce
+    # an aggregation plan that the topical classify will use.
+    reorg_plan = None
+    if reorganize:
+        from kb_ai.derive._reorganize import reorganize as run_reorganize
+
+        derived_store = KBStore(str(derived_dir), read_only=True)
+        reorg_plan = run_reorganize(
+            derived_store,
+            topic,
+            categories=source_store.load_config().get("categories") or [],
+            model=model,
+        )
+        report.reorganize_plan = reorg_plan.to_dict()
+        flush()
+
     # A derived KB inherits its source's frozen category set. Falling back to
     # DEFAULT_CATEGORIES would file the derived articles under categories the
     # source deliberately excluded -- the silent re-partition that freezing the
@@ -282,11 +302,20 @@ def derive_kb(
     # left on the default would find every one of them stale under a non-chunked
     # deployment, re-extract the whole copy at full price, and record chunked --
     # which the next compile of the source then finds stale in turn.
-    compile_result = compile_fn(str(derived_dir), extract_model=model,
-                                compile_model=model, write_model=model,
-                                extract_strategy=extract_strategy,
-                                summarize_model=summarize_model,
-                                categories=source_store.load_config().get("categories"))
+    compile_kwargs: dict = dict(
+        extract_model=model,
+        compile_model=model,
+        write_model=model,
+        extract_strategy=extract_strategy,
+        summarize_model=summarize_model,
+        categories=source_store.load_config().get("categories"),
+    )
+    if reorg_plan is not None:
+        compile_kwargs["aggregation_plan"] = [
+            a.to_dict() for a in reorg_plan.articles
+        ]
+        compile_kwargs["topic"] = topic
+    compile_result = compile_fn(str(derived_dir), **compile_kwargs)
     # compile_kb returns the PROCESS-WIDE tracker summary, which here would be the
     # RECALL pass plus, in the long-lived daemon, every earlier request's spend.
     # report.cost is the authoritative per-request figure, so the misleading key
