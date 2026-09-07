@@ -27,6 +27,11 @@ from kb_ai.prompts import default_registry
 
 _SAFETY_MARGIN = 500
 
+# When the merge budget for an intermediate article drops below this threshold
+# during iterative batch-split merging, the article is finalized as a sub-article
+# and a new article starts for the remaining sources.
+_SUB_ARTICLE_BUDGET_THRESHOLD = int(0.15 * MAX_PROMPT_CHARS)
+
 # The framing _merge_user_message wraps the existing article in, and the tag a
 # rewrite sometimes echoes back into its output. One pair of constants so the
 # framing and _strip_article_wrapper cannot drift apart.

@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import threading
 import time
@@ -37,6 +38,7 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    _SUB_ARTICLE_BUDGET_THRESHOLD,
     _estimate_full_extraction_size,
     create_new_article,
     estimate_create_budget,
@@ -114,6 +116,39 @@ def _under_wiki(store: KBStore, art_path: str) -> bool:
         return False
     wiki_root = store.wiki_dir.resolve()
     return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
+
+
+def _sub_article_path(base_path: str, part_num: int) -> str:
+    """Derive a sub-article path by appending '-part-N' before .md extension.
+
+    >>> _sub_article_path("wiki/concept/foo.md", 1)
+    'wiki/concept/foo-part-1.md'
+    >>> _sub_article_path("wiki/concept/foo-bar.md", 2)
+    'wiki/concept/foo-bar-part-2.md'
+    """
+    stem = base_path[:-3]  # strip ".md"; all wiki paths end in .md by construction
+    return f"{stem}-part-{part_num}.md"
+
+
+def _cleanup_stale_sub_articles(store: KBStore, art_path: str) -> list[str]:
+    """Remove existing -part-N.md files for the given base article path.
+
+    Called before writing new sub-articles (or a single merged article) to
+    prevent orphaned sub-article files from prior runs appearing in the index.
+
+    Returns list of removed file paths (relative to store.base_dir).
+    """
+    stem = Path(art_path).stem  # e.g. "foo" from "wiki/concept/foo.md"
+    parent = (store.base_dir / art_path).parent
+    if not parent.exists():
+        return []
+    removed: list[str] = []
+    pattern = re.compile(rf"^{re.escape(stem)}-part-\d+\.md$")
+    for p in sorted(parent.iterdir()):
+        if p.is_file() and pattern.match(p.name):
+            p.unlink()
+            removed.append(str(p.relative_to(store.base_dir)))
+    return removed
 
 
 def _pack_merge_batch(
