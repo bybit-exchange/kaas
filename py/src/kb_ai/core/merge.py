@@ -33,6 +33,15 @@ _SAFETY_MARGIN = 500
 _ARTICLE_OPEN = "<article>"
 _ARTICLE_CLOSE = "</article>"
 
+# Character cost of _merge_user_message's framing around the article and extraction:
+# "Existing article:\n<article>\n" (header) + "\n</article>\n\nNew information to merge:\n" (footer)
+# Measured from the actual strings in _merge_user_message; constant so it is not
+# re-computed per call. Placed after _ARTICLE_OPEN/_ARTICLE_CLOSE which it references.
+_MERGE_FRAMING_CHARS = (
+    len(f"Existing article:\n{_ARTICLE_OPEN}\n")
+    + len(f"\n{_ARTICLE_CLOSE}\n\nNew information to merge:\n")
+)
+
 # Per-call timeout for the write phase, mirroring extract's override. Without one
 # a write inherits DEFAULT_CLIENT_TIMEOUT_S, and a gateway that hangs on a 6-8K
 # prompt then costs 15 minutes to discover -- three derive runs each lost roughly
@@ -258,6 +267,76 @@ def _fit_extraction_to_budget(
             flush=True,
         )
     return result
+
+
+def estimate_create_budget(
+    article_type: str,
+    title: str,
+    batch_items: list[tuple[str, ExtractionResult]],
+) -> int:
+    """Estimate the character budget available for extraction text in a create_new_article call.
+
+    Builds a synthetic user_header from the batch's actual fields (matching
+    create_new_article's f-string template) to account for variable-length
+    source_path (joined rel paths) and extraction.topics.
+
+    Args:
+        article_type: Article type string (e.g. "concept", "project").
+        title: Article title.
+        batch_items: The (rel_path, ExtractionResult) pairs that will be in this batch.
+                     Used to compute source_path and topics from the combined batch.
+
+    Returns:
+        Available characters for extraction text. Always >= 200.
+    """
+    from datetime import date
+    today = date.today().isoformat()
+
+    # Combine topics the same way _combine_extractions does (deduped)
+    all_topics: list[str] = []
+    rels: list[str] = []
+    for rel, ext in batch_items:
+        all_topics.extend(ext.topics)
+        rels.append(rel)
+    topics = list(set(all_topics))
+    source_path = ", ".join(rels)
+
+    system = _create_system(article_type)
+    # Same f-string template as create_new_article
+    user_header = f"""Create article:
+- Title: {title}
+- Type: {article_type}
+- Source: {source_path}
+- Created/Updated: {today}
+- Tags: {topics}
+
+Knowledge to include:
+"""
+    budget = MAX_PROMPT_CHARS - len(system) - len(user_header) - _SAFETY_MARGIN
+    return max(budget, 200)
+
+
+def estimate_merge_budget(article_content: str) -> int:
+    """Estimate the character budget available for extraction text in a merge_into_article call.
+
+    Args:
+        article_content: The existing article text to merge into.
+
+    Returns:
+        Available characters for extraction text. Always >= 200.
+
+    Notes:
+        Budget = MAX_PROMPT_CHARS - len(_merge_rewrite_system())
+               - len(article_content) - _MERGE_FRAMING_CHARS - _SAFETY_MARGIN.
+        This matches the full-rewrite path's budget. The section-merge and diff
+        paths have slightly different structures, but the full-rewrite budget is
+        the tightest (it sends the full article in a single prompt), so using it
+        as the estimate is conservative. Any remaining overflow is handled by
+        _fit_extraction_to_budget inside the actual merge call.
+    """
+    system = _merge_rewrite_system()
+    budget = MAX_PROMPT_CHARS - len(system) - len(article_content) - _MERGE_FRAMING_CHARS - _SAFETY_MARGIN
+    return max(budget, 200)
 
 
 def _parse_sections(content: str) -> list[tuple[str, str]]:
