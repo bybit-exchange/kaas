@@ -37,7 +37,10 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    _estimate_full_extraction_size,
     create_new_article,
+    estimate_create_budget,
+    estimate_merge_budget,
     merge_into_article,
     write_prompt_version,
 )
@@ -111,6 +114,113 @@ def _under_wiki(store: KBStore, art_path: str) -> bool:
         return False
     wiki_root = store.wiki_dir.resolve()
     return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
+
+
+def _pack_merge_batch(
+    items: list[tuple[str, ExtractionResult]],
+    budget: int,
+) -> tuple[list[tuple[str, ExtractionResult]], list[tuple[str, ExtractionResult]]]:
+    """Greedily pack (rel_path, extraction) pairs into one batch fitting budget.
+
+    Args:
+        items: Source items to pack, ordered. Each is (rel_path, ExtractionResult).
+        budget: Maximum total extraction chars for this batch.
+
+    Returns:
+        (batch, remaining): batch is the items that fit; remaining is the rest.
+        If a single item exceeds budget, it is taken alone (truncation happens
+        downstream in _fit_extraction_to_budget).
+        If items is empty, returns ([], []).
+    """
+    batch: list[tuple[str, ExtractionResult]] = []
+    batch_size = 0
+    remaining: list[tuple[str, ExtractionResult]] = []
+    for rel, ext in items:
+        cost = _estimate_full_extraction_size(ext, rel)
+        if batch and batch_size + cost > budget:
+            remaining.append((rel, ext))
+        else:
+            batch.append((rel, ext))
+            batch_size += cost
+    if not batch and remaining:
+        # Single extraction exceeds budget — take it anyway;
+        # _fit_extraction_to_budget will truncate it within the LLM call.
+        batch.append(remaining.pop(0))
+    return batch, remaining
+
+
+def _merge_batch_split(
+    art_path: str,
+    items: list[tuple[str, ExtractionResult]],
+    write_model: str,
+    *,
+    article_content: str | None,
+    article_type: str = "",
+    title: str = "",
+) -> tuple[str, list[str], int]:
+    """Iteratively merge sources into an article in batches.
+
+    Args:
+        art_path: Target article path (e.g. "wiki/concept/foo.md").
+        items: The source list, each (rel_path, ExtractionResult). Extracted
+               from the merges list by the caller.
+        write_model: LLM model name.
+        article_content: Existing article text, or None if creating new.
+        article_type: Article type (used only when article_content is None).
+        title: Article title (used only when article_content is None).
+
+    Returns:
+        (final_content, all_rel_paths, n_batches):
+            final_content: The merged article content.
+            all_rel_paths: All source rel_paths that were processed (same order as items).
+            n_batches: Number of batches actually used.
+
+    Raises:
+        RuntimeError: if any batch's LLM call fails (propagated from
+        create_new_article / merge_into_article).
+
+    Notes:
+        - Batch 1 when article_content is None: calls create_new_article()
+        - Batch 1 when article_content is str: calls merge_into_article()
+        - Batch 2+: always calls merge_into_article() into the intermediate result
+        - Each batch computes its own budget dynamically from the current
+          intermediate article size — batches are NOT pre-computed
+        - Per-batch progress logged to stderr: [merge-split] art_path batch N: ...
+    """
+    all_rels: list[str] = []
+    remaining = list(items)
+    current_content = article_content
+    batch_num = 0
+
+    while remaining:
+        batch_num += 1
+
+        # Compute budget dynamically for each batch
+        if current_content is None:
+            # First batch, create path: budget depends on batch contents
+            budget = estimate_create_budget(article_type, title, remaining)
+        else:
+            # Merge path: budget depends on current article size
+            budget = estimate_merge_budget(current_content)
+
+        batch, remaining = _pack_merge_batch(remaining, budget)
+        combined, batch_rels = _combine_extractions(batch)
+        all_rels.extend(batch_rels)
+
+        if current_content is None:
+            # First batch, no existing article: create
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            current_content = create_new_article(
+                article_type, title, combined, ", ".join(batch_rels), model=write_model)
+        else:
+            # Merge into existing/intermediate article
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            current_content = merge_into_article(
+                art_path, current_content, combined, ", ".join(batch_rels), model=write_model)
+
+    return current_content, all_rels, batch_num
 
 
 def compile_kb(
