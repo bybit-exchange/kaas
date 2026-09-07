@@ -303,19 +303,24 @@ func TestPostDeriveRejectsAnInvalidSlug(t *testing.T) {
 	}
 }
 
-func TestPostDeriveRejectsATopicThatNormalisesToNothing(t *testing.T) {
-	// Chinese characters collapse entirely to hyphens, which get trimmed away,
-	// leaving an empty slug that fails kbpath.ValidSlug.
+func TestPostDeriveAcceptsAPureCJKTopic(t *testing.T) {
+	// Chinese characters collapse entirely to hyphens under the regex, which
+	// get trimmed away. The hash-based fallback now produces a valid slug
+	// "t-{sha256[:10]}" so the request is accepted.
 	fds := newFakeDerivedStore()
 	s, _ := newDeriveTestServer(t, fds)
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"定价"}`)
 
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
 	}
-	if !strings.Contains(rec.Body.String(), "invalid slug") {
-		t.Errorf("error body should mention slug; got: %s", rec.Body.String())
+	var resp struct {
+		Slug string `json:"slug"`
+	}
+	mustJSON(t, rec, &resp)
+	if resp.Slug != "t-76ffb61d71" {
+		t.Errorf("slug = %q, want t-76ffb61d71", resp.Slug)
 	}
 }
 

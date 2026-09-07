@@ -21,6 +21,8 @@ from kb_ai.storage.store import KBStore
     ("Pricing / Fees!", "pricing-fees"),
     ("  spaced  out  ", "spaced-out"),
     ("CJK 定价", "cjk"),
+    ("定价", "t-76ffb61d71"),  # pure CJK -> deterministic hash slug
+    ("孙悟空", "t-8675b38c59"),  # pure CJK -> deterministic hash slug
     ("a" * 60, "a" * 40),
     ("x" * 39 + "-tail", "x" * 39),  # truncation must not leave a trailing dash
 ])

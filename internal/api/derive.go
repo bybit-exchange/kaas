@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -63,13 +64,22 @@ const slugMaxLen = 40
 const topicMaxLen = 500
 
 // slugFromTopic derives a slug from a topic string (spec C2).
+// When the topic contains only non-ASCII characters (e.g. CJK), the regex
+// normalization yields an empty string. In that case a deterministic hash-based
+// slug "t-{sha256[:10]}" is produced so the request is not rejected.
+// The same fallback exists in normalise_slug (py/src/kb_ai/derive/_layout.py).
 func slugFromTopic(topic string) string {
 	flat := slugFillerRe.ReplaceAllString(strings.ToLower(topic), "-")
 	flat = strings.Trim(flat, "-")
 	if len(flat) > slugMaxLen {
 		flat = flat[:slugMaxLen]
 	}
-	return strings.Trim(flat, "-")
+	flat = strings.Trim(flat, "-")
+	if flat == "" && strings.TrimSpace(topic) != "" {
+		h := sha256.Sum256([]byte(topic))
+		flat = fmt.Sprintf("t-%x", h[:5])
+	}
+	return flat
 }
 
 // handleDerive serves POST /api/derive: it records the job and returns

@@ -47,9 +47,20 @@ def normalise_slug(topic: str) -> str:
     Lower-cased, non-alphanumeric runs collapsed to '-', trimmed, truncated to 40
     characters, then trimmed again -- truncation can land on a dash, which
     validate_slug rejects.
+
+    When the topic contains only non-ASCII characters (e.g. CJK), the regex
+    normalization yields an empty string.  In that case a deterministic
+    hash-based slug ``t-{sha256[:10]}`` is produced so the caller does not have
+    to provide ``--slug`` manually.  The same fallback exists in slugFromTopic
+    (internal/api/derive.go).
     """
     flat = re.sub(r"[^a-z0-9]+", "-", topic.lower())
-    return flat.strip("-")[:_SLUG_MAX].strip("-")
+    slug = flat.strip("-")[:_SLUG_MAX].strip("-")
+    if not slug and topic.strip():
+        import hashlib
+        h = hashlib.sha256(topic.encode()).hexdigest()[:10]
+        slug = f"t-{h}"
+    return slug
 
 
 def validate_slug(slug: str) -> None:
