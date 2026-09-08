@@ -172,6 +172,46 @@ func TestRunnerLeavesAnUnsetSelectFromEmpty(t *testing.T) {
 	}
 }
 
+// TestRunnerForwardsReorganizeFalse pins that Config.Reorganize=false reaches
+// the bridge as an explicit *bool pointing to false, rather than being dropped.
+func TestRunnerForwardsReorganizeFalse(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	// Explicit Reorganize: false in the config.
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		Reorganize: false,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.Reorganize == nil {
+		t.Fatal("req.Reorganize is nil, want ptr to false")
+	}
+	if *br.req.Reorganize != false {
+		t.Errorf("req.Reorganize = %v, want false", *br.req.Reorganize)
+	}
+}
+
 func TestRunnerRunsAPendingJobToSuccess(t *testing.T) {
 	js := newFakeJobStore(&store.DerivedJob{
 		ID: "j1", Slug: "pricing", Topic: "pricing and fees", Model: "",

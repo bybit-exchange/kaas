@@ -43,6 +43,9 @@ mcp_url = "http://ai-mcp:8082"
 api_key = "sk-test"
 base_url = "https://example.com/v1"
 model = "gpt-4o"
+
+[derive]
+reorganize = false
 `)
 	c, err := Load(p)
 	if err != nil {
@@ -62,6 +65,9 @@ model = "gpt-4o"
 	}
 	if c.LLM.APIKey != "sk-test" || c.LLM.Model != "gpt-4o" {
 		t.Fatalf("llm: %+v", c.LLM)
+	}
+	if c.Derive.Reorganize != false {
+		t.Fatalf("derive.reorganize = %v, want false", c.Derive.Reorganize)
 	}
 }
 
@@ -101,6 +107,9 @@ api_key = "sk"
 	if c.LLM.BaseURL != "https://api.openai.com/v1" || c.LLM.Model != "gpt-4o-mini" {
 		t.Fatalf("llm defaults not applied: %+v", c.LLM)
 	}
+	if !c.Derive.Reorganize {
+		t.Fatalf("derive.reorganize default = %v, want true", c.Derive.Reorganize)
+	}
 }
 
 func TestLoadRepoConfig(t *testing.T) {
@@ -128,6 +137,9 @@ func TestLoadRepoConfig(t *testing.T) {
 	if c.Worker.IndexDebounceSec != 30 || c.Worker.IndexMaxStaleSec != 300 {
 		t.Errorf("index refresh keys = %d/%d, want 30/300",
 			c.Worker.IndexDebounceSec, c.Worker.IndexMaxStaleSec)
+	}
+	if !c.Derive.Reorganize {
+		t.Errorf("derive.reorganize = %v, want true", c.Derive.Reorganize)
 	}
 }
 
@@ -839,4 +851,142 @@ func TestIndexRefreshValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDeriveReorganizeDefaultTrue confirms the default=true tag fires when the
+// [derive] section is absent from the TOML entirely.
+func TestDeriveReorganizeDefaultTrue(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !c.Derive.Reorganize {
+		t.Errorf("derive.reorganize = %v, want true when [derive] is absent", c.Derive.Reorganize)
+	}
+}
+
+// TestDeriveReorganizeEnvOverride confirms KAAS_DERIVE_REORGANIZE overrides the
+// file value in both directions, and that an invalid value warns and falls back.
+func TestDeriveReorganizeEnvOverride(t *testing.T) {
+	t.Run("env true overrides file false", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "true")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true from env override", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env false overrides file true", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "false")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false from env override", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env 1 treated as true", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "1")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true from env=1", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env 0 treated as false", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "0")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false from env=0", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("invalid env falls back to file value", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "yes")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true (file value) when env is invalid", c.Derive.Reorganize)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_REORGANIZE") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_REORGANIZE; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("empty env does not override", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false (empty env must not clobber)", c.Derive.Reorganize)
+		}
+	})
 }

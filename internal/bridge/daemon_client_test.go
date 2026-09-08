@@ -14,6 +14,9 @@ import (
 )
 
 // --- scripted transport ---------------------------------------------------
+
+// boolPtr returns a pointer to the given bool, useful for *bool struct fields.
+func boolPtr(b bool) *bool { return &b }
 //
 // The DaemonClient methods are thin wrappers over daemon.call / daemon.stream.
 // To exercise them without spawning Python, a scriptedDaemon replaces the
@@ -824,6 +827,7 @@ func newFakeDaemonClient(t *testing.T) (*DaemonClient, *fakeDaemon) {
 
 // --- Derive ------------------------------------------------------------------
 
+// TestDeriveMarshalsTheRequestAndDecodesTheResponse tests the full roundtrip.
 func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	c, fake := newFakeDaemonClient(t)
 	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{
@@ -840,6 +844,7 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 
 	got, err := c.Derive(context.Background(), DeriveRequest{
 		KBDir: "/kb", Topic: "pricing", Slug: "pricing", Force: true, Model: "m",
+		Reorganize: boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("Derive: %v", err)
@@ -853,6 +858,9 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	}
 	if sent.KBDir != "/kb" || sent.Topic != "pricing" || !sent.Force || sent.Model != "m" {
 		t.Errorf("sent = %+v", sent)
+	}
+	if sent.Reorganize == nil || *sent.Reorganize != true {
+		t.Errorf("sent.Reorganize = %v, want ptr to true", sent.Reorganize)
 	}
 	if got.Slug != "pricing" || got.Documents != 3 || !got.Compiled {
 		t.Errorf("got = %+v", got)
@@ -916,5 +924,39 @@ func TestDeriveSurfacesAnEngineError(t *testing.T) {
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.Code != "SLUG_EXISTS" {
 		t.Fatalf("err = %v, want an APIError with SLUG_EXISTS", err)
+	}
+}
+
+// TestDeriveCarriesExplicitFalseReorganize pins the *bool + omitempty behavior:
+// an explicit false must appear on the wire, not be dropped by omitempty.
+func TestDeriveCarriesExplicitFalseReorganize(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", Reorganize: boolPtr(false),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.Reorganize == nil || *sent.Reorganize != false {
+		t.Errorf("sent.Reorganize = %v, want ptr to false", sent.Reorganize)
+	}
+}
+
+// TestDeriveOmitsNilReorganize asserts that a nil Reorganize is absent from the
+// JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilReorganize(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("reorganize")) {
+		t.Errorf("payload = %s, want no reorganize key when Reorganize is nil", fake.lastPayload)
 	}
 }
