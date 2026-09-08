@@ -16,6 +16,7 @@ from kb_ai.core import extract as ex
 from kb_ai.core.extract import ExtractionResult, _combine_extractions
 from kb_ai.core.merge import (
     MAX_PROMPT_CHARS,
+    _MAX_BATCH_BUDGET,
     _MERGE_FRAMING_CHARS,
     _SAFETY_MARGIN,
     _SUB_ARTICLE_BUDGET_THRESHOLD,
@@ -270,6 +271,52 @@ class TestMergeBatchSplit:
         assert len(articles) == 1
         assert articles[0][0] == "wiki/concept/foo.md"
         assert "created" in articles[0][1]
+
+    def test_budget_capped_at_max_batch_budget(self, monkeypatch):
+        """When dynamic budget exceeds _MAX_BATCH_BUDGET, _pack_merge_batch receives the capped value."""
+        captured_budgets: list[int] = []
+        original_pack = cm._pack_merge_batch
+
+        def spy_pack(items, budget):
+            captured_budgets.append(budget)
+            return original_pack(items, budget)
+
+        monkeypatch.setattr(cm, "_pack_merge_batch", spy_pack)
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            return f"created from {source_path}"
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            return article_content + f"\nmerged {source_path}"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+
+        # Return a budget well above _MAX_BATCH_BUDGET for both paths
+        dynamic_budget = 60_000
+        assert dynamic_budget > _MAX_BATCH_BUDGET, "test assumes dynamic budget exceeds cap"
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: dynamic_budget)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: dynamic_budget)
+
+        items = [
+            ("raw/a.md", _ext()),
+            ("raw/b.md", _ext()),
+        ]
+
+        # Create path: article_content=None
+        cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert captured_budgets[0] == _MAX_BATCH_BUDGET
+
+        # Merge path: article_content is provided
+        captured_budgets.clear()
+        cm._merge_batch_split(
+            "wiki/concept/bar.md", items, "m",
+            article_content="existing content")
+
+        assert captured_budgets[0] == _MAX_BATCH_BUDGET
 
 
 # ── Integration tests via compile_kb ─────────────────────────────────

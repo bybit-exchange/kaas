@@ -38,6 +38,7 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    _MAX_BATCH_BUDGET,
     _SUB_ARTICLE_BUDGET_THRESHOLD,
     _estimate_full_extraction_size,
     create_new_article,
@@ -265,6 +266,7 @@ def _merge_batch_split(
             budget = estimate_create_budget(article_type, part_title, remaining)
         # else: budget already set from the threshold check above (no redundant call)
 
+        budget = min(budget, _MAX_BATCH_BUDGET)
         batch, remaining = _pack_merge_batch(remaining, budget)
         combined, batch_rels = _combine_extractions(batch)
         all_rels.extend(batch_rels)
