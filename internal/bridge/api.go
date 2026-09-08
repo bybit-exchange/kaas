@@ -162,6 +162,10 @@ type DeriveRequest struct {
 	// default, so an unset value must arrive as an absent key rather than as an
 	// empty string this side invented.
 	SelectFrom string `json:"select_from,omitempty"`
+	// Reorganize controls whether the reorganize phase runs before compile.
+	// Pointer so an explicit false is serialized rather than dropped by omitempty.
+	// The runner always sets it from config; nil is never sent in practice.
+	Reorganize *bool `json:"reorganize,omitempty"`
 }
 
 // DeriveResponse mirrors the derive command's success payload. Stored verbatim

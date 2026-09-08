@@ -30,6 +30,7 @@ type Config struct {
 	Model        string        // default model when a job names none
 	PollInterval time.Duration // how often to look for a pending job
 	Timeout      time.Duration // ceiling for one derive call
+	Reorganize   bool          // forwarded to every DeriveRequest
 }
 
 // Runner claims pending derive jobs one at a time and drives them through the
@@ -126,6 +127,7 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 	callCtx, cancel := context.WithTimeout(ctx, r.cfg.Timeout)
 	defer cancel()
 
+	reorg := r.cfg.Reorganize
 	resp, err := r.br.Derive(callCtx, bridge.DeriveRequest{
 		KBDir: r.cfg.KBDir,
 		Topic: job.Topic,
@@ -141,6 +143,7 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		// engine owns this default, so substituting one here would override a job
 		// that deliberately left it unset.
 		SelectFrom: job.SelectFrom,
+		Reorganize: &reorg,
 	})
 	if err != nil {
 		r.logger.Error("derive: failed", "id", job.ID, "slug", job.Slug, "err", err)
