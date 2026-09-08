@@ -411,9 +411,24 @@ def _merge_batch_split(
 ) -> tuple[list[tuple[str, str]], list[str], int]:
     """Iteratively merge sources into an article in batches.
 
-    When the merge budget drops below _SUB_ARTICLE_BUDGET_THRESHOLD during
-    iteration, the current article is finalized as a sub-article and a fresh
-    article starts for the remaining sources.
+    Three-phase architecture:
+
+    **Phase A** (serial, calling thread): runs the batch loop until either all
+    items are consumed (fast path) or a sub-article split is detected, at which
+    point it breaks.  Phase A does NOT call ``adopt_context`` -- the calling
+    thread already has the correct context from ``_process_article`` /
+    ``_measure_op_cost``.
+
+    **Fast path**: if Phase A drains all items, return immediately with zero
+    thread overhead -- identical to the previous serial implementation.
+
+    **Phase B** (parallel, child threads): pre-splits remaining items via
+    ``_pre_split_chains`` and dispatches each chunk to ``_run_chain`` through a
+    ``ThreadPoolExecutor``.  Uses ``_get_batch_parallel_sem()`` for LLM
+    concurrency control.
+
+    **Phase C** (collect + re-number): waits on futures in submission order,
+    merges results, and re-numbers all sub-articles sequentially (1, 2, 3, ...).
 
     Args:
         art_path: Target article path (e.g. "wiki/concept/foo.md").
@@ -435,17 +450,10 @@ def _merge_batch_split(
     Raises:
         RuntimeError: if any batch's LLM call fails (propagated from
         create_new_article / merge_into_article).
-
-    Notes:
-        - Batch 1 when article_content is None: calls create_new_article()
-        - Batch 1 when article_content is str: calls merge_into_article()
-        - Batch 2+: always calls merge_into_article() into the intermediate result
-        - Each batch computes its own budget dynamically from the current
-          intermediate article size — batches are NOT pre-computed
-        - Per-batch progress logged to stderr: [merge-split] art_path batch N: ...
-        - When budget drops below threshold, current article is finalized as
-          a sub-article and a new one begins for remaining sources
     """
+    # -- Phase A: serial Chain 0 on calling thread -----------------
+    # NO adopt_context here: the calling thread already has the correct
+    # context with _measure_op_cost's op_tracker as request_tracker.
     all_rels: list[str] = []
     remaining = list(items)
     current_content = article_content
@@ -465,12 +473,13 @@ def _merge_batch_split(
                 part_num += 1
                 sub_path = _sub_article_path(art_path, part_num)
                 finalized_articles.append((sub_path, current_content))
-                print(f"  [merge-split] {art_path} → sub-article {sub_path} "
+                print(f"  [merge-split] {art_path} \u2192 sub-article {sub_path} "
                       f"({len(current_content)} chars, {current_source_count} sources)",
                       file=sys.stderr, flush=True)
                 current_content = None
                 current_source_count = 0
-                # budget is stale; will be recomputed below as create budget
+                # Phase A breaks on first split -- remaining items go to Phase B
+                break
             # else: budget is valid, reuse it below for _pack_merge_batch
 
         batch_num += 1
@@ -491,30 +500,79 @@ def _merge_batch_split(
             # Create a new (sub-)article
             part_title = title if not finalized_articles else f"{title} (Part {part_num + 1})"
             print(f"  [merge-split] {art_path} batch {batch_num}: "
-                  f"create ← {len(batch)} sources", file=sys.stderr, flush=True)
+                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
             current_content = create_new_article(
                 article_type, part_title, combined,
                 ", ".join(batch_rels), model=write_model)
         else:
             # Merge into existing/intermediate article
             print(f"  [merge-split] {art_path} batch {batch_num}: "
-                  f"merge ← {len(batch)} sources", file=sys.stderr, flush=True)
+                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
             current_content = merge_into_article(
                 art_path, current_content, combined,
                 ", ".join(batch_rels), model=write_model)
 
-    # Finalize the last article
-    if current_content is not None:
-        if finalized_articles:
-            # Was a sub-article split: the last chunk is also a sub-article
-            part_num += 1
-            sub_path = _sub_article_path(art_path, part_num)
-            finalized_articles.append((sub_path, current_content))
-        else:
-            # No split occurred: single article at the original path
-            finalized_articles.append((art_path, current_content))
+    # -- Fast path: no split, all items consumed -------------------
+    if not remaining:
+        if current_content is not None:
+            if finalized_articles:
+                part_num += 1
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+            else:
+                # No split occurred: single article at the original path
+                finalized_articles.append((art_path, current_content))
+        return finalized_articles, all_rels, batch_num
 
-    return finalized_articles, all_rels, batch_num
+    # -- Phase B: parallel dispatch for remaining items ------------
+    # Context snapshot captures op_tracker as request_tracker so child
+    # threads inherit cost tracking via adopt_context.
+    chain_ctx = get_context()
+    sem = _get_batch_parallel_sem()
+    chunks = _pre_split_chains(remaining, article_type, title)
+
+    chain_articles: list[tuple[str, str]] = []
+
+    if len(chunks) == 1 and len(chunks[0]) <= 1:
+        # Single item or single tiny chunk -- run synchronously to
+        # avoid thread-pool overhead.
+        result = _run_chain(
+            art_path, chunks[0], write_model,
+            article_type=article_type,
+            title=f"{title} (Part {part_num + 1})",
+            start_part_num=part_num + 1,
+            parent_ctx=chain_ctx, sem=None,
+        )
+        all_rels.extend(result.all_rels)
+        batch_num += result.n_batches
+        chain_articles.extend(result.articles)
+    else:
+        with ThreadPoolExecutor(max_workers=len(chunks)) as pool:
+            futures = []
+            for i, chunk in enumerate(chunks):
+                chunk_title = f"{title} (Part {part_num + 1 + i})"
+                fut = pool.submit(
+                    _run_chain, art_path, chunk, write_model,
+                    article_type=article_type,
+                    title=chunk_title,
+                    start_part_num=part_num + 1 + i * 100,  # sparse numbering
+                    parent_ctx=chain_ctx,
+                    sem=sem,
+                )
+                futures.append(fut)
+            # Collect in submission order to preserve item ordering
+            for fut in futures:
+                result = fut.result()  # re-raises on error
+                all_rels.extend(result.all_rels)
+                batch_num += result.n_batches
+                chain_articles.extend(result.articles)
+
+    # -- Phase C: collect + re-number all sub-articles -------------
+    all_sub_articles = list(finalized_articles) + chain_articles
+    renumbered = []
+    for i, (_path, content) in enumerate(all_sub_articles, 1):
+        renumbered.append((_sub_article_path(art_path, i), content))
+    return renumbered, all_rels, batch_num
 
 def compile_kb(
     data_dir: str,
