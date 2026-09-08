@@ -23,8 +23,17 @@ type Config struct {
 	Worker  WorkerConf  `json:"worker"`
 	AI      AIConf      `json:"ai"`
 	LLM     LLMConf     `json:"llm"`
+	Derive  DeriveConf  `json:"derive"`
 	Upload  UploadConf  `json:"upload"`
 	Log     LogConf     `json:"log"`
+}
+
+// DeriveConf configures knowledge-base derive behavior.
+type DeriveConf struct {
+	// Reorganize controls whether the reorganize phase runs before compile in
+	// derive jobs. When true, the engine produces an aggregation plan that
+	// groups related extractions. Defaults to true.
+	Reorganize bool `json:"reorganize,default=true"`
 }
 
 // LogConf configures structured logging output.
@@ -297,6 +306,16 @@ func applyEnvOverrides(c *Config) error {
 	}
 	if n, ok := envInt("KAAS_WORKER_INDEX_MAX_STALE_SEC"); ok {
 		c.Worker.IndexMaxStaleSec = n
+	}
+	if v := os.Getenv("KAAS_DERIVE_REORGANIZE"); v != "" {
+		switch strings.ToLower(v) {
+		case "true", "1":
+			c.Derive.Reorganize = true
+		case "false", "0":
+			c.Derive.Reorganize = false
+		default:
+			log.Printf("[config] invalid KAAS_DERIVE_REORGANIZE=%q, ignoring (must be true/false/1/0)", v)
+		}
 	}
 	return nil
 }

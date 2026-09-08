@@ -109,6 +109,12 @@ model = "gpt-4o-mini"
 # document once, at full cost. Override with LLM_EXTRACT_STRATEGY.
 extract_strategy = "chunked"
 
+[derive]
+# Whether the reorganize phase runs before compile in derive jobs. When true,
+# the engine produces an aggregation plan that groups related extractions
+# before writing articles. Override with KAAS_DERIVE_REORGANIZE.
+reorganize = true
+
 # --- Logging ---
 [log]
 # level: debug | info | warn | error (default: info)
