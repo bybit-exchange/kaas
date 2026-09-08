@@ -1,0 +1,23 @@
+py/tests/test_server_daemon.py
+  b79c08f515aad41c 891,900,906-976
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3def7f094c229977192a07abeca443dd258fcd8a",
+  "prompts": {
+    "b79c08f515aad41c": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a0800f-e973-7e0c-84f6-67116238bcda",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 75,
+      "total_deletions": 0,
+      "accepted_lines": 75,
+      "overriden_lines": 0
+    }
+  }
+}
