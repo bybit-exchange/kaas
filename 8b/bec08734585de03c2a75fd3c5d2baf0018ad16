@@ -1,0 +1,42 @@
+py/src/kb_ai/server_daemon.py
+  33c271ca7e0f6c66 409
+docs/assets/derive-flow.en.svg
+  906e8ed319870363 1-299
+.gitignore
+  33c271ca7e0f6c66 50
+docs/assets/derive-flow.zh.svg
+  906e8ed319870363 1-295
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "8bbec08734585de03c2a75fd3c5d2baf0018ad16",
+  "prompts": {
+    "33c271ca7e0f6c66": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07b44-8a18-793b-8796-cbf325b7b7e2",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 49,
+      "total_deletions": 0,
+      "accepted_lines": 111,
+      "overriden_lines": 0
+    },
+    "906e8ed319870363": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a07edf-7531-7187-bc2d-73e026afe8a3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 2188,
+      "total_deletions": 1000,
+      "accepted_lines": 594,
+      "overriden_lines": 0
+    }
+  }
+}
