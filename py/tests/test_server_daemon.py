@@ -888,6 +888,7 @@ def test_derive_command_dispatches_to_derive_kb(monkeypatch):
 
     server_daemon._handle_derive("req-1", {"payload": {
         "kb_dir": "/kb", "topic": "pricing", "slug": "pricing", "force": True, "model": "m",
+        "reorganize": True,
     }})
 
     assert seen["source_kb"] == "/kb"
@@ -896,9 +897,83 @@ def test_derive_command_dispatches_to_derive_kb(monkeypatch):
     assert seen["force"] is True
     assert seen["model"] == "m"
     assert seen["approve"] is None  # H5: no volume gate on the async path
+    assert seen["reorganize"] is True
     assert responses[0]["slug"] == "pricing"
     assert responses[0]["compiled"] is True
     assert responses[0]["cost"] == {"total_cost_usd": 0.25}
+
+
+def test_derive_command_passes_reorganize_false(monkeypatch):
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing", "reorganize": False,
+    }})
+
+    assert seen["reorganize"] is False
+
+
+def test_derive_command_defaults_reorganize_to_true(monkeypatch):
+    """When the payload omits the reorganize key the daemon defaults to True,
+    preserving backward compatibility with older Go binaries."""
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing",
+    }})
+
+    assert "reorganize" not in {"payload": {"kb_dir": "/kb", "topic": "pricing"}}.get("payload", {})
+    assert seen["reorganize"] is True
 
 
 def test_derive_command_reports_a_domain_error_code(monkeypatch):
