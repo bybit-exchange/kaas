@@ -1,3 +1,4 @@
+import functools
 import os
 import re
 import sys
@@ -5,6 +6,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -51,6 +53,110 @@ from kb_ai.storage.lag import wiki_lag
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
+
+
+@dataclass
+class _ChainResult:
+    """Result of one independent batch chain within _merge_batch_split."""
+    articles: list[tuple[str, str]]
+    # (path, content) pairs; paths use chain-local part numbers, re-numbered by caller.
+    all_rels: list[str]
+    # Source rel_paths processed by this chain, in insertion order.
+    n_batches: int
+    # Count of LLM calls (create + merge) made by this chain.
+
+
+# ── Batch-parallel concurrency control ────────────────────────────────
+
+_BATCH_PARALLEL_MAX_CONCURRENT: int = 6
+_BATCH_PARALLEL_ENV: str = "KB_BATCH_PARALLEL_MAX_CONCURRENT"
+
+_batch_parallel_sem: threading.Semaphore | None = None
+_batch_parallel_sem_bound: int = 0
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel(raw: str) -> None:
+    """Report an ignored concurrency override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_ENV}={raw!r}: expected a positive "
+          f"integer \u2014 using {_BATCH_PARALLEL_MAX_CONCURRENT}", file=sys.stderr, flush=True)
+
+
+def _get_batch_parallel_sem() -> threading.Semaphore:
+    """Process-wide semaphore for batch-parallel LLM calls.
+
+    Reads _BATCH_PARALLEL_ENV per call (the _get_section_sem() pattern),
+    warns once per distinct invalid value -- a bound below 1 would deadlock
+    every chain call on the semaphore, so it is invalid and the default is
+    used -- and caches the Semaphore object keyed on the parsed bound, so a
+    changed value re-sizes the bound rather than being ignored.
+
+    Returns:
+        threading.Semaphore with the configured number of permits.
+    """
+    global _batch_parallel_sem, _batch_parallel_sem_bound
+    bound = _BATCH_PARALLEL_MAX_CONCURRENT
+    raw = os.environ.get(_BATCH_PARALLEL_ENV, "")
+    if raw:
+        try:
+            parsed = int(raw)
+        except ValueError:
+            parsed = 0
+        if parsed >= 1:
+            bound = parsed
+        else:
+            _warn_invalid_batch_parallel(raw)
+    if _batch_parallel_sem is None or _batch_parallel_sem_bound != bound:
+        _batch_parallel_sem = threading.Semaphore(bound)
+        _batch_parallel_sem_bound = bound
+    return _batch_parallel_sem
+
+
+@contextmanager
+def _sem_guard(sem: threading.Semaphore | None):
+    """Acquire/release a semaphore, or no-op if None."""
+    if sem is None:
+        yield
+    else:
+        sem.acquire()
+        try:
+            yield
+        finally:
+            sem.release()
+
+
+def _pre_split_chains(
+    items: list[tuple[str, ExtractionResult]],
+    article_type: str,
+    title: str,
+    target_batches_per_chain: int = 3,
+) -> list[list[tuple[str, ExtractionResult]]]:
+    """Split items into chunks for parallel chain execution.
+
+    Each chunk is sized to require approximately *target_batches_per_chain*
+    LLM batches, estimated from the create budget and average item size.
+
+    Args:
+        items: Non-empty list of (rel_path, ExtractionResult) pairs.
+        article_type: Article type string.
+        title: Base title (used for budget estimation).
+        target_batches_per_chain: Target number of batches per chain.
+            Lower = more parallelism + more sub-articles.
+            Higher = fewer sub-articles + less parallelism.
+            Default 3.
+
+    Returns:
+        List of item-lists (1 or more), each non-empty.  If items has
+        fewer items than one chunk, returns [items] (single chunk).
+    """
+    budget = estimate_create_budget(article_type, title, items)
+    budget = min(budget, _MAX_BATCH_BUDGET)
+    avg_size = sum(
+        _estimate_full_extraction_size(ext, rel) for rel, ext in items
+    ) / len(items)
+    items_per_batch = max(1, int(budget / avg_size))
+    chunk_size = max(1, items_per_batch * target_batches_per_chain)
+    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
 
 
 @contextmanager

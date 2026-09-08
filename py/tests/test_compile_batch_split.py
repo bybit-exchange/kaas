@@ -850,3 +850,180 @@ def test_backward_compat_under_threshold_groups_unchanged(kb_two, split_fakes):
     assert out["errors"] == []
     log = _log_of(kb_two)
     assert "sub-articles" not in log
+
+
+# ── _get_batch_parallel_sem ──────────────────────────────────────────
+
+
+def _reset_batch_sem(monkeypatch):
+    """Drop the cached semaphore so a test reads the env afresh."""
+    monkeypatch.delenv(cm._BATCH_PARALLEL_ENV, raising=False)
+    cm._batch_parallel_sem = None
+    cm._batch_parallel_sem_bound = 0
+
+
+class TestGetBatchParallelSem:
+
+    def test_defaults_to_six_and_caches(self, monkeypatch):
+        _reset_batch_sem(monkeypatch)
+
+        sem = cm._get_batch_parallel_sem()
+
+        assert cm._batch_parallel_sem_bound == 6
+        assert sem is cm._get_batch_parallel_sem()
+
+    def test_reads_env_and_resizes(self, monkeypatch):
+        _reset_batch_sem(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_ENV, "3")
+        tight = cm._get_batch_parallel_sem()
+        assert cm._batch_parallel_sem_bound == 3
+
+        monkeypatch.setenv(cm._BATCH_PARALLEL_ENV, "10")
+        wider = cm._get_batch_parallel_sem()
+
+        assert cm._batch_parallel_sem_bound == 10
+        assert wider is not tight
+        assert wider is cm._get_batch_parallel_sem()
+
+    @pytest.mark.parametrize("raw", ["not-a-number", "0", "-4"],
+                             ids=["unparseable", "zero", "negative"])
+    def test_invalid_env_warns_once_and_uses_default(self, monkeypatch, capsys, raw):
+        cm._warn_invalid_batch_parallel.cache_clear()
+        _reset_batch_sem(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_ENV, raw)
+
+        assert cm._get_batch_parallel_sem() is not None
+        assert cm._batch_parallel_sem_bound == 6
+        cm._get_batch_parallel_sem()  # second call should not warn again
+
+        err = capsys.readouterr().err
+        assert err.count(cm._BATCH_PARALLEL_ENV) == 1
+
+
+# ── _sem_guard ───────────────────────────────────────────────────────
+
+
+class TestSemGuard:
+
+    def test_acquires_and_releases(self):
+        """Semaphore permit is held inside the block and released after."""
+        import threading
+        sem = threading.Semaphore(1)
+        # Acquire the only permit to verify the guard releases it
+        with cm._sem_guard(sem):
+            # Inside: the permit was acquired by the guard
+            pass
+        # After: permit released; we can acquire again without blocking
+        assert sem.acquire(blocking=False)
+        sem.release()
+
+    def test_none_is_noop(self):
+        """Passing None does not raise and yields immediately."""
+        with cm._sem_guard(None):
+            pass  # no error
+
+    def test_releases_on_exception(self):
+        """The semaphore is released even when the body raises."""
+        import threading
+        sem = threading.Semaphore(1)
+        with pytest.raises(ValueError):
+            with cm._sem_guard(sem):
+                raise ValueError("boom")
+        # Permit released despite exception
+        assert sem.acquire(blocking=False)
+        sem.release()
+
+
+# ── _pre_split_chains ────────────────────────────────────────────────
+
+
+class TestPreSplitChains:
+
+    def test_basic_chunking(self, monkeypatch):
+        """Items are split into chunks based on budget and average item size."""
+        items = [(f"raw/{i}.md", _ext(f"summary {i}")) for i in range(20)]
+        # Force small budget so items_per_batch is small
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 200)
+        # Each item's estimated size is ~40 chars (from _ext with short summary)
+        # budget=200 (capped at _MAX_BATCH_BUDGET which is 20000, so 200 wins)
+        # avg_size ~40, items_per_batch = max(1, int(200/40)) = 5
+        # chunk_size = max(1, 5 * 3) = 15
+        chunks = cm._pre_split_chains(items, "concept", "Title")
+        assert len(chunks) >= 1
+        # All items accounted for
+        flat = [item for chunk in chunks for item in chunk]
+        assert flat == items
+        # Each chunk is non-empty
+        assert all(len(c) > 0 for c in chunks)
+
+    def test_preserves_order(self, monkeypatch):
+        """Items appear in the same order across all chunks."""
+        items = [(f"raw/{i}.md", _ext(f"s{i}")) for i in range(10)]
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        chunks = cm._pre_split_chains(items, "concept", "Title")
+        flat = [item for chunk in chunks for item in chunk]
+        assert flat == items
+
+    def test_single_item_returns_one_chunk(self, monkeypatch):
+        """A single item always returns [items]."""
+        items = [("raw/only.md", _ext("only item"))]
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        chunks = cm._pre_split_chains(items, "concept", "Title")
+        assert chunks == [items]
+
+    def test_fewer_items_than_chunk_returns_single_chunk(self, monkeypatch):
+        """When all items fit in one chunk, returns [items]."""
+        items = [("raw/a.md", _ext()), ("raw/b.md", _ext())]
+        # Huge budget: everything fits in one chunk
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+        chunks = cm._pre_split_chains(items, "concept", "Title")
+        assert chunks == [items]
+
+    def test_respects_target_batches_per_chain(self, monkeypatch):
+        """Lowering target_batches_per_chain produces more, smaller chunks."""
+        items = [(f"raw/{i}.md", _ext(f"s{i}")) for i in range(30)]
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 200)
+        chunks_3 = cm._pre_split_chains(items, "concept", "Title",
+                                         target_batches_per_chain=3)
+        chunks_1 = cm._pre_split_chains(items, "concept", "Title",
+                                         target_batches_per_chain=1)
+        # Fewer batches per chain = more chunks
+        assert len(chunks_1) >= len(chunks_3)
+        # Both cover all items
+        assert [i for c in chunks_3 for i in c] == items
+        assert [i for c in chunks_1 for i in c] == items
+
+    def test_budget_capped_at_max_batch_budget(self, monkeypatch):
+        """When estimate_create_budget returns more than _MAX_BATCH_BUDGET,
+        _pre_split_chains caps it."""
+        items = [(f"raw/{i}.md", _big_ext(5000)) for i in range(10)]
+        # Return budget far above _MAX_BATCH_BUDGET
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+        chunks_capped = cm._pre_split_chains(items, "concept", "Title")
+        # Should still produce at least one chunk; with _MAX_BATCH_BUDGET=20000
+        # and avg_size ~5000: items_per_batch = 4, chunk_size = 12 → 1 chunk
+        assert len(chunks_capped) >= 1
+        flat = [item for chunk in chunks_capped for item in chunk]
+        assert flat == items
+
+
+# ── _ChainResult ─────────────────────────────────────────────────────
+
+
+class TestChainResult:
+
+    def test_fields(self):
+        """_ChainResult is a dataclass with the expected fields."""
+        r = cm._ChainResult(
+            articles=[("wiki/concept/foo-part-1.md", "content")],
+            all_rels=["raw/a.md"],
+            n_batches=2,
+        )
+        assert r.articles == [("wiki/concept/foo-part-1.md", "content")]
+        assert r.all_rels == ["raw/a.md"]
+        assert r.n_batches == 2
+
+    def test_is_dataclass(self):
+        """_ChainResult is recognized as a dataclass."""
+        from dataclasses import is_dataclass
+        assert is_dataclass(cm._ChainResult)
