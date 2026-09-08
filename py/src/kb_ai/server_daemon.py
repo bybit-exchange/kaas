@@ -406,7 +406,7 @@ def _handle_derive(request_id: str, payload: dict) -> None:
                              or os.environ.get("LLM_SUMMARIZE_MODEL")
                              or os.environ.get("LLM_MODEL", "")),
             approve=None,
-            reorganize=True,  # TEMP: hardcoded for validation
+            reorganize=inner.get("reorganize", True),
         )
     except KBError as e:
         _respond_error(request_id, e.code, str(e))
