@@ -37,7 +37,7 @@ _SUB_ARTICLE_BUDGET_THRESHOLD = int(0.15 * MAX_PROMPT_CHARS)
 # exceeds this value, _merge_batch_split caps it so no single LLM call receives
 # a prompt large enough to trigger gateway timeouts (observed consistently above
 # ~50K chars).
-_MAX_BATCH_BUDGET = 40_000
+_MAX_BATCH_BUDGET = 20_000
 
 # The framing _merge_user_message wraps the existing article in, and the tag a
 # rewrite sometimes echoes back into its output. One pair of constants so the
