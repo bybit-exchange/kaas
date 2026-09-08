@@ -1027,3 +1027,202 @@ class TestChainResult:
         """_ChainResult is recognized as a dataclass."""
         from dataclasses import is_dataclass
         assert is_dataclass(cm._ChainResult)
+
+
+# ── _run_chain ───────────────────────────────────────────────────────
+
+
+def _make_parent_ctx():
+    """Create a minimal ThreadContext suitable for _run_chain's parent_ctx."""
+    from kb_ai._context import ThreadContext
+    return ThreadContext(phase="test")
+
+
+class TestRunChain:
+
+    def test_single_batch(self, monkeypatch):
+        """All items fit in one batch; returns single article, 1 batch."""
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            return f"created from {source_path}"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        items = [("raw/a.md", _ext()), ("raw/b.md", _ext())]
+        result = cm._run_chain(
+            "wiki/concept/foo.md", items, "m",
+            article_type="concept", title="Foo",
+            start_part_num=2, parent_ctx=_make_parent_ctx(), sem=None,
+        )
+
+        assert result.n_batches == 1
+        assert result.all_rels == ["raw/a.md", "raw/b.md"]
+        assert len(result.articles) == 1
+        # Single article uses start_part_num path
+        assert result.articles[0][0] == "wiki/concept/foo-part-2.md"
+        assert "created" in result.articles[0][1]
+
+    def test_multi_batch_no_split(self, monkeypatch):
+        """Multiple batches, budget stays above threshold; returns single article."""
+        calls: list[str] = []
+
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            calls.append("create")
+            return f"created from {source_path}"
+
+        def fake_merge(article_path, article_content, extraction, source_path, model="m"):
+            calls.append("merge")
+            return article_content + f"\nmerged {source_path}"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article", fake_merge)
+
+        items = [
+            ("raw/a.md", _big_ext(15000)),
+            ("raw/b.md", _big_ext(15000)),
+            ("raw/c.md", _big_ext(15000)),
+        ]
+        single_size = _estimate_full_extraction_size(items[0][1], items[0][0])
+        assert single_size > _SUB_ARTICLE_BUDGET_THRESHOLD
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: single_size + 10)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: single_size + 10)
+
+        result = cm._run_chain(
+            "wiki/concept/foo.md", items, "m",
+            article_type="concept", title="Foo",
+            start_part_num=3, parent_ctx=_make_parent_ctx(), sem=None,
+        )
+
+        assert result.n_batches == 3
+        assert result.all_rels == ["raw/a.md", "raw/b.md", "raw/c.md"]
+        assert len(result.articles) == 1
+        assert result.articles[0][0] == "wiki/concept/foo-part-3.md"
+        assert calls == ["create", "merge", "merge"]
+
+    def test_internal_split(self, monkeypatch):
+        """Budget drops below threshold mid-chain; produces multiple sub-articles."""
+        def fake_create(article_type, title, extraction, source_path, model="m"):
+            return f"created:{title}"
+
+        monkeypatch.setattr(cm, "create_new_article", fake_create)
+        monkeypatch.setattr(cm, "merge_into_article",
+                            lambda *a, **kw: a[1] + "\nmerged")
+        # Force split after every create: merge budget below threshold
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        # Per-item create budget small enough that only 1 item fits per batch,
+        # so we get create → split → create → split → create pattern.
+        item_size = _estimate_full_extraction_size(_ext(), "raw/a.md")
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: item_size + 10)
+
+        items = [
+            ("raw/a.md", _ext()),
+            ("raw/b.md", _ext()),
+            ("raw/c.md", _ext()),
+        ]
+
+        result = cm._run_chain(
+            "wiki/concept/foo.md", items, "m",
+            article_type="concept", title="Foo",
+            start_part_num=2, parent_ctx=_make_parent_ctx(), sem=None,
+        )
+
+        # Should produce multiple sub-articles since budget is always below threshold
+        assert len(result.articles) > 1
+        assert result.all_rels == ["raw/a.md", "raw/b.md", "raw/c.md"]
+        # Paths use sequential part numbers starting from start_part_num
+        assert result.articles[0][0] == "wiki/concept/foo-part-2.md"
+        assert result.articles[1][0] == "wiki/concept/foo-part-3.md"
+
+    def test_calls_adopt_context(self, monkeypatch):
+        """_run_chain calls adopt_context with the parent_ctx and correct phase."""
+        adopt_calls: list[tuple] = []
+        original_adopt = cm.adopt_context
+
+        def tracking_adopt(parent, **overrides):
+            adopt_calls.append((parent, overrides))
+            return original_adopt(parent, **overrides)
+
+        monkeypatch.setattr(cm, "adopt_context", tracking_adopt)
+        monkeypatch.setattr(cm, "create_new_article",
+                            lambda *a, **kw: "content")
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        ctx = _make_parent_ctx()
+        cm._run_chain(
+            "wiki/concept/foo.md", [("raw/a.md", _ext())], "m",
+            article_type="concept", title="Foo",
+            start_part_num=1, parent_ctx=ctx, sem=None,
+        )
+
+        assert len(adopt_calls) == 1
+        assert adopt_calls[0][0] is ctx
+        assert adopt_calls[0][1] == {"phase": "write-chain:wiki/concept/foo.md"}
+
+    def test_sem_guard_wraps_llm_calls(self, monkeypatch):
+        """Each LLM call is wrapped in _sem_guard with the provided semaphore."""
+        import threading
+        sem = threading.Semaphore(1)
+        held_during: list[bool] = []
+
+        def check_create(article_type, title, extraction, source_path, model="m"):
+            # Try to acquire non-blocking; should fail if sem is already held
+            could_acquire = sem.acquire(blocking=False)
+            if could_acquire:
+                sem.release()
+                held_during.append(False)  # sem was NOT held by guard
+            else:
+                held_during.append(True)  # sem was held by guard
+            return "content"
+
+        monkeypatch.setattr(cm, "create_new_article", check_create)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        cm._run_chain(
+            "wiki/concept/foo.md", [("raw/a.md", _ext())], "m",
+            article_type="concept", title="Foo",
+            start_part_num=1, parent_ctx=_make_parent_ctx(), sem=sem,
+        )
+
+        # The sem should have been held during the create call
+        assert held_during == [True]
+
+    def test_propagates_create_error(self, monkeypatch):
+        """RuntimeError from create_new_article propagates."""
+        def failing_create(*a, **kw):
+            raise RuntimeError("create failed")
+
+        monkeypatch.setattr(cm, "create_new_article", failing_create)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+
+        with pytest.raises(RuntimeError, match="create failed"):
+            cm._run_chain(
+                "wiki/concept/foo.md", [("raw/a.md", _ext())], "m",
+                article_type="concept", title="Foo",
+                start_part_num=1, parent_ctx=_make_parent_ctx(), sem=None,
+            )
+
+    def test_propagates_merge_error(self, monkeypatch):
+        """RuntimeError from merge_into_article propagates."""
+        monkeypatch.setattr(cm, "create_new_article",
+                            lambda *a, **kw: "created")
+
+        def failing_merge(*a, **kw):
+            raise RuntimeError("merge failed")
+
+        monkeypatch.setattr(cm, "merge_into_article", failing_merge)
+
+        items = [
+            ("raw/a.md", _big_ext(15000)),
+            ("raw/b.md", _big_ext(15000)),
+        ]
+        single_size = _estimate_full_extraction_size(items[0][1], items[0][0])
+        assert single_size > _SUB_ARTICLE_BUDGET_THRESHOLD
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: single_size + 10)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: single_size + 10)
+
+        with pytest.raises(RuntimeError, match="merge failed"):
+            cm._run_chain(
+                "wiki/concept/foo.md", items, "m",
+                article_type="concept", title="Foo",
+                start_part_num=1, parent_ctx=_make_parent_ctx(), sem=None,
+            )

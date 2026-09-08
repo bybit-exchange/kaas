@@ -159,6 +159,115 @@ def _pre_split_chains(
     return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
 
 
+def _run_chain(
+    art_path: str,
+    items: list[tuple[str, ExtractionResult]],
+    write_model: str,
+    *,
+    article_type: str,
+    title: str,
+    start_part_num: int,
+    parent_ctx,  # ThreadContext
+    sem: threading.Semaphore | None,
+) -> _ChainResult:
+    """Run one independent batch chain to completion in a child thread.
+
+    Called ONLY from Phase B child threads, never from Phase A (Chain 0).
+    Calls adopt_context(parent_ctx, ...) at entry to install context.
+
+    Args:
+        art_path: Base article path.
+        items: Source items for this chain (non-empty).
+        write_model: LLM model name.
+        article_type: Article type string.
+        title: Article title for this chain's sub-article(s).
+        start_part_num: Starting part number for local numbering.
+        parent_ctx: Context captured inside _measure_op_cost block;
+                    request_tracker points to the op_tracker.
+        sem: Process-wide semaphore; acquired before each LLM call.
+             None disables gating (for testing).
+
+    Returns:
+        _ChainResult with chain's articles, rels, and batch count.
+
+    Raises:
+        RuntimeError: if any LLM call fails (propagated from create/merge).
+    """
+    adopt_context(parent_ctx, phase=f"write-chain:{art_path}")
+
+    all_rels: list[str] = []
+    remaining = list(items)
+    current_content: str | None = None  # always fresh create for continuation chains
+    batch_num = 0
+    finalized_articles: list[tuple[str, str]] = []
+    part_num = start_part_num
+    current_source_count = 0
+
+    while remaining:
+        # Check sub-article threshold: after a merge completes and before
+        # packing the next batch, see if the current article is too large
+        # to continue receiving merges.
+        if current_content is not None:
+            budget = estimate_merge_budget(current_content)
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD:
+                # Finalize current article as a sub-article and start fresh
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+                print(f"  [merge-split] {art_path} \u2192 sub-article {sub_path} "
+                      f"({len(current_content)} chars, {current_source_count} sources)",
+                      file=sys.stderr, flush=True)
+                part_num += 1
+                current_content = None
+                current_source_count = 0
+
+        batch_num += 1
+
+        # Compute budget for batch packing
+        if current_content is None:
+            part_title = title if not finalized_articles else f"{title} (Part {part_num})"
+            budget = estimate_create_budget(article_type, part_title, remaining)
+
+        budget = min(budget, _MAX_BATCH_BUDGET)
+        batch, remaining = _pack_merge_batch(remaining, budget)
+        combined, batch_rels = _combine_extractions(batch)
+        all_rels.extend(batch_rels)
+        current_source_count += len(batch)
+
+        if current_content is None:
+            # Create a new (sub-)article
+            part_title = title if not finalized_articles else f"{title} (Part {part_num})"
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            with _sem_guard(sem):
+                current_content = create_new_article(
+                    article_type, part_title, combined,
+                    ", ".join(batch_rels), model=write_model)
+        else:
+            # Merge into existing/intermediate article
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            with _sem_guard(sem):
+                current_content = merge_into_article(
+                    art_path, current_content, combined,
+                    ", ".join(batch_rels), model=write_model)
+
+    # Finalize the last article
+    if current_content is not None:
+        if finalized_articles:
+            sub_path = _sub_article_path(art_path, part_num)
+            finalized_articles.append((sub_path, current_content))
+        else:
+            # Single sub-article for this chain; use start_part_num path
+            sub_path = _sub_article_path(art_path, start_part_num)
+            finalized_articles.append((sub_path, current_content))
+
+    return _ChainResult(
+        articles=finalized_articles,
+        all_rels=all_rels,
+        n_batches=batch_num,
+    )
+
+
 @contextmanager
 def _compile_log(log_path: Path):
     """Open the KB's .compile.log and route LLM warnings into it for the duration.
