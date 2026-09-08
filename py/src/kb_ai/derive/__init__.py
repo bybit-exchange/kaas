@@ -33,6 +33,7 @@ from kb_ai._errors import (  # noqa: F401 -- re-exported for callers
 from kb_ai.core.extract import STRATEGY_CHUNKED
 from kb_ai.derive._filter import select_by_topic
 from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
+    _deduplicate_slug,
     assert_not_nested,
     check_slug_available,
     copy_documents,
@@ -163,7 +164,10 @@ def derive_kb(
     source = Path(source_kb).expanduser().resolve()
     assert_not_nested(source)
 
+    user_provided_slug = slug is not None
     slug = slug or normalise_slug(topic)
+    if not user_provided_slug and not force:
+        slug = _deduplicate_slug(source, slug)
     validate_slug(slug)
     check_slug_available(source, slug, force)
 

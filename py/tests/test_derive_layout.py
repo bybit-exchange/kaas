@@ -43,6 +43,43 @@ def test_validate_slug_accepts():
     _layout.validate_slug("x" * 40)
 
 
+# ── _deduplicate_slug ────────────────────────────────────────────────
+
+
+def test_deduplicate_slug_no_conflict(tmp_path: Path):
+    """No existing directory: slug is returned unchanged."""
+    assert _layout._deduplicate_slug(tmp_path, "pricing") == "pricing"
+
+
+def test_deduplicate_slug_appends_2_on_first_conflict(tmp_path: Path):
+    (tmp_path / "derived" / "pricing").mkdir(parents=True)
+    assert _layout._deduplicate_slug(tmp_path, "pricing") == "pricing-2"
+
+
+def test_deduplicate_slug_appends_3_when_2_also_exists(tmp_path: Path):
+    (tmp_path / "derived" / "pricing").mkdir(parents=True)
+    (tmp_path / "derived" / "pricing-2").mkdir(parents=True)
+    assert _layout._deduplicate_slug(tmp_path, "pricing") == "pricing-3"
+
+
+def test_deduplicate_slug_truncates_base_to_fit_within_40_chars(tmp_path: Path):
+    """A 40-char slug with a conflict must be truncated so -2 fits."""
+    long_slug = "a" * 40
+    (tmp_path / "derived" / long_slug).mkdir(parents=True)
+    result = _layout._deduplicate_slug(tmp_path, long_slug)
+    assert result.endswith("-2")
+    assert len(result) <= 40
+    _layout.validate_slug(result)  # must still be valid
+
+
+def test_deduplicate_slug_result_passes_validate(tmp_path: Path):
+    """Every deduped slug must pass validate_slug."""
+    (tmp_path / "derived" / "t-e999a859f8").mkdir(parents=True)
+    result = _layout._deduplicate_slug(tmp_path, "t-e999a859f8")
+    _layout.validate_slug(result)
+    assert result == "t-e999a859f8-2"
+
+
 def test_assert_not_nested_rejects_a_derived_kb(tmp_path: Path):
     nested = tmp_path / "derived" / "pricing"
     nested.mkdir(parents=True)

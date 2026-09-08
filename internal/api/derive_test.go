@@ -324,9 +324,9 @@ func TestPostDeriveAcceptsAPureCJKTopic(t *testing.T) {
 	}
 }
 
-func TestPostDeriveRejectsAnExistingCompiledKB(t *testing.T) {
-	// When derived/<slug>/ holds a manifest saying compiled:true the HTTP path
-	// answers 409, so a web form cannot overwrite a finished KB with no prompt.
+func TestPostDeriveDeduplicatesAutoSlugOnCompiledConflict(t *testing.T) {
+	// When the auto-generated slug conflicts with a compiled KB, the handler
+	// deduplicates to slug-2 instead of returning 409.
 	fds := newFakeDerivedStore()
 	s, kb := newDeriveTestServer(t, fds)
 
@@ -334,11 +334,32 @@ func TestPostDeriveRejectsAnExistingCompiledKB(t *testing.T) {
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
 
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored == nil {
+		t.Fatal("CreateDerivedJob must be called after dedup")
+	}
+	if fds.createStored.Slug != "pricing-2" {
+		t.Errorf("slug = %q, want %q", fds.createStored.Slug, "pricing-2")
+	}
+}
+
+func TestPostDeriveRejectsExplicitSlugOnCompiledConflict(t *testing.T) {
+	// When the USER provides an explicit slug that conflicts with a compiled KB,
+	// the handler still returns 409 -- no auto-dedup for explicit slugs.
+	fds := newFakeDerivedStore()
+	s, kb := newDeriveTestServer(t, fds)
+
+	writeDerivedManifest(t, kb, "pricing", "Pricing", "2024-01-01")
+
+	rec := do(t, s, "POST", "/api/derive", `{"topic":"fees","slug":"pricing"}`)
+
 	if rec.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want 409; body=%s", rec.Code, rec.Body.String())
 	}
 	if fds.createStored != nil {
-		t.Error("CreateDerivedJob must not be called when a compiled KB already exists")
+		t.Error("CreateDerivedJob must not be called when an explicit slug conflicts")
 	}
 }
 
@@ -362,10 +383,10 @@ func TestPostDeriveReplacesAnIncompleteDerive(t *testing.T) {
 	}
 }
 
-func TestPostDeriveRejectsAnUnreadableManifest(t *testing.T) {
-	// A manifest we cannot parse is not evidence of an incomplete derive. Replacing
-	// the KB would destroy compiled articles that were paid for, so this stays a
-	// 409 and the operator uses the CLI's --force. The handler logs the parse error.
+func TestPostDeriveDeduplicatesAutoSlugOnUnreadableManifest(t *testing.T) {
+	// A manifest we cannot parse is treated as occupied by deduplicateSlug
+	// (kbpath.Resolve succeeds on file presence, not content), so the
+	// auto-generated slug is bumped to pricing-2.
 	fds := newFakeDerivedStore()
 	s, kb := newDeriveTestServer(t, fds)
 
@@ -377,8 +398,14 @@ func TestPostDeriveRejectsAnUnreadableManifest(t *testing.T) {
 
 	rec := do(t, s, "POST", "/api/derive", `{"topic":"pricing"}`)
 
-	if rec.Code != http.StatusConflict {
-		t.Fatalf("status = %d, want 409; body=%s", rec.Code, rec.Body.String())
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+	}
+	if fds.createStored == nil {
+		t.Fatal("CreateDerivedJob must be called after dedup")
+	}
+	if fds.createStored.Slug != "pricing-2" {
+		t.Errorf("slug = %q, want %q", fds.createStored.Slug, "pricing-2")
 	}
 }
 

@@ -41,6 +41,27 @@ _SLUG_MAX = 40
 _CHECKSUM_RE = re.compile(r"^[0-9a-f]{16}$")
 
 
+def _deduplicate_slug(source_kb: Path, slug: str, *, limit: int = 100) -> str:
+    """Append -2, -3, … until derived_dir(source_kb, slug) does not exist.
+
+    Only called for auto-generated slugs (not user-provided ones).  The suffixed
+    slug must still pass ``validate_slug``, so if appending would exceed 40 chars
+    the base is truncated first.  Returns the original slug when no conflict.
+    """
+    if not derived_dir(source_kb, slug).exists():
+        return slug
+    for n in range(2, limit + 2):
+        suffix = f"-{n}"
+        max_base = _SLUG_MAX - len(suffix)
+        candidate = slug[:max_base].rstrip("-") + suffix
+        if not derived_dir(source_kb, candidate).exists():
+            return candidate
+    raise DeriveError(
+        f"could not find an available slug after {limit} attempts "
+        f"(tried {slug}-2 through {slug}-{limit + 1})"
+    )
+
+
 def normalise_slug(topic: str) -> str:
     """Derive a slug from a topic string (C2).
 

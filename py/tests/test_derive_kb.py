@@ -317,7 +317,37 @@ def test_slug_exists_is_raised_before_any_llm_call(tmp_path: Path):
         raise AssertionError("the filter must not run when the slug is taken")
 
     with pytest.raises(SlugExistsError):
-        derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=_fake_compile)
+        derive_kb(str(kb), "pricing", model="m", slug="pricing",
+                  select=select, compile_fn=_fake_compile)
+
+
+def test_auto_slug_deduplicates_on_conflict(tmp_path: Path):
+    """When the auto-generated slug conflicts, derive_kb appends -2 automatically."""
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+
+    # First derive: creates derived/pricing.
+    r1 = derive_kb(str(kb), "pricing", model="m",
+                   select=select, compile_fn=_fake_compile)
+    assert r1.slug == "pricing"
+
+    # Second derive with the same topic, no explicit slug: auto-deduplicates.
+    r2 = derive_kb(str(kb), "pricing", model="m",
+                   select=select, compile_fn=_fake_compile)
+    assert r2.slug == "pricing-2"
+    assert (kb / "derived" / "pricing-2").is_dir()
+
+
+def test_auto_slug_dedup_skips_when_user_provides_slug(tmp_path: Path):
+    """An explicit --slug must NOT auto-deduplicate; error on conflict."""
+    kb = _fixture_kb(tmp_path)
+    select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
+    derive_kb(str(kb), "pricing", model="m", slug="my-slug",
+             select=select, compile_fn=_fake_compile)
+
+    with pytest.raises(SlugExistsError):
+        derive_kb(str(kb), "pricing", model="m", slug="my-slug",
+                  select=select, compile_fn=_fake_compile)
 
 
 def test_force_replaces_a_previous_run(tmp_path: Path):

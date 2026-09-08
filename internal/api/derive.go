@@ -123,6 +123,7 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slug := req.Slug
+	userSlug := slug != ""
 	if slug == "" {
 		slug = slugFromTopic(req.Topic)
 	}
@@ -131,6 +132,13 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 			"invalid slug: expected 1-40 lower-case alphanumeric characters or dashes; "+
 				"pass an explicit slug for a topic that does not produce one")
 		return
+	}
+
+	// Auto-deduplicate when the slug was derived from the topic (not user-provided).
+	// Append -2, -3, … until we find a free slug, mirroring _deduplicate_slug in
+	// py/src/kb_ai/derive/_layout.py.
+	if !userSlug {
+		slug = deduplicateSlug(s.cfg.KBDir, slug)
 	}
 
 	// Refuse a slug whose directory already holds a finished KB. The HTTP path has
@@ -260,6 +268,35 @@ func (s *Server) handleListDerived(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"kbs": out})
+}
+
+// deduplicateSlug appends -2, -3, … to slug until the derived directory does
+// not exist on disk. Mirrors _deduplicate_slug in
+// py/src/kb_ai/derive/_layout.py. Only filesystem presence is checked; an
+// active job holding the same slug is caught later by CreateDerivedJob's unique
+// index.
+func deduplicateSlug(kbDir, slug string) string {
+	if _, err := kbpath.Resolve(kbDir, slug); err != nil {
+		return slug // no existing KB on disk
+	}
+	const limit = 100
+	for n := 2; n < limit+2; n++ {
+		suffix := fmt.Sprintf("-%d", n)
+		maxBase := slugMaxLen - len(suffix)
+		base := slug
+		if len(base) > maxBase {
+			base = base[:maxBase]
+		}
+		base = strings.TrimRight(base, "-")
+		candidate := base + suffix
+		if !kbpath.ValidSlug(candidate) {
+			continue
+		}
+		if _, err := kbpath.Resolve(kbDir, candidate); err != nil {
+			return candidate
+		}
+	}
+	return slug // exhaust attempts, let downstream conflict check report the error
 }
 
 // countWikiArticles counts *.md files under dir/wiki. _offtopic/ lives outside
