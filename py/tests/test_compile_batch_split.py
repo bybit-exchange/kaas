@@ -7,6 +7,7 @@ real KBStore on tmp_path, and stderr capture for log tags.
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pytest
@@ -1226,3 +1227,310 @@ class TestRunChain:
                 article_type="concept", title="Foo",
                 start_part_num=1, parent_ctx=_make_parent_ctx(), sem=None,
             )
+
+
+# ── TestMergeBatchSplitParallel ──────────────────────────────────────
+
+
+class TestMergeBatchSplitParallel:
+    """Tests for the three-phase parallel path in _merge_batch_split.
+
+    Strategy: use monkeypatched budget helpers so that Phase A splits after
+    the first create (merge_budget < threshold), and _pre_split_chains
+    produces multiple chunks from the remaining items.
+    """
+
+    # -- shared helpers ---------------------------------------------------
+
+    @staticmethod
+    def _make_items(n: int):
+        """Build N items whose extraction size is predictable."""
+        return [(f"raw/doc_{i}.md", _ext(f"summary {i}")) for i in range(n)]
+
+    @staticmethod
+    def _patch_for_parallel(monkeypatch, *, create_fn=None, merge_fn=None):
+        """Monkeypatch budgets so Phase A splits after 1 create and
+        _pre_split_chains produces multiple chunks.
+
+        - estimate_merge_budget -> 100  (< _SUB_ARTICLE_BUDGET_THRESHOLD)
+          so every create is followed by a split.
+        - estimate_create_budget -> 200  (small budget)
+          so _pre_split_chains computes small chunk sizes.
+        - _estimate_full_extraction_size -> 100  (predictable per-item size)
+          so items_per_batch = max(1, int(200/100)) = 2,
+          chunk_size = 2 * 3 = 6  with default target_batches_per_chain=3.
+          For 12 items: Phase A takes 2 items (1 batch of 2), splits.
+          Remaining 10 items -> 10/6 = 2 chunks (6 + 4).
+        """
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 200)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+
+        if create_fn is None:
+            def create_fn(article_type, title, extraction, source_path, model="m"):
+                return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+        if merge_fn is None:
+            def merge_fn(article_path, article_content, extraction, source_path, model="m"):
+                return article_content + f"\nmerged {source_path}\n"
+
+        monkeypatch.setattr(cm, "create_new_article", create_fn)
+        monkeypatch.setattr(cm, "merge_into_article", merge_fn)
+
+    # -- tests ------------------------------------------------------------
+
+    def test_parallel_chains_produce_correct_sub_articles(self, monkeypatch):
+        """After Phase A split, continuation chains produce sub-articles with
+        sequential part numbers (1, 2, 3, ...)."""
+        items = self._make_items(12)
+        self._patch_for_parallel(monkeypatch)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Must have more than 1 sub-article (Phase A produced at least 1,
+        # continuation chains produced at least 1 more).
+        assert len(articles) >= 3, f"expected >= 3 sub-articles, got {len(articles)}"
+
+        # Part numbers are sequential starting at 1
+        for i, (path, content) in enumerate(articles, 1):
+            assert path == f"wiki/concept/foo-part-{i}.md", (
+                f"article {i}: expected foo-part-{i}.md, got {path}")
+            assert content, f"article {i} has empty content"
+
+        assert n_batches >= 3
+
+    def test_parallel_chains_preserve_all_rels(self, monkeypatch):
+        """Every source rel_path appears in all_rels exactly once."""
+        items = self._make_items(12)
+        self._patch_for_parallel(monkeypatch)
+
+        _articles, all_rels, _n = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        expected_rels = [rel for rel, _ext in items]
+        assert all_rels == expected_rels
+
+    def test_parallel_chains_concurrent_execution(self, monkeypatch):
+        """Continuation chains actually run concurrently (not serially).
+
+        Uses threading.Barrier: if N chains call barrier.wait() concurrently,
+        all pass. If serial, the barrier times out.
+        """
+        import threading
+
+        # Use 8 items. Phase A takes ~2 (budget 200, item size 100 -> 2 per batch).
+        # Remaining 6 -> _pre_split_chains with chunk_size = 2*3 = 6 -> 1 chunk.
+        # That's not enough for parallel. Use smaller chunk sizing:
+        # budget=100 -> items_per_batch=1, chunk_size=1*3=3.
+        # Phase A: 1 batch of 1 item, then split. Remaining 7 items.
+        # 7 items / chunk_size 3 = 3 chunks (3, 3, 1).
+        items = self._make_items(8)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+
+        # 3 chains run concurrently; barrier parties = 3.
+        barrier = threading.Barrier(3, timeout=5)
+        barrier_passed = threading.Event()
+        main_thread = threading.current_thread()
+        # Track which threads have already waited on the barrier.
+        barrier_done = threading.local()
+
+        def concurrent_create(article_type, title, extraction, source_path, model="m"):
+            # Phase A runs on the calling thread; only child threads
+            # (continuation chains in Phase B) participate in the barrier.
+            # Each child thread hits the barrier exactly once (its first create).
+            if threading.current_thread() is not main_thread:
+                if not getattr(barrier_done, "done", False):
+                    barrier_done.done = True
+                    barrier.wait()  # blocks until 3 child threads arrive
+                    barrier_passed.set()
+            return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+
+        def concurrent_merge(article_path, article_content, extraction, source_path, model="m"):
+            return article_content + f"\nmerged {source_path}\n"
+
+        monkeypatch.setattr(cm, "create_new_article", concurrent_create)
+        monkeypatch.setattr(cm, "merge_into_article", concurrent_merge)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # If barrier.wait() didn't deadlock, concurrency was verified.
+        assert barrier_passed.is_set(), "chains did not execute concurrently"
+        assert len(articles) >= 2
+        # All rels accounted for
+        assert len(all_rels) == len(items)
+
+    def test_no_parallelism_without_split(self, monkeypatch):
+        """When no split occurs, no threads are spawned (zero overhead)."""
+        import threading
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        # Large budgets: everything fits in one batch, no split
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100_000)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100_000)
+        monkeypatch.setattr(cm, "create_new_article",
+                            lambda *a, **kw: "created content")
+
+        # Patch ThreadPoolExecutor to detect if it's created
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        items = self._make_items(4)
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert not pool_created.is_set(), "ThreadPoolExecutor was created (no split expected)"
+        assert len(articles) == 1
+        assert articles[0][0] == "wiki/concept/foo.md"
+        assert n_batches == 1
+
+    def test_error_in_continuation_chain_propagates(self, monkeypatch):
+        """RuntimeError from a continuation chain's LLM call propagates."""
+        items = self._make_items(8)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+
+        call_count = {"n": 0}
+
+        def failing_create(article_type, title, extraction, source_path, model="m"):
+            call_count["n"] += 1
+            # First call is Phase A (Chain 0); let it succeed so we reach Phase B.
+            if call_count["n"] == 1:
+                return f"created from {source_path}"
+            raise RuntimeError("continuation chain LLM failure")
+
+        monkeypatch.setattr(cm, "create_new_article", failing_create)
+        monkeypatch.setattr(cm, "merge_into_article",
+                            lambda *a, **kw: a[1] + "\nmerged")
+
+        with pytest.raises(RuntimeError, match="continuation chain LLM failure"):
+            cm._merge_batch_split(
+                "wiki/concept/foo.md", items, "m",
+                article_content=None, article_type="concept", title="Foo")
+
+    def test_semaphore_limits_concurrency(self, monkeypatch):
+        """With KB_BATCH_PARALLEL_MAX_CONCURRENT=2, at most 2 LLM calls
+        run simultaneously across all chains."""
+        import threading
+
+        items = self._make_items(10)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+
+        # Reset semaphore state and set env to limit to 2
+        _reset_batch_sem(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_ENV, "2")
+
+        lock = threading.Lock()
+        max_concurrent = {"val": 0}
+        current = {"val": 0}
+
+        def counting_create(article_type, title, extraction, source_path, model="m"):
+            with lock:
+                current["val"] += 1
+                if current["val"] > max_concurrent["val"]:
+                    max_concurrent["val"] = current["val"]
+            # Small sleep to allow overlap detection
+            import time
+            time.sleep(0.01)
+            with lock:
+                current["val"] -= 1
+            return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+
+        def counting_merge(article_path, article_content, extraction, source_path, model="m"):
+            with lock:
+                current["val"] += 1
+                if current["val"] > max_concurrent["val"]:
+                    max_concurrent["val"] = current["val"]
+            import time
+            time.sleep(0.01)
+            with lock:
+                current["val"] -= 1
+            return article_content + f"\nmerged {source_path}\n"
+
+        monkeypatch.setattr(cm, "create_new_article", counting_create)
+        monkeypatch.setattr(cm, "merge_into_article", counting_merge)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # The semaphore-guarded calls in continuation chains must be <= 2
+        # Note: Phase A calls are not semaphore-guarded, so they don't count.
+        # But max_concurrent tracks all calls. Phase A runs serially (1 call),
+        # then continuation chains run with sem=2.
+        # The max concurrent across continuation chains must be <= 2.
+        assert max_concurrent["val"] <= 2, (
+            f"max concurrent LLM calls was {max_concurrent['val']}, expected <= 2")
+        assert len(all_rels) == len(items)
+
+    def test_cost_tracking_across_chains(self, monkeypatch):
+        """op_tracker receives costs from all chains, not just Chain 0."""
+        from kb_ai._cost import CostTracker
+
+        items = self._make_items(8)
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+
+        call_count = {"n": 0}
+
+        def costed_create(article_type, title, extraction, source_path, model="m"):
+            # Record a cost on the request tracker to verify propagation.
+            rt = cm.get_request_tracker()
+            if rt is not None:
+                rt.record("test-model", 100, 50, cost=0.01)
+            call_count["n"] += 1
+            return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+
+        def costed_merge(article_path, article_content, extraction, source_path, model="m"):
+            rt = cm.get_request_tracker()
+            if rt is not None:
+                rt.record("test-model", 100, 50, cost=0.01)
+            return article_content + f"\nmerged {source_path}\n"
+
+        monkeypatch.setattr(cm, "create_new_article", costed_create)
+        monkeypatch.setattr(cm, "merge_into_article", costed_merge)
+
+        # Run inside _measure_op_cost to get the op_tracker
+        with cm._measure_op_cost() as op_tracker:
+            articles, all_rels, n_batches = cm._merge_batch_split(
+                "wiki/concept/foo.md", items, "m",
+                article_content=None, article_type="concept", title="Foo")
+
+        # Phase A makes at least 1 call; continuation chains make additional calls.
+        # All calls should have recorded cost to the op_tracker via request_tracker.
+        assert call_count["n"] >= 3, (
+            f"expected at least 3 LLM calls (Phase A + continuations), got {call_count['n']}")
+        # Each call records 0.01; total must reflect ALL chains.
+        assert op_tracker.total_cost >= call_count["n"] * 0.01 - 0.001, (
+            f"op_tracker.total_cost={op_tracker.total_cost:.4f} too low for "
+            f"{call_count['n']} calls at $0.01 each")
