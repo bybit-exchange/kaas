@@ -1,0 +1,299 @@
+<svg viewBox="0 0 800 1520" width="800" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <!-- ================================================================ -->
+  <!-- Title                                                            -->
+  <!-- ================================================================ -->
+  <text x="400" y="30" font-size="16" font-weight="bold" fill="#1e293b" text-anchor="middle">Derive with reorganize=True — Filter &amp; Thematic Aggregation</text>
+
+  <!-- ================================================================ -->
+  <!-- PHASE 1 — RECALL Topic Filter                                    -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=55, w=740, h=298 -->
+  <rect x="30" y="55" width="740" height="298" rx="10" stroke="#a855f7" stroke-dasharray="6,4" fill="rgba(243,232,255,0.18)" stroke-width="1.2"/>
+  <text x="40" y="69" font-size="11" fill="#6b21a8" font-weight="bold">Phase 1 — RECALL Topic Filter (select_by_topic)</text>
+
+  <!-- Source Catalog: x=50, y=85, w=310, h=54 -->
+  <rect x="50" y="85" width="310" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="205" y="106" font-size="12" fill="#1e40af" text-anchor="middle">Source KB Catalog (master-index.md)</text>
+  <text x="205" y="124" font-size="10" fill="#64748b" text-anchor="middle">path — title: summary | keys: field_names</text>
+
+  <!-- Catalog annotation: x=420, y=85, w=330, h=54 -->
+  <rect x="420" y="85" width="330" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="585" y="100" font-size="9" fill="#64748b" text-anchor="middle">Each catalog line is one ArticleMeta from the compiled wiki.</text>
+  <text x="585" y="114" font-size="9" fill="#64748b" text-anchor="middle">Keys field lets a topic naming a specific setting or endpoint</text>
+  <text x="585" y="128" font-size="9" fill="#64748b" text-anchor="middle">match the article that documents it.</text>
+
+  <!-- pack_batches: x=50, y=167, w=220, h=54 -->
+  <rect x="50" y="167" width="220" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="160" y="188" font-size="12" fill="#6b21a8" text-anchor="middle">pack_batches(catalog)</text>
+  <text x="160" y="206" font-size="10" fill="#64748b" text-anchor="middle">greedy bin-pack into prompt budget</text>
+
+  <!-- Arrow: catalog → pack: source bottom=139+5=144, target top=167-11=156 -->
+  <path d="M205,144 C 205,152 160,150 160,156" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Budget annotation: x=330, y=167, w=260, h=54 -->
+  <rect x="330" y="167" width="260" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="460" y="184" font-size="9" fill="#64748b" text-anchor="middle">budget = MAX_PROMPT_CHARS − len(skeleton) − 2000</text>
+  <text x="460" y="198" font-size="9" fill="#64748b" text-anchor="middle">One line exceeds budget → Skipped(line_over_budget)</text>
+  <text x="460" y="212" font-size="9" fill="#64748b" text-anchor="middle">Batch full → seal it, start a new one</text>
+
+  <!-- Dashed arrow: annotation → pack -->
+  <path d="M330,194 L 276,194" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- LLM per batch: x=50, y=249, w=220, h=54 -->
+  <rect x="50" y="249" width="220" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="160" y="267" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">LLM completion_json ×N</text>
+  <text x="160" y="285" font-size="10" fill="#64748b" text-anchor="middle">→ {"paths": [...]} per batch</text>
+
+  <!-- Arrow: pack → LLM: source bottom=221+5=226, target top=249-11=238 -->
+  <path d="M160,226 L 160,238" fill="none" stroke="#a855f7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+  <!-- Union: x=330, y=249, w=220, h=54 -->
+  <rect x="330" y="249" width="220" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="440" y="270" font-size="12" fill="#166534" text-anchor="middle">Union &amp; Validate</text>
+  <text x="440" y="288" font-size="10" fill="#64748b" text-anchor="middle">∈ catalog? dedup, drop invented</text>
+
+  <!-- Arrow: LLM → Union: start=270+5=275, end=330-11=319 -->
+  <path d="M275,276 L 319,276" fill="none" stroke="#a855f7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+  <!-- RECALL prompt box: x=605, y=167, w=150, h=136 -->
+  <rect x="605" y="167" width="150" height="136" rx="6" fill="rgba(243,232,255,0.4)" stroke="#a855f7" stroke-width="1"/>
+  <text x="680" y="184" font-size="10" fill="#6b21a8" text-anchor="middle" font-weight="bold">RECALL instruction</text>
+  <text x="680" y="200" font-size="9" fill="#64748b" text-anchor="middle">"Include if it could</text>
+  <text x="680" y="214" font-size="9" fill="#64748b" text-anchor="middle">contribute, even</text>
+  <text x="680" y="228" font-size="9" fill="#64748b" text-anchor="middle">peripherally. Missing</text>
+  <text x="680" y="242" font-size="9" fill="#64748b" text-anchor="middle">one permanently</text>
+  <text x="680" y="256" font-size="9" fill="#64748b" text-anchor="middle">loses the documents</text>
+  <text x="680" y="270" font-size="9" fill="#64748b" text-anchor="middle">behind it."</text>
+  <text x="680" y="290" font-size="9" fill="#6b21a8" text-anchor="middle">No top-K cap</text>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: Phase 1 → Phase 2                                        -->
+  <!-- Union bottom=303+5=308, Phase 2 top=385-11=374 -->
+  <path d="M440,308 C 440,340 400,340 400,374" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="450" y="340" font-size="10" fill="#166534" text-anchor="middle">selected article paths</text>
+
+  <!-- ================================================================ -->
+  <!-- PHASE 2 — Resolve &amp; Copy                                     -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=385, w=740, h=100 -->
+  <rect x="30" y="385" width="740" height="100" rx="10" stroke="#22c55e" stroke-dasharray="6,4" fill="rgba(209,250,229,0.15)" stroke-width="1.2"/>
+  <text x="40" y="399" font-size="11" fill="#166534" font-weight="bold">Phase 2 — Resolve Sources &amp; Copy to derived/&lt;slug&gt;/</text>
+
+  <!-- resolve: x=50, y=413, w=210, h=54 -->
+  <rect x="50" y="413" width="210" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="155" y="434" font-size="12" fill="#166534" text-anchor="middle">resolve_documents()</text>
+  <text x="155" y="452" font-size="10" fill="#64748b" text-anchor="middle">sources: frontmatter → raw/</text>
+
+  <!-- copy: x=315, y=413, w=190, h=54 -->
+  <rect x="315" y="413" width="190" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="410" y="434" font-size="12" fill="#166534" text-anchor="middle">copy_documents()</text>
+  <text x="410" y="452" font-size="10" fill="#64748b" text-anchor="middle">raw/ + extraction/</text>
+
+  <!-- manifest: x=560, y=413, w=190, h=54 -->
+  <rect x="560" y="413" width="190" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="655" y="434" font-size="12" fill="#1e40af" text-anchor="middle">write_manifest()</text>
+  <text x="655" y="452" font-size="10" fill="#64748b" text-anchor="middle">manifest.json pre-compile</text>
+
+  <!-- Arrow: resolve → copy: start=260+5=265, end=315-11=304 -->
+  <path d="M265,440 L 304,440" fill="none" stroke="#22c55e" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <!-- Arrow: copy → manifest: start=505+5=510, end=560-11=549 -->
+  <path d="M510,440 L 549,440" fill="none" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#arrow-blue)"/>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: Phase 2 → Phase 3                                        -->
+  <!-- bottom=485+5=490, Phase 3 top=520-11=509 -->
+  <path d="M400,490 L 400,509" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- PHASE 3 — Reorganize (the key new phase)                         -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=520, w=740, h=420 -->
+  <rect x="30" y="520" width="740" height="420" rx="10" stroke="#f59e0b" stroke-dasharray="6,4" fill="rgba(254,243,199,0.15)" stroke-width="1.2"/>
+  <text x="40" y="534" font-size="11" fill="#b45309" font-weight="bold">Phase 3 — Reorganize (build entity index → resolve entities → plan aggregation)</text>
+
+  <!-- ── Step 3a: build_entity_index ── -->
+  <!-- x=50, y=552, w=250, h=54 -->
+  <rect x="50" y="552" width="250" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="175" y="570" font-size="11" fill="#b45309" text-anchor="middle" font-weight="bold">3a · build_entity_index()</text>
+  <text x="175" y="588" font-size="10" fill="#64748b" text-anchor="middle">scan all extraction/ files</text>
+
+  <!-- annotation: x=360, y=552, w=395, h=54 -->
+  <rect x="360" y="552" width="395" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="570" font-size="9" fill="#64748b" text-anchor="middle">For each extraction, aggregate into EntityIndex:</text>
+  <text x="557" y="586" font-size="9" fill="#64748b" text-anchor="middle">entities: {name → [EntityOccurrence(source, type, context)]} — frequency across docs</text>
+  <text x="557" y="600" font-size="9" fill="#64748b" text-anchor="middle">topics: {tag → [source_paths]}  ·  concepts: {title → [source_paths]}</text>
+
+  <!-- Arrow: annotation ← -->
+  <path d="M360,579 L 306,579" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ── Step 3b: resolve_entities ── -->
+  <!-- x=50, y=634, w=250, h=54 -->
+  <rect x="50" y="634" width="250" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="175" y="652" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">3b · resolve_entities()</text>
+  <text x="175" y="670" font-size="10" fill="#64748b" text-anchor="middle">LLM canonicalize aliases</text>
+
+  <!-- Arrow: 3a → 3b: source bottom=606+5=611, target top=634-11=623 -->
+  <path d="M175,611 L 175,623" fill="none" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+
+  <!-- resolve detail: x=360, y=634, w=395, h=102 -->
+  <rect x="360" y="634" width="395" height="102" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="650" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">Step 1: Heuristic filter</text>
+  <text x="557" y="664" font-size="9" fill="#64748b" text-anchor="middle">Drop names &gt;60 chars or matching enumeration patterns (e.g. "list of …")</text>
+  <text x="557" y="684" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">Step 2: LLM entity resolution (batches of 500)</text>
+  <text x="557" y="698" font-size="9" fill="#64748b" text-anchor="middle">Prompt: "identify groups referring to the same entity"</text>
+  <text x="557" y="712" font-size="9" fill="#64748b" text-anchor="middle">→ {"groups": [{"canonical": "…", "aliases": ["…"]}]}</text>
+  <text x="557" y="726" font-size="9" fill="#64748b" text-anchor="middle">Merge across batches; build CanonicalMapping (alias → canonical reverse lookup)</text>
+
+  <!-- Arrow: resolve detail ← -->
+  <path d="M360,661 L 306,661" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ── Step 3c: apply mapping ── -->
+  <!-- x=50, y=716, w=250, h=54 -->
+  <rect x="50" y="716" width="250" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="175" y="734" font-size="11" fill="#166534" text-anchor="middle" font-weight="bold">3c · Apply canonical mapping</text>
+  <text x="175" y="752" font-size="10" fill="#64748b" text-anchor="middle">merge occurrences under canonical</text>
+
+  <!-- Arrow: 3b → 3c: source bottom=688+5=693, target top=716-11=705 -->
+  <path d="M175,693 L 175,705" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- ── Step 3d: plan_aggregation ── -->
+  <!-- x=50, y=798, w=250, h=54 -->
+  <rect x="50" y="798" width="250" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="175" y="816" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">3d · plan_aggregation()</text>
+  <text x="175" y="834" font-size="10" fill="#64748b" text-anchor="middle">LLM → 3–15 ThematicArticles</text>
+
+  <!-- Arrow: 3c → 3d: source bottom=770+5=775, target top=798-11=787 -->
+  <path d="M175,775 L 175,787" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- plan detail: x=360, y=764, w=395, h=158 -->
+  <rect x="360" y="764" width="395" height="158" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="780" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">LLM input (aggregate-plan prompt):</text>
+  <text x="557" y="794" font-size="9" fill="#64748b" text-anchor="middle">• topic, extraction_count</text>
+  <text x="557" y="808" font-size="9" fill="#64748b" text-anchor="middle">• top 50 entities (canonical name — frequency)</text>
+  <text x="557" y="822" font-size="9" fill="#64748b" text-anchor="middle">• top 30 topic tags (tag — frequency)</text>
+  <text x="557" y="836" font-size="9" fill="#64748b" text-anchor="middle">• top 30 concept titles</text>
+  <text x="557" y="850" font-size="9" fill="#64748b" text-anchor="middle">• categories: concept · decision · project · reference · guide · person</text>
+  <text x="557" y="870" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">LLM output:</text>
+  <text x="557" y="884" font-size="9" fill="#64748b" text-anchor="middle">{"articles": [{path, type, title, description}]}  (3 ≤ n ≤ 15)</text>
+  <text x="557" y="898" font-size="9" fill="#64748b" text-anchor="middle">Validated: _is_safe_wiki_path(), type ∈ categories, title non-empty</text>
+  <text x="557" y="912" font-size="9" fill="#64748b" text-anchor="middle">→ ReorganizePlan(topic, articles, canonical_mapping, entity_index)</text>
+
+  <!-- Arrow: plan detail ← -->
+  <path d="M360,825 L 306,825" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: Phase 3 → Phase 4                                        -->
+  <!-- bottom of 3d=852+5=857... use group bottom=940+5=945 -->
+  <path d="M175,857 C 175,890 400,930 400,964" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="260" y="920" font-size="10" fill="#b45309" text-anchor="middle">aggregation_plan + topic</text>
+
+  <!-- ================================================================ -->
+  <!-- PHASE 4 — Compile (topical variant)                              -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=975, w=740, h=362 -->
+  <rect x="30" y="975" width="740" height="362" rx="10" stroke="#a855f7" stroke-dasharray="6,4" fill="rgba(243,232,255,0.12)" stroke-width="1.2"/>
+  <text x="40" y="989" font-size="11" fill="#6b21a8" font-weight="bold">Phase 4 — compile_kb(aggregation_plan=[...], topic="…")</text>
+
+  <!-- 4a: Extract: x=50, y=1005, w=240, h=54 -->
+  <rect x="50" y="1005" width="240" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1023" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4a · Extract (parallel)</text>
+  <text x="170" y="1041" font-size="10" fill="#64748b" text-anchor="middle">LLM per raw doc → structured JSON</text>
+
+  <!-- Extract annotation: x=350, y=1005, w=200, h=54 -->
+  <rect x="350" y="1005" width="200" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="450" y="1023" font-size="9" fill="#64748b" text-anchor="middle">summary · topics · entities</text>
+  <text x="450" y="1037" font-size="9" fill="#64748b" text-anchor="middle">concepts · decisions · key_facts</text>
+  <text x="450" y="1051" font-size="9" fill="#64748b" text-anchor="middle">Staleness gate skips fresh ones</text>
+
+  <!-- Arrow: extract annotation ← -->
+  <path d="M350,1032 L 296,1032" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- 4b: Classify topical: x=50, y=1087, w=240, h=72 -->
+  <rect x="50" y="1087" width="240" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1105" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4b · classify_article_topical()</text>
+  <text x="170" y="1121" font-size="10" fill="#64748b" text-anchor="middle">sequential, per extraction</text>
+  <text x="170" y="1139" font-size="10" fill="#64748b" text-anchor="middle">→ merge_into[] + create_new[]</text>
+
+  <!-- Arrow: 4a → 4b: source bottom=1059+5=1064, target top=1087-11=1076 -->
+  <path d="M170,1064 L 170,1076" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Classify topical annotation: x=350, y=1087, w=405, h=72 -->
+  <rect x="350" y="1087" width="405" height="72" rx="6" fill="rgba(254,243,199,0.3)" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="552" y="1103" font-size="9" fill="#b45309" text-anchor="middle" font-weight="bold">Topical prompt (classify-topical.md) — the key difference:</text>
+  <text x="552" y="1117" font-size="9" fill="#64748b" text-anchor="middle">"Route this extraction into one or more of the planned thematic articles"</text>
+  <text x="552" y="1131" font-size="9" fill="#64748b" text-anchor="middle">"Prefer merging into planned articles over creating new ones"</text>
+  <text x="552" y="1145" font-size="9" fill="#64748b" text-anchor="middle">"Create new only if the extraction covers a theme not in the plan"</text>
+  <text x="552" y="1155" font-size="9" fill="#64748b" text-anchor="middle">No classify cache (plan varies per run) · May route 1 extraction → N articles</text>
+
+  <!-- Arrow: classify annotation ← -->
+  <path d="M350,1123 L 296,1123" fill="none" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+
+  <!-- 4c: Write: x=50, y=1187, w=240, h=72 -->
+  <rect x="50" y="1187" width="240" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1205" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4c · Write (parallel workers)</text>
+  <text x="170" y="1221" font-size="10" fill="#64748b" text-anchor="middle">create_new_article()</text>
+  <text x="170" y="1237" font-size="10" fill="#64748b" text-anchor="middle">merge_into_article()</text>
+
+  <!-- Arrow: 4b → 4c: source bottom=1159+5=1164, target top=1187-11=1176 -->
+  <path d="M170,1164 L 170,1176" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- Write annotation: x=350, y=1187, w=310, h=72 -->
+  <rect x="350" y="1187" width="310" height="72" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="505" y="1205" font-size="9" fill="#64748b" text-anchor="middle">Multiple extractions merge into the same thematic article,</text>
+  <text x="505" y="1219" font-size="9" fill="#64748b" text-anchor="middle">producing cross-cutting wiki entries instead of per-chapter ones.</text>
+  <text x="505" y="1239" font-size="9" fill="#64748b" text-anchor="middle">batch-split on budget overflow → sub-articles (-part-N.md)</text>
+  <text x="505" y="1253" font-size="9" fill="#64748b" text-anchor="middle">Planned article title/type used when creating path for first time</text>
+
+  <!-- Arrow: write annotation ← -->
+  <path d="M350,1223 L 296,1223" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- 4d: Index: x=50, y=1287, w=240, h=36 -->
+  <rect x="50" y="1287" width="240" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="170" y="1310" font-size="11" fill="#166534" text-anchor="middle" font-weight="bold">4d · Build Indexes</text>
+
+  <!-- Arrow: 4c → 4d: source bottom=1259+5=1264, target top=1287-11=1276 -->
+  <path d="M170,1264 L 170,1276" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- Result: Thematic KB                                              -->
+  <!-- ================================================================ -->
+  <!-- Arrow: Phase 4 → result: group bottom=1337+5=1342, target top=1380-11=1369 -->
+  <path d="M400,1342 L 400,1369" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- Result box: x=130, y=1380, w=540, h=54 -->
+  <rect x="130" y="1380" width="540" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="400" y="1401" font-size="12" fill="#166534" text-anchor="middle" font-weight="bold">derived/&lt;slug&gt;/ — Thematic Knowledge Base</text>
+  <text x="400" y="1419" font-size="10" fill="#64748b" text-anchor="middle">wiki/ contains 3–15 cross-cutting thematic articles instead of per-document chapters</text>
+
+  <!-- ================================================================ -->
+  <!-- Flow label on the right side: end-to-end summary                 -->
+  <!-- ================================================================ -->
+  <!-- Vertical sidebar: x=50, y=1460, w=700, h=36 -->
+  <rect x="50" y="1460" width="700" height="36" rx="6" fill="rgba(243,232,255,0.25)" stroke="#a855f7" stroke-width="1"/>
+  <text x="400" y="1483" font-size="10" fill="#6b21a8" text-anchor="middle">Filter (RECALL) → Resolve &amp; Copy → Reorganize (entity index → canonicalize → plan) → Compile (extract → topical classify → write → index)</text>
+
+</svg>

@@ -1,0 +1,295 @@
+<svg viewBox="0 0 800 1520" width="800" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    text { font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', system-ui, sans-serif; }
+  </style>
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#22c55e"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#a855f7"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="8" markerHeight="8" refX="2" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M0,0 L8,4 L0,8 L2,4 z" fill="#ef4444"/>
+    </marker>
+  </defs>
+
+  <!-- ================================================================ -->
+  <!-- 标题                                                             -->
+  <!-- ================================================================ -->
+  <text x="400" y="30" font-size="16" font-weight="bold" fill="#1e293b" text-anchor="middle">知识库派生流程（reorganize=True）— 过滤与主题聚合</text>
+
+  <!-- ================================================================ -->
+  <!-- 阶段一 — RECALL 主题过滤                                         -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=55, w=740, h=298 -->
+  <rect x="30" y="55" width="740" height="298" rx="10" stroke="#a855f7" stroke-dasharray="6,4" fill="rgba(243,232,255,0.18)" stroke-width="1.2"/>
+  <text x="40" y="69" font-size="11" fill="#6b21a8" font-weight="bold">阶段一 — RECALL 主题过滤（select_by_topic）</text>
+
+  <!-- 源知识库目录: x=50, y=85, w=310, h=54 -->
+  <rect x="50" y="85" width="310" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="205" y="106" font-size="12" fill="#1e40af" text-anchor="middle">源知识库目录（master-index.md）</text>
+  <text x="205" y="124" font-size="10" fill="#64748b" text-anchor="middle">path — 标题: 摘要 | keys: 字段名</text>
+
+  <!-- 目录说明: x=420, y=85, w=330, h=54 -->
+  <rect x="420" y="85" width="330" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="585" y="100" font-size="9" fill="#64748b" text-anchor="middle">每行对应一条已编译 wiki 的 ArticleMeta。</text>
+  <text x="585" y="114" font-size="9" fill="#64748b" text-anchor="middle">keys 字段让主题名称能精确匹配</text>
+  <text x="585" y="128" font-size="9" fill="#64748b" text-anchor="middle">到记录了该配置项或端点的文章。</text>
+
+  <!-- 分批打包: x=50, y=167, w=220, h=54 -->
+  <rect x="50" y="167" width="220" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="160" y="188" font-size="12" fill="#6b21a8" text-anchor="middle">pack_batches(catalog)</text>
+  <text x="160" y="206" font-size="10" fill="#64748b" text-anchor="middle">贪心装箱，不超 prompt 预算</text>
+
+  <!-- Arrow: catalog → pack -->
+  <path d="M205,144 C 205,152 160,150 160,156" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- 预算说明: x=330, y=167, w=260, h=54 -->
+  <rect x="330" y="167" width="260" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="460" y="184" font-size="9" fill="#64748b" text-anchor="middle">预算 = MAX_PROMPT_CHARS − 骨架长度 − 2000</text>
+  <text x="460" y="198" font-size="9" fill="#64748b" text-anchor="middle">单行超预算 → Skipped(line_over_budget)</text>
+  <text x="460" y="212" font-size="9" fill="#64748b" text-anchor="middle">批次满 → 封批，开新批</text>
+
+  <!-- Dashed arrow: annotation → pack -->
+  <path d="M330,194 L 276,194" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- LLM 逐批调用: x=50, y=249, w=220, h=54 -->
+  <rect x="50" y="249" width="220" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="160" y="267" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">LLM completion_json ×N</text>
+  <text x="160" y="285" font-size="10" fill="#64748b" text-anchor="middle">每批返回 {"paths": [...]}</text>
+
+  <!-- Arrow: pack → LLM -->
+  <path d="M160,226 L 160,238" fill="none" stroke="#a855f7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+  <!-- 合并去重: x=330, y=249, w=220, h=54 -->
+  <rect x="330" y="249" width="220" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="440" y="270" font-size="12" fill="#166534" text-anchor="middle">合并 &amp; 校验</text>
+  <text x="440" y="288" font-size="10" fill="#64748b" text-anchor="middle">∈ 目录? 去重，丢弃虚构路径</text>
+
+  <!-- Arrow: LLM → Union -->
+  <path d="M275,276 L 319,276" fill="none" stroke="#a855f7" stroke-width="1.2" marker-end="url(#arrow-purple)"/>
+
+  <!-- RECALL 指令: x=605, y=167, w=150, h=136 -->
+  <rect x="605" y="167" width="150" height="136" rx="6" fill="rgba(243,232,255,0.4)" stroke="#a855f7" stroke-width="1"/>
+  <text x="680" y="184" font-size="10" fill="#6b21a8" text-anchor="middle" font-weight="bold">RECALL 指令</text>
+  <text x="680" y="202" font-size="9" fill="#64748b" text-anchor="middle">"即使只是边缘相关</text>
+  <text x="680" y="216" font-size="9" fill="#64748b" text-anchor="middle">也要纳入。</text>
+  <text x="680" y="230" font-size="9" fill="#64748b" text-anchor="middle">遗漏一篇文章</text>
+  <text x="680" y="244" font-size="9" fill="#64748b" text-anchor="middle">会永久丢失</text>
+  <text x="680" y="258" font-size="9" fill="#64748b" text-anchor="middle">其背后的全部</text>
+  <text x="680" y="272" font-size="9" fill="#64748b" text-anchor="middle">源文档。"</text>
+  <text x="680" y="292" font-size="9" fill="#6b21a8" text-anchor="middle">无 top-K 上限</text>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: 阶段一 → 阶段二                                          -->
+  <path d="M440,308 C 440,340 400,340 400,374" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+  <text x="450" y="340" font-size="10" fill="#166534" text-anchor="middle">选中的文章路径</text>
+
+  <!-- ================================================================ -->
+  <!-- 阶段二 — 解析来源 &amp; 复制                                     -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=385, w=740, h=100 -->
+  <rect x="30" y="385" width="740" height="100" rx="10" stroke="#22c55e" stroke-dasharray="6,4" fill="rgba(209,250,229,0.15)" stroke-width="1.2"/>
+  <text x="40" y="399" font-size="11" fill="#166534" font-weight="bold">阶段二 — 解析来源文档 &amp; 复制到 derived/&lt;slug&gt;/</text>
+
+  <!-- 解析文档: x=50, y=413, w=210, h=54 -->
+  <rect x="50" y="413" width="210" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="155" y="434" font-size="12" fill="#166534" text-anchor="middle">resolve_documents()</text>
+  <text x="155" y="452" font-size="10" fill="#64748b" text-anchor="middle">sources: 前言 → raw/</text>
+
+  <!-- 复制文档: x=315, y=413, w=190, h=54 -->
+  <rect x="315" y="413" width="190" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="410" y="434" font-size="12" fill="#166534" text-anchor="middle">copy_documents()</text>
+  <text x="410" y="452" font-size="10" fill="#64748b" text-anchor="middle">raw/ + extraction/</text>
+
+  <!-- 写清单: x=560, y=413, w=190, h=54 -->
+  <rect x="560" y="413" width="190" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="655" y="434" font-size="12" fill="#1e40af" text-anchor="middle">write_manifest()</text>
+  <text x="655" y="452" font-size="10" fill="#64748b" text-anchor="middle">编译前写入 manifest.json</text>
+
+  <!-- Arrow: resolve → copy -->
+  <path d="M265,440 L 304,440" fill="none" stroke="#22c55e" stroke-width="1.2" marker-end="url(#arrow-green)"/>
+  <!-- Arrow: copy → manifest -->
+  <path d="M510,440 L 549,440" fill="none" stroke="#3b82f6" stroke-width="1.2" marker-end="url(#arrow-blue)"/>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: 阶段二 → 阶段三                                          -->
+  <path d="M400,490 L 400,509" fill="none" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- 阶段三 — 重组（核心新阶段）                                       -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=520, w=740, h=420 -->
+  <rect x="30" y="520" width="740" height="420" rx="10" stroke="#f59e0b" stroke-dasharray="6,4" fill="rgba(254,243,199,0.15)" stroke-width="1.2"/>
+  <text x="40" y="534" font-size="11" fill="#b45309" font-weight="bold">阶段三 — 重组（构建实体索引 → 实体消歧 → 规划聚合文章）</text>
+
+  <!-- ── 3a: 构建实体索引 ── -->
+  <!-- x=50, y=552, w=250, h=54 -->
+  <rect x="50" y="552" width="250" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="175" y="570" font-size="11" fill="#b45309" text-anchor="middle" font-weight="bold">3a · 构建实体索引</text>
+  <text x="175" y="588" font-size="10" fill="#64748b" text-anchor="middle">扫描全部 extraction/ 文件</text>
+
+  <!-- 说明: x=360, y=552, w=395, h=54 -->
+  <rect x="360" y="552" width="395" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="570" font-size="9" fill="#64748b" text-anchor="middle">逐提取文件聚合为 EntityIndex：</text>
+  <text x="557" y="586" font-size="9" fill="#64748b" text-anchor="middle">实体: {名称 → [出现(来源, 类型, 上下文)]} — 跨文档频次统计</text>
+  <text x="557" y="600" font-size="9" fill="#64748b" text-anchor="middle">主题标签: {tag → [来源路径]}  ·  概念: {标题 → [来源路径]}</text>
+
+  <!-- Arrow: annotation ← -->
+  <path d="M360,579 L 306,579" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ── 3b: 实体消歧 ── -->
+  <!-- x=50, y=634, w=250, h=54 -->
+  <rect x="50" y="634" width="250" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="175" y="652" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">3b · 实体消歧（LLM）</text>
+  <text x="175" y="670" font-size="10" fill="#64748b" text-anchor="middle">别名规范化为标准名称</text>
+
+  <!-- Arrow: 3a → 3b -->
+  <path d="M175,611 L 175,623" fill="none" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+
+  <!-- 消歧细节: x=360, y=634, w=395, h=102 -->
+  <rect x="360" y="634" width="395" height="102" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="650" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">步骤 1：启发式过滤</text>
+  <text x="557" y="664" font-size="9" fill="#64748b" text-anchor="middle">丢弃 &gt;60 字符的名称或匹配枚举模式的名称（如"…的列表"）</text>
+  <text x="557" y="684" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">步骤 2：LLM 实体消歧（每批 500 个）</text>
+  <text x="557" y="698" font-size="9" fill="#64748b" text-anchor="middle">提示词："识别指向同一实体的名称组"</text>
+  <text x="557" y="712" font-size="9" fill="#64748b" text-anchor="middle">→ {"groups": [{"canonical": "标准名", "aliases": ["别名"]}]}</text>
+  <text x="557" y="726" font-size="9" fill="#64748b" text-anchor="middle">跨批合并；构建 CanonicalMapping（别名 → 标准名 反向映射）</text>
+
+  <!-- Arrow: resolve detail ← -->
+  <path d="M360,661 L 306,661" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ── 3c: 应用映射 ── -->
+  <!-- x=50, y=716, w=250, h=54 -->
+  <rect x="50" y="716" width="250" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="175" y="734" font-size="11" fill="#166534" text-anchor="middle" font-weight="bold">3c · 应用标准名映射</text>
+  <text x="175" y="752" font-size="10" fill="#64748b" text-anchor="middle">将出现记录合并到标准名下</text>
+
+  <!-- Arrow: 3b → 3c -->
+  <path d="M175,693 L 175,705" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- ── 3d: 规划聚合文章 ── -->
+  <!-- x=50, y=798, w=250, h=54 -->
+  <rect x="50" y="798" width="250" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="175" y="816" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">3d · 规划聚合文章（LLM）</text>
+  <text x="175" y="834" font-size="10" fill="#64748b" text-anchor="middle">→ 3–15 篇主题文章计划</text>
+
+  <!-- Arrow: 3c → 3d -->
+  <path d="M175,775 L 175,787" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- 规划细节: x=360, y=764, w=395, h=158 -->
+  <rect x="360" y="764" width="395" height="158" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="557" y="780" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">LLM 输入（aggregate-plan 提示词）：</text>
+  <text x="557" y="794" font-size="9" fill="#64748b" text-anchor="middle">• 主题、提取文件总数</text>
+  <text x="557" y="808" font-size="9" fill="#64748b" text-anchor="middle">• 频率最高的 50 个实体（标准名 — 频次）</text>
+  <text x="557" y="822" font-size="9" fill="#64748b" text-anchor="middle">• 频率最高的 30 个主题标签（tag — 频次）</text>
+  <text x="557" y="836" font-size="9" fill="#64748b" text-anchor="middle">• 频率最高的 30 个概念标题</text>
+  <text x="557" y="850" font-size="9" fill="#64748b" text-anchor="middle">• 分类: concept · decision · project · reference · guide · person</text>
+  <text x="557" y="870" font-size="9" fill="#64748b" text-anchor="middle" font-weight="bold">LLM 输出：</text>
+  <text x="557" y="884" font-size="9" fill="#64748b" text-anchor="middle">{"articles": [{path, type, title, description}]}（3 ≤ n ≤ 15）</text>
+  <text x="557" y="898" font-size="9" fill="#64748b" text-anchor="middle">校验: 路径安全、type ∈ 分类集、标题非空</text>
+  <text x="557" y="912" font-size="9" fill="#64748b" text-anchor="middle">→ ReorganizePlan(主题, 文章列表, 标准名映射, 实体索引)</text>
+
+  <!-- Arrow: plan detail ← -->
+  <path d="M360,825 L 306,825" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- Arrow: 阶段三 → 阶段四                                          -->
+  <path d="M175,857 C 175,890 400,930 400,964" fill="none" stroke="#f59e0b" stroke-width="1.5" marker-end="url(#arrow-orange)"/>
+  <text x="260" y="920" font-size="10" fill="#b45309" text-anchor="middle">聚合计划 + 主题</text>
+
+  <!-- ================================================================ -->
+  <!-- 阶段四 — 编译（主题变体）                                         -->
+  <!-- ================================================================ -->
+  <!-- group: x=30, y=975, w=740, h=362 -->
+  <rect x="30" y="975" width="740" height="362" rx="10" stroke="#a855f7" stroke-dasharray="6,4" fill="rgba(243,232,255,0.12)" stroke-width="1.2"/>
+  <text x="40" y="989" font-size="11" fill="#6b21a8" font-weight="bold">阶段四 — compile_kb(aggregation_plan=[...], topic="…")</text>
+
+  <!-- 4a: 提取: x=50, y=1005, w=240, h=54 -->
+  <rect x="50" y="1005" width="240" height="54" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1023" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4a · 提取（并行）</text>
+  <text x="170" y="1041" font-size="10" fill="#64748b" text-anchor="middle">LLM 逐文档 → 结构化 JSON</text>
+
+  <!-- 提取说明: x=350, y=1005, w=200, h=54 -->
+  <rect x="350" y="1005" width="200" height="54" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="450" y="1023" font-size="9" fill="#64748b" text-anchor="middle">摘要 · 主题 · 实体</text>
+  <text x="450" y="1037" font-size="9" fill="#64748b" text-anchor="middle">概念 · 决策 · 关键事实</text>
+  <text x="450" y="1051" font-size="9" fill="#64748b" text-anchor="middle">新鲜度门控：跳过未变文档</text>
+
+  <!-- Arrow: extract annotation ← -->
+  <path d="M350,1032 L 296,1032" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- 4b: 主题分类: x=50, y=1087, w=240, h=72 -->
+  <rect x="50" y="1087" width="240" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1105" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4b · 主题分类（按序）</text>
+  <text x="170" y="1121" font-size="10" fill="#64748b" text-anchor="middle">classify_article_topical()</text>
+  <text x="170" y="1139" font-size="10" fill="#64748b" text-anchor="middle">→ merge_into[] + create_new[]</text>
+
+  <!-- Arrow: 4a → 4b -->
+  <path d="M170,1064 L 170,1076" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- 主题分类说明: x=350, y=1087, w=405, h=72 -->
+  <rect x="350" y="1087" width="405" height="72" rx="6" fill="rgba(254,243,199,0.3)" stroke="#f59e0b" stroke-width="1.2"/>
+  <text x="552" y="1103" font-size="9" fill="#b45309" text-anchor="middle" font-weight="bold">主题提示词（classify-topical.md）— 核心差异：</text>
+  <text x="552" y="1117" font-size="9" fill="#64748b" text-anchor="middle">"将提取内容路由到一篇或多篇已规划的主题文章中"</text>
+  <text x="552" y="1131" font-size="9" fill="#64748b" text-anchor="middle">"优先合入已规划文章，仅在主题不在计划中时才新建"</text>
+  <text x="552" y="1145" font-size="9" fill="#64748b" text-anchor="middle">"一条提取可路由到 N 篇文章"</text>
+  <text x="552" y="1155" font-size="9" fill="#64748b" text-anchor="middle">无分类缓存（计划每次不同）· 1 条提取 → N 篇文章</text>
+
+  <!-- Arrow: classify annotation ← -->
+  <path d="M350,1123 L 296,1123" fill="none" stroke="#f59e0b" stroke-width="1.2" marker-end="url(#arrow-orange)"/>
+
+  <!-- 4c: 撰写: x=50, y=1187, w=240, h=72 -->
+  <rect x="50" y="1187" width="240" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="170" y="1205" font-size="11" fill="#6b21a8" text-anchor="middle" font-weight="bold">4c · 撰写文章（并行）</text>
+  <text x="170" y="1221" font-size="10" fill="#64748b" text-anchor="middle">create_new_article()</text>
+  <text x="170" y="1237" font-size="10" fill="#64748b" text-anchor="middle">merge_into_article()</text>
+
+  <!-- Arrow: 4b → 4c -->
+  <path d="M170,1164 L 170,1176" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- 撰写说明: x=350, y=1187, w=310, h=72 -->
+  <rect x="350" y="1187" width="310" height="72" rx="6" fill="none" stroke="#94a3b8" stroke-dasharray="4,3" stroke-width="1"/>
+  <text x="505" y="1205" font-size="9" fill="#64748b" text-anchor="middle">多条提取合并进同一篇主题文章，</text>
+  <text x="505" y="1219" font-size="9" fill="#64748b" text-anchor="middle">产出横切主题的 wiki 条目，而非逐文档章节。</text>
+  <text x="505" y="1239" font-size="9" fill="#64748b" text-anchor="middle">超预算自动拆分 → 子文章（-part-N.md）</text>
+  <text x="505" y="1253" font-size="9" fill="#64748b" text-anchor="middle">首次创建时使用规划好的标题和类型</text>
+
+  <!-- Arrow: write annotation ← -->
+  <path d="M350,1223 L 296,1223" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+
+  <!-- 4d: 索引: x=50, y=1287, w=240, h=36 -->
+  <rect x="50" y="1287" width="240" height="36" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="170" y="1310" font-size="11" fill="#166534" text-anchor="middle" font-weight="bold">4d · 构建索引</text>
+
+  <!-- Arrow: 4c → 4d -->
+  <path d="M170,1264 L 170,1276" fill="none" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrow)"/>
+
+  <!-- ================================================================ -->
+  <!-- 结果                                                             -->
+  <!-- ================================================================ -->
+  <!-- Arrow: Phase 4 → result -->
+  <path d="M400,1342 L 400,1369" fill="none" stroke="#22c55e" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- 结果框: x=130, y=1380, w=540, h=54 -->
+  <rect x="130" y="1380" width="540" height="54" rx="6" fill="#d1fae5" stroke="#22c55e" stroke-width="1.5"/>
+  <text x="400" y="1401" font-size="12" fill="#166534" text-anchor="middle" font-weight="bold">derived/&lt;slug&gt;/ — 主题知识库</text>
+  <text x="400" y="1419" font-size="10" fill="#64748b" text-anchor="middle">wiki/ 包含 3–15 篇横切主题的聚合文章，而非逐文档的章节</text>
+
+  <!-- ================================================================ -->
+  <!-- 端到端总结                                                        -->
+  <!-- ================================================================ -->
+  <rect x="50" y="1460" width="700" height="36" rx="6" fill="rgba(243,232,255,0.25)" stroke="#a855f7" stroke-width="1"/>
+  <text x="400" y="1483" font-size="10" fill="#6b21a8" text-anchor="middle">过滤（RECALL）→ 解析来源 &amp; 复制 → 重组（实体索引 → 消歧 → 规划）→ 编译（提取 → 主题分类 → 撰写 → 索引）</text>
+
+</svg>
