@@ -52,7 +52,11 @@ function formatDate(ts: number): string {
   }
 }
 
-export function TasksTab() {
+export interface TasksTabProps {
+  headerLeft?: React.ReactNode
+}
+
+export function TasksTab({ headerLeft }: TasksTabProps) {
   const t = useT()
   const [tasks, setTasks] = useState<TaskDTO[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
@@ -186,7 +190,8 @@ export function TasksTab() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b py-4">
+        {headerLeft}
         <div className="flex items-center gap-3">
           {/* Status filter */}
           <Select value={filter} onValueChange={(v) => setFilter(v as StatusFilter)}>

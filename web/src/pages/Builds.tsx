@@ -75,10 +75,9 @@ export function Builds() {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <h1 className="mb-4 text-xl font-semibold">{t('builds.title')}</h1>
-      <div className="mb-4 border-b py-4">
-        <StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />
-      </div>
-      {activeTab === 'tasks' ? <TasksTab /> : <DeriveJobsTab />}
+      {activeTab === 'tasks'
+        ? <TasksTab headerLeft={<StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />} />
+        : <DeriveJobsTab headerLeft={<StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />} />}
     </div>
   )
 }

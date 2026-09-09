@@ -60,7 +60,11 @@ function selectFromTableLabel(t: (key: string) => string, value: string): string
   }
 }
 
-export function DeriveJobsTab() {
+export interface DeriveJobsTabProps {
+  headerLeft?: React.ReactNode
+}
+
+export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
   const t = useT()
   const [jobs, setJobs] = useState<DeriveJob[]>([])
   const [initialLoading, setInitialLoading] = useState(true)
@@ -196,7 +200,8 @@ export function DeriveJobsTab() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b py-4">
+        {headerLeft}
         <div className="flex items-center gap-3">
           {/* Status filter */}
           <Select
