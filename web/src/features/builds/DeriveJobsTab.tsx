@@ -200,7 +200,7 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b py-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 py-4">
         {headerLeft}
         <div className="flex items-center gap-3">
           {/* Status filter */}
