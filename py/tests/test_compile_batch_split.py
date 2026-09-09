@@ -865,12 +865,12 @@ def _reset_batch_sem(monkeypatch):
 
 class TestGetBatchParallelSem:
 
-    def test_defaults_to_six_and_caches(self, monkeypatch):
+    def test_defaults_to_four_and_caches(self, monkeypatch):
         _reset_batch_sem(monkeypatch)
 
         sem = cm._get_batch_parallel_sem()
 
-        assert cm._batch_parallel_sem_bound == 6
+        assert cm._batch_parallel_sem_bound == 4
         assert sem is cm._get_batch_parallel_sem()
 
     def test_reads_env_and_resizes(self, monkeypatch):
@@ -894,7 +894,7 @@ class TestGetBatchParallelSem:
         monkeypatch.setenv(cm._BATCH_PARALLEL_ENV, raw)
 
         assert cm._get_batch_parallel_sem() is not None
-        assert cm._batch_parallel_sem_bound == 6
+        assert cm._batch_parallel_sem_bound == 4
         cm._get_batch_parallel_sem()  # second call should not warn again
 
         err = capsys.readouterr().err
@@ -1583,6 +1583,66 @@ class TestGetBatchParallelThreshold:
 
         err = capsys.readouterr().err
         assert cm._BATCH_PARALLEL_THRESHOLD_ENV in err
+
+
+# ── _get_batch_parallel_batch_limit ───────────────────────────────────
+
+
+def _reset_batch_limit_cache():
+    """Clear the lru_cache on the warning function so tests see fresh warnings."""
+    cm._warn_invalid_batch_parallel_batch_limit.cache_clear()
+
+
+class TestGetBatchParallelBatchLimit:
+
+    def test_returns_default(self, monkeypatch):
+        """No env var set -> returns _BATCH_PARALLEL_BATCH_LIMIT (3)."""
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        assert cm._get_batch_parallel_batch_limit() == 3
+
+    def test_reads_env(self, monkeypatch):
+        """Valid env var -> returns parsed value."""
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "5")
+        assert cm._get_batch_parallel_batch_limit() == 5
+
+    def test_one_valid(self, monkeypatch):
+        """Env var = '1' -> returns 1 (minimum valid value)."""
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "1")
+        assert cm._get_batch_parallel_batch_limit() == 1
+
+    def test_zero_invalid_warns(self, monkeypatch, capsys):
+        """Env var = '0' -> returns default and warns (0 would break immediately)."""
+        _reset_batch_limit_cache()
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "0")
+
+        assert cm._get_batch_parallel_batch_limit() == 3
+
+        err = capsys.readouterr().err
+        assert cm._BATCH_PARALLEL_BATCH_LIMIT_ENV in err
+        assert "0" in err
+
+    def test_invalid_warns_once(self, monkeypatch, capsys):
+        """Non-integer env var -> returns default and warns to stderr once."""
+        _reset_batch_limit_cache()
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "not-a-number")
+
+        assert cm._get_batch_parallel_batch_limit() == 3
+        # second call should not warn again
+        cm._get_batch_parallel_batch_limit()
+
+        err = capsys.readouterr().err
+        assert err.count(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV) == 1
+        assert "not-a-number" in err
+
+    def test_negative_warns(self, monkeypatch, capsys):
+        """Negative env var -> returns default and warns."""
+        _reset_batch_limit_cache()
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "-2")
+
+        assert cm._get_batch_parallel_batch_limit() == 3
+
+        err = capsys.readouterr().err
+        assert cm._BATCH_PARALLEL_BATCH_LIMIT_ENV in err
 
 
 # ── Batch parallel threshold in _merge_batch_split ───────────────────

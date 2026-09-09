@@ -68,11 +68,14 @@ class _ChainResult:
 
 # ── Batch-parallel concurrency control ────────────────────────────────
 
-_BATCH_PARALLEL_MAX_CONCURRENT: int = 6
+_BATCH_PARALLEL_MAX_CONCURRENT: int = 4
 _BATCH_PARALLEL_ENV: str = "KB_BATCH_PARALLEL_MAX_CONCURRENT"
 
 _BATCH_PARALLEL_THRESHOLD: int = 4
 _BATCH_PARALLEL_THRESHOLD_ENV: str = "KB_BATCH_PARALLEL_THRESHOLD"
+
+_BATCH_PARALLEL_BATCH_LIMIT: int = 3
+_BATCH_PARALLEL_BATCH_LIMIT_ENV: str = "KB_BATCH_PARALLEL_BATCH_LIMIT"
 
 _batch_parallel_sem: threading.Semaphore | None = None
 _batch_parallel_sem_bound: int = 0
@@ -91,6 +94,36 @@ def _warn_invalid_batch_parallel_threshold(raw: str) -> None:
     print(f"[compile] invalid {_BATCH_PARALLEL_THRESHOLD_ENV}={raw!r}: expected a "
           f"non-negative integer \u2014 using {_BATCH_PARALLEL_THRESHOLD}",
           file=sys.stderr, flush=True)
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel_batch_limit(raw: str) -> None:
+    """Report an ignored batch-limit override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_BATCH_LIMIT_ENV}={raw!r}: expected a positive "
+          f"integer \u2014 using {_BATCH_PARALLEL_BATCH_LIMIT}", file=sys.stderr, flush=True)
+
+
+def _get_batch_parallel_batch_limit() -> int:
+    """Read the batch-parallel batch limit from the environment.
+
+    Returns ``int(os.environ[_BATCH_PARALLEL_BATCH_LIMIT_ENV])`` when set,
+    parseable, and >= 1.  Falls back to ``_BATCH_PARALLEL_BATCH_LIMIT``
+    otherwise, warning once for invalid values.
+
+    A value of 0 is invalid (would cause immediate break on first iteration).
+    """
+    raw = os.environ.get(_BATCH_PARALLEL_BATCH_LIMIT_ENV, "")
+    if not raw:
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    try:
+        parsed = int(raw)
+    except ValueError:
+        _warn_invalid_batch_parallel_batch_limit(raw)
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    if parsed < 1:
+        _warn_invalid_batch_parallel_batch_limit(raw)
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    return parsed
 
 
 def _get_batch_parallel_threshold() -> int:
