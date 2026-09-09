@@ -6,6 +6,7 @@ Phase 3: plan_aggregation and reorganize orchestrator.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
@@ -506,7 +507,96 @@ def plan_aggregation(
             f"(minimum {_MIN_ARTICLES})"
         )
 
-    return valid
+    round1_valid = valid
+
+    # --- Round 2: feedback refinement --------------------------------
+    try:
+        first_round_json = json.dumps(
+            [a.to_dict() for a in round1_valid], indent=2,
+        )
+        feedback_prompt = default_registry().get("aggregate-plan-feedback").render(
+            topic=topic,
+            first_round_articles=first_round_json,
+            entity_frequency=entity_freq_lines,
+            topic_frequency=topic_freq_lines,
+            concept_titles=concept_lines,
+            categories_str=categories_str,
+        )
+        feedback_messages = [
+            {"role": "system", "content": feedback_prompt},
+            {
+                "role": "user",
+                "content": f"Review and refine the article plan for: {topic}",
+            },
+        ]
+
+        feedback_response = completion_json(
+            model=model,
+            messages=feedback_messages,
+            max_tokens=4096,
+        )
+
+        raw_articles_r2 = feedback_response.get("articles", [])
+        if not isinstance(raw_articles_r2, list):
+            print(
+                "[reorganize] feedback round returned invalid format, using round 1",
+                file=sys.stderr,
+                flush=True,
+            )
+            return round1_valid
+
+        # Validate each article (same logic as Round 1)
+        rebalanced_valid: list[ThematicArticle] = []
+        for item in raw_articles_r2:
+            if not isinstance(item, dict):
+                continue
+            path = item.get("path", "")
+            art_type = item.get("type", "")
+            title = item.get("title", "")
+            description = item.get("description", "")
+            if not title:
+                continue
+            if not _is_safe_wiki_path(path):
+                continue
+            if art_type not in categories_set:
+                continue
+            rebalanced_valid.append(ThematicArticle(
+                path=path,
+                type=art_type,
+                title=title,
+                description=description,
+            ))
+
+        # Clamp to max
+        rebalanced_valid = rebalanced_valid[:_MAX_ARTICLES]
+
+        # Dedup by path (BEFORE count guard)
+        seen_paths: set[str] = set()
+        deduped: list[ThematicArticle] = []
+        for article in rebalanced_valid:
+            if article.path not in seen_paths:
+                seen_paths.add(article.path)
+                deduped.append(article)
+        rebalanced_valid = deduped
+
+        # Guard: refined plan must not shrink
+        if len(rebalanced_valid) < len(round1_valid):
+            print(
+                "[reorganize] feedback round shrunk the plan, using round 1",
+                file=sys.stderr,
+                flush=True,
+            )
+            return round1_valid
+
+        return rebalanced_valid
+
+    except Exception as exc:
+        print(
+            f"[reorganize] feedback round failed, using round 1: {exc}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return round1_valid
 
 
 # ---------------------------------------------------------------------------

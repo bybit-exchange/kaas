@@ -185,7 +185,7 @@ class TestPlanAggregation:
         assert result[0].title == "Article 0"
 
     def test_renders_prompt_with_correct_variables(self):
-        """Verify the prompt template is rendered with the expected variables."""
+        """Verify the Round 1 prompt template is rendered with expected variables."""
         index = _make_index(
             entities={
                 "Sun Wukong": [
@@ -201,23 +201,28 @@ class TestPlanAggregation:
             extraction_count=10,
         )
         response = _valid_articles_response(3, "concept")
+        calls = []
 
-        with patch("kb_ai.derive._reorganize.completion_json", return_value=response) as mock_llm:
+        def mock_completion_json(**kwargs):
+            calls.append(kwargs)
+            return response
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
             plan_aggregation(
                 "Sun Wukong", index, categories=CATEGORIES, model="test-model"
             )
 
-        mock_llm.assert_called_once()
-        call_kwargs = mock_llm.call_args[1]
+        # First call is Round 1
+        call_kwargs = calls[0]
         messages = call_kwargs["messages"]
 
         system_msg = messages[0]["content"]
         # Check template variables were rendered
         assert "Sun Wukong" in system_msg
         assert "10" in system_msg  # extraction_count
-        assert "Sun Wukong — 2" in system_msg  # entity frequency
-        assert "Guanyin — 1" in system_msg
-        assert "journey — 2" in system_msg  # topic frequency
+        assert "Sun Wukong \u2014 2" in system_msg  # entity frequency
+        assert "Guanyin \u2014 1" in system_msg
+        assert "journey \u2014 2" in system_msg  # topic frequency
         assert "Five Elements Mountain" in system_msg  # concept titles
         assert "concept, reference, how-to" in system_msg  # categories_str
 
@@ -225,14 +230,20 @@ class TestPlanAggregation:
         assert "Sun Wukong" in user_msg
 
     def test_llm_called_with_max_tokens_4096(self):
-        """completion_json receives max_tokens=4096."""
+        """completion_json receives max_tokens=4096 for both rounds."""
         index = _make_index()
         response = _valid_articles_response(3)
+        calls = []
 
-        with patch("kb_ai.derive._reorganize.completion_json", return_value=response) as mock_llm:
+        def mock_completion_json(**kwargs):
+            calls.append(kwargs)
+            return response
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
             plan_aggregation("topic", index, categories=CATEGORIES, model="m")
 
-        assert mock_llm.call_args[1]["max_tokens"] == 4096
+        assert calls[0]["max_tokens"] == 4096
+        assert calls[1]["max_tokens"] == 4096
 
     def test_drops_article_with_invalid_path(self, capsys):
         """Articles with unsafe paths are dropped with a warning."""
@@ -405,6 +416,277 @@ class TestPlanAggregation:
 
 
 # ---------------------------------------------------------------------------
+# plan_aggregation feedback round tests
+# ---------------------------------------------------------------------------
+
+class TestPlanAggregationFeedback:
+    """Tests for Round 2 (feedback) in plan_aggregation."""
+
+    def _make_index(self) -> EntityIndex:
+        return _make_index(
+            entities={"Sun Wukong": [EntityOccurrence("raw/ch1.md", "Sun Wukong", "person", "ctx")]},
+            topics={"journey": ["raw/ch1.md"]},
+            concepts={"72 Transformations": ["raw/ch1.md"]},
+        )
+
+    def test_feedback_round_refines_plan(self):
+        """Round 2 returns more articles → final result uses Round 2."""
+        index = self._make_index()
+        round1 = _valid_articles_response(5, "concept")
+        round2 = _valid_articles_response(6, "concept")
+        calls = []
+
+        def mock_completion_json(**kwargs):
+            calls.append(kwargs)
+            if len(calls) == 1:
+                return round1
+            return round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(calls) == 2
+        assert len(result) == 6
+
+    def test_feedback_round_dedup_by_path(self):
+        """Round 2 duplicate paths are deduplicated (first occurrence wins)."""
+        index = self._make_index()
+        round1 = _valid_articles_response(4, "concept")
+        round2 = {
+            "articles": [
+                {"path": "wiki/concept/a.md", "type": "concept", "title": "A", "description": "d"},
+                {"path": "wiki/concept/b.md", "type": "concept", "title": "B", "description": "d"},
+                {"path": "wiki/concept/a.md", "type": "concept", "title": "A dup", "description": "d"},
+                {"path": "wiki/concept/c.md", "type": "concept", "title": "C", "description": "d"},
+                {"path": "wiki/concept/d.md", "type": "concept", "title": "D", "description": "d"},
+            ]
+        }
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        paths = [a.path for a in result]
+        assert len(paths) == len(set(paths))  # all unique
+        assert len(result) == 4  # 5 articles minus 1 dup = 4, which == round1 count
+        # First occurrence kept
+        assert result[0].title == "A"
+
+    def test_feedback_shrink_falls_back_to_round1(self, capsys):
+        """Round 2 produces fewer articles → fallback to Round 1."""
+        index = self._make_index()
+        round1 = _valid_articles_response(5, "concept")
+        round2 = _valid_articles_response(3, "concept")
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(result) == 5  # Round 1 result
+        captured = capsys.readouterr()
+        assert "shrunk the plan" in captured.err
+
+    def test_feedback_llm_failure_falls_back_to_round1(self, capsys):
+        """Round 2 LLM error → graceful fallback to Round 1."""
+        index = self._make_index()
+        round1 = _valid_articles_response(5, "concept")
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return round1
+            raise RuntimeError("LLM timeout")
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(result) == 5  # Round 1 result
+        captured = capsys.readouterr()
+        assert "feedback round failed" in captured.err
+        assert "LLM timeout" in captured.err
+
+    def test_feedback_invalid_format_falls_back_to_round1(self, capsys):
+        """Round 2 returns non-list articles → fallback to Round 1."""
+        index = self._make_index()
+        round1 = _valid_articles_response(5, "concept")
+        round2 = {"articles": "not a list"}
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(result) == 5
+        captured = capsys.readouterr()
+        assert "invalid format" in captured.err
+
+    def test_feedback_prompt_contains_round1_articles(self):
+        """Round 2 prompt includes the JSON of Round 1 articles."""
+        index = self._make_index()
+        round1 = _valid_articles_response(4, "concept")
+        round2 = _valid_articles_response(5, "concept")
+        calls = []
+
+        def mock_completion_json(**kwargs):
+            calls.append(kwargs)
+            return round1 if len(calls) == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(calls) == 2
+        r2_system = calls[1]["messages"][0]["content"]
+        # Round 1 articles should appear in the feedback prompt
+        assert "wiki/concept/article-0.md" in r2_system
+        assert "Article 0" in r2_system
+
+    def test_feedback_prompt_contains_frequency_data(self):
+        """Round 2 prompt includes entity/topic/concept frequency data."""
+        index = _make_index(
+            entities={
+                "Sun Wukong": [
+                    EntityOccurrence("raw/ch1.md", "Sun Wukong", "person", "ctx"),
+                    EntityOccurrence("raw/ch2.md", "Sun Wukong", "person", "ctx"),
+                ],
+            },
+            topics={"journey": ["raw/ch1.md", "raw/ch2.md"]},
+            concepts={"72 Transformations": ["raw/ch1.md"]},
+        )
+        round1 = _valid_articles_response(4, "concept")
+        round2 = _valid_articles_response(5, "concept")
+        calls = []
+
+        def mock_completion_json(**kwargs):
+            calls.append(kwargs)
+            return round1 if len(calls) == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        r2_system = calls[1]["messages"][0]["content"]
+        assert "Sun Wukong" in r2_system  # entity in frequency
+        assert "journey" in r2_system  # topic frequency
+        assert "72 Transformations" in r2_system  # concept title
+
+    def test_feedback_validates_paths_and_types(self):
+        """Round 2 articles with invalid paths/types are filtered out."""
+        index = self._make_index()
+        round1 = _valid_articles_response(3, "concept")
+        round2 = {
+            "articles": [
+                {"path": "wiki/concept/good-1.md", "type": "concept", "title": "G1", "description": "d"},
+                {"path": "bad-path", "type": "concept", "title": "Bad", "description": "d"},
+                {"path": "wiki/bogus/x.md", "type": "bogus", "title": "Bogus", "description": "d"},
+                {"path": "wiki/concept/good-2.md", "type": "concept", "title": "G2", "description": "d"},
+                {"path": "wiki/concept/good-3.md", "type": "concept", "title": "G3", "description": "d"},
+            ]
+        }
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(result) == 3
+        paths = [a.path for a in result]
+        assert "bad-path" not in paths
+        assert "wiki/bogus/x.md" not in paths
+
+    def test_feedback_dedup_before_count_check(self, capsys):
+        """Dedup runs BEFORE count guard: duplicates deflate count → fallback."""
+        index = self._make_index()
+        round1 = _valid_articles_response(4, "concept")
+        # Round 2: 5 articles but 2 share a path → 3 unique < 4 round1
+        round2 = {
+            "articles": [
+                {"path": "wiki/concept/a.md", "type": "concept", "title": "A", "description": "d"},
+                {"path": "wiki/concept/b.md", "type": "concept", "title": "B", "description": "d"},
+                {"path": "wiki/concept/a.md", "type": "concept", "title": "A2", "description": "d"},
+                {"path": "wiki/concept/c.md", "type": "concept", "title": "C", "description": "d"},
+                {"path": "wiki/concept/b.md", "type": "concept", "title": "B2", "description": "d"},
+            ]
+        }
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        # 3 unique < 4 round1 → fallback
+        assert len(result) == 4  # Round 1 articles
+        captured = capsys.readouterr()
+        assert "shrunk the plan" in captured.err
+
+    def test_feedback_clamped_to_max_articles(self):
+        """Round 2 result is clamped to _MAX_ARTICLES."""
+        index = self._make_index()
+        round1 = _valid_articles_response(5, "concept")
+        round2 = _valid_articles_response(20, "concept")
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        assert len(result) == _MAX_ARTICLES
+
+    def test_feedback_path_collision_keeps_first(self):
+        """When Round 2 has duplicate paths, first occurrence wins."""
+        index = self._make_index()
+        round1 = _valid_articles_response(3, "concept")
+        round2 = {
+            "articles": [
+                {"path": "wiki/concept/dup.md", "type": "concept", "title": "First", "description": "d"},
+                {"path": "wiki/concept/other.md", "type": "concept", "title": "Other", "description": "d"},
+                {"path": "wiki/concept/dup.md", "type": "concept", "title": "Second", "description": "d"},
+                {"path": "wiki/concept/third.md", "type": "concept", "title": "Third", "description": "d"},
+            ]
+        }
+        call_count = 0
+
+        def mock_completion_json(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            return round1 if call_count == 1 else round2
+
+        with patch("kb_ai.derive._reorganize.completion_json", side_effect=mock_completion_json):
+            result = plan_aggregation("Sun Wukong", index, categories=CATEGORIES, model="m")
+
+        # 3 unique paths == 3 round1 articles, passes count guard
+        dup_articles = [a for a in result if a.path == "wiki/concept/dup.md"]
+        assert len(dup_articles) == 1
+        assert dup_articles[0].title == "First"  # first occurrence wins
+
+
+# ---------------------------------------------------------------------------
 # reorganize() orchestrator tests
 # ---------------------------------------------------------------------------
 
@@ -468,17 +750,12 @@ class TestReorganize:
             ]
         }
 
-        # Mock plan_aggregation LLM call
+        # Mock plan_aggregation LLM call (Round 1 and Round 2)
         plan_response = _valid_articles_response(5, "concept")
 
-        call_count = 0
-
         def mock_completion_json(**kwargs):
-            nonlocal call_count
-            call_count += 1
             messages = kwargs["messages"]
             system_content = messages[0]["content"]
-            # First call is resolve_entities, second is plan_aggregation
             if "entity name resolver" in system_content.lower():
                 return resolve_response
             else:
@@ -602,11 +879,8 @@ class TestReorganize:
         store = self._fixture_kb(tmp_path)
 
         plan_response = _valid_articles_response(3, "concept")
-        call_count = 0
 
         def mock_completion_json(**kwargs):
-            nonlocal call_count
-            call_count += 1
             messages = kwargs["messages"]
             system_content = messages[0]["content"]
             if "entity name resolver" in system_content.lower():
@@ -688,6 +962,42 @@ class TestPromptTemplate:
         prompt.render(
             topic="t",
             extraction_count=1,
+            entity_frequency="",
+            topic_frequency="",
+            concept_titles="",
+            categories_str="concept",
+        )
+
+    def test_aggregate_plan_feedback_template_renders(self):
+        """Verify the aggregate-plan-feedback template renders without errors."""
+        from kb_ai.prompts import default_registry
+
+        prompt = default_registry().get("aggregate-plan-feedback")
+        rendered = prompt.render(
+            topic="Sun Wukong",
+            first_round_articles='[{"path": "wiki/concept/a.md"}]',
+            entity_frequency="Sun Wukong \u2014 66\nGuanyin \u2014 12",
+            topic_frequency="journey \u2014 90\nbattle \u2014 45",
+            concept_titles="72 Transformations\nFive Elements Mountain",
+            categories_str="concept, reference, how-to",
+        )
+        assert "Sun Wukong" in rendered
+        assert "wiki/concept/a.md" in rendered
+        assert "72 Transformations" in rendered
+        assert "concept, reference, how-to" in rendered
+        # Double-braces should produce single braces in output
+        assert '"articles"' in rendered
+        assert '"path"' in rendered
+
+    def test_aggregate_plan_feedback_template_has_required_variables(self):
+        """The feedback template must accept all documented variables."""
+        from kb_ai.prompts import default_registry
+
+        prompt = default_registry().get("aggregate-plan-feedback")
+        # This should not raise KeyError
+        prompt.render(
+            topic="t",
+            first_round_articles="[]",
             entity_frequency="",
             topic_frequency="",
             concept_titles="",
