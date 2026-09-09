@@ -252,15 +252,15 @@ export function DeriveJobsTab() {
             <thead>
               <tr className="border-b bg-muted/40 text-left">
                 {([
-                  ['topic', t('builds.colTopic')],
-                  ['slug', t('builds.colSlug')],
-                  ['status', t('status.colStatus')],
-                  ['select_from', t('builds.colSelectFrom')],
-                  ['updated_at', t('status.colUpdated')],
-                ] as [SortKey, string][]).map(([key, label]) => (
+                  ['topic', t('builds.colTopic'), ''],
+                  ['slug', t('builds.colSlug'), ''],
+                  ['status', t('status.colStatus'), 'w-[140px]'],
+                  ['select_from', t('builds.colSelectFrom'), 'w-[100px]'],
+                  ['updated_at', t('status.colUpdated'), 'w-[140px]'],
+                ] as [SortKey, string, string][]).map(([key, label, widthCls]) => (
                   <th
                     key={key}
-                    className="cursor-pointer select-none px-4 py-3 font-medium hover:bg-muted/60"
+                    className={cn(widthCls, 'cursor-pointer select-none px-4 py-3 font-medium hover:bg-muted/60')}
                     onClick={() => toggleSort(key)}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -273,7 +273,7 @@ export function DeriveJobsTab() {
                     </span>
                   </th>
                 ))}
-                <th className="px-4 py-3 font-medium">{t('tasks.colActions')}</th>
+                <th className="w-[120px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
               </tr>
             </thead>
             <tbody>
