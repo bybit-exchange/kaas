@@ -59,6 +59,21 @@ def _compute_checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
+def _strip_verbatim(path: str) -> str:
+    r"""Drop \\?\ extended-length prefixes from a resolved Windows path.
+
+    Path.resolve() on Windows occasionally returns the verbatim form when
+    another thread creates a parent directory while this one resolves through
+    it (reproducible with parallel extraction). The prefix makes every
+    containment comparison fail, so it must be stripped before comparing.
+    """
+    if path.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + path[len("\\\\?\\UNC\\"):]
+    if path.startswith("\\\\?\\"):
+        return path[len("\\\\?\\"):]
+    return path
+
+
 class KBStore:
     def __init__(self, base_dir: str, *, read_only: bool = False, cache_enabled: bool = True):
         self.base_dir = Path(base_dir).expanduser().resolve()
@@ -225,7 +240,7 @@ class KBStore:
         symlink planted under wiki/ is exactly the case worth rejecting here.
         base_dir itself is also rejected -- every caller addresses a file.
         """
-        full = (self.base_dir / rel_path).resolve()
+        full = Path(_strip_verbatim(str((self.base_dir / rel_path).resolve())))
         if full == self.base_dir or not full.is_relative_to(self.base_dir):
             raise ValueError(f"path escapes kb_dir: {rel_path}")
         return full

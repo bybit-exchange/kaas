@@ -22,7 +22,7 @@ from kb_ai._errors import (
 )
 from kb_ai.derive._types import DocumentRef
 from kb_ai.storage import extraction
-from kb_ai.storage.store import KBStore
+from kb_ai.storage.store import KBStore, _strip_verbatim
 
 # One lower-case path segment, dash-separated, at most 40 chars. Validated
 # lexically BEFORE any path is built, so a hostile slug never reaches the
@@ -329,12 +329,12 @@ def resolve_kb_dir(root_kb: str, slug: str | None) -> str:
     and retrieval would span every derived KB at once. _safe_create_target refuses
     the same layout on the write path; the read path must not be more permissive.
     """
-    root = Path(root_kb).expanduser().resolve()
+    root = Path(_strip_verbatim(str(Path(root_kb).expanduser().resolve())))
     if not slug:
         return str(root)
     validate_slug(slug)
     base = root / DERIVED_DIRNAME
-    target = (base / slug).resolve()
+    target = Path(_strip_verbatim(str((base / slug).resolve())))
     if (target == base or not target.is_relative_to(base)
             or not (target / MANIFEST_NAME).exists()):
         raise UnknownDerivedKBError(f"no derived knowledge base named {slug!r}")
