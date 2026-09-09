@@ -93,7 +93,7 @@ export function BuildJobDetailSheet({ open, onOpenChange, job, loading }: BuildJ
               )}
 
               {/* Embedded task table */}
-              {job.tasks.length > 0 && (
+              {job.tasks && job.tasks.length > 0 && (
                 <div className="overflow-x-auto rounded-md border">
                   <table className="w-full text-sm">
                     <thead>

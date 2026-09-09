@@ -99,9 +99,39 @@ describe('StatusStageBadge', () => {
     expect(screen.getByText('Running · unknown_stage')).toBeInTheDocument()
   })
 
+  // --- Partial status ---
+
+  it('applies amber color for partial status', () => {
+    render(<StatusStageBadge status="partial" stage="done" />)
+    const badge = screen.getByText('Partial')
+    expect(badge.className).toContain('text-amber-700')
+  })
+
+  it('shows only status text for partial (terminal)', () => {
+    render(<StatusStageBadge status="partial" stage="done" />)
+    expect(screen.getByText('Partial')).toBeInTheDocument()
+  })
+
+  // --- Optional stage (omitted) ---
+
+  it('shows status only when stage is omitted', () => {
+    render(<StatusStageBadge status="running" />)
+    // Without a stage, the separator dot should not appear
+    expect(screen.getByText('Running')).toBeInTheDocument()
+  })
+
+  it('shows status only when stage is undefined for pending', () => {
+    render(<StatusStageBadge status="pending" />)
+    expect(screen.getByText('Pending')).toBeInTheDocument()
+  })
+
   // --- statusColor export ---
 
   it('returns empty string for unknown status', () => {
     expect(statusColor('something_else')).toBe('')
+  })
+
+  it('returns amber classes for partial status', () => {
+    expect(statusColor('partial')).toContain('text-amber-700')
   })
 })
