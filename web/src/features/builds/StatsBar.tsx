@@ -35,7 +35,7 @@ export function StatsBar({ stats, activeTab, onTabChange }: StatsBarProps) {
             type="button"
             onClick={() => onTabChange(key)}
             className={cn(
-              'flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+              'rounded-lg px-4 py-2 text-sm font-medium transition-colors',
               'flex items-center justify-center gap-2',
               isActive
                 ? 'bg-primary text-primary-foreground'

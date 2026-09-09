@@ -285,16 +285,16 @@ export function DeriveJobsTab() {
                     job.status === 'failed' && 'border-l-4 border-l-destructive',
                   )}
                 >
-                  <td className="px-4 py-3">{job.topic}</td>
+                  <td className="max-w-[260px] break-words px-4 py-3">{job.topic}</td>
                   <td className="px-4 py-3 text-muted-foreground">{job.slug}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3">
                     <StatusStageBadge status={job.status} stage={job.stage} />
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     {selectFromTableLabel(t, job.select_from)}
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(job.updated_at)}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">{formatDate(job.updated_at)}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-1">
                       <Button
                         variant="ghost"
