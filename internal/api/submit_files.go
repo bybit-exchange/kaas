@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -88,6 +89,26 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 		Failed:   []submitFilesItem{},
 	}
 
+	// Create a BuildJob to group this submission.
+	var buildJobID string
+	if s.bjs != nil {
+		now := time.Now().UnixMilli()
+		buildJob := &store.BuildJob{
+			ID:        uuid.NewString(),
+			Source:    "file",
+			Title:     files[0].Filename,
+			FileCount: len(files),
+			Status:    store.StatusPending,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		if err := s.bjs.CreateBuildJob(r.Context(), buildJob); err != nil {
+			writeErr(w, http.StatusInternalServerError, "create build job: "+err.Error())
+			return
+		}
+		buildJobID = buildJob.ID
+	}
+
 	for _, fh := range files {
 		ext := strings.ToLower(filepath.Ext(fh.Filename))
 
@@ -131,7 +152,7 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 				})
 				continue
 			}
-			s.processZip(r, data, fh.Filename, &resp)
+			s.processZip(r, data, fh.Filename, &resp, buildJobID)
 		} else {
 			maxSize := s.cfg.Upload.MaxFileSize
 			if richExtensions[ext] {
@@ -156,7 +177,18 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 				})
 				continue
 			}
-			s.processFile(r, fh.Filename, ext, data, &resp)
+			s.processFile(r, fh.Filename, ext, data, &resp, buildJobID)
+		}
+	}
+
+	// Update the build job's file_count to reflect actual uploads, or delete if nothing succeeded.
+	if s.bjs != nil && buildJobID != "" {
+		actualCount := len(resp.Uploaded)
+		now := time.Now().UnixMilli()
+		if actualCount == 0 {
+			_ = s.bjs.DeleteBuildJob(r.Context(), buildJobID)
+		} else {
+			_ = s.bjs.UpdateBuildJobFileCount(r.Context(), buildJobID, actualCount, now)
 		}
 	}
 
@@ -165,7 +197,7 @@ func (s *Server) handleSubmitFiles(w http.ResponseWriter, r *http.Request) {
 
 // processFile hashes, writes raw, and enqueues a single file. On submission
 // failure the raw file is cleaned up.
-func (s *Server) processFile(r *http.Request, name string, ext string, content []byte, resp *submitFilesResponse) {
+func (s *Server) processFile(r *http.Request, name string, ext string, content []byte, resp *submitFilesResponse, buildJobID string) {
 	sum := sha256.Sum256(content)
 	hash := hex.EncodeToString(sum[:])
 
@@ -199,6 +231,7 @@ func (s *Server) processFile(r *http.Request, name string, ext string, content [
 		RawPath:     rawPath,
 		ContentHash: hash,
 		MaxAttempts: defaultMaxAttempts,
+		BuildJobID:  buildJobID,
 	}
 	if richExtensions[ext] {
 		task.FileTitle = strings.TrimSuffix(filepath.Base(name), ext)
@@ -249,7 +282,7 @@ type writtenFile struct {
 }
 
 // processZip validates all ZIP entries then commits them atomically.
-func (s *Server) processZip(r *http.Request, data []byte, zipName string, resp *submitFilesResponse) {
+func (s *Server) processZip(r *http.Request, data []byte, zipName string, resp *submitFilesResponse, buildJobID string) {
 	prepared, errItem := s.validateZipEntries(data, zipName)
 	if errItem != nil {
 		resp.Failed = append(resp.Failed, *errItem)
@@ -258,7 +291,7 @@ func (s *Server) processZip(r *http.Request, data []byte, zipName string, resp *
 	if len(prepared) == 0 {
 		return
 	}
-	uploaded, errItem := s.commitFiles(r.Context(), prepared)
+	uploaded, errItem := s.commitFiles(r.Context(), prepared, buildJobID)
 	if errItem != nil {
 		resp.Failed = append(resp.Failed, *errItem)
 		return
@@ -373,7 +406,7 @@ func (s *Server) validateZipEntries(data []byte, zipName string) ([]preparedFile
 
 // commitFiles writes all prepared files to disk then enqueues them.
 // Duplicate files (ErrDuplicate) are silently skipped (idempotent).
-func (s *Server) commitFiles(ctx context.Context, files []preparedFile) ([]submitFilesItem, *submitFilesItem) {
+func (s *Server) commitFiles(ctx context.Context, files []preparedFile, buildJobID string) ([]submitFilesItem, *submitFilesItem) {
 	// Sub-phase 2a: write all files to disk.
 	written := make([]writtenFile, 0, len(files))
 	for _, pf := range files {
@@ -410,6 +443,7 @@ func (s *Server) commitFiles(ctx context.Context, files []preparedFile) ([]submi
 			RawPath:     wf.RawPath,
 			ContentHash: wf.Hash,
 			MaxAttempts: defaultMaxAttempts,
+			BuildJobID:  buildJobID,
 		}
 		task.FileTitle = wf.FileTitle
 		if err := s.q.Submit(ctx, task); err != nil {

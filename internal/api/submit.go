@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -78,9 +79,33 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	task.FileTitle = fmtitle.ExtractTitle([]byte(content))
 
+	// Create a BuildJob to group this submission.
+	if s.bjs != nil {
+		now := time.Now().UnixMilli()
+		buildJob := &store.BuildJob{
+			ID:        uuid.NewString(),
+			Source:    req.Source,
+			Title:     title,
+			FileCount: 1,
+			Status:    store.StatusPending,
+			CreatedAt: now,
+			UpdatedAt: now,
+		}
+		if err := s.bjs.CreateBuildJob(r.Context(), buildJob); err != nil {
+			_ = os.Remove(rawPath)
+			writeErr(w, http.StatusInternalServerError, "create build job: "+err.Error())
+			return
+		}
+		task.BuildJobID = buildJob.ID
+	}
+
 	if err := s.q.Submit(r.Context(), task); err != nil {
 		// Remove the orphan raw file we just wrote so it doesn't accumulate.
 		_ = os.Remove(rawPath)
+		// Best-effort cleanup of the build job.
+		if s.bjs != nil && task.BuildJobID != "" {
+			_ = s.bjs.DeleteBuildJob(r.Context(), task.BuildJobID)
+		}
 		if errors.Is(err, store.ErrDuplicate) {
 			writeErr(w, http.StatusConflict, "content already submitted")
 			return
