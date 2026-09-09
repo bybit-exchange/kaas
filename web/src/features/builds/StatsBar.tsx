@@ -23,7 +23,7 @@ export function StatsBar({ stats, activeTab, onTabChange }: StatsBarProps) {
   ]
 
   return (
-    <Card className="flex flex-row p-1 gap-1">
+    <Card className="inline-flex flex-row p-1 gap-1">
       {tabs.map(({ key, labelKey }) => {
         const counts = stats[key]
         const activeCount = counts.pending + counts.running
