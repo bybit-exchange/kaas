@@ -128,6 +128,8 @@ describe('Wiki page', () => {
       id: 'j1',
       slug: 'compliance',
       topic: 'compliance',
+      model: '',
+      select_from: '',
       status: 'succeeded',
       stage: 'done',
       result: {

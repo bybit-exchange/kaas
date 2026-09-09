@@ -13,6 +13,8 @@ function job(over: Partial<DeriveJob>): DeriveJob {
     id: 'j1',
     slug: 'pricing',
     topic: 'pricing',
+    model: '',
+    select_from: '',
     status: 'running',
     stage: 'compile',
     created_at: 1,
