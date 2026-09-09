@@ -2,6 +2,7 @@ import { apiFetch } from './client'
 
 export interface TaskDTO {
   id: string
+  build_job_id?: string
   source: string
   title: string
   file_title?: string
