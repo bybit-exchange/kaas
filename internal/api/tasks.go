@@ -21,6 +21,7 @@ const maxContentBytes = 1 << 20 // 1 MiB
 // content_hash, lease_owner, lease_expires_at) the UI has no use for.
 type taskDTO struct {
 	ID          string          `json:"id"`
+	BuildJobID  string          `json:"build_job_id,omitempty"`
 	Source      string          `json:"source"`
 	Title       string          `json:"title,omitempty"`
 	FileTitle   string          `json:"file_title,omitempty"`
@@ -39,6 +40,7 @@ type taskDTO struct {
 func toDTO(t *store.Task) taskDTO {
 	d := taskDTO{
 		ID:          t.ID,
+		BuildJobID:  t.BuildJobID,
 		Source:      t.Source,
 		Title:       t.Title,
 		FileTitle:   t.FileTitle,

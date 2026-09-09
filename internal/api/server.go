@@ -49,6 +49,7 @@ type TaskStore interface {
 	ListTasks(ctx context.Context, f store.ListFilter) ([]*store.Task, error)
 	ListTasksPaged(ctx context.Context, f store.PagedListFilter) (*store.ListResult, error)
 	DeleteTask(ctx context.Context, id string) error
+	ListTasksByBuildJob(ctx context.Context, buildJobID string) ([]*store.Task, error)
 }
 
 // ChatBridge is the subset of *bridge.DaemonClient the API uses: streaming chat
@@ -87,7 +88,8 @@ type Server struct {
 	st     TaskStore
 	ss     SessionStore
 	br     ChatBridge
-	js     store.DerivedJobStore // derive jobs; nil when the backing store has none
+	js     store.DerivedJobStore  // derive jobs; nil when the backing store has none
+	bjs    store.BuildJobStore    // build jobs; nil when the backing store has none
 	cfg    Config
 	logger *slog.Logger
 	mcpH   http.Handler // native MCP handler, nil if disabled
@@ -104,6 +106,10 @@ func NewServer(q Queue, st TaskStore, ss SessionStore, br ChatBridge, cfg Config
 	// simply leaves the derive routes answering 501.
 	if js, ok := st.(store.DerivedJobStore); ok {
 		s.js = js
+	}
+	// Same pattern for build jobs.
+	if bjs, ok := st.(store.BuildJobStore); ok {
+		s.bjs = bjs
 	}
 
 	if cfg.MCPEnabled {
@@ -132,6 +138,9 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("DELETE /api/tasks/{id}", s.handleDeleteTask)
 	mux.HandleFunc("GET /api/wiki", s.handleListWiki)
 	mux.HandleFunc("GET /api/wiki/file", s.handleWikiFile)
+	mux.HandleFunc("GET /api/build-jobs", s.handleListBuildJobs)
+	mux.HandleFunc("GET /api/build-jobs/{id}", s.handleGetBuildJob)
+	mux.HandleFunc("DELETE /api/build-jobs/{id}", s.handleDeleteBuildJob)
 	mux.HandleFunc("POST /api/derive", s.handleDerive)
 	mux.HandleFunc("GET /api/derive/jobs", s.handleListDeriveJobs)
 	mux.HandleFunc("DELETE /api/derive/jobs/{id}", s.handleDeleteDeriveJob)

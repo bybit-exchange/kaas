@@ -108,6 +108,16 @@ func (f *fakeStore) DeleteTask(ctx context.Context, id string) error {
 	return store.ErrNotFound
 }
 
+func (f *fakeStore) ListTasksByBuildJob(ctx context.Context, buildJobID string) ([]*store.Task, error) {
+	var out []*store.Task
+	for _, t := range f.tasks {
+		if t.BuildJobID == buildJobID {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
+
 type fakeBridge struct {
 	events    []json.RawMessage // emitted in order by Chat
 	chatErr   error             // returned by Chat after emitting events
