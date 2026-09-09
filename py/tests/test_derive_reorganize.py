@@ -48,13 +48,13 @@ def _fixture_kb_for_derive(tmp_path: Path) -> Path:
     (kb / "wiki").mkdir(parents=True)
     (kb / "index").mkdir(parents=True)
 
-    (kb / "raw" / "pricing-notes.md").write_text("Fee schedule and tiers.")
+    (kb / "raw" / "pricing-notes.md").write_text("Fee schedule and tiers.", encoding="utf-8")
     (kb / "wiki" / "pricing.md").write_text(
-        "---\ntitle: Pricing\nsources:\n  - raw/pricing-notes.md\n---\n\n# Pricing\n"
+        "---\ntitle: Pricing\nsources:\n  - raw/pricing-notes.md\n---\n\n# Pricing\n", encoding="utf-8"
     )
     (kb / "index" / "master-index.md").write_text(
         "# Knowledge Base Index\n\n"
-        "- [Pricing](wiki/pricing.md) — Fee schedule.\n"
+        "- [Pricing](wiki/pricing.md) — Fee schedule.\n", encoding="utf-8"
     )
     return kb
 
@@ -78,11 +78,11 @@ def _fake_compile_result(derived_dir: str, **kwargs) -> dict:
     (base / "wiki").mkdir(parents=True, exist_ok=True)
     (base / "index").mkdir(parents=True, exist_ok=True)
     (base / "wiki" / "pricing.md").write_text(
-        "---\ntitle: Pricing\n---\n\n# Pricing\n\nProse.\n"
+        "---\ntitle: Pricing\n---\n\n# Pricing\n\nProse.\n", encoding="utf-8"
     )
     (base / "index" / "master-index.md").write_text(
         "# Knowledge Base Index\n\n"
-        "- [Pricing](wiki/pricing.md) — Fees.\n"
+        "- [Pricing](wiki/pricing.md) — Fees.\n", encoding="utf-8"
     )
     return {"compiled": 1, "errors": [], "cost": {"total_cost_usd": 0.50}}
 
@@ -494,7 +494,7 @@ class TestDeriveKBReorganize:
             )
 
         manifest = json.loads(
-            (Path(report.derived_kb) / "manifest.json").read_text()
+            (Path(report.derived_kb) / "manifest.json").read_text(encoding="utf-8")
         )
         assert "reorganize_plan" in manifest
         assert manifest["reorganize_plan"]["topic"] == "pricing"
@@ -510,7 +510,7 @@ class TestDeriveKBReorganize:
         )
 
         manifest = json.loads(
-            (Path(report.derived_kb) / "manifest.json").read_text()
+            (Path(report.derived_kb) / "manifest.json").read_text(encoding="utf-8")
         )
         assert "reorganize_plan" not in manifest
 
@@ -544,7 +544,7 @@ class TestDeriveKBReorganize:
         def dying_compile(derived_dir, **kwargs):
             # Read manifest before compile does anything
             manifests_seen.append(
-                json.loads((Path(derived_dir) / "manifest.json").read_text())
+                json.loads((Path(derived_dir) / "manifest.json").read_text(encoding="utf-8"))
             )
             raise RuntimeError("compile died")
 
