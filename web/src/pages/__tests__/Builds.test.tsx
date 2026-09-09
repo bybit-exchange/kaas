@@ -5,11 +5,10 @@ import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
 
 // Mock the API modules
-vi.mock('@/api/tasks', () => ({
-  listTasks: vi.fn(),
-  deleteTask: vi.fn(),
-  getTask: vi.fn(),
-  getTaskContent: vi.fn(),
+vi.mock('@/api/buildJobs', () => ({
+  listBuildJobs: vi.fn(),
+  deleteBuildJob: vi.fn(),
+  getBuildJob: vi.fn(),
 }))
 
 vi.mock('@/api/derived', () => ({
@@ -23,14 +22,14 @@ vi.mock('sonner', () => ({
 }))
 
 import { Builds } from '../Builds'
-import { listTasks } from '@/api/tasks'
+import { listBuildJobs } from '@/api/buildJobs'
 import { listDeriveJobs } from '@/api/derived'
 
-const mockListTasks = vi.mocked(listTasks)
+const mockListBuildJobs = vi.mocked(listBuildJobs)
 const mockListDeriveJobs = vi.mocked(listDeriveJobs)
 
-function emptyTasksResponse() {
-  return { tasks: [], total: 0 }
+function emptyBuildJobsResponse() {
+  return { jobs: [], total: 0 }
 }
 
 function emptyDeriveResponse() {
@@ -66,7 +65,7 @@ beforeEach(() => {
   vi.useFakeTimers()
 
   // Default: all stats return 0
-  mockListTasks.mockResolvedValue(emptyTasksResponse())
+  mockListBuildJobs.mockResolvedValue(emptyBuildJobsResponse())
   mockListDeriveJobs.mockResolvedValue(emptyDeriveResponse())
 })
 
@@ -84,17 +83,15 @@ async function flushPromises() {
 }
 
 describe('Builds page', () => {
-  it('renders TasksTab by default when no tab param is given', async () => {
-    mockListTasks.mockResolvedValue({
-      tasks: [
+  it('renders BuildJobsTab by default when no tab param is given', async () => {
+    mockListBuildJobs.mockResolvedValue({
+      jobs: [
         {
-          id: 't1',
+          id: 'bj1',
           source: 'paste',
-          title: 'My Task',
+          title: 'My Build Job',
+          file_count: 1,
           status: 'succeeded',
-          stage: 'done',
-          attempts: 1,
-          max_attempts: 3,
           created_at: 1704103200000,
           updated_at: 1704103500000,
         },
@@ -108,10 +105,10 @@ describe('Builds page', () => {
     // The page title should be visible
     expect(screen.getByText('Builds')).toBeInTheDocument()
     // The stats bar should show both tab labels
-    expect(screen.getByText('Normal Tasks')).toBeInTheDocument()
-    expect(screen.getByText('Derive Jobs')).toBeInTheDocument()
-    // TasksTab content should be rendered (the task title)
-    expect(screen.getByText('My Task')).toBeInTheDocument()
+    expect(screen.getByText('Normal')).toBeInTheDocument()
+    expect(screen.getByText('Derive Topic')).toBeInTheDocument()
+    // BuildJobsTab content should be rendered (the build job title)
+    expect(screen.getByText('My Build Job')).toBeInTheDocument()
   })
 
   it('renders DeriveJobsTab when tab is "derive"', async () => {
@@ -146,14 +143,14 @@ describe('Builds page', () => {
     // builds/:tab? with tab="tasks", showing the default tasks page.
     // The page title confirms we ended up at the Builds page.
     expect(screen.getByText('Builds')).toBeInTheDocument()
-    expect(screen.getByText('Normal Tasks')).toBeInTheDocument()
+    expect(screen.getByText('Normal')).toBeInTheDocument()
   })
 
   it('fetches stats using 4 limit=1 API calls on mount', async () => {
-    mockListTasks.mockImplementation(async (p) => {
-      if (p?.status === 'pending') return { tasks: [], total: 2 }
-      if (p?.status === 'running') return { tasks: [], total: 1 }
-      return { tasks: [], total: 0 }
+    mockListBuildJobs.mockImplementation(async (p) => {
+      if (p?.status === 'pending') return { jobs: [], total: 2 }
+      if (p?.status === 'running') return { jobs: [], total: 1 }
+      return { jobs: [], total: 0 }
     })
     mockListDeriveJobs.mockImplementation(async (p) => {
       if (p?.status === 'pending') return { jobs: [], total: 0 }
@@ -164,11 +161,11 @@ describe('Builds page', () => {
     renderAt('/builds')
     await flushPromises()
 
-    // Should have called listTasks with status: pending, limit: 1
-    expect(mockListTasks).toHaveBeenCalledWith(
+    // Should have called listBuildJobs with status: pending, limit: 1
+    expect(mockListBuildJobs).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'pending', limit: 1 }),
     )
-    expect(mockListTasks).toHaveBeenCalledWith(
+    expect(mockListBuildJobs).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'running', limit: 1 }),
     )
     // Should have called listDeriveJobs with status: pending, limit: 1
@@ -181,15 +178,15 @@ describe('Builds page', () => {
   })
 
   it('switches tabs via StatsBar clicks using replace navigation', async () => {
-    mockListTasks.mockResolvedValue(emptyTasksResponse())
+    mockListBuildJobs.mockResolvedValue(emptyBuildJobsResponse())
     mockListDeriveJobs.mockResolvedValue(emptyDeriveResponse())
 
     renderAt('/builds/tasks')
     await flushPromises()
 
-    // Click the "Derive Jobs" tab in the stats bar using fireEvent to avoid
+    // Click the "Derive Topic" tab in the stats bar using fireEvent to avoid
     // userEvent timer interaction issues with fake timers
-    fireEvent.click(screen.getByText('Derive Jobs'))
+    fireEvent.click(screen.getByText('Derive Topic'))
     await flushPromises()
 
     // The component should now show derive content. Since DeriveJobsTab renders

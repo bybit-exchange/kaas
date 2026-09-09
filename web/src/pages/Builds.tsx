@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useT } from '@/i18n'
-import { listTasks } from '@/api/tasks'
+import { listBuildJobs } from '@/api/buildJobs'
 import { listDeriveJobs } from '@/api/derived'
 import { StatsBar } from '@/features/builds/StatsBar'
-import { TasksTab } from '@/features/builds/TasksTab'
+import { BuildJobsTab } from '@/features/builds/BuildJobsTab'
 import { DeriveJobsTab } from '@/features/builds/DeriveJobsTab'
 import { useAutoPolling } from '@/features/builds/useAutoPolling'
 import type { BuildTab, BuildsStats } from '@/features/builds/types'
@@ -28,17 +28,17 @@ export function Builds() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const [tasksPending, tasksRunning, derivePending, deriveRunning] =
+      const [buildPending, buildRunning, derivePending, deriveRunning] =
         await Promise.all([
-          listTasks({ status: 'pending', limit: 1 }),
-          listTasks({ status: 'running', limit: 1 }),
+          listBuildJobs({ status: 'pending', limit: 1 }),
+          listBuildJobs({ status: 'running', limit: 1 }),
           listDeriveJobs({ status: 'pending', limit: 1 }),
           listDeriveJobs({ status: 'running', limit: 1 }),
         ])
       setStats({
         tasks: {
-          pending: tasksPending.total,
-          running: tasksRunning.total,
+          pending: buildPending.total,
+          running: buildRunning.total,
         },
         derive: {
           pending: derivePending.total,
@@ -76,7 +76,7 @@ export function Builds() {
     <div className="flex-1 overflow-y-auto p-6">
       <h1 className="mb-4 text-xl font-semibold">{t('builds.title')}</h1>
       {activeTab === 'tasks'
-        ? <TasksTab headerLeft={<StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />} />
+        ? <BuildJobsTab headerLeft={<StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />} />
         : <DeriveJobsTab headerLeft={<StatsBar stats={stats} activeTab={activeTab} onTabChange={handleTabChange} />} />}
     </div>
   )

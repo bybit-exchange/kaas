@@ -23,8 +23,8 @@ describe('StatsBar', () => {
     render(
       <StatsBar stats={makeStats()} activeTab="tasks" onTabChange={() => {}} />,
     )
-    expect(screen.getByText('Normal Tasks')).toBeInTheDocument()
-    expect(screen.getByText('Derive Jobs')).toBeInTheDocument()
+    expect(screen.getByText('Normal')).toBeInTheDocument()
+    expect(screen.getByText('Derive Topic')).toBeInTheDocument()
   })
 
   it('shows active count badge when tasks have active items', () => {
@@ -61,7 +61,7 @@ describe('StatsBar', () => {
     render(
       <StatsBar stats={makeStats()} activeTab="tasks" onTabChange={onTabChange} />,
     )
-    await userEvent.click(screen.getByText('Derive Jobs'))
+    await userEvent.click(screen.getByText('Derive Topic'))
     expect(onTabChange).toHaveBeenCalledWith('derive')
   })
 
@@ -70,7 +70,7 @@ describe('StatsBar', () => {
     render(
       <StatsBar stats={makeStats()} activeTab="derive" onTabChange={onTabChange} />,
     )
-    await userEvent.click(screen.getByText('Normal Tasks'))
+    await userEvent.click(screen.getByText('Normal'))
     expect(onTabChange).toHaveBeenCalledWith('tasks')
   })
 
