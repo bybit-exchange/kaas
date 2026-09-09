@@ -4,7 +4,7 @@ import { toast } from 'sonner'
 import { useT } from '@/i18n'
 import { listDeriveJobs, deleteDeriveJob, getDeriveJob, type DeriveJob } from '@/api/derived'
 import { StatusStageBadge } from './StatusStageBadge'
-import { DeriveJobDetailDialog } from './DeriveJobDetailDialog'
+import { DeriveJobDetailSheet } from './DeriveJobDetailSheet'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
-import { Trash2, Eye, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
+import { Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 /** Derive jobs have no cancelled status. */
 const STATUS_FILTERS = ['all', 'pending', 'running', 'succeeded', 'failed'] as const
@@ -72,9 +72,9 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
   const isFirstRef = useRef(true)
   const [filter, setFilter] = useState<StatusFilter>('all')
 
-  // Detail dialog state
+  // Detail sheet state
   const [selectedJob, setSelectedJob] = useState<DeriveJob | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
 
   // Delete state
@@ -149,7 +149,7 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
   }, [filter, query, page, sortKey, sortDir, refreshCounter, fetchJobs])
 
   const handleRowClick = useCallback(async (job: DeriveJob) => {
-    setDialogOpen(true)
+    setDetailSheetOpen(true)
     setDetailLoading(true)
     setSelectedJob(job)
     try {
@@ -278,7 +278,7 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
                     </span>
                   </th>
                 ))}
-                <th className="w-[120px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
+                <th className="w-[80px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -286,9 +286,10 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
                 <tr
                   key={job.id}
                   className={cn(
-                    'border-b transition-colors last:border-0 hover:bg-muted/50',
+                    'cursor-pointer border-b transition-colors last:border-0 hover:bg-muted/50',
                     job.status === 'failed' && 'border-l-4 border-l-destructive',
                   )}
+                  onClick={() => handleRowClick(job)}
                 >
                   <td className="max-w-[260px] break-words px-4 py-3">{job.topic}</td>
                   <td className="px-4 py-3 text-muted-foreground">{job.slug}</td>
@@ -304,18 +305,12 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 px-2 text-xs"
-                        onClick={() => handleRowClick(job)}
-                      >
-                        <Eye className="mr-1 h-3.5 w-3.5" />
-                        {t('tasks.viewDetail')}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
                         className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                         disabled={!DELETABLE_STATUSES.has(job.status)}
-                        onClick={() => setDeleteTarget(job)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteTarget(job)
+                        }}
                       >
                         <Trash2 className="mr-1 h-3.5 w-3.5" />
                         {t('tasks.delete')}
@@ -385,10 +380,10 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
         </div>
       )}
 
-      {/* Detail dialog */}
-      <DeriveJobDetailDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+      {/* Detail sheet */}
+      <DeriveJobDetailSheet
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
         job={selectedJob}
         loading={detailLoading}
       />

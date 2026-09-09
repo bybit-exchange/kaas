@@ -26,8 +26,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
 import { FilePreviewSheet } from '@/components/FilePreviewSheet'
 import { StatusStageBadge } from './StatusStageBadge'
-import { TaskDetailDialog } from './TaskDetailDialog'
-import { Trash2, Eye, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
+import { TaskDetailSheet } from './TaskDetailSheet'
+import { Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 const STATUS_FILTERS = ['all', 'pending', 'running', 'succeeded', 'failed', 'cancelled'] as const
 const TERMINAL_STATUSES = ['pending', 'succeeded', 'failed', 'cancelled'] as const
@@ -64,8 +64,8 @@ export function TasksTab({ headerLeft }: TasksTabProps) {
   const isFirstRef = useRef(true)
   const [filter, setFilter] = useState<StatusFilter>('all')
 
-  // Detail dialog state
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
+  // Detail sheet state
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false)
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null)
 
   // Delete state
@@ -272,7 +272,7 @@ export function TasksTab({ headerLeft }: TasksTabProps) {
                     </span>
                   </th>
                 ))}
-                <th className="w-[120px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
+                <th className="w-[80px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -282,15 +282,21 @@ export function TasksTab({ headerLeft }: TasksTabProps) {
                   <tr
                     key={task.id}
                     className={cn(
-                      'border-b transition-colors last:border-0 hover:bg-muted/50',
+                      'cursor-pointer border-b transition-colors last:border-0 hover:bg-muted/50',
                       task.status === 'failed' && 'border-l-4 border-destructive',
                     )}
+                    onClick={() => {
+                      setDetailTaskId(task.id)
+                      setDetailSheetOpen(true)
+                    }}
                   >
                     <td className="px-4 py-3">
                       <button
                         type="button"
                         className="text-left text-primary underline-offset-4 hover:underline"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDetailSheetOpen(false)
                           setPreviewTaskId(task.id)
                           setPreviewTitle(displayName)
                           setPreviewOpen(true)
@@ -320,23 +326,14 @@ export function TasksTab({ headerLeft }: TasksTabProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() => {
-                            setDetailTaskId(task.id)
-                            setDetailDialogOpen(true)
-                          }}
-                        >
-                          <Eye className="mr-1 h-3.5 w-3.5" />
-                          {t('tasks.viewDetail')}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                           disabled={
                             !TERMINAL_STATUSES.includes(task.status as (typeof TERMINAL_STATUSES)[number])
                           }
-                          onClick={() => setDeleteTarget(task)}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setDeleteTarget(task)
+                          }}
                         >
                           <Trash2 className="mr-1 h-3.5 w-3.5" />
                           {t('tasks.delete')}
@@ -410,10 +407,10 @@ export function TasksTab({ headerLeft }: TasksTabProps) {
         </div>
       )}
 
-      {/* Detail dialog */}
-      <TaskDetailDialog
-        open={detailDialogOpen}
-        onOpenChange={setDetailDialogOpen}
+      {/* Detail sheet */}
+      <TaskDetailSheet
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
         taskId={detailTaskId}
       />
 
