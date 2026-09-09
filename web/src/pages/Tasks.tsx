@@ -389,7 +389,7 @@ export function Tasks() {
       {totalPages > 0 && (
         <div className="mt-4 flex items-center justify-between">
           <span className="text-sm text-muted-foreground">
-            {t('tasks.totalRecords').replace('{count}', String(total))}
+            {t('tasks.totalRecords', { count: total })}
           </span>
           {totalPages > 1 && (
             <div className="flex items-center gap-1">

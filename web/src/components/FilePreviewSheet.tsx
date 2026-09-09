@@ -72,7 +72,7 @@ export function FilePreviewSheet({ open, onOpenChange, taskId, displayTitle }: F
           </SheetTitle>
           {content != null && (
             <p className="text-sm text-muted-foreground">
-              {t('tasks.filePreviewLines').replace('{count}', String(lines.length))}
+              {t('tasks.filePreviewLines', { count: lines.length })}
             </p>
           )}
         </SheetHeader>
