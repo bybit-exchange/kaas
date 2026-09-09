@@ -71,6 +71,9 @@ class _ChainResult:
 _BATCH_PARALLEL_MAX_CONCURRENT: int = 6
 _BATCH_PARALLEL_ENV: str = "KB_BATCH_PARALLEL_MAX_CONCURRENT"
 
+_BATCH_PARALLEL_THRESHOLD: int = 4
+_BATCH_PARALLEL_THRESHOLD_ENV: str = "KB_BATCH_PARALLEL_THRESHOLD"
+
 _batch_parallel_sem: threading.Semaphore | None = None
 _batch_parallel_sem_bound: int = 0
 
@@ -80,6 +83,37 @@ def _warn_invalid_batch_parallel(raw: str) -> None:
     """Report an ignored concurrency override once, not once per read."""
     print(f"[compile] invalid {_BATCH_PARALLEL_ENV}={raw!r}: expected a positive "
           f"integer \u2014 using {_BATCH_PARALLEL_MAX_CONCURRENT}", file=sys.stderr, flush=True)
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel_threshold(raw: str) -> None:
+    """Report an ignored threshold override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_THRESHOLD_ENV}={raw!r}: expected a "
+          f"non-negative integer \u2014 using {_BATCH_PARALLEL_THRESHOLD}",
+          file=sys.stderr, flush=True)
+
+
+def _get_batch_parallel_threshold() -> int:
+    """Read the batch-parallel threshold from the environment.
+
+    Returns ``int(os.environ[_BATCH_PARALLEL_THRESHOLD_ENV])`` when set,
+    parseable, and >= 0.  Falls back to ``_BATCH_PARALLEL_THRESHOLD``
+    otherwise, warning once for invalid values.
+
+    A value of 0 means "always parallelize" (backward-compatible).
+    """
+    raw = os.environ.get(_BATCH_PARALLEL_THRESHOLD_ENV, "")
+    if not raw:
+        return _BATCH_PARALLEL_THRESHOLD
+    try:
+        parsed = int(raw)
+    except ValueError:
+        _warn_invalid_batch_parallel_threshold(raw)
+        return _BATCH_PARALLEL_THRESHOLD
+    if parsed < 0:
+        _warn_invalid_batch_parallel_threshold(raw)
+        return _BATCH_PARALLEL_THRESHOLD
+    return parsed
 
 
 def _get_batch_parallel_sem() -> threading.Semaphore:
@@ -524,20 +558,19 @@ def _merge_batch_split(
                 finalized_articles.append((art_path, current_content))
         return finalized_articles, all_rels, batch_num
 
-    # -- Phase B: parallel dispatch for remaining items ------------
+    # -- Phase B: dispatch for remaining items ---------------------
     # Context snapshot captures op_tracker as request_tracker so child
     # threads inherit cost tracking via adopt_context.
     chain_ctx = get_context()
-    sem = _get_batch_parallel_sem()
-    chunks = _pre_split_chains(remaining, article_type, title)
+    threshold = _get_batch_parallel_threshold()
 
     chain_articles: list[tuple[str, str]] = []
 
-    if len(chunks) == 1 and len(chunks[0]) <= 1:
-        # Single item or single tiny chunk -- run synchronously to
-        # avoid thread-pool overhead.
+    if threshold > 0 and len(remaining) <= threshold:
+        # Serial fallback: not enough items to justify thread pool overhead.
+        # _pre_split_chains is skipped -- _run_chain handles its own batching.
         result = _run_chain(
-            art_path, chunks[0], write_model,
+            art_path, remaining, write_model,
             article_type=article_type,
             title=f"{title} (Part {part_num + 1})",
             start_part_num=part_num + 1,
@@ -545,27 +578,45 @@ def _merge_batch_split(
         )
         all_rels.extend(result.all_rels)
         batch_num += result.n_batches
-        chain_articles.extend(result.articles)
+        chain_articles = result.articles
     else:
-        with ThreadPoolExecutor(max_workers=len(chunks)) as pool:
-            futures = []
-            for i, chunk in enumerate(chunks):
-                chunk_title = f"{title} (Part {part_num + 1 + i})"
-                fut = pool.submit(
-                    _run_chain, art_path, chunk, write_model,
-                    article_type=article_type,
-                    title=chunk_title,
-                    start_part_num=part_num + 1 + i * 100,  # sparse numbering
-                    parent_ctx=chain_ctx,
-                    sem=sem,
-                )
-                futures.append(fut)
-            # Collect in submission order to preserve item ordering
-            for fut in futures:
-                result = fut.result()  # re-raises on error
-                all_rels.extend(result.all_rels)
-                batch_num += result.n_batches
-                chain_articles.extend(result.articles)
+        # Parallel dispatch (existing logic)
+        sem = _get_batch_parallel_sem()
+        chunks = _pre_split_chains(remaining, article_type, title)
+
+        if len(chunks) == 1 and len(chunks[0]) <= 1:
+            # Single item or single tiny chunk -- run synchronously to
+            # avoid thread-pool overhead.
+            result = _run_chain(
+                art_path, chunks[0], write_model,
+                article_type=article_type,
+                title=f"{title} (Part {part_num + 1})",
+                start_part_num=part_num + 1,
+                parent_ctx=chain_ctx, sem=None,
+            )
+            all_rels.extend(result.all_rels)
+            batch_num += result.n_batches
+            chain_articles.extend(result.articles)
+        else:
+            with ThreadPoolExecutor(max_workers=len(chunks)) as pool:
+                futures = []
+                for i, chunk in enumerate(chunks):
+                    chunk_title = f"{title} (Part {part_num + 1 + i})"
+                    fut = pool.submit(
+                        _run_chain, art_path, chunk, write_model,
+                        article_type=article_type,
+                        title=chunk_title,
+                        start_part_num=part_num + 1 + i * 100,  # sparse numbering
+                        parent_ctx=chain_ctx,
+                        sem=sem,
+                    )
+                    futures.append(fut)
+                # Collect in submission order to preserve item ordering
+                for fut in futures:
+                    result = fut.result()  # re-raises on error
+                    all_rels.extend(result.all_rels)
+                    batch_num += result.n_batches
+                    chain_articles.extend(result.articles)
 
     # -- Phase C: collect + re-number all sub-articles -------------
     all_sub_articles = list(finalized_articles) + chain_articles

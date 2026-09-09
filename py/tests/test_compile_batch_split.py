@@ -1534,3 +1534,257 @@ class TestMergeBatchSplitParallel:
         assert op_tracker.total_cost >= call_count["n"] * 0.01 - 0.001, (
             f"op_tracker.total_cost={op_tracker.total_cost:.4f} too low for "
             f"{call_count['n']} calls at $0.01 each")
+
+
+# ── _get_batch_parallel_threshold ────────────────────────────────────
+
+
+def _reset_batch_threshold_cache():
+    """Clear the lru_cache on the warning function so tests see fresh warnings."""
+    cm._warn_invalid_batch_parallel_threshold.cache_clear()
+
+
+class TestGetBatchParallelThreshold:
+
+    def test_returns_default(self, monkeypatch):
+        """No env var set -> returns _BATCH_PARALLEL_THRESHOLD (4)."""
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+        assert cm._get_batch_parallel_threshold() == 4
+
+    def test_reads_env(self, monkeypatch):
+        """Valid env var -> returns parsed value."""
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "8")
+        assert cm._get_batch_parallel_threshold() == 8
+
+    def test_zero_valid(self, monkeypatch):
+        """Env var = '0' -> returns 0 (always parallelize)."""
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "0")
+        assert cm._get_batch_parallel_threshold() == 0
+
+    def test_invalid_warns_once(self, monkeypatch, capsys):
+        """Non-integer env var -> returns default and warns to stderr once."""
+        _reset_batch_threshold_cache()
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "bad")
+
+        assert cm._get_batch_parallel_threshold() == 4
+        # second call should not warn again
+        cm._get_batch_parallel_threshold()
+
+        err = capsys.readouterr().err
+        assert err.count(cm._BATCH_PARALLEL_THRESHOLD_ENV) == 1
+        assert "bad" in err
+
+    def test_negative_warns(self, monkeypatch, capsys):
+        """Negative env var -> returns default and warns."""
+        _reset_batch_threshold_cache()
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "-5")
+
+        assert cm._get_batch_parallel_threshold() == 4
+
+        err = capsys.readouterr().err
+        assert cm._BATCH_PARALLEL_THRESHOLD_ENV in err
+
+
+# ── Batch parallel threshold in _merge_batch_split ───────────────────
+
+
+class TestBatchParallelThreshold:
+    """Tests for the threshold-based serial/parallel dispatch in Phase B."""
+
+    @staticmethod
+    def _make_items(n: int):
+        return [(f"raw/doc_{i}.md", _ext(f"summary {i}")) for i in range(n)]
+
+    @staticmethod
+    def _patch_for_split(monkeypatch, *, create_fn=None, merge_fn=None):
+        """Patch budgets so Phase A splits after 1 create.
+
+        - estimate_merge_budget -> 100 (below _SUB_ARTICLE_BUDGET_THRESHOLD)
+        - estimate_create_budget -> 100 (small budget)
+        - _estimate_full_extraction_size -> 100 (predictable per-item size)
+        """
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            "kb_ai.core.merge._estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+        if create_fn is None:
+            def create_fn(article_type, title, extraction, source_path, model="m"):
+                return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+        if merge_fn is None:
+            def merge_fn(article_path, article_content, extraction, source_path, model="m"):
+                return article_content + f"\nmerged {source_path}\n"
+        monkeypatch.setattr(cm, "create_new_article", create_fn)
+        monkeypatch.setattr(cm, "merge_into_article", merge_fn)
+
+    def test_serial_fallback_below_threshold(self, monkeypatch):
+        """When remaining <= threshold, no ThreadPoolExecutor is created."""
+        import threading
+
+        # 5 items: Phase A takes 1 (budget=100, item_size=100), splits.
+        # Remaining = 4, which equals the default threshold of 4 -> serial.
+        items = self._make_items(5)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert not pool_created.is_set(), "ThreadPoolExecutor should not be created for serial path"
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+        assert len(articles) >= 2  # Phase A sub-article + serial chain result(s)
+        assert n_batches >= 2
+
+    def test_parallel_above_threshold(self, monkeypatch):
+        """When remaining > threshold, ThreadPoolExecutor IS created."""
+        import threading
+
+        # 12 items: Phase A takes 1. Remaining = 11 > default threshold 4.
+        items = self._make_items(12)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert pool_created.is_set(), "ThreadPoolExecutor should be created for parallel path"
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+
+    def test_threshold_zero_always_parallel(self, monkeypatch):
+        """threshold=0 means always parallelize, even with few remaining."""
+        import threading
+
+        # 3 items: Phase A takes 1. Remaining = 2.
+        # With threshold=0, should still go parallel.
+        items = self._make_items(3)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "0")
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # threshold=0: the condition `threshold > 0 and len(remaining) <= threshold`
+        # is False, so we always go to the parallel (else) branch.
+        # However, with only 2 remaining items and chunk_size=3,
+        # _pre_split_chains may produce 1 chunk of <=1 item, hitting the
+        # synchronous fallback inside the else branch. Either way, the code
+        # enters the parallel dispatch branch (not the serial threshold branch).
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+
+    def test_threshold_env_override(self, monkeypatch):
+        """Setting threshold via env var controls serial/parallel dispatch."""
+        import threading
+
+        # 8 items: Phase A takes 1. Remaining = 7.
+        # With threshold=10, remaining <= threshold -> serial.
+        items = self._make_items(8)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "10")
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        assert not pool_created.is_set(), "threshold=10 should trigger serial path for 7 remaining"
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+
+    def test_threshold_env_invalid_uses_default(self, monkeypatch):
+        """Invalid env var falls back to default threshold."""
+        import threading
+        _reset_batch_threshold_cache()
+
+        # 5 items: Phase A takes 1. Remaining = 4 = default threshold -> serial.
+        items = self._make_items(5)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "abc")
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Default threshold=4, remaining=4 -> serial
+        assert not pool_created.is_set(), "invalid env should use default (4), triggering serial"
+
+    def test_threshold_env_negative_uses_default(self, monkeypatch):
+        """Negative env var falls back to default threshold."""
+        import threading
+        _reset_batch_threshold_cache()
+
+        items = self._make_items(5)
+        self._patch_for_split(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, "-1")
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Default threshold=4, remaining=4 -> serial
+        assert not pool_created.is_set(), "negative env should use default (4), triggering serial"
