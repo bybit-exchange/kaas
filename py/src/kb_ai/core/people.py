@@ -61,7 +61,7 @@ def _is_stub(content: str) -> bool:
 def _existing_created(path: Path) -> str | None:
     if not path.exists():
         return None
-    content = path.read_text()
+    content = path.read_text(encoding="utf-8")
     split = split_frontmatter(content)
     if split is None:
         return None
@@ -173,7 +173,7 @@ def update_people_stubs(store: KBStore, people_cfg: list[dict]) -> None:
 
         content = read_text_and_evict(md_file)
         title = _article_title(md_file, content)
-        rel_path = str(md_file.relative_to(store.base_dir))
+        rel_path = md_file.relative_to(store.base_dir).as_posix()
 
         for match in WIKILINK_RE.finditer(content):
             target = _extract_target(match.group(1))
@@ -197,7 +197,7 @@ def update_people_stubs(store: KBStore, people_cfg: list[dict]) -> None:
         stub_path = people_dir / f"{_slug(canonical)}.md"
 
         if stub_path.exists():
-            existing = stub_path.read_text()
+            existing = stub_path.read_text(encoding="utf-8")
             if not _is_stub(existing):
                 continue
 
@@ -210,4 +210,4 @@ def update_people_stubs(store: KBStore, people_cfg: list[dict]) -> None:
             sources=sorted(sources[canonical], key=lambda s: s[0]),
             created=created,
             updated=today,
-        ))
+        ), encoding="utf-8")

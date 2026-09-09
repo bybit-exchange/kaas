@@ -162,7 +162,7 @@ class TestEvictAfterOpenRead:
     def test_no_error_on_text_mode_file(self, tmp_path: Path) -> None:
         p = tmp_path / "file.txt"
         p.write_text("test", encoding="utf-8")
-        with open(p, "r") as f:
+        with open(p, "r", encoding="utf-8") as f:
             f.read()
             evict_after_open_read(f)
 

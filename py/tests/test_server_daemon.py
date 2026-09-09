@@ -1327,7 +1327,7 @@ def test_handle_extract_normalises_crlf_before_hashing(capsys, stub_extract, kb,
     sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
 
     stored, _ = exl.load(KBStore(kb), "raw/a.md")
-    assert stored.provenance.source_checksum == _compute_checksum(raw.read_text())
+    assert stored.provenance.source_checksum == _compute_checksum(raw.read_text(encoding="utf-8"))
 
 
 def test_handle_extract_prompts_the_model_with_the_same_bytes_as_the_cli(
@@ -1338,7 +1338,7 @@ def test_handle_extract_prompts_the_model_with_the_same_bytes_as_the_cli(
 
     sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
 
-    assert stub_extract["content"] == raw.read_text()
+    assert stub_extract["content"] == raw.read_text(encoding="utf-8")
 
 
 def test_both_routes_write_a_byte_identical_extraction_file(capsys, kb, tmp_path,

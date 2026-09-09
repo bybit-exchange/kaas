@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -83,7 +84,7 @@ def test_deduplicate_slug_result_passes_validate(tmp_path: Path):
 def test_assert_not_nested_rejects_a_derived_kb(tmp_path: Path):
     nested = tmp_path / "derived" / "pricing"
     nested.mkdir(parents=True)
-    (nested / "manifest.json").write_text("{}")
+    (nested / "manifest.json").write_text("{}", encoding="utf-8")
     with pytest.raises(NestedDeriveError):
         _layout.assert_not_nested(nested)
 
@@ -109,8 +110,8 @@ def test_create_refuses_an_existing_slug(tmp_path: Path):
 def test_force_replaces_only_a_directory_derive_created(tmp_path: Path):
     target = tmp_path / "derived" / "pricing"
     target.mkdir(parents=True)
-    (target / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
-    (target / "stale.txt").write_text("old")
+    (target / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
+    (target / "stale.txt").write_text("old", encoding="utf-8")
 
     out = _layout.create(tmp_path, "pricing", force=True)
     assert out.is_dir()
@@ -120,7 +121,7 @@ def test_force_replaces_only_a_directory_derive_created(tmp_path: Path):
 def test_force_refuses_a_directory_with_no_matching_manifest(tmp_path: Path):
     target = tmp_path / "derived" / "pricing"
     target.mkdir(parents=True)
-    (target / "precious.md").write_text("not ours")
+    (target / "precious.md").write_text("not ours", encoding="utf-8")
     with pytest.raises(SlugExistsError):
         _layout.create(tmp_path, "pricing", force=True)
     assert (target / "precious.md").exists()
@@ -148,7 +149,7 @@ def test_an_empty_directory_is_still_refused_without_force(tmp_path: Path):
 def test_force_refuses_a_manifest_naming_another_slug(tmp_path: Path):
     target = tmp_path / "derived" / "pricing"
     target.mkdir(parents=True)
-    (target / "manifest.json").write_text(json.dumps({"slug": "compliance"}))
+    (target / "manifest.json").write_text(json.dumps({"slug": "compliance"}), encoding="utf-8")
     with pytest.raises(SlugExistsError):
         _layout.create(tmp_path, "pricing", force=True)
 
@@ -174,7 +175,7 @@ def test_create_refuses_derived_dir_symlinked_outside(tmp_path: Path):
     """
     outside = tmp_path / "outside"
     (outside / "pricing").mkdir(parents=True)
-    (outside / "pricing" / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (outside / "pricing" / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
     kb = tmp_path / "kb"
     kb.mkdir()
     (kb / "derived").symlink_to(outside, target_is_directory=True)
@@ -202,12 +203,12 @@ def test_create_refuses_slug_symlinked_to_derived_itself(tmp_path: Path):
     # Sibling derived KB that must survive.
     sibling = derived_root / "compliance"
     sibling.mkdir()
-    (sibling / "manifest.json").write_text(json.dumps({"slug": "compliance"}))
+    (sibling / "manifest.json").write_text(json.dumps({"slug": "compliance"}), encoding="utf-8")
     # Trap: pricing → derived/ itself, so resolve() collapses to derived/.
     (derived_root / "pricing").symlink_to(derived_root, target_is_directory=True)
     # Manifest at derived/ so check_slug_available passes force=True through;
     # without the fix, rmtree then deletes the entire derived/ tree.
-    (derived_root / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
 
     with pytest.raises(InvalidSlugError):
         _layout.create(kb, "pricing", force=True)
@@ -226,7 +227,7 @@ def test_create_refuses_slug_entry_symlinked_outside(tmp_path: Path):
     """
     outside = tmp_path / "outside"
     outside.mkdir()
-    (outside / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (outside / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
     kb = tmp_path / "kb"
     (kb / "derived").mkdir(parents=True)
     (kb / "derived" / "pricing").symlink_to(outside, target_is_directory=True)
@@ -251,7 +252,7 @@ def test_create_refuses_sibling_symlink(tmp_path: Path):
     derived_root = kb / "derived"
     sibling = derived_root / "pricing-backup"
     sibling.mkdir(parents=True)
-    (sibling / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (sibling / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
     (derived_root / "pricing").symlink_to(sibling, target_is_directory=True)
 
     with pytest.raises(InvalidSlugError):
@@ -287,7 +288,7 @@ def test_create_refuses_dangling_symlink(tmp_path: Path):
 def test_copy_documents_copies_content_and_its_extraction(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
-    (src / "raw" / "notes.md").write_text("body")
+    (src / "raw" / "notes.md").write_text("body", encoding="utf-8")
     from kb_ai.storage.store import _compute_checksum
     checksum = _compute_checksum("body")
     writer = KBStore(str(src))
@@ -303,16 +304,16 @@ def test_copy_documents_copies_content_and_its_extraction(tmp_path: Path):
 
     assert copied == 1
     assert warnings == []
-    assert (derived / "raw" / "notes.md").read_text() == "body"
-    copied_extraction = (derived / "extraction" / "notes.md").read_text()
-    assert copied_extraction == writer.extraction_path("raw/notes.md").read_text()
+    assert (derived / "raw" / "notes.md").read_text(encoding="utf-8") == "body"
+    copied_extraction = (derived / "extraction" / "notes.md").read_text(encoding="utf-8")
+    assert copied_extraction == writer.extraction_path("raw/notes.md").read_text(encoding="utf-8")
     assert "summary: extracted" in copied_extraction
 
 
 def test_copy_documents_mirrors_a_nested_relative_path(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw" / "2026-06").mkdir(parents=True)
-    (src / "raw" / "2026-06" / "notes.md").write_text("body")
+    (src / "raw" / "2026-06" / "notes.md").write_text("body", encoding="utf-8")
     from kb_ai.storage.store import _compute_checksum
     checksum = _compute_checksum("body")
     writer = KBStore(str(src))
@@ -332,7 +333,7 @@ def test_copy_documents_skips_and_reports_a_checksum_mismatch(tmp_path: Path):
     """The check that makes keying extractions by path safe (spec F3)."""
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
-    (src / "raw" / "notes.md").write_text("body")
+    (src / "raw" / "notes.md").write_text("body", encoding="utf-8")
     writer = KBStore(str(src))
     exl.persist(writer, "raw/notes.md", ExtractionResult(summary="stale"),
                 source_checksum="0" * 16, extract_model="m")
@@ -385,7 +386,7 @@ def test_copy_documents_tolerates_a_missing_extraction(tmp_path: Path):
     """Not an error: the derived compile extracts and pays once (spec F2)."""
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
-    (src / "raw" / "notes.md").write_text("body")
+    (src / "raw" / "notes.md").write_text("body", encoding="utf-8")
     derived = tmp_path / "derived" / "x"
     derived.mkdir(parents=True)
     store = KBStore(str(src), read_only=True)
@@ -427,7 +428,7 @@ def test_copy_documents_rejects_traversal_rel_path(tmp_path: Path):
 def test_copy_documents_rejects_invalid_checksum(tmp_path: Path):
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
-    (src / "raw" / "notes.md").write_text("body")
+    (src / "raw" / "notes.md").write_text("body", encoding="utf-8")
     derived = tmp_path / "derived" / "x"
     derived.mkdir(parents=True)
     store = KBStore(str(src), read_only=True)
@@ -442,7 +443,7 @@ def test_copy_documents_rejects_checksum_with_trailing_newline(tmp_path: Path):
     """'deadbeefdeadbeef\\n' must not pass via re.match's trailing-newline loophole."""
     src = tmp_path / "src"
     (src / "raw").mkdir(parents=True)
-    (src / "raw" / "notes.md").write_text("body")
+    (src / "raw" / "notes.md").write_text("body", encoding="utf-8")
     derived = tmp_path / "derived" / "x"
     derived.mkdir(parents=True)
     store = KBStore(str(src), read_only=True)
@@ -476,7 +477,7 @@ def test_resolve_kb_dir_root(tmp_path: Path):
 def test_resolve_kb_dir_derived(tmp_path: Path):
     target = tmp_path / "derived" / "pricing"
     target.mkdir(parents=True)
-    (target / "manifest.json").write_text("{}")
+    (target / "manifest.json").write_text("{}", encoding="utf-8")
     assert _layout.resolve_kb_dir(str(tmp_path), "pricing") == str(target.resolve())
 
 
@@ -493,7 +494,7 @@ def test_resolve_kb_dir_rejects_a_traversal_slug(tmp_path: Path):
 def test_resolve_kb_dir_rejects_a_symlinked_derived_kb(tmp_path: Path):
     outside = tmp_path / "outside"
     outside.mkdir()
-    (outside / "manifest.json").write_text("{}")
+    (outside / "manifest.json").write_text("{}", encoding="utf-8")
     derived_root = tmp_path / "kb" / "derived"
     derived_root.mkdir(parents=True)
     (derived_root / "escape").symlink_to(outside, target_is_directory=True)
@@ -514,7 +515,7 @@ def test_resolve_kb_dir_rejects_a_slug_symlinked_to_derived_itself(tmp_path: Pat
     derived_root = tmp_path / "kb" / "derived"
     derived_root.mkdir(parents=True)
     # A manifest at derived/ itself is what makes the pre-fix check pass.
-    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}))
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}), encoding="utf-8")
     (derived_root / "self").symlink_to(derived_root, target_is_directory=True)
 
     with pytest.raises(UnknownDerivedKBError):
@@ -525,13 +526,15 @@ def test_list_derived_reads_manifests(tmp_path: Path):
     for slug, topic in (("pricing", "pricing"), ("compliance", "compliance rules")):
         d = tmp_path / "derived" / slug
         d.mkdir(parents=True)
-        (d / "manifest.json").write_text(json.dumps({"slug": slug, "topic": topic}))
+        (d / "manifest.json").write_text(json.dumps({"slug": slug, "topic": topic}), encoding="utf-8")
     (tmp_path / "derived" / "junk").mkdir()  # no manifest -> not listed
 
     got = _layout.list_derived(str(tmp_path))
     assert [m["slug"] for m in got] == ["compliance", "pricing"]
 
 
+@pytest.mark.skipif(os.name == "nt",
+                    reason="NTFS forbids newlines in directory names")
 def test_list_derived_skips_dir_with_trailing_newline_name(tmp_path: Path):
     """A derived/ child whose name has a trailing newline is not listed.
 
@@ -547,7 +550,7 @@ def test_list_derived_skips_dir_with_trailing_newline_name(tmp_path: Path):
     bad_name = "pricing\n"  # POSIX allows newlines in directory names
     bad_dir = derived_root / bad_name
     bad_dir.mkdir()
-    (bad_dir / "manifest.json").write_text(json.dumps({"slug": "pricing\n"}))
+    (bad_dir / "manifest.json").write_text(json.dumps({"slug": "pricing\n"}), encoding="utf-8")
 
     got = _layout.list_derived(str(tmp_path))
     assert got == [], f"expected [], got {got!r}"
@@ -560,7 +563,7 @@ def test_list_derived_skips_a_child_symlinked_to_derived_itself(tmp_path: Path):
     """
     derived_root = tmp_path / "kb" / "derived"
     derived_root.mkdir(parents=True)
-    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}))
+    (derived_root / "manifest.json").write_text(json.dumps({"slug": "self"}), encoding="utf-8")
     (derived_root / "self").symlink_to(derived_root, target_is_directory=True)
 
     assert _layout.list_derived(str(tmp_path / "kb")) == []
@@ -574,13 +577,13 @@ def test_list_derived_skips_symlinked_children(tmp_path: Path):
     """
     outside = tmp_path / "outside"
     outside.mkdir()
-    (outside / "manifest.json").write_text(json.dumps({"slug": "escape"}))
+    (outside / "manifest.json").write_text(json.dumps({"slug": "escape"}), encoding="utf-8")
     derived_root = tmp_path / "kb" / "derived"
     derived_root.mkdir(parents=True)
     # Real, legitimate derived KB.
     legit = derived_root / "pricing"
     legit.mkdir()
-    (legit / "manifest.json").write_text(json.dumps({"slug": "pricing"}))
+    (legit / "manifest.json").write_text(json.dumps({"slug": "pricing"}), encoding="utf-8")
     # Symlinked entry pointing outside the KB -- must be skipped.
     (derived_root / "escape").symlink_to(outside, target_is_directory=True)
 

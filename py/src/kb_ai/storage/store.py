@@ -95,7 +95,7 @@ class KBStore:
             raise ValueError(f"not a raw document path: {raw_rel!r}")
         if len(parts) == 1 or ".." in parts:
             raise ValueError(f"not a raw document path: {raw_rel!r}")
-        return str(Path(EXTRACTION_DIRNAME, *parts[1:]))
+        return "/".join((EXTRACTION_DIRNAME, *parts[1:]))
 
     def extraction_path(self, raw_rel: str) -> Path:
         """Absolute path of the extraction file for a raw document.
@@ -241,21 +241,21 @@ class KBStore:
         return read_text_and_evict(self._resolve(rel_path))
 
     def read_article(self, rel_path: str) -> str:
-        return self._resolve(rel_path).read_text()
+        return self._resolve(rel_path).read_text(encoding="utf-8")
 
     def write_article(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
         full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     def write_raw(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
         full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     def existing_articles(self) -> list[ArticleMeta]:
         return self._parse_index(self.index_dir / "master-index.md")
@@ -273,7 +273,7 @@ class KBStore:
         if not index_path.exists():
             return []
         articles = []
-        for line in index_path.read_text().splitlines():
+        for line in index_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line.startswith("- ["):
                 continue
@@ -305,7 +305,7 @@ class KBStore:
             return None
         cache_path = self.base_dir / ".classify-cache" / f"{cache_key}.json"
         if cache_path.exists():
-            return json.loads(cache_path.read_text())
+            return json.loads(cache_path.read_text(encoding="utf-8"))
         return None
 
     def save_classify_cache(self, cache_key: str, data) -> None:
@@ -316,17 +316,18 @@ class KBStore:
         cache_dir = self.base_dir / ".classify-cache"
         cache_dir.mkdir(exist_ok=True)
         (cache_dir / f"{cache_key}.json").write_text(
-            json.dumps(serializable, ensure_ascii=False, indent=2)
+            json.dumps(serializable, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
     def load_compile_state(self) -> dict:
         state_path = self.base_dir / ".compile-state.json"
         if state_path.exists():
-            return json.loads(state_path.read_text())
+            return json.loads(state_path.read_text(encoding="utf-8"))
         return {}
 
     def save_compile_state(self, state: dict) -> None:
         state_path = self.base_dir / ".compile-state.json"
         tmp_path = state_path.with_suffix(".json.tmp")
-        tmp_path.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+        tmp_path.write_text(json.dumps(state, indent=2, ensure_ascii=False),
+                            encoding="utf-8")
         os.replace(str(tmp_path), str(state_path))

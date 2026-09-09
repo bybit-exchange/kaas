@@ -296,7 +296,7 @@ def check_grounding(kb_dir: str) -> GroundingCheck:
     for path in sorted(store.wiki_dir.rglob("*.md")):
         if path.name.startswith("."):
             continue
-        rel_path = str(path.relative_to(store.base_dir))
+        rel_path = path.relative_to(store.base_dir).as_posix()
         try:
             text = read_text_and_evict(path)
         except OSError as e:

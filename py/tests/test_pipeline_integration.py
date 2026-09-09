@@ -26,7 +26,7 @@ def _make_kb(tmp_path: Path) -> str:
     store = KBStore(str(tmp_path))
     store.index_dir.mkdir(parents=True, exist_ok=True)
     (store.index_dir / "master-index.md").write_text(
-        "# Index\n- [Existing](wiki/concept/existing.md) — an existing article\n"
+        "# Index\n- [Existing](wiki/concept/existing.md) — an existing article\n", encoding="utf-8"
     )
     store.write_article(
         "wiki/concept/existing.md",

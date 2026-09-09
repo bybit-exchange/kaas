@@ -349,7 +349,7 @@ def _compile_log(log_path: Path):
     long-lived daemon the same thread goes on to serve later requests.
     """
     lock = threading.Lock()
-    with open(log_path, "w") as log_file:
+    with open(log_path, "w", encoding="utf-8") as log_file:
         def log(msg: str, *, stderr: bool = True):
             with lock:
                 print(msg, file=log_file, flush=True)
@@ -1073,7 +1073,7 @@ def compile_kb(
                         full = store.base_dir / details["path"]
                         full.parent.mkdir(parents=True, exist_ok=True)
                         if full.exists():
-                            old_content = full.read_text()
+                            old_content = full.read_text(encoding="utf-8")
                             new_content = merge_into_article(
                                 details["path"], old_content, extraction, rel, model=write_model)
                         else:
