@@ -1228,6 +1228,63 @@ class TestRunChain:
                 start_part_num=1, parent_ctx=_make_parent_ctx(), sem=None,
             )
 
+    def test_batch_limit_triggers_sub_article_split_all_items_processed(self, monkeypatch):
+        """_run_chain splits into sub-articles when batch limit is reached.
+
+        Critically, _run_chain does NOT break — it finalizes and continues.
+        All 10 items must be processed (finalize-and-continue invariant).
+
+        10 items, batch_limit=3 (default), threshold=4 (default).
+        Each batch packs exactly 1 item (cm._estimate_full_extraction_size=15000,
+        budget capped at _MAX_BATCH_BUDGET=20000).
+        """
+        items = [(f"raw/doc_{i}.md", _ext(f"summary {i}")) for i in range(10)]
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 50_000)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 50_000)
+        monkeypatch.setattr(
+            cm, "_estimate_full_extraction_size",
+            lambda ext, rel: 15_000,
+        )
+        call_log: list[str] = []
+
+        def create_fn(article_type, title, ext, src, model="m"):
+            call_log.append(f"create:{src}")
+            return f"created:{src}"
+
+        def merge_fn(art_path, content, ext, src, model="m"):
+            call_log.append(f"merge:{src}")
+            return content + f"+merged:{src}"
+
+        monkeypatch.setattr(cm, "create_new_article", create_fn)
+        monkeypatch.setattr(cm, "merge_into_article", merge_fn)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        result = cm._run_chain(
+            "wiki/concept/foo.md", items, "m",
+            article_type="concept", title="Foo",
+            start_part_num=1,
+            parent_ctx=_make_parent_ctx(), sem=None,
+        )
+
+        # ALL items processed (finalize-and-continue, NOT early break)
+        assert result.n_batches == 10
+        expected_rels = [rel for rel, _ in items]
+        assert result.all_rels == expected_rels
+
+        # Multiple sub-articles produced (split after batch 3, then more)
+        assert len(result.articles) >= 2
+
+        # Verify all items appear in sub-article contents (not just in all_rels)
+        all_content = "\n".join(content for _, content in result.articles)
+        for rel, _ in items:
+            assert rel in all_content, (
+                f"Item {rel} missing from _run_chain sub-article contents"
+            )
+
+        # Verify every LLM call was made (10 items = 10 calls)
+        assert len(call_log) == 10
+
 
 # ── TestMergeBatchSplitParallel ──────────────────────────────────────
 
@@ -1848,3 +1905,218 @@ class TestBatchParallelThreshold:
 
         # Default threshold=4, remaining=4 -> serial
         assert not pool_created.is_set(), "negative env should use default (4), triggering serial"
+
+
+# ── Batch-count early break in Phase A ───────────────────────────────────
+
+
+class TestBatchCountEarlyBreak:
+    """Tests for the batch-count-based early break in _merge_batch_split Phase A.
+
+    CRITICAL: All patches for _estimate_full_extraction_size MUST target
+    the compile module's own reference (cm._estimate_full_extraction_size),
+    NOT the merge module path. compile.py's from-import creates a local
+    binding that _pack_merge_batch reads.
+    """
+
+    @staticmethod
+    def _make_items(n: int):
+        return [(f"raw/doc_{i}.md", _ext(f"summary {i}")) for i in range(n)]
+
+    @staticmethod
+    def _patch_for_many_batches(monkeypatch):
+        """Patch so each batch packs exactly 1 item, but budget stays HIGH.
+
+        This means the budget-based split does NOT fire — only the
+        batch-count condition can trigger Phase A break.
+
+        Key invariants:
+        - estimate_merge_budget → 50000 (>> _SUB_ARTICLE_BUDGET_THRESHOLD)
+        - estimate_create_budget → 50000, capped at _MAX_BATCH_BUDGET=20000
+        - _estimate_full_extraction_size → 15000 per item (only 1 fits per batch)
+        """
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 50_000)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 50_000)
+        monkeypatch.setattr(
+            cm, "_estimate_full_extraction_size",
+            lambda ext, rel: 15_000,
+        )
+        call_log: list[str] = []
+
+        def create_fn(article_type, title, extraction, source_path, model="m"):
+            call_log.append(f"create:{source_path}")
+            return f"---\ntitle: {title}\n---\ncreated from {source_path}\n"
+
+        def merge_fn(article_path, article_content, extraction, source_path, model="m"):
+            call_log.append(f"merge:{source_path}")
+            return article_content + f"\nmerged {source_path}\n"
+
+        monkeypatch.setattr(cm, "create_new_article", create_fn)
+        monkeypatch.setattr(cm, "merge_into_article", merge_fn)
+        return call_log
+
+    def test_breaks_after_batch_limit_with_enough_remaining(self, monkeypatch):
+        """Phase A breaks after 3 batches when remaining > threshold.
+
+        12 items, batch_limit=3 (default), threshold=4 (default).
+        Phase A: batch 1 = create(item 0), batch 2 = merge(item 1),
+        batch 3 = merge(item 2). Top of iteration 4: batch_num=3 >= 3
+        and remaining=9 > 4 → finalize + break to Phase B.
+        Phase B dispatches remaining 9 items to parallel chains.
+        """
+        import threading
+
+        items = self._make_items(12)
+        self._patch_for_many_batches(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        original_init = ThreadPoolExecutor.__init__
+        pool_created = threading.Event()
+
+        def spy_init(self_pool, *args, **kwargs):
+            pool_created.set()
+            return original_init(self_pool, *args, **kwargs)
+
+        monkeypatch.setattr(
+            "concurrent.futures.ThreadPoolExecutor.__init__", spy_init)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Phase A did 3 batches, broke, dispatched remaining to Phase B
+        assert pool_created.is_set(), "Should dispatch to parallel after batch limit"
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+        assert len(articles) >= 2  # At least Phase A sub-article + Phase B result(s)
+
+    def test_all_items_appear_in_article_contents(self, monkeypatch):
+        """Every item's source path appears in the final sub-article contents.
+
+        Verifies the completeness invariant: no items are lost during
+        the Phase A break + Phase B dispatch handoff.
+        """
+        items = self._make_items(12)
+        self._patch_for_many_batches(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Concatenate all sub-article contents
+        all_content = "\n".join(content for _, content in articles)
+        # Every item's source path must appear in the combined content
+        for rel, _ in items:
+            assert rel in all_content, (
+                f"Item {rel} missing from final sub-article contents"
+            )
+
+    def test_no_break_when_remaining_below_threshold(self, monkeypatch):
+        """Phase A does NOT break when remaining <= threshold (small article guard).
+
+        5 items, batch_limit=3 (default), threshold=4 (default).
+        Phase A: batch 1 = create(item 0), batch 2 = merge(item 1),
+        batch 3 = merge(item 2). Top of iteration 4: batch_num=3 >= 3
+        but remaining=2 <= 4 → guard prevents break. Continues serially.
+        Phase A consumes all 5 items. Fast path returns.
+        """
+        items = self._make_items(5)
+        self._patch_for_many_batches(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # All items consumed in Phase A, single article at original path
+        assert len(articles) == 1
+        assert articles[0][0] == "wiki/concept/foo.md"
+        assert n_batches == 5
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+
+    def test_env_override_batch_limit(self, monkeypatch):
+        """Setting batch limit via env var changes break point.
+
+        12 items, batch_limit=1 (via env), threshold=4 (default).
+        Phase A: batch 1 = create(item 0). Top of iteration 2:
+        batch_num=1 >= 1 and remaining=11 > 4 → break immediately.
+        Phase B gets 11 remaining items.
+        """
+        items = self._make_items(12)
+        self._patch_for_many_batches(monkeypatch)
+        monkeypatch.setenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, "1")
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Phase A did only 1 batch, then broke to Phase B
+        assert len(articles) >= 2
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+        # Verify all items appear in contents
+        all_content = "\n".join(content for _, content in articles)
+        for rel, _ in items:
+            assert rel in all_content
+
+    def test_budget_break_still_works(self, monkeypatch):
+        """Budget-based break still fires when budget is exhausted before batch limit.
+
+        8 items, merge_budget=100 (< _SUB_ARTICLE_BUDGET_THRESHOLD).
+        Budget break fires at iteration 2 (after batch 1 create).
+        batch_limit=3 is not reached.
+        """
+        items = self._make_items(8)
+        # Low merge budget triggers budget-based split
+        monkeypatch.setattr(cm, "estimate_merge_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(cm, "estimate_create_budget", lambda *a, **kw: 100)
+        monkeypatch.setattr(
+            cm, "_estimate_full_extraction_size",
+            lambda ext, rel: 100,
+        )
+        monkeypatch.setattr(cm, "create_new_article",
+            lambda *a, **kw: "---\ntitle: T\n---\ncreated\n")
+        monkeypatch.setattr(cm, "merge_into_article",
+            lambda art_path, content, ext, src, model="m": content + f"\nmerged {src}\n")
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content=None, article_type="concept", title="Foo")
+
+        # Budget-based split fires after 1 create (merge_budget=100 < threshold).
+        # Phase A breaks, remaining goes to Phase B.
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+        assert len(articles) >= 2
+
+    def test_article_content_not_none_path(self, monkeypatch):
+        """Merge path (article_content is not None) works with batch-count break.
+
+        12 items, article_content provided, merge_budget=50000 (high).
+        Phase A: batch 1 = merge(item 0), batch 2 = merge(item 1),
+        batch 3 = merge(item 2). Top of iteration 4: batch_num=3 >= 3
+        and remaining=9 > 4 → break to Phase B.
+        """
+        items = self._make_items(12)
+        self._patch_for_many_batches(monkeypatch)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_BATCH_LIMIT_ENV, raising=False)
+        monkeypatch.delenv(cm._BATCH_PARALLEL_THRESHOLD_ENV, raising=False)
+
+        articles, all_rels, n_batches = cm._merge_batch_split(
+            "wiki/concept/foo.md", items, "m",
+            article_content="---\ntitle: Existing\n---\nexisting content\n")
+
+        expected_rels = [rel for rel, _ in items]
+        assert all_rels == expected_rels
+        assert len(articles) >= 2
+        # Verify all items appear in contents
+        all_content = "\n".join(content for _, content in articles)
+        for rel, _ in items:
+            assert rel in all_content

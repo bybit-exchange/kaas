@@ -276,7 +276,10 @@ def _run_chain(
         # to continue receiving merges.
         if current_content is not None:
             budget = estimate_merge_budget(current_content)
-            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD:
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD or (
+                batch_num >= _get_batch_parallel_batch_limit()
+                and len(remaining) > _get_batch_parallel_threshold()
+            ):
                 # Finalize current article as a sub-article and start fresh
                 sub_path = _sub_article_path(art_path, part_num)
                 finalized_articles.append((sub_path, current_content))
@@ -535,7 +538,10 @@ def _merge_batch_split(
         # to continue receiving merges.
         if current_content is not None:
             budget = estimate_merge_budget(current_content)
-            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD:
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD or (
+                batch_num >= _get_batch_parallel_batch_limit()
+                and len(remaining) > _get_batch_parallel_threshold()
+            ):
                 # Finalize current article as a sub-article and start fresh
                 part_num += 1
                 sub_path = _sub_article_path(art_path, part_num)
