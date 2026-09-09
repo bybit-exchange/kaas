@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bybit-exchange/kaas/internal/store"
 )
@@ -170,4 +171,94 @@ func (s *Store) RecoverRunningDerivedJobs(ctx context.Context, now int64) (int, 
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
+}
+
+// ListDerivedJobsPaged returns a page of derive jobs matching the filter.
+// Mirrors ListTasksPaged: status filter, LIKE search on topic+slug, sort
+// whitelist, pagination.
+func (s *Store) ListDerivedJobsPaged(ctx context.Context, f store.DerivedJobListFilter) (*store.DerivedJobListResult, error) {
+	var where []string
+	var args []any
+
+	if f.Status != "" {
+		where = append(where, `status = ?`)
+		args = append(args, f.Status)
+	}
+	if f.Query != "" {
+		pattern := "%" + f.Query + "%"
+		where = append(where, `(topic LIKE ? OR slug LIKE ?)`)
+		args = append(args, pattern, pattern)
+	}
+
+	var whereClause string
+	if len(where) > 0 {
+		whereClause = ` WHERE ` + strings.Join(where, ` AND `)
+	}
+
+	// Count total matching rows.
+	countQ := `SELECT COUNT(*) FROM derived_jobs` + whereClause
+	var total int
+	if err := s.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("list derived jobs paged count: %w", err)
+	}
+
+	// Determine sort column and direction.
+	allowedSort := map[string]string{
+		"topic":      "topic",
+		"slug":       "slug",
+		"status":     "status",
+		"stage":      "stage",
+		"created_at": "created_at",
+		"updated_at": "updated_at",
+	}
+	sortCol := "created_at"
+	if col, ok := allowedSort[f.SortBy]; ok {
+		sortCol = col
+	}
+	sortDir := "DESC"
+	if f.SortDir == "asc" {
+		sortDir = "ASC"
+	}
+
+	// Fetch the page.
+	selectQ := `SELECT ` + derivedJobColumns + ` FROM derived_jobs` + whereClause + ` ORDER BY ` + sortCol + ` ` + sortDir + `, id DESC`
+	selectArgs := append([]any{}, args...)
+	if f.Limit > 0 {
+		selectQ += ` LIMIT ?`
+		selectArgs = append(selectArgs, f.Limit)
+	}
+	if f.Offset > 0 {
+		selectQ += ` OFFSET ?`
+		selectArgs = append(selectArgs, f.Offset)
+	}
+
+	rows, err := s.db.QueryContext(ctx, selectQ, selectArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("list derived jobs paged: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*store.DerivedJob
+	for rows.Next() {
+		j, err := scanDerivedJob(rows)
+		if err != nil {
+			return nil, fmt.Errorf("list derived jobs paged scan: %w", err)
+		}
+		jobs = append(jobs, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list derived jobs paged rows: %w", err)
+	}
+	return &store.DerivedJobListResult{Jobs: jobs, Total: total}, nil
+}
+
+// DeleteDerivedJob removes a terminal derive job (succeeded or failed).
+// Returns ErrNotFound if the job does not exist or is not in a terminal status.
+func (s *Store) DeleteDerivedJob(ctx context.Context, id string) error {
+	const q = `DELETE FROM derived_jobs WHERE id = ? AND status IN ('succeeded', 'failed')`
+	res, err := s.db.ExecContext(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("delete derived job: %w", err)
+	}
+	return requireOneRow(res, "delete derived job")
 }

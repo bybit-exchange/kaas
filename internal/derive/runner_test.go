@@ -85,6 +85,14 @@ func (f *fakeJobStore) RecoverRunningDerivedJobs(context.Context, int64) (int, e
 	return 0, nil
 }
 
+func (f *fakeJobStore) ListDerivedJobsPaged(context.Context, store.DerivedJobListFilter) (*store.DerivedJobListResult, error) {
+	return &store.DerivedJobListResult{}, nil
+}
+
+func (f *fakeJobStore) DeleteDerivedJob(context.Context, string) error {
+	return store.ErrNotFound
+}
+
 func (f *fakeJobStore) job(id string) store.DerivedJob {
 	f.mu.Lock()
 	defer f.mu.Unlock()

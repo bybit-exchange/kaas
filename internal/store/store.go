@@ -193,6 +193,24 @@ type DerivedJob struct {
 	UpdatedAt  int64  // unix ms
 }
 
+// DerivedJobListFilter narrows ListDerivedJobsPaged results with LIKE search
+// and pagination.
+type DerivedJobListFilter struct {
+	Status  string // optional exact status match
+	Query   string // LIKE match on topic or slug
+	SortBy  string // column to sort by (empty = created_at)
+	SortDir string // "asc" or "desc" (empty = desc)
+	Limit   int
+	Offset  int
+}
+
+// DerivedJobListResult holds a page of derive jobs plus the total count
+// matching the filter.
+type DerivedJobListResult struct {
+	Jobs  []*DerivedJob
+	Total int
+}
+
 // DerivedJobStore persists derive jobs. Kept separate from Store so the compile
 // queue's interface is unchanged; sqlite.Store implements both.
 type DerivedJobStore interface {
@@ -201,6 +219,11 @@ type DerivedJobStore interface {
 	CreateDerivedJob(ctx context.Context, j *DerivedJob) error
 	// GetDerivedJob returns the job by id, or ErrNotFound.
 	GetDerivedJob(ctx context.Context, id string) (*DerivedJob, error)
+	// ListDerivedJobsPaged returns a page of derive jobs matching the filter.
+	ListDerivedJobsPaged(ctx context.Context, f DerivedJobListFilter) (*DerivedJobListResult, error)
+	// DeleteDerivedJob removes a terminal derive job. Returns ErrNotFound if
+	// the job does not exist or is not in a terminal status.
+	DeleteDerivedJob(ctx context.Context, id string) error
 	// ClaimNextDerivedJob marks the oldest pending job running and returns it.
 	// Returns (nil, nil) when nothing is pending OR when a job is already
 	// running: a derive spends real money and rewrites a directory, so the

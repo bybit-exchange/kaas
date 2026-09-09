@@ -23,6 +23,7 @@ type fakeDerivedJobStore struct {
 	jobs         []*store.DerivedJob
 	createErr    error
 	createStored *store.DerivedJob
+	deleteErr    error // injected error for DeleteDerivedJob
 }
 
 func newFakeDerivedStore() *fakeDerivedJobStore {
@@ -61,6 +62,43 @@ func (f *fakeDerivedJobStore) FinishDerivedJob(_ context.Context, _, _, _, _ str
 
 func (f *fakeDerivedJobStore) RecoverRunningDerivedJobs(_ context.Context, _ int64) (int, error) {
 	return 0, nil
+}
+
+func (f *fakeDerivedJobStore) ListDerivedJobsPaged(_ context.Context, filter store.DerivedJobListFilter) (*store.DerivedJobListResult, error) {
+	var matched []*store.DerivedJob
+	q := strings.ToLower(filter.Query)
+	for _, j := range f.jobs {
+		if filter.Status != "" && j.Status != filter.Status {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(j.Topic), q) && !strings.Contains(strings.ToLower(j.Slug), q) {
+			continue
+		}
+		matched = append(matched, j)
+	}
+	total := len(matched)
+	if filter.Offset > 0 && filter.Offset < len(matched) {
+		matched = matched[filter.Offset:]
+	} else if filter.Offset >= len(matched) {
+		matched = nil
+	}
+	if filter.Limit > 0 && filter.Limit < len(matched) {
+		matched = matched[:filter.Limit]
+	}
+	return &store.DerivedJobListResult{Jobs: matched, Total: total}, nil
+}
+
+func (f *fakeDerivedJobStore) DeleteDerivedJob(_ context.Context, id string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	for i, j := range f.jobs {
+		if j.ID == id {
+			f.jobs = append(f.jobs[:i], f.jobs[i+1:]...)
+			return nil
+		}
+	}
+	return store.ErrNotFound
 }
 
 // --- test helpers ---
@@ -656,8 +694,298 @@ func TestDeriveRoutesWithoutAJobStore(t *testing.T) {
 		t.Errorf("GET /api/derive/{id} without job store: status = %d, want 501", rec.Code)
 	}
 
+	rec = do(t, s, "GET", "/api/derive/jobs", "")
+	if rec.Code != http.StatusNotImplemented {
+		t.Errorf("GET /api/derive/jobs without job store: status = %d, want 501", rec.Code)
+	}
+
+	rec = do(t, s, "DELETE", "/api/derive/jobs/someid", "")
+	if rec.Code != http.StatusNotImplemented {
+		t.Errorf("DELETE /api/derive/jobs/{id} without job store: status = %d, want 501", rec.Code)
+	}
+
 	rec = do(t, s, "GET", "/api/derived", "")
 	if rec.Code != http.StatusOK {
 		t.Errorf("GET /api/derived without job store: status = %d, want 200", rec.Code)
+	}
+}
+
+// --- GET /api/derive/jobs ---
+
+func TestListDeriveJobs(t *testing.T) {
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{
+			ID: "j1", Slug: "pricing", Topic: "pricing and fees",
+			Model: "gpt-4o", SelectFrom: "documents",
+			Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone,
+			Result: `{"articles":5}`, CreatedAt: 1000, UpdatedAt: 2000,
+		},
+		{
+			ID: "j2", Slug: "rust-basics", Topic: "Rust language basics",
+			Model: "", SelectFrom: "",
+			Status: store.DerivedStatusRunning, Stage: store.DerivedStageFilter,
+			CreatedAt: 3000, UpdatedAt: 4000,
+		},
+	}
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "GET", "/api/derive/jobs", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Jobs  []deriveJobResponse `json:"jobs"`
+		Total int                 `json:"total"`
+	}
+	mustJSON(t, rec, &out)
+	if out.Total != 2 {
+		t.Fatalf("total = %d, want 2", out.Total)
+	}
+	if len(out.Jobs) != 2 {
+		t.Fatalf("got %d jobs, want 2", len(out.Jobs))
+	}
+	// Verify first job includes model and select_from.
+	j1 := out.Jobs[0]
+	if j1.ID != "j1" {
+		t.Errorf("jobs[0].id = %q, want j1", j1.ID)
+	}
+	if j1.Model != "gpt-4o" {
+		t.Errorf("jobs[0].model = %q, want gpt-4o", j1.Model)
+	}
+	if j1.SelectFrom != "documents" {
+		t.Errorf("jobs[0].select_from = %q, want documents", j1.SelectFrom)
+	}
+	if j1.Result == nil {
+		t.Error("jobs[0].result is nil, want JSON object")
+	}
+	// Second job has empty model and select_from — they must still be present.
+	j2 := out.Jobs[1]
+	if j2.Model != "" {
+		t.Errorf("jobs[1].model = %q, want empty", j2.Model)
+	}
+	if j2.SelectFrom != "" {
+		t.Errorf("jobs[1].select_from = %q, want empty", j2.SelectFrom)
+	}
+	// Verify model and select_from are present in JSON even when empty.
+	raw := rec.Body.Bytes()
+	if !strings.Contains(string(raw), `"model"`) {
+		t.Error("response JSON missing model field")
+	}
+	if !strings.Contains(string(raw), `"select_from"`) {
+		t.Error("response JSON missing select_from field")
+	}
+}
+
+func TestListDeriveJobsFilterByStatus(t *testing.T) {
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{ID: "j1", Slug: "a", Topic: "t", Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone, CreatedAt: 1, UpdatedAt: 1},
+		{ID: "j2", Slug: "b", Topic: "t", Status: store.DerivedStatusRunning, Stage: store.DerivedStageFilter, CreatedAt: 2, UpdatedAt: 2},
+	}
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "GET", "/api/derive/jobs?status=running", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Jobs  []deriveJobResponse `json:"jobs"`
+		Total int                 `json:"total"`
+	}
+	mustJSON(t, rec, &out)
+	if out.Total != 1 {
+		t.Fatalf("total = %d, want 1", out.Total)
+	}
+	if len(out.Jobs) != 1 || out.Jobs[0].ID != "j2" {
+		t.Errorf("expected only the running job j2")
+	}
+}
+
+func TestListDeriveJobsSearchQuery(t *testing.T) {
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{ID: "j1", Slug: "pricing", Topic: "Pricing and Fees", Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone, CreatedAt: 1, UpdatedAt: 1},
+		{ID: "j2", Slug: "rust-basics", Topic: "Rust language", Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone, CreatedAt: 2, UpdatedAt: 2},
+	}
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "GET", "/api/derive/jobs?q=pricing", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Jobs  []deriveJobResponse `json:"jobs"`
+		Total int                 `json:"total"`
+	}
+	mustJSON(t, rec, &out)
+	if out.Total != 1 {
+		t.Fatalf("total = %d, want 1", out.Total)
+	}
+	if out.Jobs[0].ID != "j1" {
+		t.Errorf("expected j1, got %q", out.Jobs[0].ID)
+	}
+}
+
+func TestListDeriveJobsEmptyResult(t *testing.T) {
+	fds := newFakeDerivedStore()
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "GET", "/api/derive/jobs", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var out struct {
+		Jobs  []deriveJobResponse `json:"jobs"`
+		Total int                 `json:"total"`
+	}
+	mustJSON(t, rec, &out)
+	if out.Total != 0 {
+		t.Errorf("total = %d, want 0", out.Total)
+	}
+	// jobs must be an empty array, not null.
+	if !strings.Contains(rec.Body.String(), `"jobs":[]`) {
+		t.Errorf("jobs should be [] not null; body=%s", rec.Body.String())
+	}
+}
+
+// --- DELETE /api/derive/jobs/{id} ---
+
+func TestDeleteDeriveJob(t *testing.T) {
+	// Both succeeded and failed jobs should be deletable.
+	for _, status := range []string{store.DerivedStatusSucceeded, store.DerivedStatusFailed} {
+		t.Run(status, func(t *testing.T) {
+			fds := newFakeDerivedStore()
+			fds.jobs = []*store.DerivedJob{
+				{ID: "j1", Slug: "a", Topic: "t", Status: status, Stage: store.DerivedStageDone, CreatedAt: 1, UpdatedAt: 1},
+			}
+			s, _ := newDeriveTestServer(t, fds)
+
+			rec := do(t, s, "DELETE", "/api/derive/jobs/j1", "")
+
+			if rec.Code != http.StatusNoContent {
+				t.Fatalf("status = %d, want 204; body=%s", rec.Code, rec.Body.String())
+			}
+			if len(fds.jobs) != 0 {
+				t.Error("job was not removed from the store")
+			}
+		})
+	}
+}
+
+func TestDeleteDeriveJobNotFound(t *testing.T) {
+	fds := newFakeDerivedStore()
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "DELETE", "/api/derive/jobs/nonexistent", "")
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDeleteDeriveJobNonTerminal(t *testing.T) {
+	for _, status := range []string{store.DerivedStatusPending, store.DerivedStatusRunning} {
+		t.Run(status, func(t *testing.T) {
+			fds := newFakeDerivedStore()
+			fds.jobs = []*store.DerivedJob{
+				{ID: "j1", Slug: "a", Topic: "t", Status: status, Stage: store.DerivedStageQueued, CreatedAt: 1, UpdatedAt: 1},
+			}
+			s, _ := newDeriveTestServer(t, fds)
+
+			rec := do(t, s, "DELETE", "/api/derive/jobs/j1", "")
+
+			if rec.Code != http.StatusConflict {
+				t.Fatalf("status = %d, want 409; body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestDeleteDeriveJobConcurrentDeletion(t *testing.T) {
+	// TOCTOU: GetDerivedJob succeeds, but DeleteDerivedJob returns ErrNotFound
+	// because the job was deleted concurrently. The handler should return 404.
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{ID: "j1", Slug: "a", Topic: "t", Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone, CreatedAt: 1, UpdatedAt: 1},
+	}
+	// Inject ErrNotFound on delete to simulate TOCTOU.
+	fds.deleteErr = store.ErrNotFound
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "DELETE", "/api/derive/jobs/j1", "")
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (TOCTOU); body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+// --- GET /api/derive/{id} includes model and select_from ---
+
+func TestGetDeriveJobIncludesModelAndSelectFrom(t *testing.T) {
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{
+			ID: "j1", Slug: "pricing", Topic: "pricing",
+			Model: "gpt-4o", SelectFrom: "documents",
+			Status: store.DerivedStatusSucceeded, Stage: store.DerivedStageDone,
+			Result: `{"articles":5}`, CreatedAt: 1000, UpdatedAt: 2000,
+		},
+	}
+	s, _ := newDeriveTestServer(t, fds)
+
+	rec := do(t, s, "GET", "/api/derive/j1", "")
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var resp deriveJobResponse
+	mustJSON(t, rec, &resp)
+	if resp.Model != "gpt-4o" {
+		t.Errorf("model = %q, want gpt-4o", resp.Model)
+	}
+	if resp.SelectFrom != "documents" {
+		t.Errorf("select_from = %q, want documents", resp.SelectFrom)
+	}
+}
+
+// --- Route conflict test ---
+
+func TestListDeriveJobsRouteDoesNotConflictWithGetById(t *testing.T) {
+	// GET /api/derive/jobs (static) must return a list response,
+	// not be matched as GET /api/derive/{id} with id="jobs".
+	fds := newFakeDerivedStore()
+	fds.jobs = []*store.DerivedJob{
+		{ID: "real-uuid", Slug: "a", Topic: "t", Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued, CreatedAt: 1, UpdatedAt: 1},
+	}
+	s, _ := newDeriveTestServer(t, fds)
+
+	// GET /api/derive/jobs should return a list.
+	rec := do(t, s, "GET", "/api/derive/jobs", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list: status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var listOut struct {
+		Jobs  []deriveJobResponse `json:"jobs"`
+		Total int                 `json:"total"`
+	}
+	mustJSON(t, rec, &listOut)
+	if listOut.Total != 1 {
+		t.Errorf("list total = %d, want 1", listOut.Total)
+	}
+
+	// GET /api/derive/real-uuid should return a single job.
+	rec = do(t, s, "GET", "/api/derive/real-uuid", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get: status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var getOut deriveJobResponse
+	mustJSON(t, rec, &getOut)
+	if getOut.ID != "real-uuid" {
+		t.Errorf("get id = %q, want real-uuid", getOut.ID)
 	}
 }

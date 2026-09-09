@@ -133,6 +133,8 @@ func (s *Server) routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/wiki", s.handleListWiki)
 	mux.HandleFunc("GET /api/wiki/file", s.handleWikiFile)
 	mux.HandleFunc("POST /api/derive", s.handleDerive)
+	mux.HandleFunc("GET /api/derive/jobs", s.handleListDeriveJobs)
+	mux.HandleFunc("DELETE /api/derive/jobs/{id}", s.handleDeleteDeriveJob)
 	mux.HandleFunc("GET /api/derive/{id}", s.handleGetDeriveJob)
 	mux.HandleFunc("GET /api/derived", s.handleListDerived)
 	mux.HandleFunc("POST /api/chat", s.handleChat)
