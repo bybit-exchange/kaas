@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/cn'
 
 /** Terminal statuses where we only show the status text, no stage suffix. */
-const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'cancelled'])
+const TERMINAL_STATUSES = new Set(['succeeded', 'failed', 'cancelled', 'partial'])
 
 /** Maps a status string to Tailwind border+text color classes. */
 export function statusColor(status: string): string {
@@ -14,6 +14,8 @@ export function statusColor(status: string): string {
       return 'border-red-300 text-red-700 dark:border-red-700 dark:text-red-400'
     case 'cancelled':
       return 'border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-400'
+    case 'partial':
+      return 'border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400'
     case 'running':
       return 'border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-400'
     case 'pending':
@@ -49,7 +51,7 @@ function stageLabel(t: (key: string) => string, stage: string): string {
 
 export interface StatusStageBadgeProps {
   status: string
-  stage: string
+  stage?: string
   className?: string
 }
 
@@ -65,7 +67,7 @@ export function StatusStageBadge({ status, stage, className }: StatusStageBadgeP
   const sLabel = statusLabel(t, status)
 
   let text: string
-  if (TERMINAL_STATUSES.has(status)) {
+  if (TERMINAL_STATUSES.has(status) || !stage) {
     text = sLabel
   } else {
     const sgLabel = stageLabel(t, stage)
