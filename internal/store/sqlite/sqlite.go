@@ -109,6 +109,9 @@ func (s *Store) Migrate(ctx context.Context) error {
 	if err := s.migrateBuildJobID(ctx); err != nil {
 		return err
 	}
+	if _, err := s.db.ExecContext(ctx, buildJobSchema); err != nil {
+		return fmt.Errorf("migrate build_jobs schema: %w", err)
+	}
 	return nil
 }
 
