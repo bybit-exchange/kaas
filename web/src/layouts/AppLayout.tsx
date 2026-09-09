@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { key: 'layout.chat', to: '/chat', icon: MessageSquare },
   { key: 'layout.wiki', to: '/wiki', icon: BookOpen },
   { key: 'layout.submit', to: '/submit', icon: Upload },
-  { key: 'layout.tasks', to: '/tasks', icon: Activity },
+  { key: 'layout.builds', to: '/builds', icon: Activity },
 ] as const satisfies readonly { key: string; to: string; icon: LucideIcon }[]
 
 export function AppLayout() {
