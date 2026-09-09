@@ -170,7 +170,7 @@ class KBStore:
         files = []
         for p in self._iter_raw_paths():
             content = read_text_and_evict(p)
-            rel = str(p.relative_to(self.base_dir))
+            rel = p.relative_to(self.base_dir).as_posix()
             files.append(RawFile(rel_path=rel, content=content, checksum=_compute_checksum(content)))
         return files
 
@@ -205,7 +205,7 @@ class KBStore:
                     size_bytes += len(encoded)
                 evict_after_open_read(f)
             yield RawFileMeta(
-                rel_path=str(p.relative_to(self.base_dir)),
+                rel_path=p.relative_to(self.base_dir).as_posix(),
                 checksum=hasher.hexdigest()[:16],
                 size_bytes=size_bytes,
             )
