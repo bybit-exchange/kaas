@@ -15,7 +15,7 @@ vi.mock('sonner', () => ({
 }))
 
 // Import AFTER mocking
-import { TaskDetailDialog } from '../TaskDetailDialog'
+import { TaskDetailSheet } from '../TaskDetailSheet'
 import { getTask } from '@/api/tasks'
 import { toast } from 'sonner'
 
@@ -67,18 +67,18 @@ async function flushPromises() {
   })
 }
 
-describe('TaskDetailDialog', () => {
+describe('TaskDetailSheet', () => {
   it('fetches task detail when opened', async () => {
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
-    expect(mockGetTask).toHaveBeenCalledWith('task-1')
+    expect(mockGetTask).toHaveBeenCalledWith('task-1', expect.any(AbortSignal))
   })
 
   it('shows result JSON with line numbers', async () => {
     mockGetTask.mockResolvedValue({ ...TASK_SUCCEEDED, result: { answer: 42 } })
 
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
     const dialog = screen.getByRole('dialog')
@@ -89,7 +89,7 @@ describe('TaskDetailDialog', () => {
   })
 
   it('shows status badge in the dialog', async () => {
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
     const dialog = screen.getByRole('dialog')
@@ -100,7 +100,7 @@ describe('TaskDetailDialog', () => {
   it('shows error for a failed task', async () => {
     mockGetTask.mockResolvedValue({ ...TASK_FAILED, result: null })
 
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-2" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-2" />)
     await flushPromises()
 
     const dialog = screen.getByRole('dialog')
@@ -109,7 +109,7 @@ describe('TaskDetailDialog', () => {
   })
 
   it('shows stage and attempts', async () => {
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
     const dialog = screen.getByRole('dialog')
@@ -122,21 +122,21 @@ describe('TaskDetailDialog', () => {
   it('handles fetch failure gracefully and shows error toast', async () => {
     mockGetTask.mockRejectedValue(new Error('detail unavailable'))
 
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
     expect(mockToast.error).toHaveBeenCalledWith('detail unavailable')
   })
 
   it('does not fetch when closed', async () => {
-    render(<TaskDetailDialog open={false} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={false} onOpenChange={() => {}} taskId="task-1" />)
     await flushPromises()
 
     expect(mockGetTask).not.toHaveBeenCalled()
   })
 
   it('does not fetch when taskId is null', async () => {
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId={null} />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId={null} />)
     await flushPromises()
 
     expect(mockGetTask).not.toHaveBeenCalled()
@@ -146,7 +146,7 @@ describe('TaskDetailDialog', () => {
     // getTask never resolves in this test
     mockGetTask.mockReturnValue(new Promise(() => {}))
 
-    render(<TaskDetailDialog open={true} onOpenChange={() => {}} taskId="task-1" />)
+    render(<TaskDetailSheet open={true} onOpenChange={() => {}} taskId="task-1" />)
 
     const dialog = screen.getByRole('dialog')
     expect(dialog.textContent).toContain('Task Detail')

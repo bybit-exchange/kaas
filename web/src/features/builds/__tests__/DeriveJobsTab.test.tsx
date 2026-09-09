@@ -437,12 +437,12 @@ describe('DeriveJobsTab', () => {
     })
   })
 
-  describe('detail dialog', () => {
-    it('opens the detail dialog when clicking Detail', async () => {
+  describe('detail sheet', () => {
+    it('opens the detail sheet when clicking a row', async () => {
       await renderTab()
 
       const row = screen.getByText('pricing and fees').closest('tr')!
-      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
+      fireEvent.click(row)
       await flushPromises()
 
       expect(mockGetDeriveJob).toHaveBeenCalledWith('dj-1')
@@ -456,12 +456,25 @@ describe('DeriveJobsTab', () => {
       await renderTab()
 
       const row = screen.getByText('pricing and fees').closest('tr')!
-      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
+      fireEvent.click(row)
       await flushPromises()
 
       expect(mockToast.error).toHaveBeenCalledWith('detail unavailable')
       const dialog = screen.getByRole('dialog')
       expect(within(dialog).getByText('pricing and fees')).toBeInTheDocument()
+    })
+
+    it('clicking delete does not open the detail sheet', async () => {
+      await renderTab()
+
+      const row = screen.getByText('pricing and fees').closest('tr')!
+      fireEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+      await flushPromises()
+
+      // Delete confirmation should appear
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+      // Detail sheet should NOT have opened (getDeriveJob should not be called)
+      expect(mockGetDeriveJob).not.toHaveBeenCalled()
     })
   })
 

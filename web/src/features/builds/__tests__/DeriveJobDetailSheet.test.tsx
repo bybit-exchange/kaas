@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
-import { DeriveJobDetailDialog } from '../DeriveJobDetailDialog'
+import { DeriveJobDetailSheet } from '../DeriveJobDetailSheet'
 import type { DeriveJob } from '@/api/derived'
 
 const JOB: DeriveJob = {
@@ -37,11 +37,11 @@ beforeEach(() => {
   usePrefs.setState({ theme: 'light', lang: 'en' })
 })
 
-describe('DeriveJobDetailDialog', () => {
+describe('DeriveJobDetailSheet', () => {
   it('shows loading skeleton when loading is true', () => {
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={null} loading={true} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={null} loading={true} />
       </Wrapper>,
     )
 
@@ -52,7 +52,7 @@ describe('DeriveJobDetailDialog', () => {
   it('shows nothing when job is null and not loading', () => {
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={null} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={null} loading={false} />
       </Wrapper>,
     )
 
@@ -65,7 +65,7 @@ describe('DeriveJobDetailDialog', () => {
   it('renders topic, slug, model, and select_from', () => {
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
       </Wrapper>,
     )
 
@@ -80,7 +80,7 @@ describe('DeriveJobDetailDialog', () => {
     const job = { ...JOB, model: '' }
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={job} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={job} loading={false} />
       </Wrapper>,
     )
 
@@ -94,7 +94,7 @@ describe('DeriveJobDetailDialog', () => {
     const job = { ...JOB, select_from: '' }
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={job} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={job} loading={false} />
       </Wrapper>,
     )
 
@@ -106,7 +106,7 @@ describe('DeriveJobDetailDialog', () => {
     const job = { ...JOB, select_from: 'documents' }
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={job} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={job} loading={false} />
       </Wrapper>,
     )
 
@@ -118,7 +118,7 @@ describe('DeriveJobDetailDialog', () => {
     const job = { ...JOB, status: 'failed' as const, error: 'LLM rate limit exceeded' }
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={job} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={job} loading={false} />
       </Wrapper>,
     )
 
@@ -130,7 +130,7 @@ describe('DeriveJobDetailDialog', () => {
   it('shows the result JSON for a completed job', () => {
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
       </Wrapper>,
     )
 
@@ -143,7 +143,7 @@ describe('DeriveJobDetailDialog', () => {
   it('does not render when open is false', () => {
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={false} onOpenChange={() => {}} job={JOB} loading={false} />
+        <DeriveJobDetailSheet open={false} onOpenChange={() => {}} job={JOB} loading={false} />
       </Wrapper>,
     )
 
@@ -154,7 +154,7 @@ describe('DeriveJobDetailDialog', () => {
     const runningJob = { ...JOB, status: 'running' as const, stage: 'filter', result: undefined }
     render(
       <Wrapper>
-        <DeriveJobDetailDialog open={true} onOpenChange={() => {}} job={runningJob} loading={false} />
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={runningJob} loading={false} />
       </Wrapper>,
     )
 

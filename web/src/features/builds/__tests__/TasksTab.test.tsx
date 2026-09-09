@@ -189,7 +189,7 @@ describe('TasksTab', () => {
     expect(mockListTasks).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
   })
 
-  it('clicking the Detail button opens TaskDetailDialog and fetches detail', async () => {
+  it('clicking a row opens TaskDetailSheet and fetches detail', async () => {
     const taskWithResult = { ...TASK_1, result: { answer: 42 } }
     mockGetTask.mockResolvedValue(taskWithResult)
 
@@ -197,16 +197,41 @@ describe('TasksTab', () => {
     expect(screen.getByText('Alpha Task')).toBeInTheDocument()
 
     const row = screen.getByText('Alpha Task').closest('tr')!
-    const detailBtn = within(row).getByRole('button', { name: 'Detail' })
-    fireEvent.click(detailBtn)
+    fireEvent.click(row)
 
     await flushPromises()
 
-    expect(mockGetTask).toHaveBeenCalledWith('task-1')
+    expect(mockGetTask).toHaveBeenCalledWith('task-1', expect.any(AbortSignal))
 
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Result')).toBeInTheDocument()
     expect(dialog.textContent).toContain('"answer": 42')
+  })
+
+  it('clicking the filename opens file preview without opening the detail sheet', async () => {
+    await renderTab()
+
+    const filenameBtn = screen.getByRole('button', { name: 'Alpha Task' })
+    fireEvent.click(filenameBtn)
+    await flushPromises()
+
+    // File preview should open
+    expect(mockGetTaskContent).toHaveBeenCalledWith('task-1', expect.anything())
+    // Detail sheet should NOT have opened (getTask should not be called)
+    expect(mockGetTask).not.toHaveBeenCalled()
+  })
+
+  it('clicking delete does not open the detail sheet', async () => {
+    await renderTab()
+
+    const row = screen.getByText('Alpha Task').closest('tr')!
+    fireEvent.click(within(row).getByRole('button', { name: 'Delete' }))
+    await flushPromises()
+
+    // Delete confirmation should appear
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+    // Detail sheet should NOT have opened
+    expect(mockGetTask).not.toHaveBeenCalled()
   })
 
   // Date formatting fallback
