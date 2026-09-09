@@ -242,7 +242,7 @@ def test_write_phase_attributes_cost_to_the_article_that_spent_it(kb, fakes, mon
 
     cm.compile_kb(str(kb.base_dir), workers=workers)
 
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     per_article = [float(c) for c in re.findall(r"\[create\].*— \$([0-9.]+)", log)]
     phase_total = float(re.search(r"Phase 2b done: \$([0-9.]+)", log).group(1))
 
@@ -266,7 +266,7 @@ def test_compile_writes_a_log_file(kb, fakes):
 
     cm.compile_kb(str(kb.base_dir))
 
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "Starting compile: 2 to extract, 2 to compose" in log
     assert "Phase 1" in log
     assert "Compile done" in log
@@ -339,7 +339,7 @@ def test_compile_logs_that_nothing_needed_extracting(kb, fakes):
 
     cm.compile_kb(str(kb.base_dir))
 
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "every extraction is present and fresh" in log
     assert "hit classify cache" in log
 
@@ -366,7 +366,7 @@ def test_compile_aborts_when_every_extraction_fails(kb, fakes):
     assert out["compiled"] == 0
     assert len(out["errors"]) == 2
     assert "timing" not in out, "aborted compile returns the short-form result"
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "No usable extraction for any document to compose" in log
 
 
@@ -412,7 +412,7 @@ def test_compile_skips_paths_outside_wiki(kb, fakes, bad_path):
     out = cm.compile_kb(str(kb.base_dir))
 
     assert fakes["created"] == []
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "bad path (not under wiki/)" in log
     # A file whose only op was refused still counts as processed, not errored.
     assert out["errors"] == []
@@ -424,7 +424,7 @@ def test_compile_skips_bad_merge_paths(kb, fakes):
     cm.compile_kb(str(kb.base_dir))
 
     assert fakes["merged"] == []
-    assert "bad path (not under wiki/)" in (kb.base_dir / ".compile.log").read_text()
+    assert "bad path (not under wiki/)" in (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 # ── merge routing ───────────────────────────────────────────────────
@@ -439,7 +439,7 @@ def test_compile_merge_into_missing_article_creates_it(kb, fakes):
     assert fakes["created"], "expected a merge→create"
     assert fakes["merged"] == []
     assert (kb.base_dir / "wiki/concept/target.md").exists()
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "[merge→create]" in log
 
 
@@ -451,7 +451,7 @@ def test_compile_single_merge_into_existing_article(kb, fakes):
 
     # Both raw files target the same article, so this is the batch path.
     assert fakes["merged"]
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "[merge-batch]" in log
 
 
@@ -476,7 +476,7 @@ def test_compile_create_over_existing_file_merges_instead(kb, fakes):
     cm.compile_kb(str(kb.base_dir))
 
     assert fakes["merged"], "expected a merge rather than a fresh create"
-    assert "prior content" in (kb.base_dir / "wiki/concept/topic.md").read_text()
+    assert "prior content" in (kb.base_dir / "wiki/concept/topic.md").read_text(encoding="utf-8")
 
 
 def test_compile_derives_type_and_title_for_merge_create(kb, fakes):
@@ -520,7 +520,7 @@ def test_compile_rerun_skips_completed_ops(kb, fakes):
     assert out["compiled"] == 2
     written = {title for _t, title, _s in fakes["created"]}
     assert "good" not in written, "already-completed op should not be redone"
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "ops skipped" in log
 
 
@@ -543,7 +543,7 @@ def test_compile_honours_the_workers_argument(kb, fakes):
 
     cm.compile_kb(str(kb.base_dir), workers=1)
 
-    assert "workers=1" in (kb.base_dir / ".compile.log").read_text()
+    assert "workers=1" in (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 def test_compile_reads_workers_from_env(kb, fakes, monkeypatch):
@@ -552,7 +552,7 @@ def test_compile_reads_workers_from_env(kb, fakes, monkeypatch):
 
     cm.compile_kb(str(kb.base_dir))
 
-    assert "workers=1" in (kb.base_dir / ".compile.log").read_text()
+    assert "workers=1" in (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 def test_compile_caps_workers_at_file_count(kb, fakes):
@@ -561,7 +561,7 @@ def test_compile_caps_workers_at_file_count(kb, fakes):
     cm.compile_kb(str(kb.base_dir), workers=99)
 
     # Two raw files, so at most two workers.
-    assert "workers=2" in (kb.base_dir / ".compile.log").read_text()
+    assert "workers=2" in (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 # ── run_compile entrypoint ──────────────────────────────────────────
@@ -691,7 +691,7 @@ def test_an_extract_model_change_re_extracts(kb, fakes):
     out = cm.compile_kb(str(kb.base_dir), extract_model="OTHER")
 
     assert out["extracted"] == 2
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "extract_model changed" in log
 
 
@@ -734,7 +734,7 @@ def test_the_write_phase_composes_from_the_file_on_disk(kb, fakes, monkeypatch):
     cm.compile_kb(str(kb.base_dir), extract_only=True)
 
     path = kb.extraction_path("raw/a.md")
-    path.write_text(path.read_text().replace("summary of content of a",
+    path.write_text(path.read_text(encoding="utf-8").replace("summary of content of a",
                                              "edited by hand"))
     monkeypatch.setattr(cm, "create_new_article", capture)
 
@@ -771,7 +771,7 @@ def test_wiki_lag_reports_the_first_run_reason(kb, fakes):
                                "behind_write_prompt": 0,
                                "extract_first_run": True,
                                "write_first_run": False}
-    assert "expected on the first run" in (kb.base_dir / ".compile.log").read_text()
+    assert "expected on the first run" in (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 def test_wiki_lag_reports_a_real_lag_without_the_first_run_reason(kb, fakes,
@@ -786,7 +786,7 @@ def test_wiki_lag_reports_a_real_lag_without_the_first_run_reason(kb, fakes,
                                "behind_write_prompt": 0,
                                "extract_first_run": False,
                                "write_first_run": False}
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "written from an older extraction" in log
     assert "expected on the first run" not in log
 
@@ -873,7 +873,7 @@ def test_a_revised_document_names_the_articles_it_was_merged_into(kb, fakes):
     out = cm.compile_kb(str(kb.base_dir))
 
     assert out["revised"] == {"raw/a.md": ["wiki/concept/a.md"]}
-    log = (kb.base_dir / ".compile.log").read_text()
+    log = (kb.base_dir / ".compile.log").read_text(encoding="utf-8")
     assert "[revised] raw/a.md → wiki/concept/a.md" in log
 
 
@@ -908,7 +908,7 @@ def test_extraction_inherits_the_raw_scan_skip_rules(kb, fakes):
     it.
     """
     kb.write_raw("raw/_skipped/costly.md", "content of costly")
-    (kb.raw_dir / ".hidden.md").write_text("content of hidden")
+    (kb.raw_dir / ".hidden.md").write_text("content of hidden", encoding="utf-8")
     fakes["classification"] = creates("wiki/concept/a.md")
 
     cm.compile_kb(str(kb.base_dir))

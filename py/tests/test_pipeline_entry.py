@@ -365,7 +365,7 @@ def test_index_input_actually_writes_the_master_index(kb_dir, fresh_context):
 
     _entry.run_server_index_with_input({"kb_dir": kb_dir})
 
-    index = (KBStore(kb_dir).index_dir / "master-index.md").read_text()
+    index = (KBStore(kb_dir).index_dir / "master-index.md").read_text(encoding="utf-8")
     assert "[Alpha](wiki/concept/a.md)" in index
 
 

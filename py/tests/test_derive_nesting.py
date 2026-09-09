@@ -14,9 +14,9 @@ def _source_kb(tmp_path: Path) -> Path:
     (kb / "raw").mkdir(parents=True)
     (kb / "wiki").mkdir(parents=True)
     (kb / "index").mkdir(parents=True)
-    (kb / "raw" / "notes.md").write_text("Fee schedule.")
+    (kb / "raw" / "notes.md").write_text("Fee schedule.", encoding="utf-8")
     (kb / "wiki" / "pricing.md").write_text(
-        "---\ntitle: Pricing\ntags: [fees]\nsources:\n  - raw/notes.md\n---\n\n# Pricing\n\nProse.\n")
+        "---\ntitle: Pricing\ntags: [fees]\nsources:\n  - raw/notes.md\n---\n\n# Pricing\n\nProse.\n", encoding="utf-8")
     update_markdown_index(KBStore(str(kb)))
     return kb
 
@@ -34,9 +34,9 @@ def _fake_compile(derived_dir: str, **kwargs) -> dict:
     (base / "wiki").mkdir(parents=True, exist_ok=True)
     (base / "index").mkdir(parents=True, exist_ok=True)
     (base / "wiki" / "derived-only.md").write_text(
-        "---\ntitle: Derived Only\ntags: [fees]\n---\n\n# Derived Only\n\nProse.\n")
+        "---\ntitle: Derived Only\ntags: [fees]\n---\n\n# Derived Only\n\nProse.\n", encoding="utf-8")
     (base / "wiki" / "moved-aside.md").write_text(
-        "---\ntitle: Moved Aside\ntags: [misc]\n---\n\n# Moved Aside\n\nProse.\n")
+        "---\ntitle: Moved Aside\ntags: [misc]\n---\n\n# Moved Aside\n\nProse.\n", encoding="utf-8")
     update_markdown_index(KBStore(str(base)))
     return {"compiled": 2}
 
@@ -55,7 +55,7 @@ def test_source_compile_and_index_do_not_see_the_derived_kb(tmp_path: Path):
 
     # The source's index rebuild must not list derived or _offtopic articles.
     update_markdown_index(store)
-    catalog = (kb / "index" / "master-index.md").read_text()
+    catalog = (kb / "index" / "master-index.md").read_text(encoding="utf-8")
     assert "wiki/pricing.md" in catalog
     assert "derived" not in catalog
     assert "derived-only" not in catalog
@@ -71,7 +71,7 @@ def test_offtopic_is_outside_the_derived_kbs_own_index(tmp_path: Path):
               select=_select, compile_fn=_fake_compile)
 
     derived = kb / "derived" / "pricing"
-    derived_catalog = (derived / "index" / "master-index.md").read_text()
+    derived_catalog = (derived / "index" / "master-index.md").read_text(encoding="utf-8")
     assert "wiki/derived-only.md" in derived_catalog
     assert "moved-aside" not in derived_catalog
     assert (derived / "_offtopic" / "moved-aside.md").exists()

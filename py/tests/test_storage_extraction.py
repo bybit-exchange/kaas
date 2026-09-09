@@ -117,7 +117,7 @@ def test_persist_writes_exactly_one_file_and_overwrites_in_place(store):
                                    source_checksum="0" * 16, extract_model="m")
     assert existed2 is True
     assert [p.name for p in store.extraction_dir.iterdir()] == ["a.md"]
-    assert "second" in path.read_text()
+    assert "second" in path.read_text(encoding="utf-8")
 
 
 def test_persist_leaves_no_temp_file_behind(store):
@@ -427,7 +427,7 @@ def test_load_reports_missing(store):
 
 def test_load_reports_an_invalid_file(store):
     store.extraction_dir.mkdir(parents=True)
-    (store.extraction_dir / "a.md").write_text("not an extraction file")
+    (store.extraction_dir / "a.md").write_text("not an extraction file", encoding="utf-8")
     stored, reason = exl.load(store, "raw/a.md")
     assert stored is None and reason.startswith("invalid:")
 
@@ -436,7 +436,7 @@ def test_load_reports_a_count_mismatch_rather_than_an_empty_extraction(store):
     exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
                 extract_model="m")
     path = store.extraction_path("raw/a.md")
-    path.write_text(_emptied_claims(path.read_text()))
+    path.write_text(_emptied_claims(path.read_text(encoding="utf-8")), encoding="utf-8")
     stored, reason = exl.load(store, "raw/a.md")
     assert stored is None
     assert "counts disagree" in reason
@@ -510,7 +510,7 @@ def test_prompt_version_changes_when_only_prompt_content_changed(monkeypatch, tm
     prompts.mkdir()
     for name in ex.EXTRACT_STAGE_PROMPTS:
         body = "{FIELDS_LIST} {TYPES_JSON_SCHEMA}" if name == "extract-types" else "x"
-        (prompts / f"{name}.md").write_text(f"[{name}] {body}")
+        (prompts / f"{name}.md").write_text(f"[{name}] {body}", encoding="utf-8")
     monkeypatch.setenv("KAAS_PROMPTS_DIR", str(prompts))
     import kb_ai.prompts as prompts_pkg
     monkeypatch.setattr(prompts_pkg, "_registry", None)
@@ -519,7 +519,7 @@ def test_prompt_version_changes_when_only_prompt_content_changed(monkeypatch, tm
     edited = ex.extract_prompt_version()
     assert edited != before
 
-    (prompts / "extract.md").write_text("[extract] x, and one more sentence")
+    (prompts / "extract.md").write_text("[extract] x, and one more sentence", encoding="utf-8")
     monkeypatch.setattr(prompts_pkg, "_registry", None)
     ex.extract_prompt_version.cache_clear()
     assert ex.extract_prompt_version() != edited
@@ -561,10 +561,10 @@ def test_persist_and_load_are_byte_stable_given_one_extraction(store, monkeypatc
     result = _full()
     exl.persist(store, "raw/a.md", result, source_checksum="0" * 16,
                 extract_model="m")
-    first = store.extraction_path("raw/a.md").read_text()
+    first = store.extraction_path("raw/a.md").read_text(encoding="utf-8")
     exl.persist(store, "raw/a.md", result, source_checksum="0" * 16,
                 extract_model="m")
-    assert store.extraction_path("raw/a.md").read_text() == first
+    assert store.extraction_path("raw/a.md").read_text(encoding="utf-8") == first
 
 
 # ── B7: the catalog reads the frontmatter only ──────────────────────
@@ -587,7 +587,7 @@ def test_load_header_does_not_apply_the_counts_guard(store):
     exl.persist(store, "raw/a.md", _full(), source_checksum="0" * 16,
                 extract_model="m")
     path = store.extraction_path("raw/a.md")
-    path.write_text(_emptied_claims(path.read_text()))
+    path.write_text(_emptied_claims(path.read_text(encoding="utf-8")), encoding="utf-8")
 
     header, reason = exl.load_header(store, "raw/a.md")
 
@@ -624,7 +624,7 @@ def test_both_readers_report_an_unreadable_file(store, reader, monkeypatch):
 ])
 def test_load_header_reports_a_malformed_header(store, text, match):
     store.extraction_dir.mkdir(parents=True)
-    (store.extraction_dir / "a.md").write_text(text)
+    (store.extraction_dir / "a.md").write_text(text, encoding="utf-8")
 
     header, reason = exl.load_header(store, "raw/a.md")
 

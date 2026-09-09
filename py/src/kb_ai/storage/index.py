@@ -258,7 +258,7 @@ def build_document_catalog(store: KBStore, *,
     for path in store._iter_raw_paths():
         content = read_text_and_evict(path)
         fm, body = _document_frontmatter(content)
-        rel_path = str(path.relative_to(store.base_dir))
+        rel_path = path.relative_to(store.base_dir).as_posix()
 
         context = _DOC_FIELD_SEP.join(
             str(fm[k]) for k in _DOC_CONTEXT_KEYS if fm.get(k))
@@ -298,7 +298,7 @@ def update_document_index(store: KBStore, *,
     store.index_dir.mkdir(exist_ok=True)
     out = "# Document Index\n\n" + "".join(
         f"- [{d.title}]({d.path}) — {d.summary}\n" for d in catalog)
-    (store.index_dir / DOCUMENT_INDEX_NAME).write_text(out)
+    (store.index_dir / DOCUMENT_INDEX_NAME).write_text(out, encoding="utf-8")
 
 
 def update_markdown_index(store: KBStore, *, min_articles: int = 3,
@@ -336,7 +336,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
         if not isinstance(fm, dict):
             continue
 
-        rel_path = str(md_file.relative_to(store.base_dir))
+        rel_path = md_file.relative_to(store.base_dir).as_posix()
         title = fm.get("title", md_file.stem)
         article_type = fm.get("type", "unknown")
         tags = fm.get("tags", [])
@@ -358,7 +358,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
         keys_column = f"{KEYS_MARKER}{a['keys']}" if a["keys"] else ""
         master += (f"- [{a['title']}]({a['path']}){status_marker} — "
                    f"{a['summary']}{keys_column}\n")
-    (store.index_dir / "master-index.md").write_text(master)
+    (store.index_dir / "master-index.md").write_text(master, encoding="utf-8")
 
     # Split topic index by frequency.
     primary_tags = [(tag, arts) for tag, arts in tags_map.items() if len(arts) >= min_articles]
@@ -375,7 +375,7 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
         for a in sorted(arts, key=lambda x: x["title"]):
             primary_md += f"- [{a['title']}]({a['path']})\n"
         primary_md += "\n"
-    (store.index_dir / "topic-index.md").write_text(primary_md)
+    (store.index_dir / "topic-index.md").write_text(primary_md, encoding="utf-8")
 
     longtail_md = f"# Topic Index — Long Tail\n\nTags with fewer than {min_articles} articles.\n\n"
     for tag, arts in longtail_tags:
@@ -383,7 +383,8 @@ def update_markdown_index(store: KBStore, *, min_articles: int = 3,
         for a in sorted(arts, key=lambda x: x["title"]):
             longtail_md += f"- [{a['title']}]({a['path']})\n"
         longtail_md += "\n"
-    (store.index_dir / "topic-index-longtail.md").write_text(longtail_md)
+    (store.index_dir / "topic-index-longtail.md").write_text(longtail_md,
+                                                            encoding="utf-8")
 
 
 def update_timeline(store: KBStore, compiled_sources: list[str]) -> None:
@@ -391,12 +392,12 @@ def update_timeline(store: KBStore, compiled_sources: list[str]) -> None:
     timeline_path = store.index_dir / "timeline.md"
 
     if not timeline_path.exists():
-        timeline_path.write_text("# Knowledge Timeline\n\n")
+        timeline_path.write_text("# Knowledge Timeline\n\n", encoding="utf-8")
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
     entries = f"\n## {now}\n\n"
     for src in compiled_sources:
         entries += f"- Compiled: `{src}`\n"
 
-    with open(timeline_path, "a") as f:
+    with open(timeline_path, "a", encoding="utf-8") as f:
         f.write(entries)

@@ -394,7 +394,7 @@ def _merges(*paths) -> dict:
 
 
 def _log_of(store: KBStore) -> str:
-    return (store.base_dir / ".compile.log").read_text()
+    return (store.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 def test_process_article_merge_create_split(kb_two, split_fakes, monkeypatch):
@@ -482,11 +482,11 @@ class TestCleanupStaleSubArticles:
         store = KBStore(str(tmp_path))
         parent = tmp_path / "wiki" / "concept"
         parent.mkdir(parents=True)
-        (parent / "foo-part-1.md").write_text("old part 1")
-        (parent / "foo-part-2.md").write_text("old part 2")
-        (parent / "foo-part-3.md").write_text("old part 3")
-        (parent / "foo-bar-part-1.md").write_text("different article")
-        (parent / "foo.md").write_text("original")
+        (parent / "foo-part-1.md").write_text("old part 1", encoding="utf-8")
+        (parent / "foo-part-2.md").write_text("old part 2", encoding="utf-8")
+        (parent / "foo-part-3.md").write_text("old part 3", encoding="utf-8")
+        (parent / "foo-bar-part-1.md").write_text("different article", encoding="utf-8")
+        (parent / "foo.md").write_text("original", encoding="utf-8")
 
         removed = cm._cleanup_stale_sub_articles(store, "wiki/concept/foo.md")
 
@@ -502,7 +502,7 @@ class TestCleanupStaleSubArticles:
         store = KBStore(str(tmp_path))
         parent = tmp_path / "wiki" / "concept"
         parent.mkdir(parents=True)
-        (parent / "foo.md").write_text("original")
+        (parent / "foo.md").write_text("original", encoding="utf-8")
 
         removed = cm._cleanup_stale_sub_articles(store, "wiki/concept/foo.md")
 
@@ -736,7 +736,7 @@ def test_process_article_sub_article_state_tracking(kb_many, split_fakes, monkey
 
     state_path = kb_many.base_dir / ".compile-state.json"
     assert state_path.exists()
-    state = json.loads(state_path.read_text())
+    state = json.loads(state_path.read_text(encoding="utf-8"))
 
     # When all ops for a file succeed, the state entry gets "compiled_at"
     # (no "completed_ops" key). Verify that sub-article paths are NOT
@@ -808,7 +808,7 @@ def test_stale_sub_article_cleanup_on_recompile(kb_two, split_fakes, monkeypatch
     assert len(sub_articles_after_second) >= 2
     # All sub-article files are non-empty (were written fresh)
     for sub in sub_articles_after_second:
-        assert sub.read_text()
+        assert sub.read_text(encoding="utf-8")
 
 
 def test_merge_batch_split_deletes_original_on_sub_split(kb_two, split_fakes, monkeypatch):

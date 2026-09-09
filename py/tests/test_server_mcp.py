@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -163,7 +164,10 @@ def test_ask_uses_kb_dir(monkeypatch):
     fake = _fake_core([{"type": "done", "cited_sources": [], "cost_usd": 0.0}])
     monkeypatch.setattr(mcp_server, "run_server_chat_http", fake)
     mcp_server.ask("q")
-    assert fake.seen_input["kb_dir"] == "/srv/kb"
+    # ask routes the KB root through resolve_kb_dir, whose resolve() rewrites
+    # a POSIX-style path to a drive-rooted one on Windows. Compare resolved
+    # forms so the assertion holds on both platforms.
+    assert fake.seen_input["kb_dir"] == str(Path("/srv/kb").resolve())
 
 
 # ── Bearer token check (pure predicate) ──────────────────────────────
@@ -333,7 +337,7 @@ def test_ask_with_a_known_kb_slug(tmp_path, monkeypatch):
 
     derived = tmp_path / "derived" / "pricing"
     derived.mkdir(parents=True)
-    (derived / "manifest.json").write_text("{}")
+    (derived / "manifest.json").write_text("{}", encoding="utf-8")
 
     seen: dict = {}
 

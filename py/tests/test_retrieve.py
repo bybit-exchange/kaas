@@ -22,7 +22,7 @@ def _make_kb(tmp_path: Path, articles: dict[str, str], index: str | None = None)
         store.write_article(rel, body)
     if index is not None:
         store.index_dir.mkdir(parents=True, exist_ok=True)
-        (store.index_dir / "master-index.md").write_text(index)
+        (store.index_dir / "master-index.md").write_text(index, encoding="utf-8")
     return str(tmp_path)
 
 

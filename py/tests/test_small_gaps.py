@@ -295,7 +295,7 @@ def test_raw_rel_still_appends_md_to_an_uppercase_md_source():
 def test_ingest_paths_skips_a_text_file_with_undecodable_bytes(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
-    (src / "ok.md").write_text("# fine")
+    (src / "ok.md").write_text("# fine", encoding="utf-8")
     (src / "broken.md").write_bytes(b"\xff\xfe\x00bad utf8")
     kb = tmp_path / "kb"
 
@@ -490,7 +490,7 @@ def test_update_people_stubs_skips_files_outside_the_wiki_dir(tmp_path):
     store = KBStore(str(tmp_path))
     store.write_article("wiki/a.md", "[[Grace Hopper]] spoke")
     outside = tmp_path / "outside.md"
-    outside.write_text("[[Grace Hopper]] also mentioned here")
+    outside.write_text("[[Grace Hopper]] also mentioned here", encoding="utf-8")
 
     fake_store = SimpleNamespace(
         wiki_dir=_StrayRglobDir(str(store.wiki_dir), stray=outside),
@@ -499,7 +499,7 @@ def test_update_people_stubs_skips_files_outside_the_wiki_dir(tmp_path):
 
     people.update_people_stubs(fake_store, [{"canonical": "Grace Hopper", "aliases": ["Grace Hopper"]}])
 
-    stub = (store.wiki_dir / "people" / "grace-hopper.md").read_text()
+    stub = (store.wiki_dir / "people" / "grace-hopper.md").read_text(encoding="utf-8")
     # Only the in-wiki article counts; the stray file is skipped, not crashed on.
     assert "mentions: 1" in stub
     assert "outside.md" not in stub

@@ -22,8 +22,8 @@ def _fixture_kb(tmp_path: Path) -> Path:
     (kb / "wiki").mkdir(parents=True)
     (kb / "index").mkdir(parents=True)
 
-    (kb / "raw" / "pricing-notes.md").write_text("Fee schedule and tiers.")
-    (kb / "raw" / "infra-notes.md").write_text("Cluster topology.")
+    (kb / "raw" / "pricing-notes.md").write_text("Fee schedule and tiers.", encoding="utf-8")
+    (kb / "raw" / "infra-notes.md").write_text("Cluster topology.", encoding="utf-8")
 
     (kb / "wiki" / "pricing.md").write_text(
         "---\ntitle: Pricing\nsources:\n  - raw/pricing-notes.md\n---\n\n# Pricing\n")
@@ -39,7 +39,7 @@ def _fixture_kb(tmp_path: Path) -> Path:
         "- [Fees](wiki/fees.md) — What we charge.\n"
         "- [Infra](wiki/infra.md) — Cluster topology.\n"
         "- [Orphan](wiki/orphan.md) — No sources.\n"
-        "- [Pricing](wiki/pricing.md) — Fee schedule.\n"
+        "- [Pricing](wiki/pricing.md) — Fee schedule.\n", encoding="utf-8"
     )
     return kb
 
@@ -70,7 +70,7 @@ def _fake_compile(derived_dir: str, **kwargs) -> dict:
     (base / "index" / "master-index.md").write_text(
         "# Knowledge Base Index\n\n"
         "- [Pricing](wiki/pricing.md) — Fees.\n"
-        "- [Stray](wiki/stray.md) — Unrelated.\n"
+        "- [Stray](wiki/stray.md) — Unrelated.\n", encoding="utf-8"
     )
     return {"compiled": 2, "errors": [], "cost": {"total_cost_usd": 1.25}}
 
@@ -89,7 +89,7 @@ def test_happy_path_layout_and_report(tmp_path: Path):
     assert modes == [MODE_RECALL, MODE_PRECISION]
 
     # Only the document behind the selected articles was copied.
-    assert (derived / "raw" / "pricing-notes.md").read_text() == "Fee schedule and tiers."
+    assert (derived / "raw" / "pricing-notes.md").read_text(encoding="utf-8") == "Fee schedule and tiers."
     assert not (derived / "raw" / "infra-notes.md").exists()
 
     assert report.selected_articles == ["wiki/pricing.md", "wiki/fees.md", "wiki/orphan.md"]
@@ -183,7 +183,7 @@ def test_manifest_contents(tmp_path: Path):
     derive_kb(str(kb), "pricing", model="gpt-test", slug="p", prune=True,
               select=select, compile_fn=_fake_compile)
 
-    manifest = json.loads((kb / "derived" / "p" / "manifest.json").read_text())
+    manifest = json.loads((kb / "derived" / "p" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["schema_version"] == 1
     assert manifest["source_kb"] == str(kb.resolve())
     assert manifest["topic"] == "pricing"
@@ -212,7 +212,7 @@ def test_manifest_is_written_before_compiling(tmp_path: Path):
 
     def dying_compile(derived_dir: str, **kwargs):
         seen["manifest"] = json.loads(
-            (Path(derived_dir) / "manifest.json").read_text())
+            (Path(derived_dir) / "manifest.json").read_text(encoding="utf-8"))
         raise RuntimeError("compile died")
 
     with pytest.raises(RuntimeError, match="compile died"):
@@ -247,7 +247,7 @@ def test_a_failed_copy_leaves_a_manifest_a_force_retry_accepts(tmp_path: Path,
                   compile_fn=_fake_compile)
 
     derived = kb / "derived" / "pricing"
-    manifest = json.loads((derived / "manifest.json").read_text())
+    manifest = json.loads((derived / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["slug"] == "pricing"
     assert manifest["compiled"] is False
     assert manifest["documents"] == []  # nothing was copied, so nothing is claimed
@@ -355,7 +355,7 @@ def test_force_replaces_a_previous_run(tmp_path: Path):
     select, _ = _select(["wiki/pricing.md"], ["wiki/pricing.md"])
     derive_kb(str(kb), "pricing", model="m", select=select, compile_fn=_fake_compile)
     stale = kb / "derived" / "pricing" / "stale.txt"
-    stale.write_text("old")
+    stale.write_text("old", encoding="utf-8")
 
     derive_kb(str(kb), "pricing", model="m", force=True,
               select=select, compile_fn=_fake_compile)
@@ -388,7 +388,7 @@ def test_extractions_travel_with_their_documents(tmp_path: Path):
                        compile_fn=_fake_compile)
 
     copied = kb / "derived" / "pricing" / "extraction" / "pricing-notes.md"
-    assert "summary: extracted pricing" in copied.read_text()
+    assert "summary: extracted pricing" in copied.read_text(encoding="utf-8")
     assert report.warnings == []
 
 
@@ -436,7 +436,7 @@ def test_cost_covers_both_passes_and_exceeds_compile_snapshot(tmp_path: Path):
             "---\ntitle: Pricing\n---\n\n# Pricing\n\nProse.\n")
         (base / "index" / "master-index.md").write_text(
             "# Knowledge Base Index\n\n"
-            "- [Pricing](wiki/pricing.md) — Fees.\n"
+            "- [Pricing](wiki/pricing.md) — Fees.\n", encoding="utf-8"
         )
         snapshot["cost"] = {"total_cost_usd": round(compile_cost, 6)}
         return {"compiled": 1, "errors": [], "cost": snapshot["cost"]}
@@ -473,7 +473,7 @@ def test_the_reported_compile_blob_carries_no_cost(tmp_path: Path):
     assert report.compile["compiled"] == 2
     assert report.cost is not None
 
-    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text())
+    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text(encoding="utf-8"))
     assert "cost" not in manifest["compile"]
     assert manifest["cost"] is not None
 
@@ -508,7 +508,7 @@ def test_a_declined_gate_still_reports_the_recall_pass_cost(tmp_path: Path):
     assert report.cost["calls"] == 1
     assert report.cost["total_cost_usd"] > 0
 
-    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text())
+    manifest = json.loads((kb / "derived" / "pricing" / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["cost"]["total_cost_usd"] == report.cost["total_cost_usd"]
 
 
@@ -549,9 +549,9 @@ def _uncompiled_kb(tmp_path: Path) -> Path:
     kb = tmp_path / "kb"
     (kb / "raw").mkdir(parents=True)
     (kb / "raw" / "pricing-notes.md").write_text(
-        "---\ntitle: Pricing Notes\ndate: 2026-06-03\nsource: lark\n---\n\nFee schedule and tiers.")
+        "---\ntitle: Pricing Notes\ndate: 2026-06-03\nsource: lark\n---\n\nFee schedule and tiers.", encoding="utf-8")
     (kb / "raw" / "infra-notes.md").write_text(
-        "---\ntitle: Infra Notes\n---\n\nCluster topology.")
+        "---\ntitle: Infra Notes\n---\n\nCluster topology.", encoding="utf-8")
     return kb
 
 
@@ -621,7 +621,8 @@ def test_documents_mode_prefers_a_written_document_index(tmp_path: Path):
     kb = _uncompiled_kb(tmp_path)
     (kb / "index").mkdir(exist_ok=True)
     (kb / "index" / "document-index.md").write_text(
-        "# Document Index\n\n- [Only One](raw/pricing-notes.md) — Hand-written line.\n")
+        "# Document Index\n\n- [Only One](raw/pricing-notes.md) — Hand-written line.\n",
+        encoding="utf-8")
     seen: list = []
 
     def select(catalog, topic, mode):
@@ -643,7 +644,7 @@ def test_documents_mode_records_the_mode_in_the_manifest(tmp_path: Path):
     report = derive_kb(str(kb), "pricing", model="m", select_from="documents",
                        select=select, compile_fn=_fake_compile)
 
-    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text())
+    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["select_from"] == "documents"
     assert manifest["selected_documents"] == ["raw/pricing-notes.md"]
 
@@ -655,7 +656,7 @@ def test_articles_mode_stays_the_default(tmp_path: Path):
     report = derive_kb(str(kb), "pricing", model="m",
                        select=select, compile_fn=_fake_compile)
 
-    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text())
+    manifest = json.loads((Path(report.derived_kb) / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["select_from"] == "articles"
     assert report.selected_articles == ["wiki/pricing.md"]
     assert report.selected_documents == []

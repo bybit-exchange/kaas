@@ -1225,7 +1225,7 @@ def _prompt_dir(tmp_path, **bodies) -> object:
     prompts = tmp_path / "prompts"
     prompts.mkdir(exist_ok=True)
     for name in ("merge-rewrite", "merge-diff", "merge-section-router", "merge-section"):
-        (prompts / f"{name}.md").write_text(bodies.get(name, f"[{name}] body"))
+        (prompts / f"{name}.md").write_text(bodies.get(name, f"[{name}] body"), encoding="utf-8")
     return prompts
 
 
@@ -1263,7 +1263,7 @@ def test_write_prompt_version_moves_when_merge_rewrite_changes(monkeypatch, tmp_
     _reset_registry(monkeypatch, prompts)
     before = mg.write_prompt_version()
 
-    (prompts / "merge-rewrite.md").write_text("[merge-rewrite] body, one more rule")
+    (prompts / "merge-rewrite.md").write_text("[merge-rewrite] body, one more rule", encoding="utf-8")
     _reset_registry(monkeypatch, prompts)
 
     assert mg.write_prompt_version() != before
@@ -1274,7 +1274,7 @@ def test_write_prompt_version_moves_when_merge_diff_changes(monkeypatch, tmp_pat
     _reset_registry(monkeypatch, prompts)
     before = mg.write_prompt_version()
 
-    (prompts / "merge-diff.md").write_text("[merge-diff] body, one more rule")
+    (prompts / "merge-diff.md").write_text("[merge-diff] body, one more rule", encoding="utf-8")
     _reset_registry(monkeypatch, prompts)
 
     assert mg.write_prompt_version() != before
@@ -1478,7 +1478,7 @@ def test_write_prompt_version_moves_when_merge_section_router_changes(monkeypatc
     _reset_registry(monkeypatch, prompts)
     before = mg.write_prompt_version()
 
-    (prompts / "merge-section-router.md").write_text("[merge-section-router] body, one more rule")
+    (prompts / "merge-section-router.md").write_text("[merge-section-router] body, one more rule", encoding="utf-8")
     _reset_registry(monkeypatch, prompts)
 
     assert mg.write_prompt_version() != before
@@ -1489,7 +1489,7 @@ def test_write_prompt_version_moves_when_merge_section_changes(monkeypatch, tmp_
     _reset_registry(monkeypatch, prompts)
     before = mg.write_prompt_version()
 
-    (prompts / "merge-section.md").write_text("[merge-section] body, one more rule")
+    (prompts / "merge-section.md").write_text("[merge-section] body, one more rule", encoding="utf-8")
     _reset_registry(monkeypatch, prompts)
 
     assert mg.write_prompt_version() != before

@@ -59,6 +59,21 @@ def _compute_checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
+def _strip_verbatim(path: str) -> str:
+    r"""Drop \\?\ extended-length prefixes from a resolved Windows path.
+
+    Path.resolve() on Windows occasionally returns the verbatim form when
+    another thread creates a parent directory while this one resolves through
+    it (reproducible with parallel extraction). The prefix makes every
+    containment comparison fail, so it must be stripped before comparing.
+    """
+    if path.startswith("\\\\?\\UNC\\"):
+        return "\\\\" + path[len("\\\\?\\UNC\\"):]
+    if path.startswith("\\\\?\\"):
+        return path[len("\\\\?\\"):]
+    return path
+
+
 class KBStore:
     def __init__(self, base_dir: str, *, read_only: bool = False, cache_enabled: bool = True):
         self.base_dir = Path(base_dir).expanduser().resolve()
@@ -95,7 +110,7 @@ class KBStore:
             raise ValueError(f"not a raw document path: {raw_rel!r}")
         if len(parts) == 1 or ".." in parts:
             raise ValueError(f"not a raw document path: {raw_rel!r}")
-        return str(Path(EXTRACTION_DIRNAME, *parts[1:]))
+        return "/".join((EXTRACTION_DIRNAME, *parts[1:]))
 
     def extraction_path(self, raw_rel: str) -> Path:
         """Absolute path of the extraction file for a raw document.
@@ -170,7 +185,7 @@ class KBStore:
         files = []
         for p in self._iter_raw_paths():
             content = read_text_and_evict(p)
-            rel = str(p.relative_to(self.base_dir))
+            rel = p.relative_to(self.base_dir).as_posix()
             files.append(RawFile(rel_path=rel, content=content, checksum=_compute_checksum(content)))
         return files
 
@@ -205,7 +220,7 @@ class KBStore:
                     size_bytes += len(encoded)
                 evict_after_open_read(f)
             yield RawFileMeta(
-                rel_path=str(p.relative_to(self.base_dir)),
+                rel_path=p.relative_to(self.base_dir).as_posix(),
                 checksum=hasher.hexdigest()[:16],
                 size_bytes=size_bytes,
             )
@@ -225,7 +240,7 @@ class KBStore:
         symlink planted under wiki/ is exactly the case worth rejecting here.
         base_dir itself is also rejected -- every caller addresses a file.
         """
-        full = (self.base_dir / rel_path).resolve()
+        full = Path(_strip_verbatim(str((self.base_dir / rel_path).resolve())))
         if full == self.base_dir or not full.is_relative_to(self.base_dir):
             raise ValueError(f"path escapes kb_dir: {rel_path}")
         return full
@@ -241,21 +256,21 @@ class KBStore:
         return read_text_and_evict(self._resolve(rel_path))
 
     def read_article(self, rel_path: str) -> str:
-        return self._resolve(rel_path).read_text()
+        return self._resolve(rel_path).read_text(encoding="utf-8")
 
     def write_article(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
         full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     def write_raw(self, rel_path: str, content: str) -> None:
         if self.read_only:
             raise PermissionError("KBStore is read-only")
         full = self._resolve(rel_path)
         full.parent.mkdir(parents=True, exist_ok=True)
-        full.write_text(content)
+        full.write_text(content, encoding="utf-8")
 
     def existing_articles(self) -> list[ArticleMeta]:
         return self._parse_index(self.index_dir / "master-index.md")
@@ -273,7 +288,7 @@ class KBStore:
         if not index_path.exists():
             return []
         articles = []
-        for line in index_path.read_text().splitlines():
+        for line in index_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if not line.startswith("- ["):
                 continue
@@ -305,7 +320,7 @@ class KBStore:
             return None
         cache_path = self.base_dir / ".classify-cache" / f"{cache_key}.json"
         if cache_path.exists():
-            return json.loads(cache_path.read_text())
+            return json.loads(cache_path.read_text(encoding="utf-8"))
         return None
 
     def save_classify_cache(self, cache_key: str, data) -> None:
@@ -316,17 +331,18 @@ class KBStore:
         cache_dir = self.base_dir / ".classify-cache"
         cache_dir.mkdir(exist_ok=True)
         (cache_dir / f"{cache_key}.json").write_text(
-            json.dumps(serializable, ensure_ascii=False, indent=2)
+            json.dumps(serializable, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
     def load_compile_state(self) -> dict:
         state_path = self.base_dir / ".compile-state.json"
         if state_path.exists():
-            return json.loads(state_path.read_text())
+            return json.loads(state_path.read_text(encoding="utf-8"))
         return {}
 
     def save_compile_state(self, state: dict) -> None:
         state_path = self.base_dir / ".compile-state.json"
         tmp_path = state_path.with_suffix(".json.tmp")
-        tmp_path.write_text(json.dumps(state, indent=2, ensure_ascii=False))
+        tmp_path.write_text(json.dumps(state, indent=2, ensure_ascii=False),
+                            encoding="utf-8")
         os.replace(str(tmp_path), str(state_path))

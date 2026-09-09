@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 )
 
@@ -87,14 +86,7 @@ func (d *MultiplexStreamDaemon) Start(ctx context.Context) error {
 	d.cancelFunc = cancel
 
 	cmd := exec.CommandContext(childCtx, d.command, d.args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error {
-		if killErr := syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL); killErr == syscall.ESRCH {
-			return os.ErrProcessDone
-		} else { //nolint:revive
-			return killErr
-		}
-	}
+	setKillTree(cmd)
 	cmd.Env = filterEnv(os.Environ(), "VIRTUAL_ENV")
 
 	// Pass concurrency as max workers for the Python thread pool.
