@@ -244,7 +244,7 @@ export function TasksTab() {
                   [
                     ['file_title', t('tasks.colFileTitle'), ''],
                     ['status', t('status.colStatus'), 'w-[140px]'],
-                    ['attempts', t('status.colAttempts'), 'w-[100px]'],
+                    ['attempts', t('status.colAttempts'), 'w-[120px]'],
                     ['updated_at', t('status.colUpdated'), 'w-[140px]'],
                   ] as [SortKey, string, string][]
                 ).map(([key, label, widthCls]) => (
