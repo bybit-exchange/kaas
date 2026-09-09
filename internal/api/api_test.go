@@ -53,6 +53,12 @@ type fakeStore struct {
 	tasks     []*store.Task
 	getErr    error
 	deleteErr error
+
+	// BuildJobStore fields
+	buildJobs           []*store.BuildJob
+	buildJobGetErr      error
+	buildJobDeleteErr   error
+	createdBuildJobs    []*store.BuildJob // tracks all CreateBuildJob calls
 }
 
 func (f *fakeStore) GetTask(ctx context.Context, id string) (*store.Task, error) {
@@ -116,6 +122,82 @@ func (f *fakeStore) ListTasksByBuildJob(ctx context.Context, buildJobID string) 
 		}
 	}
 	return out, nil
+}
+
+// --- BuildJobStore methods ---
+
+func (f *fakeStore) CreateBuildJob(_ context.Context, j *store.BuildJob) error {
+	f.buildJobs = append(f.buildJobs, j)
+	f.createdBuildJobs = append(f.createdBuildJobs, j)
+	return nil
+}
+
+func (f *fakeStore) GetBuildJob(_ context.Context, id string) (*store.BuildJob, error) {
+	if f.buildJobGetErr != nil {
+		return nil, f.buildJobGetErr
+	}
+	for _, j := range f.buildJobs {
+		if j.ID == id {
+			return j, nil
+		}
+	}
+	return nil, store.ErrNotFound
+}
+
+func (f *fakeStore) ListBuildJobsPaged(_ context.Context, filter store.BuildJobListFilter) (*store.BuildJobListResult, error) {
+	var matched []*store.BuildJob
+	q := strings.ToLower(filter.Query)
+	for _, j := range f.buildJobs {
+		if filter.Status != "" && j.Status != filter.Status {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(j.Title), q) {
+			continue
+		}
+		matched = append(matched, j)
+	}
+	total := len(matched)
+	if filter.Offset > 0 && filter.Offset < len(matched) {
+		matched = matched[filter.Offset:]
+	} else if filter.Offset >= len(matched) {
+		matched = nil
+	}
+	if filter.Limit > 0 && filter.Limit < len(matched) {
+		matched = matched[:filter.Limit]
+	}
+	return &store.BuildJobListResult{Jobs: matched, Total: total}, nil
+}
+
+func (f *fakeStore) DeleteBuildJob(_ context.Context, id string) error {
+	if f.buildJobDeleteErr != nil {
+		return f.buildJobDeleteErr
+	}
+	for i, j := range f.buildJobs {
+		if j.ID == id {
+			f.buildJobs = append(f.buildJobs[:i], f.buildJobs[i+1:]...)
+			return nil
+		}
+	}
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) UpdateBuildJobFileCount(_ context.Context, id string, count int, now int64) error {
+	for _, j := range f.buildJobs {
+		if j.ID == id {
+			j.FileCount = count
+			j.UpdatedAt = now
+			return nil
+		}
+	}
+	return store.ErrNotFound
+}
+
+func (f *fakeStore) RefreshBuildJobStatuses(_ context.Context, _ int64) error {
+	return nil
+}
+
+func (f *fakeStore) RefreshBuildJobStatus(_ context.Context, _ string, _ int64) error {
+	return nil
 }
 
 type fakeBridge struct {
