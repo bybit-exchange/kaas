@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useShallow } from 'zustand/shallow'
@@ -23,6 +23,8 @@ export function Chat() {
   // Chat page has its own independent KB selection.
   const chatKB = useKB((s) => s.chatKB)
   const kbSlugForAPI = chatKB ?? ''
+
+  const [isSending, setIsSending] = useState(false)
 
   // --- Store selectors ---
   const sessions = useChatStore((state) => state.sessions)
@@ -107,6 +109,7 @@ export function Chat() {
   }, [])
 
   const handleStop = useCallback(() => {
+    setIsSending(false)
     if (!sessionId) return
     const store = useChatStore.getState()
     const ss = store.sessionStates[sessionId]
@@ -169,6 +172,7 @@ export function Chat() {
 
   const handleSend = useCallback(
     async (query: string) => {
+      setIsSending(true)
       const store = useChatStore.getState()
 
       // Determine or create session
@@ -183,6 +187,7 @@ export function Chat() {
           store.setMessagesLoaded(currentSessionId, true)
           navigate('/chat/' + session.id)
         } catch {
+          setIsSending(false)
           toast.error(t('chat.errorCreateSession'))
           return
         }
@@ -203,6 +208,7 @@ export function Chat() {
       // Create new AbortController
       const controller = new AbortController()
       store.beginStream(targetSessionId, controller)
+      setIsSending(false)
 
       // Optimistic user message
       const userMsg: ChatMessage = { role: 'user', content: query }
@@ -349,14 +355,15 @@ export function Chat() {
           streamingStatusEntries={streamState.streaming ? streamState.statusEntries : undefined}
           streamingPhase={streamState.phase}
           isStreaming={streamState.streaming}
+          isSending={isSending}
         />
 
         <MessageInput
           ref={inputRef}
           onSend={handleSend}
           onStop={handleStop}
-          streaming={streamState.streaming}
-          disabled={streamState.streaming}
+          streaming={streamState.streaming || isSending}
+          disabled={streamState.streaming || isSending}
           draft={inputDraft}
           onDraftChange={(v) => {
             if (sessionId) {
