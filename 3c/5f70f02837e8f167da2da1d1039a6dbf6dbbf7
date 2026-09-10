@@ -1,0 +1,49 @@
+web/src/api/sessions.ts
+  61e84bf581a95ce6 7,23-25,30,33
+web/src/features/chat/SessionList.test.tsx
+  61e84bf581a95ce6 18
+web/src/store/kb.ts
+  61e84bf581a95ce6 7-8,10,24,26
+web/src/lib/groupSessionsByDate.test.ts
+  61e84bf581a95ce6 12
+web/src/pages/Chat.test.tsx
+  61e84bf581a95ce6 21,26,91,156,225-226,255-256,295
+web/src/api/sessions.test.ts
+  61e84bf581a95ce6 18,87,104
+web/src/store/chat.test.ts
+  61e84bf581a95ce6 17
+internal/api/session_errors_test.go
+  61e84bf581a95ce6 30
+internal/store/session.go
+  61e84bf581a95ce6 7-9
+internal/store/sqlite/errors_test.go
+  61e84bf581a95ce6 87
+web/src/i18n/strings.ts
+  61e84bf581a95ce6 73,256
+internal/api/session.go
+  61e84bf581a95ce6 19,104-109
+internal/store/sqlite/session.go
+  61e84bf581a95ce6 43-55,61-62,69-81,90,100,102
+internal/store/sqlite/session_test.go
+  61e84bf581a95ce6 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "3c5f70f02837e8f167da2da1d1039a6dbf6dbbf7",
+  "prompts": {
+    "61e84bf581a95ce6": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a089bb-11bf-702f-aede-a152dbd83675",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 72,
+      "total_deletions": 31,
+      "accepted_lines": 72,
+      "overriden_lines": 0
+    }
+  }
+}
