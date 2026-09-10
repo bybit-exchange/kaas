@@ -1,0 +1,40 @@
+py/src/kb_ai/core/classify.py
+  f407a41eff9bc614 128,299-324,326
+py/tests/test_core_classify_scoring.py
+  f407a41eff9bc614 27,32-36,80-95,354-381
+py/tests/test_core_classify.py
+  f407a41eff9bc614 32-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "29a0991b8fa03da0e08a1ac9d48cce1efa6c488d",
+  "prompts": {
+    "6b8ba70a4b3de3c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08a33-4f7d-7725-b912-288e8f92a9f4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 89,
+      "total_deletions": 48,
+      "accepted_lines": 243,
+      "overriden_lines": 0
+    },
+    "f407a41eff9bc614": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08b1d-8eb4-79cd-99c2-34d9da9e83a3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 81,
+      "total_deletions": 5,
+      "accepted_lines": 80,
+      "overriden_lines": 0
+    }
+  }
+}
