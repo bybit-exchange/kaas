@@ -295,6 +295,81 @@ func TestRunnerOmitsFilterRoundsZero(t *testing.T) {
 	}
 }
 
+// TestRunnerForwardsFilterThreshold pins that Config.FilterThreshold=0.5 reaches
+// the bridge as an explicit *float64 pointing to 0.5.
+func TestRunnerForwardsFilterThreshold(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterThreshold: 0.5,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterThreshold == nil {
+		t.Fatal("req.FilterThreshold is nil, want ptr to 0.5")
+	}
+	if *br.req.FilterThreshold != 0.5 {
+		t.Errorf("req.FilterThreshold = %g, want 0.5", *br.req.FilterThreshold)
+	}
+}
+
+// TestRunnerOmitsFilterThresholdZero pins that Config.FilterThreshold=0 (engine
+// default) reaches the bridge as nil, so the key is absent from JSON.
+func TestRunnerOmitsFilterThresholdZero(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterThreshold: 0,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterThreshold != nil {
+		t.Errorf("req.FilterThreshold = %v, want nil for engine default", br.req.FilterThreshold)
+	}
+}
+
 func TestRunnerRunsAPendingJobToSuccess(t *testing.T) {
 	js := newFakeJobStore(&store.DerivedJob{
 		ID: "j1", Slug: "pricing", Topic: "pricing and fees", Model: "",

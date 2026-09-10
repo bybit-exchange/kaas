@@ -386,10 +386,12 @@ def _handle_derive(request_id: str, payload: dict) -> None:
 
     select_from = inner.get("select_from") or "articles"
 
-    # Pass only when explicitly provided; let derive_kb() apply its default of 3.
+    # Pass only when explicitly provided; let derive_kb() apply its defaults.
     derive_kw: dict = {}
     if inner.get("filter_rounds") is not None:
         derive_kw["filter_rounds"] = inner["filter_rounds"]
+    if inner.get("filter_threshold") is not None:
+        derive_kw["filter_threshold"] = inner["filter_threshold"]
 
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)

@@ -20,6 +20,9 @@ func boolPtr(b bool) *bool { return &b }
 
 // intPtr returns a pointer to the given int, useful for *int struct fields.
 func intPtr(n int) *int { return &n }
+
+// float64Ptr returns a pointer to the given float64, useful for *float64 struct fields.
+func float64Ptr(f float64) *float64 { return &f }
 //
 // The DaemonClient methods are thin wrappers over daemon.call / daemon.stream.
 // To exercise them without spawning Python, a scriptedDaemon replaces the
@@ -997,5 +1000,38 @@ func TestDeriveOmitsNilFilterRounds(t *testing.T) {
 	}
 	if bytes.Contains(fake.lastPayload, []byte("filter_rounds")) {
 		t.Errorf("payload = %s, want no filter_rounds key when FilterRounds is nil", fake.lastPayload)
+	}
+}
+
+// TestDeriveCarriesExplicitFilterThreshold pins that *float64(0.5) is serialized correctly.
+func TestDeriveCarriesExplicitFilterThreshold(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", FilterThreshold: float64Ptr(0.5),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.FilterThreshold == nil || *sent.FilterThreshold != 0.5 {
+		t.Errorf("sent.FilterThreshold = %v, want ptr to 0.5", sent.FilterThreshold)
+	}
+}
+
+// TestDeriveOmitsNilFilterThreshold asserts that a nil FilterThreshold is absent
+// from the JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilFilterThreshold(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("filter_threshold")) {
+		t.Errorf("payload = %s, want no filter_threshold key when FilterThreshold is nil", fake.lastPayload)
 	}
 }

@@ -37,6 +37,10 @@ type DeriveConf struct {
 	// FilterRounds is the number of LLM voting rounds for the topic filter.
 	// 1 = no voting, 3 = default. 0 means "use engine default" (currently 3).
 	FilterRounds int `json:"filter_rounds,default=3"`
+	// FilterThreshold is the fraction of rounds a path must be selected in to
+	// pass the topic filter. Range (0, 1]. 0 means "use engine default"
+	// (currently 2/3 ≈ 0.67). Override with KAAS_DERIVE_FILTER_THRESHOLD.
+	FilterThreshold float64 `json:"filter_threshold,default=0"`
 }
 
 // LogConf configures structured logging output.
@@ -248,6 +252,19 @@ func envInt(name string) (int, bool) {
 	return n, true
 }
 
+func envFloat64(name string) (float64, bool) {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		log.Printf("[config] invalid %s=%q, ignoring (must be a number)", name, v)
+		return 0, false
+	}
+	return f, true
+}
+
 // applyEnvOverrides lets a few environment variables override file values, so
 // the same kaas.toml works in a container without baking deployment topology,
 // secrets, or tuning knobs into it. A set-but-empty var is treated as unset
@@ -325,6 +342,13 @@ func applyEnvOverrides(c *Config) error {
 			c.Derive.FilterRounds = n
 		} else {
 			log.Printf("[config] invalid KAAS_DERIVE_FILTER_ROUNDS=%d, ignoring (must be >= 0)", n)
+		}
+	}
+	if f, ok := envFloat64("KAAS_DERIVE_FILTER_THRESHOLD"); ok {
+		if f >= 0 && f <= 1 {
+			c.Derive.FilterThreshold = f
+		} else {
+			log.Printf("[config] invalid KAAS_DERIVE_FILTER_THRESHOLD=%g, ignoring (must be in [0, 1])", f)
 		}
 	}
 	return nil

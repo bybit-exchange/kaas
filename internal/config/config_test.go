@@ -1145,3 +1145,130 @@ filter_rounds = 5
 		}
 	})
 }
+
+// TestDeriveFilterThresholdDefaultZero confirms the default=0 tag fires when
+// the [derive] section is absent.
+func TestDeriveFilterThresholdDefaultZero(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterThreshold != 0 {
+		t.Errorf("derive.filter_threshold = %g, want 0 when [derive] is absent", c.Derive.FilterThreshold)
+	}
+}
+
+// TestDeriveFilterThresholdFromFile confirms an explicit TOML value overrides the default.
+func TestDeriveFilterThresholdFromFile(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterThreshold != 0.5 {
+		t.Errorf("derive.filter_threshold = %g, want 0.5", c.Derive.FilterThreshold)
+	}
+}
+
+// TestDeriveFilterThresholdEnvOverride confirms KAAS_DERIVE_FILTER_THRESHOLD
+// overrides the file value, and that invalid values warn and fall back.
+func TestDeriveFilterThresholdEnvOverride(t *testing.T) {
+	t.Run("env overrides file", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "0.8")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.8 {
+			t.Errorf("derive.filter_threshold = %g, want 0.8 from env override", c.Derive.FilterThreshold)
+		}
+	})
+
+	t.Run("out-of-range env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "1.5")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (file value) when env is out of range", c.Derive.FilterThreshold)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_THRESHOLD") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_THRESHOLD; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("non-numeric env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "half")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (file value) when env is invalid", c.Derive.FilterThreshold)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_THRESHOLD") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_THRESHOLD; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("empty env does not override", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (empty env must not clobber)", c.Derive.FilterThreshold)
+		}
+	})
+}

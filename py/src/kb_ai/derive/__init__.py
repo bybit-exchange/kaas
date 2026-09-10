@@ -130,6 +130,7 @@ def derive_kb(
     extract_strategy: str = STRATEGY_CHUNKED,
     summarize_model: str = "",
     filter_rounds: int = 3,
+    filter_threshold: float = 0.0,
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
     approve: Callable[[DeriveReport], bool] | None = None,
@@ -177,7 +178,8 @@ def derive_kb(
     if select is None:
         def select(catalog, topic_, mode):  # noqa: F811 -- late default
             return select_by_topic(catalog, topic_, mode, model=model,
-                                   filter_rounds=filter_rounds)
+                                   filter_rounds=filter_rounds,
+                                   filter_threshold=filter_threshold)
     if compile_fn is None:
         from kb_ai.commands.compile import compile_kb as compile_fn  # noqa: F811
 

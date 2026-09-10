@@ -38,6 +38,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--filter-rounds", type=int, default=None,
                         help="number of LLM voting rounds for the topic filter "
                              "(default: 3; 1 = no voting)")
+    parser.add_argument("--filter-threshold", type=float, default=None,
+                        help="fraction of rounds a path must be selected in to pass "
+                             "(range (0, 1]; default: 2/3 \u2248 0.67)")
     parser.add_argument("--select-from", choices=["articles", "documents"],
                         default="articles", dest="select_from",
                         help="which catalog to filter: 'articles' uses the compiled "
@@ -87,10 +90,12 @@ def run_derive(argv: list[str]) -> None:
     args = build_parser().parse_args(argv)
     model = args.model or os.environ.get("LLM_MODEL") or _DEFAULT_MODEL
 
-    # Pass only when explicitly provided; let derive_kb() apply its default of 3.
+    # Pass only when explicitly provided; let derive_kb() apply its defaults.
     derive_kw: dict = {}
     if args.filter_rounds is not None:
         derive_kw["filter_rounds"] = args.filter_rounds
+    if args.filter_threshold is not None:
+        derive_kw["filter_threshold"] = args.filter_threshold
 
     try:
         report = derive_kb(

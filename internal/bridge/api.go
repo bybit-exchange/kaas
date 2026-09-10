@@ -170,6 +170,10 @@ type DeriveRequest struct {
 	// Pointer so an explicit value is serialized; nil lets the engine use its
 	// own default (currently 3).
 	FilterRounds *int `json:"filter_rounds,omitempty"`
+	// FilterThreshold is the fraction of rounds a path must be selected in.
+	// Pointer so an explicit value is serialized; nil lets the engine use its
+	// own default (currently 2/3).
+	FilterThreshold *float64 `json:"filter_threshold,omitempty"`
 }
 
 // DeriveResponse mirrors the derive command's success payload. Stored verbatim

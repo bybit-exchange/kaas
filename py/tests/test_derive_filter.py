@@ -321,3 +321,92 @@ def test_voting_with_multiple_batches(monkeypatch):
     assert result.batches > 1
     # Every path gets at least 2/3 votes (threshold=2), so all are retained.
     assert sorted(result.paths) == sorted(all_paths)
+
+
+# ---------------------------------------------------------------------------
+# filter_threshold tests
+# ---------------------------------------------------------------------------
+
+
+def test_custom_threshold_simple_majority(monkeypatch):
+    """filter_threshold=0.5 with 5 rounds → threshold=3; path with 3/5 passes."""
+    catalog = _catalog(3)
+    a, b, c = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a, b, c]},  # round 1
+        {"paths": [a, b]},     # round 2
+        {"paths": [a, b]},     # round 3
+        {"paths": [a]},        # round 4
+        {"paths": [a]},        # round 5
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=5),
+    )
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=5, filter_threshold=0.5)
+    # ceil(5 * 0.5) = 3 → A(5) ✓, B(3) ✓, C(1) ✗
+    assert a in result.paths
+    assert b in result.paths
+    assert c not in result.paths
+
+
+def test_custom_threshold_strict(monkeypatch):
+    """filter_threshold=0.8 with 5 rounds → threshold=4; path with 3/5 excluded."""
+    catalog = _catalog(2)
+    a, b = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a, b]},  # round 1
+        {"paths": [a, b]},  # round 2
+        {"paths": [a, b]},  # round 3
+        {"paths": [a]},     # round 4
+        {"paths": [a]},     # round 5
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=5),
+    )
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=5, filter_threshold=0.8)
+    # ceil(5 * 0.8) = 4 → A(5) ✓, B(3) ✗
+    assert result.paths == [a]
+
+
+def test_threshold_zero_uses_default_supermajority(monkeypatch):
+    """filter_threshold=0 (default) falls back to ceil(2N/3)."""
+    catalog = _catalog(3)
+    a, b, c = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a, b, c]},
+        {"paths": [a, b]},
+        {"paths": [a]},
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=3, filter_threshold=0.0)
+    # ceil(3 * 2/3) = 2 → A(3) ✓, B(2) ✓, C(1) ✗
+    assert a in result.paths
+    assert b in result.paths
+    assert c not in result.paths
+
+
+def test_threshold_one_requires_unanimity(monkeypatch):
+    """filter_threshold=1.0 with 3 rounds → all 3 must agree."""
+    catalog = _catalog(2)
+    a, b = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a, b]},
+        {"paths": [a, b]},
+        {"paths": [a]},     # B missing from round 3
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=3, filter_threshold=1.0)
+    # ceil(3 * 1.0) = 3 → A(3) ✓, B(2) ✗
+    assert result.paths == [a]

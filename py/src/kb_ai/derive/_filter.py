@@ -97,7 +97,8 @@ def pack_batches(catalog: list[ArticleMeta],
 
 def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
                     *, model: str,
-                    filter_rounds: int = 3) -> SelectionResult:
+                    filter_rounds: int = 3,
+                    filter_threshold: float = 0.0) -> SelectionResult:
     """Every catalog path the model judged part of the topic (A1-A8).
 
     Uncapped, filtered to catalog membership, de-duplicated preserving first-seen
@@ -113,8 +114,12 @@ def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
     if not catalog:
         return SelectionResult(paths=[], batches=0, dropped_invented=0, skipped=[])
 
-    # supermajority: at least ⌈2N/3⌉ rounds must select a path
-    threshold = math.ceil(filter_rounds * 2 / 3)
+    # Acceptance threshold: when filter_threshold is provided (> 0), use it;
+    # otherwise fall back to the supermajority formula ⌈2N/3⌉.
+    if filter_threshold > 0:
+        threshold = math.ceil(filter_rounds * filter_threshold)
+    else:
+        threshold = math.ceil(filter_rounds * 2 / 3)
 
     valid = {a.path for a in catalog}
     budget = MAX_PROMPT_CHARS - len(build_prompt(topic, mode, "")) - _SAFETY_MARGIN
