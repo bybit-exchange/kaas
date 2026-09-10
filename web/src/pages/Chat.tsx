@@ -312,7 +312,6 @@ export function Chat() {
       <SessionList
         sessions={sessions}
         activeSessionId={sessionId}
-        kbSlug={chatKB}
         onKBChange={handleKBChange}
         onNewChat={handleNewChat}
         onSelect={handleSelectSession}

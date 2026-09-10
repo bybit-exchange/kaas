@@ -21,7 +21,6 @@ import { ChatKBSelector } from '@/features/chat/ChatKBSelector'
 export interface SessionListProps {
   sessions: Session[]
   activeSessionId?: string
-  kbSlug: string | null
   onKBChange: () => void
   onNewChat: () => void
   onSelect: (id: string) => void
@@ -40,7 +39,6 @@ const GROUP_LABEL_KEYS: Record<DateGroup, string> = {
 export function SessionList({
   sessions,
   activeSessionId,
-  kbSlug: _kbSlug,
   onKBChange,
   onNewChat,
   onSelect,
