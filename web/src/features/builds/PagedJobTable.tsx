@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
-import { Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
+import { Eye, Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 const PAGE_SIZE = 10
 type SortDir = 'asc' | 'desc'
@@ -308,7 +308,7 @@ export function PagedJobTable<
                     </span>
                   </th>
                 ))}
-                <th className="w-[80px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
+                <th className="w-[120px] px-4 py-3 font-medium">{t('tasks.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -316,10 +316,9 @@ export function PagedJobTable<
                 <tr
                   key={job.id}
                   className={cn(
-                    'cursor-pointer border-b transition-colors last:border-0 hover:bg-muted/50',
+                    'border-b transition-colors last:border-0 hover:bg-muted/50',
                     job.status === 'failed' && 'border-l-4 border-l-destructive',
                   )}
-                  onClick={() => handleRowClick(job)}
                 >
                   {columns.map((col) => (
                     <td
@@ -334,6 +333,18 @@ export function PagedJobTable<
                   ))}
                   <td className="whitespace-nowrap px-4 py-3">
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRowClick(job)
+                        }}
+                      >
+                        <Eye className="mr-1 h-3.5 w-3.5" />
+                        {t('tasks.viewDetail')}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

@@ -444,7 +444,7 @@ describe('BuildJobsTab', () => {
       await renderTab()
 
       const row = screen.getByText('My Build Job').closest('tr')!
-      fireEvent.click(row)
+      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
       await flushPromises()
 
       expect(mockGetBuildJob).toHaveBeenCalledWith('bj-1')
@@ -458,7 +458,7 @@ describe('BuildJobsTab', () => {
       await renderTab()
 
       const row = screen.getByText('My Build Job').closest('tr')!
-      fireEvent.click(row)
+      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
       await flushPromises()
 
       expect(mockToast.error).toHaveBeenCalledWith('detail unavailable')

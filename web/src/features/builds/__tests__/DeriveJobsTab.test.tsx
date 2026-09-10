@@ -442,7 +442,7 @@ describe('DeriveJobsTab', () => {
       await renderTab()
 
       const row = screen.getByText('pricing and fees').closest('tr')!
-      fireEvent.click(row)
+      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
       await flushPromises()
 
       expect(mockGetDeriveJob).toHaveBeenCalledWith('dj-1')
@@ -456,7 +456,7 @@ describe('DeriveJobsTab', () => {
       await renderTab()
 
       const row = screen.getByText('pricing and fees').closest('tr')!
-      fireEvent.click(row)
+      fireEvent.click(within(row).getByRole('button', { name: 'Detail' }))
       await flushPromises()
 
       expect(mockToast.error).toHaveBeenCalledWith('detail unavailable')
