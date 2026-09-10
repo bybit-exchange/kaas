@@ -76,6 +76,7 @@ MANIFEST_SCHEMA_VERSION = 1
 
 
 def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
+                      filter_rounds: int,
                       created_at: str, sources_by_article: dict[str, list[str]],
                       titles_by_path: dict[str, str],
                       select_from: str) -> dict:
@@ -87,6 +88,7 @@ def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
         "slug": report.slug,
         "created_at": created_at,
         "filter_model": model,
+        "filter_rounds": filter_rounds,
         # Which catalog the run filtered over. Additive, so schema_version stays
         # at 1: a reader that predates it sees the same keys it already knew, and
         # selected_articles is still empty exactly when no article was selected.
@@ -127,6 +129,7 @@ def derive_kb(
     model: str,
     extract_strategy: str = STRATEGY_CHUNKED,
     summarize_model: str = "",
+    filter_rounds: int = 3,
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
     approve: Callable[[DeriveReport], bool] | None = None,
@@ -173,7 +176,8 @@ def derive_kb(
 
     if select is None:
         def select(catalog, topic_, mode):  # noqa: F811 -- late default
-            return select_by_topic(catalog, topic_, mode, model=model)
+            return select_by_topic(catalog, topic_, mode, model=model,
+                                   filter_rounds=filter_rounds)
     if compile_fn is None:
         from kb_ai.commands.compile import compile_kb as compile_fn  # noqa: F811
 
@@ -246,7 +250,9 @@ def derive_kb(
 
     def flush() -> None:
         write_manifest(derived_dir, _manifest_payload(
-            report, source_kb=source, model=model, created_at=created_at,
+            report, source_kb=source, model=model,
+            filter_rounds=filter_rounds,
+            created_at=created_at,
             sources_by_article=sources_by_article, titles_by_path=titles_by_path,
             select_from=select_from))
 

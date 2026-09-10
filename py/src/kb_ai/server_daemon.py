@@ -386,6 +386,11 @@ def _handle_derive(request_id: str, payload: dict) -> None:
 
     select_from = inner.get("select_from") or "articles"
 
+    # Pass only when explicitly provided; let derive_kb() apply its default of 3.
+    derive_kw: dict = {}
+    if inner.get("filter_rounds") is not None:
+        derive_kw["filter_rounds"] = inner["filter_rounds"]
+
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)
     try:
@@ -407,6 +412,7 @@ def _handle_derive(request_id: str, payload: dict) -> None:
                              or os.environ.get("LLM_MODEL", "")),
             approve=None,
             reorganize=inner.get("reorganize", True),
+            **derive_kw,
         )
     except KBError as e:
         _respond_error(request_id, e.code, str(e))
