@@ -40,23 +40,45 @@ func (s *Store) migrateSessionSchema(ctx context.Context) error {
 	if err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		return fmt.Errorf("migrate chat_messages add reasoning: %w", err)
 	}
+
+	// Add kb_slug column (idempotent: ignore "duplicate column name" error).
+	_, err = s.db.ExecContext(ctx,
+		`ALTER TABLE chat_sessions ADD COLUMN kb_slug TEXT NOT NULL DEFAULT ''`)
+	if err != nil && !strings.Contains(err.Error(), "duplicate column") {
+		return fmt.Errorf("migrate chat_sessions add kb_slug: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx,
+		`CREATE INDEX IF NOT EXISTS idx_sessions_kb_slug ON chat_sessions(kb_slug)`)
+	if err != nil {
+		return fmt.Errorf("migrate chat_sessions add idx_sessions_kb_slug: %w", err)
+	}
+
 	return nil
 }
 
 // CreateSession inserts a new chat session.
 func (s *Store) CreateSession(ctx context.Context, sess *store.Session) error {
-	const q = `INSERT INTO chat_sessions (id, title, created_at, updated_at) VALUES (?, ?, ?, ?)`
-	_, err := s.db.ExecContext(ctx, q, sess.ID, sess.Title, sess.CreatedAt, sess.UpdatedAt)
+	const q = `INSERT INTO chat_sessions (id, title, kb_slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`
+	_, err := s.db.ExecContext(ctx, q, sess.ID, sess.Title, sess.KBSlug, sess.CreatedAt, sess.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("create session: %w", err)
 	}
 	return nil
 }
 
-// ListSessions returns all sessions ordered by updated_at DESC.
-func (s *Store) ListSessions(ctx context.Context) ([]*store.Session, error) {
-	const q = `SELECT id, title, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC`
-	rows, err := s.db.QueryContext(ctx, q)
+// ListSessions returns sessions ordered by updated_at DESC.
+// When kbSlug is nil, all sessions are returned (no filter).
+// When kbSlug points to a string, only sessions matching that kb_slug are returned.
+func (s *Store) ListSessions(ctx context.Context, kbSlug *string) ([]*store.Session, error) {
+	var rows *sql.Rows
+	var err error
+	if kbSlug != nil {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, title, kb_slug, created_at, updated_at FROM chat_sessions WHERE kb_slug = ? ORDER BY updated_at DESC`, *kbSlug)
+	} else {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, title, kb_slug, created_at, updated_at FROM chat_sessions ORDER BY updated_at DESC`)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("list sessions: %w", err)
 	}
@@ -65,7 +87,7 @@ func (s *Store) ListSessions(ctx context.Context) ([]*store.Session, error) {
 	var out []*store.Session
 	for rows.Next() {
 		var sess store.Session
-		if err := rows.Scan(&sess.ID, &sess.Title, &sess.CreatedAt, &sess.UpdatedAt); err != nil {
+		if err := rows.Scan(&sess.ID, &sess.Title, &sess.KBSlug, &sess.CreatedAt, &sess.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("list sessions scan: %w", err)
 		}
 		out = append(out, &sess)
@@ -75,9 +97,9 @@ func (s *Store) ListSessions(ctx context.Context) ([]*store.Session, error) {
 
 // GetSession returns a session by id, or store.ErrNotFound.
 func (s *Store) GetSession(ctx context.Context, id string) (*store.Session, error) {
-	const q = `SELECT id, title, created_at, updated_at FROM chat_sessions WHERE id = ?`
+	const q = `SELECT id, title, kb_slug, created_at, updated_at FROM chat_sessions WHERE id = ?`
 	var sess store.Session
-	err := s.db.QueryRowContext(ctx, q, id).Scan(&sess.ID, &sess.Title, &sess.CreatedAt, &sess.UpdatedAt)
+	err := s.db.QueryRowContext(ctx, q, id).Scan(&sess.ID, &sess.Title, &sess.KBSlug, &sess.CreatedAt, &sess.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, store.ErrNotFound
 	}

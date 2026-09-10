@@ -16,7 +16,7 @@ import (
 // polluting queue/worker consumers that don't care about sessions.
 type SessionStore interface {
 	CreateSession(ctx context.Context, s *store.Session) error
-	ListSessions(ctx context.Context) ([]*store.Session, error)
+	ListSessions(ctx context.Context, kbSlug *string) ([]*store.Session, error)
 	GetSession(ctx context.Context, id string) (*store.Session, error)
 	UpdateSessionTitle(ctx context.Context, id, title string, now int64) error
 	DeleteSession(ctx context.Context, id string) error
@@ -101,7 +101,12 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 // handleListSessions serves GET /api/sessions.
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	sessions, err := s.ss.ListSessions(r.Context())
+	var kbFilter *string
+	if r.URL.Query().Has("kb") {
+		v := r.URL.Query().Get("kb")
+		kbFilter = &v
+	}
+	sessions, err := s.ss.ListSessions(r.Context(), kbFilter)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list sessions: "+err.Error())
 		return

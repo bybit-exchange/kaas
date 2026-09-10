@@ -59,7 +59,7 @@ func TestSessionListOrder(t *testing.T) {
 	_ = s.CreateSession(ctx, &store.Session{ID: "new", Title: "new", CreatedAt: 200, UpdatedAt: 300})
 	_ = s.CreateSession(ctx, &store.Session{ID: "mid", Title: "mid", CreatedAt: 150, UpdatedAt: 200})
 
-	list, err := s.ListSessions(ctx)
+	list, err := s.ListSessions(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListSessions: %v", err)
 	}

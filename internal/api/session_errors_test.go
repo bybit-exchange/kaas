@@ -27,7 +27,7 @@ type stubSessionStore struct {
 
 func (s *stubSessionStore) CreateSession(context.Context, *store.Session) error { return s.createErr }
 
-func (s *stubSessionStore) ListSessions(context.Context) ([]*store.Session, error) {
+func (s *stubSessionStore) ListSessions(_ context.Context, _ *string) ([]*store.Session, error) {
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
