@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/bybit-exchange/kaas/internal/store"
 )
@@ -190,49 +189,26 @@ func (s *Store) ListDerivedJobsPaged(ctx context.Context, f store.DerivedJobList
 		args = append(args, pattern, pattern)
 	}
 
-	var whereClause string
-	if len(where) > 0 {
-		whereClause = ` WHERE ` + strings.Join(where, ` AND `)
+	pq, err := buildPagedQuery(ctx, s.db, pagedQueryConfig{
+		Table:   "derived_jobs",
+		Columns: derivedJobColumns,
+		Where:   where,
+		Args:    args,
+		AllowedSort: map[string]string{
+			"topic": "topic", "slug": "slug", "status": "status",
+			"stage": "stage", "created_at": "created_at", "updated_at": "updated_at",
+		},
+		DefaultSort: "created_at",
+		SortBy:      f.SortBy,
+		SortDir:     f.SortDir,
+		Limit:       f.Limit,
+		Offset:      f.Offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list derived jobs paged: %w", err)
 	}
 
-	// Count total matching rows.
-	countQ := `SELECT COUNT(*) FROM derived_jobs` + whereClause
-	var total int
-	if err := s.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
-		return nil, fmt.Errorf("list derived jobs paged count: %w", err)
-	}
-
-	// Determine sort column and direction.
-	allowedSort := map[string]string{
-		"topic":      "topic",
-		"slug":       "slug",
-		"status":     "status",
-		"stage":      "stage",
-		"created_at": "created_at",
-		"updated_at": "updated_at",
-	}
-	sortCol := "created_at"
-	if col, ok := allowedSort[f.SortBy]; ok {
-		sortCol = col
-	}
-	sortDir := "DESC"
-	if f.SortDir == "asc" {
-		sortDir = "ASC"
-	}
-
-	// Fetch the page.
-	selectQ := `SELECT ` + derivedJobColumns + ` FROM derived_jobs` + whereClause + ` ORDER BY ` + sortCol + ` ` + sortDir + `, id DESC`
-	selectArgs := append([]any{}, args...)
-	if f.Limit > 0 {
-		selectQ += ` LIMIT ?`
-		selectArgs = append(selectArgs, f.Limit)
-	}
-	if f.Offset > 0 {
-		selectQ += ` OFFSET ?`
-		selectArgs = append(selectArgs, f.Offset)
-	}
-
-	rows, err := s.db.QueryContext(ctx, selectQ, selectArgs...)
+	rows, err := s.db.QueryContext(ctx, pq.RowsSQL, pq.RowsArgs...)
 	if err != nil {
 		return nil, fmt.Errorf("list derived jobs paged: %w", err)
 	}
@@ -249,7 +225,7 @@ func (s *Store) ListDerivedJobsPaged(ctx context.Context, f store.DerivedJobList
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("list derived jobs paged rows: %w", err)
 	}
-	return &store.DerivedJobListResult{Jobs: jobs, Total: total}, nil
+	return &store.DerivedJobListResult{Jobs: jobs, Total: pq.Total}, nil
 }
 
 // DeleteDerivedJob removes a terminal derive job (succeeded or failed).
