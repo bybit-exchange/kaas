@@ -125,7 +125,7 @@ def _relevance_score(article: ArticleMeta, topics: list) -> float:
         return 0.0
     topic_words: set[str] = set()
     for t in topics:
-        topic_words.update(re.sub(r'[^a-zA-Z0-9\s]', '', str(t).lower()).split())
+        topic_words.update(_tokenize(str(t)))
     if not topic_words:
         return 0.0
     return len(title_words & topic_words) / min(len(title_words), len(topic_words))
@@ -296,8 +296,34 @@ def classify_article(
     return ClassificationResult.from_dict(raw)
 
 
+# CJK Unified Ideographs + Extension A.  Kept as module-level constants so the
+# patterns are compiled once.
+_CJK_RE = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf]+')
+_LATIN_RE = re.compile(r'[a-z0-9]+')
+
+
+def _tokenize(text: str) -> set[str]:
+    """Split *text* into a set of comparable tokens.
+
+    Latin runs are lowercased and split on every non-alphanumeric character,
+    producing whole-word tokens (``"sun-wukong"`` → ``{"sun", "wukong"}``).
+    CJK runs are split into **character bigrams**, which carry roughly the same
+    semantic density as a Latin word.  A single isolated CJK character is kept
+    as-is so that it is not silently dropped.
+    """
+    lowered = text.lower()
+    tokens: set[str] = set(_LATIN_RE.findall(lowered))
+    for run in _CJK_RE.findall(lowered):
+        if len(run) == 1:
+            tokens.add(run)
+        else:
+            for i in range(len(run) - 1):
+                tokens.add(run[i : i + 2])
+    return tokens
+
+
 def _title_words(title: str) -> set[str]:
-    return set(re.sub(r'[^a-zA-Z0-9\s]', '', title.lower()).split())
+    return _tokenize(title)
 
 
 def dedup_create_new(classification: ClassificationResult, existing: list[ArticleMeta]) -> ClassificationResult:
