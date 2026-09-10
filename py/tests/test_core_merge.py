@@ -1450,9 +1450,13 @@ def test_write_prompt_version_golden_hash():
     reported-never-gated (no re-extraction or rewrite cost). Any further edit
     that moves the hash must update this literal together with a justification
     here, mirroring the extract-side golden test.
+
+    p13-feat-004 added language directives to merge-rewrite.md, merge-section.md,
+    merge-diff.md, and _create_system() so that write-phase output matches the
+    source document language. Hash 7acff9f3067b -> fcebabbfdd5f.
     """
     mg.write_prompt_version.cache_clear()
-    assert mg.write_prompt_version() == "7acff9f3067b"
+    assert mg.write_prompt_version() == "fcebabbfdd5f"
 
 
 def test_write_stage_renderings_cover_the_two_section_prompts():

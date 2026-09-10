@@ -1514,6 +1514,7 @@ updated: {{date}}
 
 Write a well-structured article following the section guidance above.
 {_GROUNDING}
+Write the article in the same language as the source documents provided.
 
 The `summary` line is the article's entry in the knowledge-base catalog, which is
 the only surface a reader searches before opening anything. Write one sentence
