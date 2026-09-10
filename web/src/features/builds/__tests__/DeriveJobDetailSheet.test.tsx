@@ -1,10 +1,15 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
 import { DeriveJobDetailSheet } from '../DeriveJobDetailSheet'
 import type { DeriveJob } from '@/api/derived'
+
+vi.mock('@/api/wiki', () => ({
+  listWiki: vi.fn().mockResolvedValue({ tree: [] }),
+  fetchWikiArticle: vi.fn().mockResolvedValue({ path: '', title: '', content: '' }),
+}))
 
 const JOB: DeriveJob = {
   id: 'dj-1',
@@ -73,7 +78,7 @@ describe('DeriveJobDetailSheet', () => {
     expect(within(dialog).getByText('pricing and fees')).toBeInTheDocument()
     expect(within(dialog).getByText('pricing-fees')).toBeInTheDocument()
     expect(within(dialog).getByText('gpt-4o')).toBeInTheDocument()
-    expect(within(dialog).getByText('Articles')).toBeInTheDocument()
+    expect(within(dialog).getAllByText('Articles').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows em-dash for empty model', () => {
