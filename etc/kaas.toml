@@ -114,6 +114,9 @@ extract_strategy = "chunked"
 # the engine produces an aggregation plan that groups related extractions
 # before writing articles. Override with KAAS_DERIVE_REORGANIZE.
 reorganize = true
+# Number of LLM voting rounds for the topic filter (1 = no voting, 3 = default).
+# 0 means "use engine default" (currently 3). Override with KAAS_DERIVE_FILTER_ROUNDS.
+# filter_rounds = 3
 
 # --- Logging ---
 [log]

@@ -17,6 +17,9 @@ import (
 
 // boolPtr returns a pointer to the given bool, useful for *bool struct fields.
 func boolPtr(b bool) *bool { return &b }
+
+// intPtr returns a pointer to the given int, useful for *int struct fields.
+func intPtr(n int) *int { return &n }
 //
 // The DaemonClient methods are thin wrappers over daemon.call / daemon.stream.
 // To exercise them without spawning Python, a scriptedDaemon replaces the
@@ -844,7 +847,7 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 
 	got, err := c.Derive(context.Background(), DeriveRequest{
 		KBDir: "/kb", Topic: "pricing", Slug: "pricing", Force: true, Model: "m",
-		Reorganize: boolPtr(true),
+		Reorganize: boolPtr(true), FilterRounds: intPtr(5),
 	})
 	if err != nil {
 		t.Fatalf("Derive: %v", err)
@@ -861,6 +864,9 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	}
 	if sent.Reorganize == nil || *sent.Reorganize != true {
 		t.Errorf("sent.Reorganize = %v, want ptr to true", sent.Reorganize)
+	}
+	if sent.FilterRounds == nil || *sent.FilterRounds != 5 {
+		t.Errorf("sent.FilterRounds = %v, want ptr to 5", sent.FilterRounds)
 	}
 	if got.Slug != "pricing" || got.Documents != 3 || !got.Compiled {
 		t.Errorf("got = %+v", got)
@@ -958,5 +964,38 @@ func TestDeriveOmitsNilReorganize(t *testing.T) {
 	}
 	if bytes.Contains(fake.lastPayload, []byte("reorganize")) {
 		t.Errorf("payload = %s, want no reorganize key when Reorganize is nil", fake.lastPayload)
+	}
+}
+
+// TestDeriveCarriesExplicitFilterRounds pins that *int(5) is serialized correctly.
+func TestDeriveCarriesExplicitFilterRounds(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", FilterRounds: intPtr(5),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.FilterRounds == nil || *sent.FilterRounds != 5 {
+		t.Errorf("sent.FilterRounds = %v, want ptr to 5", sent.FilterRounds)
+	}
+}
+
+// TestDeriveOmitsNilFilterRounds asserts that a nil FilterRounds is absent from
+// the JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilFilterRounds(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("filter_rounds")) {
+		t.Errorf("payload = %s, want no filter_rounds key when FilterRounds is nil", fake.lastPayload)
 	}
 }

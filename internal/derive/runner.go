@@ -31,6 +31,7 @@ type Config struct {
 	PollInterval time.Duration // how often to look for a pending job
 	Timeout      time.Duration // ceiling for one derive call
 	Reorganize   bool          // forwarded to every DeriveRequest
+	FilterRounds int           // LLM voting rounds for the topic filter; 0 = engine default
 }
 
 // Runner claims pending derive jobs one at a time and drives them through the
@@ -128,6 +129,12 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 	defer cancel()
 
 	reorg := r.cfg.Reorganize
+	filterRounds := r.cfg.FilterRounds
+	// Only send if non-zero (0 means "use engine default").
+	var filterRoundsPtr *int
+	if filterRounds > 0 {
+		filterRoundsPtr = &filterRounds
+	}
 	resp, err := r.br.Derive(callCtx, bridge.DeriveRequest{
 		KBDir: r.cfg.KBDir,
 		Topic: job.Topic,
@@ -142,8 +149,9 @@ func (r *Runner) process(ctx context.Context, job *store.DerivedJob) {
 		// Forwarded verbatim, with no fallback of its own: unlike Model, the
 		// engine owns this default, so substituting one here would override a job
 		// that deliberately left it unset.
-		SelectFrom: job.SelectFrom,
-		Reorganize: &reorg,
+		SelectFrom:   job.SelectFrom,
+		Reorganize:   &reorg,
+		FilterRounds: filterRoundsPtr,
 	})
 	if err != nil {
 		r.logger.Error("derive: failed", "id", job.ID, "slug", job.Slug, "err", err)

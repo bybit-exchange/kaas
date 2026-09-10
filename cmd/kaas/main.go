@@ -314,6 +314,7 @@ func run(configFile string) error {
 				Model:        cfg.LLM.Model,
 				PollInterval: time.Duration(cfg.Worker.PollIntervalMS) * time.Millisecond,
 				Reorganize:   cfg.Derive.Reorganize,
+				FilterRounds: cfg.Derive.FilterRounds,
 			}, logger)
 		} else {
 			logger.Warn("derive: HTTP bridge not a DaemonClient; derive runner disabled")

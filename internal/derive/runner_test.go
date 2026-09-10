@@ -220,6 +220,81 @@ func TestRunnerForwardsReorganizeFalse(t *testing.T) {
 	}
 }
 
+// TestRunnerForwardsFilterRounds pins that Config.FilterRounds=5 reaches the
+// bridge as an explicit *int pointing to 5.
+func TestRunnerForwardsFilterRounds(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterRounds: 5,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterRounds == nil {
+		t.Fatal("req.FilterRounds is nil, want ptr to 5")
+	}
+	if *br.req.FilterRounds != 5 {
+		t.Errorf("req.FilterRounds = %d, want 5", *br.req.FilterRounds)
+	}
+}
+
+// TestRunnerOmitsFilterRoundsZero pins that Config.FilterRounds=0 (engine
+// default) reaches the bridge as nil, so the key is absent from JSON.
+func TestRunnerOmitsFilterRoundsZero(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterRounds: 0,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterRounds != nil {
+		t.Errorf("req.FilterRounds = %v, want nil for engine default", br.req.FilterRounds)
+	}
+}
+
 func TestRunnerRunsAPendingJobToSuccess(t *testing.T) {
 	js := newFakeJobStore(&store.DerivedJob{
 		ID: "j1", Slug: "pricing", Topic: "pricing and fees", Model: "",

@@ -34,6 +34,9 @@ type DeriveConf struct {
 	// derive jobs. When true, the engine produces an aggregation plan that
 	// groups related extractions. Defaults to true.
 	Reorganize bool `json:"reorganize,default=true"`
+	// FilterRounds is the number of LLM voting rounds for the topic filter.
+	// 1 = no voting, 3 = default. 0 means "use engine default" (currently 3).
+	FilterRounds int `json:"filter_rounds,default=3"`
 }
 
 // LogConf configures structured logging output.
@@ -315,6 +318,13 @@ func applyEnvOverrides(c *Config) error {
 			c.Derive.Reorganize = false
 		default:
 			log.Printf("[config] invalid KAAS_DERIVE_REORGANIZE=%q, ignoring (must be true/false/1/0)", v)
+		}
+	}
+	if n, ok := envInt("KAAS_DERIVE_FILTER_ROUNDS"); ok {
+		if n >= 0 {
+			c.Derive.FilterRounds = n
+		} else {
+			log.Printf("[config] invalid KAAS_DERIVE_FILTER_ROUNDS=%d, ignoring (must be >= 0)", n)
 		}
 	}
 	return nil
