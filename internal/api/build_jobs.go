@@ -23,15 +23,8 @@ type buildJobDTO struct {
 
 // buildJobDetailDTO extends buildJobDTO with the tasks belonging to the job.
 type buildJobDetailDTO struct {
-	ID        string    `json:"id"`
-	Source    string    `json:"source"`
-	Title     string    `json:"title"`
-	FileCount int       `json:"file_count"`
-	Status    string    `json:"status"`
-	Error     string    `json:"error,omitempty"`
-	CreatedAt int64     `json:"created_at"`
-	UpdatedAt int64     `json:"updated_at"`
-	Tasks     []taskDTO `json:"tasks"`
+	buildJobDTO
+	Tasks []taskDTO `json:"tasks"`
 }
 
 // toBuildJobDTO projects a store.BuildJob to its API list view.
@@ -111,15 +104,8 @@ func (s *Server) handleGetBuildJob(w http.ResponseWriter, r *http.Request) {
 		taskDTOs = append(taskDTOs, toDTO(t))
 	}
 	detail := buildJobDetailDTO{
-		ID:        job.ID,
-		Source:    job.Source,
-		Title:     job.Title,
-		FileCount: job.FileCount,
-		Status:    job.Status,
-		Error:     job.Error,
-		CreatedAt: job.CreatedAt,
-		UpdatedAt: job.UpdatedAt,
-		Tasks:     taskDTOs,
+		buildJobDTO: toBuildJobDTO(job),
+		Tasks:       taskDTOs,
 	}
 	writeJSON(w, http.StatusOK, detail)
 }
