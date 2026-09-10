@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -29,6 +30,7 @@ type SessionStore interface {
 type sessionDTO struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
+	KBSlug    string `json:"kb_slug"`
 	CreatedAt string `json:"created_at"` // ISO 8601 (RFC3339)
 	UpdatedAt string `json:"updated_at"` // ISO 8601 (RFC3339)
 }
@@ -49,6 +51,7 @@ func toSessionDTO(s *store.Session) sessionDTO {
 	return sessionDTO{
 		ID:        s.ID,
 		Title:     s.Title,
+		KBSlug:    s.KBSlug,
 		CreatedAt: time.UnixMilli(s.CreatedAt).UTC().Format(time.RFC3339),
 		UpdatedAt: time.UnixMilli(s.UpdatedAt).UTC().Format(time.RFC3339),
 	}
@@ -78,10 +81,15 @@ func toMessageDTO(m *store.Message) messageDTO {
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	var req struct {
-		Title string `json:"title"`
+		Title  string `json:"title"`
+		KBSlug string `json:"kb_slug"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if req.KBSlug != "" && !kbpath.ValidSlug(req.KBSlug) {
+		writeErr(w, http.StatusBadRequest, "invalid kb_slug")
 		return
 	}
 
@@ -89,6 +97,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	sess := &store.Session{
 		ID:        uuid.NewString(),
 		Title:     req.Title,
+		KBSlug:    req.KBSlug,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
