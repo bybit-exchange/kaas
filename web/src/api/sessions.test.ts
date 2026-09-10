@@ -15,6 +15,7 @@ global.fetch = mockFetch
 const sampleSession: Session = {
   id: 's1',
   title: 'First chat',
+  kb_slug: '',
   created_at: '2026-07-30T10:00:00Z',
   updated_at: '2026-07-31T10:00:00Z',
 }
@@ -83,7 +84,7 @@ describe('createSession', () => {
     expect(created).toEqual(sampleSession)
     expect(mockFetch.mock.calls[0][0]).toBe('/api/sessions')
     expect(lastInit().method).toBe('POST')
-    expect(JSON.parse(lastInit().body as string)).toEqual({ title: 'First chat' })
+    expect(JSON.parse(lastInit().body as string)).toEqual({ title: 'First chat', kb_slug: '' })
   })
 
   it('sends a JSON content type', async () => {
@@ -100,7 +101,7 @@ describe('createSession', () => {
 
     await createSession('')
 
-    expect(JSON.parse(lastInit().body as string)).toEqual({ title: '' })
+    expect(JSON.parse(lastInit().body as string)).toEqual({ title: '', kb_slug: '' })
   })
 })
 

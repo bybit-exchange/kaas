@@ -9,7 +9,7 @@ const DAY = 86400000
 
 function sessionAt(id: string, updatedAt: Date | string): Session {
   const iso = typeof updatedAt === 'string' ? updatedAt : updatedAt.toISOString()
-  return { id, title: `Session ${id}`, created_at: iso, updated_at: iso }
+  return { id, title: `Session ${id}`, kb_slug: '', created_at: iso, updated_at: iso }
 }
 
 /** A local Date offset from the start of today, in days and ms. */

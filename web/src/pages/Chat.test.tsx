@@ -18,11 +18,12 @@ vi.mock('@/api/sessions', () => ({
   createSession: vi.fn().mockResolvedValue({
     id: 'session-1',
     title: 'Test session',
+    kb_slug: '',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
   }),
   deleteSession: vi.fn().mockResolvedValue(undefined),
-  renameSession: vi.fn().mockResolvedValue({ id: 'session-1', title: 'Renamed', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }),
+  renameSession: vi.fn().mockResolvedValue({ id: 'session-1', title: 'Renamed', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }),
   getMessages: vi.fn().mockResolvedValue([]),
 }))
 
@@ -87,7 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-const SESSION_TS = { created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
+const SESSION_TS = { kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }
 
 /** An idle per-session state, with overrides for whatever the test cares about. */
 function sessionState(overrides: Record<string, unknown> = {}) {
@@ -152,7 +153,7 @@ describe('Chat page', () => {
     // Pre-setup: render at /chat/session-1 with session already in store
     // so that handleSend bypasses session creation and streams directly.
     useChatStore.setState({
-      sessions: [{ id: 'session-1', title: 'Test', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
+      sessions: [{ id: 'session-1', title: 'Test', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
       activeSessionId: 'session-1',
       sessionStates: {
         'session-1': {
@@ -221,8 +222,8 @@ describe('Chat page', () => {
 
     // Set up two sessions
     store.setSessions([
-      { id: 's1', title: 'Session 1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-      { id: 's2', title: 'Session 2', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      { id: 's1', title: 'Session 1', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      { id: 's2', title: 'Session 2', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
     ])
 
     // Activate s1 and add messages
@@ -251,8 +252,8 @@ describe('Chat page', () => {
     const store = useChatStore.getState()
 
     store.setSessions([
-      { id: 's1', title: 'Session 1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
-      { id: 's2', title: 'Session 2', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      { id: 's1', title: 'Session 1', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+      { id: 's2', title: 'Session 2', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
     ])
 
     // Start streams in both sessions
@@ -291,7 +292,7 @@ describe('Chat page', () => {
     const user = userEvent.setup()
     useKB.setState({ kb: 'pricing' })
     useChatStore.setState({
-      sessions: [{ id: 'session-1', title: 'Test', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
+      sessions: [{ id: 'session-1', title: 'Test', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
       activeSessionId: 'session-1',
       sessionStates: {
         'session-1': {

@@ -15,6 +15,7 @@ function makeSession(id: string, title: string, daysAgo = 0): Session {
   return {
     id,
     title,
+    kb_slug: '',
     created_at: isoDaysAgo(daysAgo),
     updated_at: isoDaysAgo(daysAgo),
   }
