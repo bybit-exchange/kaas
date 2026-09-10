@@ -201,8 +201,8 @@ export function Wiki() {
 
         {/* TOC sidebar */}
         {article && !articleLoading && (
-          <aside className="hidden w-80 shrink-0 border-l xl:block">
-            <div className="sticky top-0 p-4">
+          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l xl:block">
+            <div className="p-4">
               <TableOfContents content={article.content} />
             </div>
           </aside>
