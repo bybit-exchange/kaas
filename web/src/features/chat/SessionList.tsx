@@ -16,10 +16,13 @@ import {
 import { cn } from '@/lib/cn'
 import { groupSessionsByDate, type DateGroup } from '@/lib/groupSessionsByDate'
 import { useT } from '@/i18n'
+import { ChatKBSelector } from '@/features/chat/ChatKBSelector'
 
 export interface SessionListProps {
   sessions: Session[]
   activeSessionId?: string
+  kbSlug: string | null
+  onKBChange: () => void
   onNewChat: () => void
   onSelect: (id: string) => void
   onDelete: (id: string) => void
@@ -37,6 +40,8 @@ const GROUP_LABEL_KEYS: Record<DateGroup, string> = {
 export function SessionList({
   sessions,
   activeSessionId,
+  kbSlug: _kbSlug,
+  onKBChange,
   onNewChat,
   onSelect,
   onDelete,
@@ -81,7 +86,8 @@ export function SessionList({
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-muted/20">
-      <div className="px-2 py-4">
+      <div className="space-y-2 px-2 py-4">
+        <ChatKBSelector onChange={onKBChange} />
         <Button onClick={onNewChat} className="w-full gap-2">
           <Plus className="h-5 w-5" aria-hidden="true" />
           {t('chat.newChat')}

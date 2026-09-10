@@ -39,6 +39,8 @@ function renderList(overrides: Partial<SessionListProps> = {}) {
     <LangProvider>
       <SessionList
         sessions={[makeSession('s1', 'Session A')]}
+        kbSlug={null}
+        onKBChange={vi.fn()}
         {...handlers}
         {...overrides}
       />
