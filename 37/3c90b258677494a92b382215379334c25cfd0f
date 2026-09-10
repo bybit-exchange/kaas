@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "373c90b258677494a92b382215379334c25cfd0f",
+  "prompts": {},
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
