@@ -1,0 +1,28 @@
+web/src/features/builds/__tests__/DeriveJobDetailSheet.test.tsx
+  8b7c8697709d238f 2-3,15-17,47-48,178-305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "0a6072c4fef5cecd6c48c7273ce35e6e93830d16",
+  "prompts": {
+    "8b7c8697709d238f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08ba2-698a-7bfc-9c1a-6a440ca8d3cf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 276,
+      "total_deletions": 4,
+      "accepted_lines": 276,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
