@@ -84,7 +84,7 @@ beforeEach(() => {
     _accessOrder: [],
   })
   usePrefs.setState({ theme: 'light', lang: 'en' })
-  useKB.setState({ kb: null })
+  useKB.setState({ kb: null, chatKB: null })
   vi.clearAllMocks()
 })
 
@@ -290,9 +290,9 @@ describe('Chat page', () => {
 
   it('scopes the chat stream to the selected knowledge base', async () => {
     const user = userEvent.setup()
-    useKB.setState({ kb: 'pricing' })
+    useKB.setState({ chatKB: 'pricing' })
     useChatStore.setState({
-      sessions: [{ id: 'session-1', title: 'Test', kb_slug: '', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
+      sessions: [{ id: 'session-1', title: 'Test', kb_slug: 'pricing', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' }],
       activeSessionId: 'session-1',
       sessionStates: {
         'session-1': {
@@ -590,7 +590,7 @@ describe('Chat page', () => {
       await send(user, 'brand new question')
 
       await waitFor(() =>
-        expect(vi.mocked(createSession)).toHaveBeenCalledWith('brand new question'),
+        expect(vi.mocked(createSession)).toHaveBeenCalledWith('brand new question', ''),
       )
       await waitFor(() => expect(streamChat).toHaveBeenCalled())
     })
@@ -611,6 +611,59 @@ describe('Chat page', () => {
         expect(toast.error).toHaveBeenCalledWith('Failed to create conversation'),
       )
       expect(streamChat).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('KB-scoped sessions', () => {
+    it('loads sessions filtered by kbSlugForAPI on mount', async () => {
+      render(
+        <Wrapper>
+          <Chat />
+        </Wrapper>,
+      )
+
+      await waitFor(() =>
+        // chatKB defaults to null → kbSlugForAPI is ''
+        expect(vi.mocked(listSessions)).toHaveBeenCalledWith(''),
+      )
+    })
+
+    it('loads sessions for a derived KB when chatKB is set', async () => {
+      useKB.setState({ chatKB: 'pricing' })
+
+      render(
+        <Wrapper>
+          <Chat />
+        </Wrapper>,
+      )
+
+      await waitFor(() =>
+        expect(vi.mocked(listSessions)).toHaveBeenCalledWith('pricing'),
+      )
+    })
+
+    it('creates a session with the derived KB slug', async () => {
+      useKB.setState({ chatKB: 'pricing' })
+      vi.mocked(createSession).mockResolvedValueOnce({
+        id: 'session-kb',
+        title: 'KB question',
+        kb_slug: 'pricing',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:00:00Z',
+      })
+      const user = userEvent.setup()
+
+      render(
+        <Wrapper>
+          <Chat />
+        </Wrapper>,
+      )
+
+      await send(user, 'pricing details')
+
+      await waitFor(() =>
+        expect(vi.mocked(createSession)).toHaveBeenCalledWith('pricing details', 'pricing'),
+      )
     })
   })
 
