@@ -1,0 +1,28 @@
+internal/api/build_jobs.go
+  3499ba60356b9ad3 26-27,107-108
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "761607433e4be4f00e1b05e927228daa4a3b6c26",
+  "prompts": {
+    "3499ba60356b9ad3": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08b6e-32ef-71ea-b070-ea4402e9f489",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 85,
+      "total_deletions": 99,
+      "accepted_lines": 216,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
