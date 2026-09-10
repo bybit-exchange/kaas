@@ -1,0 +1,23 @@
+py/tests/test_derive_filter.py
+  6b8ba70a4b3de3c2 157-323
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "b68025cf4c8ac6350ae4aa8ebd232cf12b053f45",
+  "prompts": {
+    "6b8ba70a4b3de3c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08a33-4f7d-7725-b912-288e8f92a9f4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 167,
+      "total_deletions": 0,
+      "accepted_lines": 349,
+      "overriden_lines": 0
+    }
+  }
+}
