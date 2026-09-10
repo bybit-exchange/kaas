@@ -31,6 +31,17 @@ CREATE TABLE IF NOT EXISTS build_jobs (
 CREATE INDEX IF NOT EXISTS idx_build_jobs_status_created ON build_jobs(status, created_at);
 `
 
+// buildJobStatusCaseSQL is the CASE expression that computes a build job's
+// aggregate status from its child tasks. Used by both single-row and
+// bulk-refresh queries.
+const buildJobStatusCaseSQL = `CASE
+    WHEN SUM(CASE WHEN t.status = 'running' THEN 1 ELSE 0 END) > 0 THEN 'running'
+    WHEN SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'pending'
+    WHEN COUNT(*) = SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) THEN 'succeeded'
+    WHEN SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) > 0 THEN 'partial'
+    ELSE 'failed'
+END`
+
 func scanBuildJob(row interface{ Scan(...any) error }) (*store.BuildJob, error) {
 	var j store.BuildJob
 	err := row.Scan(&j.ID, &j.Source, &j.Title, &j.FileCount, &j.Status,
@@ -168,17 +179,11 @@ func (s *Store) UpdateBuildJobFileCount(ctx context.Context, id string, count in
 // RefreshBuildJobStatuses recomputes status for all non-terminal build jobs
 // from their child tasks using a single CTE-based UPDATE.
 func (s *Store) RefreshBuildJobStatuses(ctx context.Context, now int64) error {
-	const q = `
+	q := `
 WITH job_status AS (
     SELECT
         t.build_job_id,
-        CASE
-            WHEN SUM(CASE WHEN t.status = 'running' THEN 1 ELSE 0 END) > 0 THEN 'running'
-            WHEN SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'pending'
-            WHEN COUNT(*) = SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) THEN 'succeeded'
-            WHEN SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) > 0 THEN 'partial'
-            ELSE 'failed'
-        END AS computed_status
+        ` + buildJobStatusCaseSQL + ` AS computed_status
     FROM tasks t
     WHERE t.build_job_id IN (
         SELECT id FROM build_jobs WHERE status IN ('pending', 'running')
@@ -200,16 +205,10 @@ WHERE build_jobs.id = js.build_job_id
 // RefreshBuildJobStatus recomputes status for a single build job from its
 // child tasks. This is the single-row variant used before get/delete.
 func (s *Store) RefreshBuildJobStatus(ctx context.Context, id string, now int64) error {
-	const q = `
+	q := `
 UPDATE build_jobs
 SET status = (
-    SELECT CASE
-        WHEN SUM(CASE WHEN t.status = 'running' THEN 1 ELSE 0 END) > 0 THEN 'running'
-        WHEN SUM(CASE WHEN t.status = 'pending' THEN 1 ELSE 0 END) > 0 THEN 'pending'
-        WHEN COUNT(*) = SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) THEN 'succeeded'
-        WHEN SUM(CASE WHEN t.status = 'succeeded' THEN 1 ELSE 0 END) > 0 THEN 'partial'
-        ELSE 'failed'
-    END
+    SELECT ` + buildJobStatusCaseSQL + `
     FROM tasks t
     WHERE t.build_job_id = build_jobs.id
 ), updated_at = ?
