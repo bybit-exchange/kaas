@@ -154,3 +154,170 @@ def test_the_two_modes_give_different_inclusion_instructions():
 def test_unknown_mode_is_a_programmer_error():
     with pytest.raises(ValueError):
         _filter.build_prompt("t", "sideways", "")
+
+
+# ---------------------------------------------------------------------------
+# Multi-round voting tests
+# ---------------------------------------------------------------------------
+
+
+def _make_round_stub(round_results: list[dict], filter_rounds: int):
+    """Return a completion_json stub that cycles through round_results.
+
+    Each call increments an internal counter; the result is chosen by
+    ``(call_count - 1) % filter_rounds`` so that multi-batch scenarios
+    replay the same round sequence for every batch.
+    """
+    call_count = [0]
+
+    def stub(**kwargs):
+        call_count[0] += 1
+        round_idx = (call_count[0] - 1) % filter_rounds
+        value = round_results[round_idx]
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    return stub
+
+
+def test_voting_retains_paths_meeting_threshold(monkeypatch):
+    """3 rounds — A(3/3)→kept, B(2/3)→kept, C(1/3)→excluded."""
+    catalog = _catalog(3)  # wiki/a0.md, wiki/a1.md, wiki/a2.md
+    a, b, c = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a, b, c]},  # round 1: all three
+        {"paths": [a, b]},     # round 2: A and B
+        {"paths": [a]},        # round 3: only A
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    result = _filter.select_by_topic(catalog, "pricing", MODE_RECALL,
+                                     model="m", filter_rounds=3)
+    # threshold = ceil(3*2/3) = 2 → A(3) ✓, B(2) ✓, C(1) ✗
+    assert a in result.paths
+    assert b in result.paths
+    assert c not in result.paths
+    assert len(result.paths) == 2
+
+
+def test_voting_single_round_is_backward_compatible(monkeypatch):
+    """filter_rounds=1 produces the same result as pre-voting code."""
+    catalog = _catalog(3)
+    selected = [catalog[0].path, catalog[2].path]
+    monkeypatch.setattr(_filter, "completion_json",
+                        lambda **kw: {"paths": selected})
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=1)
+    assert result.paths == selected
+    assert result.batches == 1
+    assert result.dropped_invented == 0
+
+
+def test_voting_all_rounds_agree(monkeypatch):
+    """All 3 rounds return the same paths → all retained."""
+    catalog = _catalog(4)
+    all_paths = [a.path for a in catalog]
+    monkeypatch.setattr(_filter, "completion_json",
+                        lambda **kw: {"paths": all_paths})
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=3)
+    assert sorted(result.paths) == sorted(all_paths)
+
+
+def test_voting_no_path_meets_threshold(monkeypatch):
+    """Each round returns a different non-overlapping path → empty result."""
+    catalog = _catalog(3)
+    a, b, c = [x.path for x in catalog]
+    round_results = [
+        {"paths": [a]},  # round 1: only A
+        {"paths": [b]},  # round 2: only B
+        {"paths": [c]},  # round 3: only C
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    # threshold = ceil(3*2/3) = 2 → each path has 1 vote, none meets threshold
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=3)
+    assert result.paths == []
+
+
+def test_voting_dropped_invented_counts_unique_paths(monkeypatch):
+    """An invented path appearing in 2 rounds counts as 1 in dropped_invented."""
+    catalog = _catalog(2)
+    a = catalog[0].path
+    round_results = [
+        {"paths": [a, "wiki/fake.md"]},     # round 1: A + invented
+        {"paths": [a, "wiki/fake.md"]},     # round 2: same invented path
+        {"paths": [a]},                     # round 3: no invented
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=3)
+    # "wiki/fake.md" appears in 2 rounds but is deduplicated → counts as 1
+    assert result.dropped_invented == 1
+    assert a in result.paths
+
+
+def test_voting_error_in_any_round_raises(monkeypatch):
+    """Round 2 fails → DeriveError."""
+    catalog = _catalog(2)
+    a = catalog[0].path
+    round_results = [
+        {"paths": [a]},                      # round 1: OK
+        RuntimeError("gateway down"),         # round 2: fails
+        {"paths": [a]},                      # round 3: never reached
+    ]
+    monkeypatch.setattr(
+        _filter, "completion_json",
+        _make_round_stub(round_results, filter_rounds=3),
+    )
+    with pytest.raises(DeriveError, match="topic filter failed"):
+        _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                filter_rounds=3)
+
+
+@pytest.mark.parametrize("rounds", [0, -1])
+def test_invalid_filter_rounds_raises(rounds):
+    """filter_rounds < 1 raises ValueError."""
+    with pytest.raises(ValueError, match="filter_rounds"):
+        _filter.select_by_topic(_catalog(1), "t", MODE_RECALL, model="m",
+                                filter_rounds=rounds)
+
+
+def test_voting_with_multiple_batches(monkeypatch):
+    """Voting works correctly across multiple batches."""
+    # Large summaries force multiple batches.
+    catalog = _catalog(40, summary="x" * 3000)
+    all_paths = {a.path for a in catalog}
+    filter_rounds = 3
+
+    # Round 1: return all batch paths.  Round 2: return all.  Round 3: return
+    # only the first half of each batch's paths.  threshold=2, so even paths
+    # with 2/3 votes are retained → all paths should survive.
+    call_count = [0]
+
+    def stub(**kwargs):
+        call_count[0] += 1
+        round_idx = (call_count[0] - 1) % filter_rounds
+        content = kwargs["messages"][0]["content"]
+        batch_paths = [a.path for a in catalog if f"- {a.path} " in content]
+        if round_idx < 2:
+            return {"paths": batch_paths}
+        # Round 3: only first half of batch
+        return {"paths": batch_paths[: len(batch_paths) // 2]}
+
+    monkeypatch.setattr(_filter, "completion_json", stub)
+    result = _filter.select_by_topic(catalog, "t", MODE_RECALL, model="m",
+                                     filter_rounds=filter_rounds)
+
+    assert result.batches > 1
+    # Every path gets at least 2/3 votes (threshold=2), so all are retained.
+    assert sorted(result.paths) == sorted(all_paths)
