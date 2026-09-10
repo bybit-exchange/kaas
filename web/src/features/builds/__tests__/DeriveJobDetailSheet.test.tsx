@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, within, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { LangProvider } from '@/i18n'
 import { usePrefs } from '@/store/prefs'
@@ -10,6 +11,9 @@ vi.mock('@/api/wiki', () => ({
   listWiki: vi.fn().mockResolvedValue({ tree: [] }),
   fetchWikiArticle: vi.fn().mockResolvedValue({ path: '', title: '', content: '' }),
 }))
+
+const { listWiki } = await import('@/api/wiki')
+const mockListWiki = vi.mocked(listWiki)
 
 const JOB: DeriveJob = {
   id: 'dj-1',
@@ -40,6 +44,8 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 
 beforeEach(() => {
   usePrefs.setState({ theme: 'light', lang: 'en' })
+  mockListWiki.mockReset()
+  mockListWiki.mockResolvedValue({ tree: [] })
 })
 
 describe('DeriveJobDetailSheet', () => {
@@ -167,5 +173,135 @@ describe('DeriveJobDetailSheet', () => {
     // StatusStageBadge for running shows "Running · Filtering"
     expect(dialog.textContent).toContain('Running')
     expect(dialog.textContent).toContain('Filtering')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Article table tests
+// ---------------------------------------------------------------------------
+
+const mockWikiTree = {
+  tree: [
+    {
+      name: 'concept',
+      path: 'concept',
+      isDir: true,
+      fileCount: 2,
+      children: [
+        { name: 'trading-fees.md', path: 'concept/trading-fees.md', title: 'Trading Fees', isDir: false, tags: ['fees'] },
+        { name: 'margin.md', path: 'concept/margin.md', title: 'Margin Trading', isDir: false, tags: ['margin'] },
+      ],
+    },
+  ],
+}
+
+describe('DeriveJobDetailSheet — article table', () => {
+  it('shows article titles when job is succeeded', async () => {
+    mockListWiki.mockResolvedValue(mockWikiTree)
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+      </Wrapper>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+
+    await waitFor(() => {
+      expect(within(dialog).getByText('Trading Fees')).toBeInTheDocument()
+      expect(within(dialog).getByText('Margin Trading')).toBeInTheDocument()
+    })
+
+    expect(mockListWiki).toHaveBeenCalledWith('pricing-fees')
+  })
+
+  it('does not show articles section or call listWiki for a failed job', () => {
+    const failedJob: DeriveJob = { ...JOB, status: 'failed', error: 'boom' }
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={failedJob} loading={false} />
+      </Wrapper>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+    // The article section heading is a <p> with font-medium class and text "Articles".
+    // "Articles" also appears as the select_from label. Check that no article table exists.
+    expect(within(dialog).queryByRole('table')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('No articles produced.')).not.toBeInTheDocument()
+    expect(mockListWiki).not.toHaveBeenCalled()
+  })
+
+  it('does not show articles section for a running job', () => {
+    const runningJob: DeriveJob = { ...JOB, status: 'running', stage: 'filter', result: undefined }
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={runningJob} loading={false} />
+      </Wrapper>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByRole('table')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText('No articles produced.')).not.toBeInTheDocument()
+    expect(mockListWiki).not.toHaveBeenCalled()
+  })
+
+  it('shows error message when listWiki rejects', async () => {
+    mockListWiki.mockRejectedValue(new Error('wiki fetch failed'))
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+      </Wrapper>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+
+    await waitFor(() => {
+      expect(within(dialog).getByText('Failed to load articles')).toBeInTheDocument()
+    })
+  })
+
+  it('shows empty message when wiki tree has no articles', async () => {
+    mockListWiki.mockResolvedValue({ tree: [] })
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+      </Wrapper>,
+    )
+
+    const dialog = screen.getByRole('dialog')
+
+    await waitFor(() => {
+      expect(within(dialog).getByText('No articles produced.')).toBeInTheDocument()
+    })
+  })
+
+  it('opens DeriveWikiPreviewSheet when clicking article title', async () => {
+    mockListWiki.mockResolvedValue(mockWikiTree)
+    const user = userEvent.setup()
+
+    render(
+      <Wrapper>
+        <DeriveJobDetailSheet open={true} onOpenChange={() => {}} job={JOB} loading={false} />
+      </Wrapper>,
+    )
+
+    // Wait for articles to load
+    await waitFor(() => {
+      expect(screen.getByText('Trading Fees')).toBeInTheDocument()
+    })
+
+    // Click the article title button
+    await user.click(screen.getByText('Trading Fees'))
+
+    // The preview sheet opens — Radix renders nested sheets.
+    // fetchWikiArticle should be called for the preview sheet.
+    const { fetchWikiArticle } = await import('@/api/wiki')
+    await waitFor(() => {
+      expect(fetchWikiArticle).toHaveBeenCalledWith('concept/trading-fees.md', 'pricing-fees')
+    })
   })
 })
