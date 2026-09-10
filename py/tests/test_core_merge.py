@@ -1322,6 +1322,16 @@ def test_create_new_article_sends_exactly_the_prompt_that_was_hashed(monkeypatch
     assert captured["system"] == mg._create_system("project")
 
 
+def test_create_system_contains_language_directive():
+    """Regression: the language directive in _create_system() is code-built,
+    not file-based, so a future refactor could accidentally drop it."""
+    for article_type in ("concept", "project", "decision", "person"):
+        system = mg._create_system(article_type)
+        assert "same language as the source documents" in system, (
+            f"_create_system({article_type!r}) is missing the language directive"
+        )
+
+
 def test_merge_full_rewrite_sends_exactly_the_prompt_that_was_hashed(monkeypatch):
     """The rewrite path composes its system prompt rather than sending the file
     verbatim, so the hash and the send have to read the same helper."""
