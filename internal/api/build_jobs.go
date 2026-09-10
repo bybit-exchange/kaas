@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -170,11 +169,11 @@ func (s *Server) handleDeleteBuildJob(w http.ResponseWriter, r *http.Request) {
 	for _, t := range tasks {
 		if t.RawPath != "" {
 			if rmErr := os.Remove(t.RawPath); rmErr != nil && !os.IsNotExist(rmErr) {
-				log.Printf("WARN: failed to remove raw file %s: %v", t.RawPath, rmErr)
+				s.logger.Warn("failed to remove raw file", "path", t.RawPath, "err", rmErr)
 			}
 		}
 		if delErr := s.st.DeleteTask(r.Context(), t.ID); delErr != nil && !errors.Is(delErr, store.ErrNotFound) {
-			log.Printf("WARN: failed to delete task %s: %v", t.ID, delErr)
+			s.logger.Warn("failed to delete task", "id", t.ID, "err", delErr)
 		}
 	}
 
