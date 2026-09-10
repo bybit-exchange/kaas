@@ -35,7 +35,7 @@ describe('StatsBar', () => {
         onTabChange={() => {}}
       />,
     )
-    expect(screen.getByText(/●2 active/)).toBeInTheDocument()
+    expect(screen.getByText(/● 2 active/)).toBeInTheDocument()
   })
 
   it('shows active count badge for derive tab', () => {
@@ -46,7 +46,7 @@ describe('StatsBar', () => {
         onTabChange={() => {}}
       />,
     )
-    expect(screen.getByText(/●3 active/)).toBeInTheDocument()
+    expect(screen.getByText(/● 3 active/)).toBeInTheDocument()
   })
 
   it('hides badge when counts are 0', () => {

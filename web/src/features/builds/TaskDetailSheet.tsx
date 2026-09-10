@@ -64,7 +64,7 @@ export function TaskDetailSheet({ open, onOpenChange, taskId }: TaskDetailSheetP
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[50vw] min-w-[400px] flex flex-col">
+      <SheetContent className="w-[80vw] min-w-[400px] flex flex-col">
         <SheetHeader>
           <SheetTitle>{task?.title ?? t('status.detailTitle')}</SheetTitle>
           <SheetDescription>{t('tasks.detailDesc')}</SheetDescription>

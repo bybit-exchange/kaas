@@ -59,7 +59,7 @@ export function DeriveWikiPreviewSheet({ open, onOpenChange, articlePath, kb, di
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[50vw] min-w-[400px] flex flex-col">
+      <SheetContent className="w-[80vw] min-w-[400px] flex flex-col">
         <SheetHeader>
           <SheetTitle className="truncate">
             {displayTitle || t('builds.deriveArticlePreviewTitle')}

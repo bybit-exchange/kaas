@@ -36,7 +36,7 @@ export function BuildJobDetailSheet({ open, onOpenChange, job, loading }: BuildJ
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[50vw] min-w-[400px] flex flex-col">
+      <SheetContent className="w-[80vw] min-w-[400px] flex flex-col">
         <SheetHeader>
           <SheetTitle>{t('builds.jobDetailTitle')}</SheetTitle>
           <SheetDescription>{t('builds.jobDetailDesc')}</SheetDescription>

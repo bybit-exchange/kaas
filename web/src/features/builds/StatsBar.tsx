@@ -52,7 +52,7 @@ export function StatsBar({ stats, activeTab, onTabChange }: StatsBarProps) {
                     : 'bg-primary/10 text-primary',
                 )}
               >
-                ●{t('builds.statsActive', { count: activeCount })}
+                {`● ${t('builds.statsActive', { count: activeCount })}`}
               </span>
             )}
           </button>

@@ -343,7 +343,7 @@ export const STRINGS: { en: Record<string, string>; zh: Record<string, string> }
     'tasks.filePreviewTruncated': '文件超过 1 MB，内容已截断。',
     'layout.builds': '构建任务',
     'builds.title': '构建任务',
-    'builds.tabTasks': '普通',
+    'builds.tabTasks': '默认',
     'builds.tabDerive': '派生主题',
     'builds.statsActive': '{{count}} 进行中',
     'builds.deriveEmpty': '暂无派生任务',

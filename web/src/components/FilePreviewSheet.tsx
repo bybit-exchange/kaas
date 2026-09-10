@@ -65,7 +65,7 @@ export function FilePreviewSheet({ open, onOpenChange, taskId, displayTitle }: F
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[50vw] min-w-[400px] flex flex-col">
+      <SheetContent className="w-[80vw] min-w-[400px] flex flex-col">
         <SheetHeader>
           <SheetTitle className="truncate">
             {displayTitle || t('tasks.filePreviewTitle')}
