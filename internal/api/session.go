@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
