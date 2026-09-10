@@ -1,0 +1,37 @@
+internal/bridge/daemon_client_test.go
+  f407a41eff9bc614 20-22,850,868-870,969-999
+internal/derive/runner.go
+  f407a41eff9bc614 34,132-137,152-154
+internal/config/config.go
+  f407a41eff9bc614 37-39,323-327
+internal/bridge/api.go
+  f407a41eff9bc614 169-172
+internal/derive/runner_test.go
+  f407a41eff9bc614 223-297
+cmd/kaas/main.go
+  f407a41eff9bc614 317
+internal/config/config_test.go
+  f407a41eff9bc614 72-74,116-118,150-153,1003-1144
+etc/kaas.toml
+  f407a41eff9bc614 117-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "e49cc367e398fc985b582de87432598e9071c4e7",
+  "prompts": {
+    "f407a41eff9bc614": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08b1d-8eb4-79cd-99c2-34d9da9e83a3",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 298,
+      "total_deletions": 3,
+      "accepted_lines": 298,
+      "overriden_lines": 0
+    }
+  }
+}
