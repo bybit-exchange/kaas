@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useT } from '@/i18n'
 import { getTask, type TaskDTO } from '@/api/tasks'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Sheet,
@@ -11,14 +10,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { statusColor } from './StatusStageBadge'
-
-/** Translate a status key to its display label. */
-function statusLabel(t: (key: string) => string, status: string): string {
-  const key = `status.filter.${status}`
-  const translated = t(key)
-  return translated === key ? status : translated
-}
+import { StatusStageBadge } from './StatusStageBadge'
 
 export interface TaskDetailSheetProps {
   open: boolean
@@ -80,9 +72,7 @@ export function TaskDetailSheet({ open, onOpenChange, taskId }: TaskDetailSheetP
               <div className="flex flex-wrap gap-3">
                 <div>
                   <span className="font-medium">{t('status.colStatus')}: </span>
-                  <Badge variant="outline" className={statusColor(task.status)}>
-                    {statusLabel(t, task.status)}
-                  </Badge>
+                  <StatusStageBadge status={task.status} />
                 </div>
                 <div>
                   <span className="font-medium">{t('status.colStage')}: </span>
