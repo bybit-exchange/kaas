@@ -1,0 +1,41 @@
+scripts/test_filter_stability.py
+  61e84bf581a95ce6 1-262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "5bd414564c6395d9887590bb413ca166702466d1",
+  "prompts": {
+    "61e84bf581a95ce6": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a089bb-11bf-702f-aede-a152dbd83675",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 123392,
+      "total_deletions": 0,
+      "accepted_lines": 498,
+      "overriden_lines": 0
+    },
+    "6b8ba70a4b3de3c2": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08a33-4f7d-7725-b912-288e8f92a9f4",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 50,
+      "accepted_lines": 243,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
