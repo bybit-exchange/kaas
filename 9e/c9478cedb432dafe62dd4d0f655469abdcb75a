@@ -1,0 +1,49 @@
+web/src/pages/Wiki.tsx
+  2082b009da0e11f4 204-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "9ec9478cedb432dafe62dd4d0f655469abdcb75a",
+  "prompts": {
+    "2082b009da0e11f4": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a089b0-81d1-7607-a6c7-30b55e06b472",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 2,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    },
+    "c87ffe4c6eb84173": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a086ee-196e-71fe-b22f-01720b7ef628",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 0,
+      "accepted_lines": 438,
+      "overriden_lines": 2
+    },
+    "eeb44d90c3837c4a": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a089b1-7827-7064-a1c6-545d3cdac82d",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
