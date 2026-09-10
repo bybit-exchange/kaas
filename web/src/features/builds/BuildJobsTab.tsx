@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
+import { formatDate } from '@/lib/formatDate'
 import { Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 /** Build jobs include partial in filters (unlike derive jobs). */
@@ -32,20 +33,6 @@ const PAGE_SIZE = 10
 
 type SortKey = 'title' | 'source' | 'file_count' | 'status' | 'updated_at'
 type SortDir = 'asc' | 'desc'
-
-function formatDate(ts: number): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ts))
-  } catch {
-    return String(ts)
-  }
-}
 
 export interface BuildJobsTabProps {
   headerLeft?: React.ReactNode

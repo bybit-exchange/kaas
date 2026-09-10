@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
+import { formatDate } from '@/lib/formatDate'
 import { Trash2, ArrowUp, ArrowDown, ArrowUpDown, RefreshCw } from 'lucide-react'
 
 /** Derive jobs have no cancelled status. */
@@ -33,20 +34,6 @@ const PAGE_SIZE = 10
 
 type SortKey = 'topic' | 'slug' | 'status' | 'select_from' | 'updated_at'
 type SortDir = 'asc' | 'desc'
-
-function formatDate(ts: number): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ts))
-  } catch {
-    return String(ts)
-  }
-}
 
 /** Human-readable label for the select_from column in the table. */
 function selectFromTableLabel(t: (key: string) => string, value: string): string {

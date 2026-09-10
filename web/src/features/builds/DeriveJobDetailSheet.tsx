@@ -9,26 +9,13 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
+import { formatDate } from '@/lib/formatDate'
 
 export interface DeriveJobDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   job: DeriveJob | null
   loading: boolean
-}
-
-function formatDate(ts: number): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ts))
-  } catch {
-    return String(ts)
-  }
 }
 
 /** Human-readable label for the select_from field. */

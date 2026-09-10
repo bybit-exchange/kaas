@@ -13,26 +13,13 @@ import {
 } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/cn'
+import { formatDate } from '@/lib/formatDate'
 
 export interface BuildJobDetailSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   job: BuildJobDetailDTO | null
   loading: boolean
-}
-
-function formatDate(ts: number): string {
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    }).format(new Date(ts))
-  } catch {
-    return String(ts)
-  }
 }
 
 export function BuildJobDetailSheet({ open, onOpenChange, job, loading }: BuildJobDetailSheetProps) {
