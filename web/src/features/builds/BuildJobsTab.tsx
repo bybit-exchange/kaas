@@ -20,8 +20,8 @@ export function BuildJobsTab({ headerLeft }: BuildJobsTabProps) {
     { key: 'title', label: t('status.colTitle'), render: (j) => j.title },
     { key: 'source', label: t('builds.colSource'), render: (j) => <span className="text-muted-foreground">{j.source}</span> },
     { key: 'file_count', label: t('builds.colTasks'), widthClass: 'w-[100px]', render: (j) => <span className="text-muted-foreground">{j.file_count}</span> },
-    { key: 'status', label: t('status.colStatus'), widthClass: 'w-[140px]', render: (j) => <StatusStageBadge status={j.status} /> },
-    { key: 'updated_at', label: t('status.colUpdated'), widthClass: 'w-[140px]', render: (j) => <span className="text-muted-foreground">{formatDate(j.updated_at)}</span> },
+    { key: 'status', label: t('status.colStatus'), widthClass: 'w-[160px]', render: (j) => <StatusStageBadge status={j.status} /> },
+    { key: 'updated_at', label: t('status.colUpdated'), widthClass: 'w-[160px]', render: (j) => <span className="text-muted-foreground">{formatDate(j.updated_at)}</span> },
   ]
 
   return (

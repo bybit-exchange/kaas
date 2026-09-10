@@ -32,9 +32,9 @@ export function DeriveJobsTab({ headerLeft }: DeriveJobsTabProps) {
   const columns: ColumnDef<DeriveJob, SortKey>[] = [
     { key: 'topic', label: t('builds.colTopic'), render: (j) => j.topic },
     { key: 'slug', label: t('builds.colSlug'), render: (j) => <span className="text-muted-foreground">{j.slug}</span> },
-    { key: 'status', label: t('status.colStatus'), widthClass: 'w-[140px]', render: (j) => <StatusStageBadge status={j.status} stage={j.stage} /> },
+    { key: 'status', label: t('status.colStatus'), widthClass: 'w-[160px]', render: (j) => <StatusStageBadge status={j.status} stage={j.stage} /> },
     { key: 'select_from', label: t('builds.colSelectFrom'), widthClass: 'w-[100px]', render: (j) => <span className="text-muted-foreground">{selectFromTableLabel(t, j.select_from)}</span> },
-    { key: 'updated_at', label: t('status.colUpdated'), widthClass: 'w-[140px]', render: (j) => <span className="text-muted-foreground">{formatDate(j.updated_at)}</span> },
+    { key: 'updated_at', label: t('status.colUpdated'), widthClass: 'w-[160px]', render: (j) => <span className="text-muted-foreground">{formatDate(j.updated_at)}</span> },
   ]
 
   return (
