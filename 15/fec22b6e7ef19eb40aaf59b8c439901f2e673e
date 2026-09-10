@@ -1,0 +1,23 @@
+internal/store/sqlite/session_test.go
+  61e84bf581a95ce6 75-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "15fec22b6e7ef19eb40aaf59b8c439901f2e673e",
+  "prompts": {
+    "61e84bf581a95ce6": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a089bb-11bf-702f-aede-a152dbd83675",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 75,
+      "total_deletions": 11,
+      "accepted_lines": 91,
+      "overriden_lines": 0
+    }
+  }
+}
