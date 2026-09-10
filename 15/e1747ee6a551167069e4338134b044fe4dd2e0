@@ -1,0 +1,28 @@
+web/src/features/builds/DeriveWikiPreviewSheet.tsx
+  8b7c8697709d238f 1-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "15e1747ee6a551167069e4338134b044fe4dd2e0",
+  "prompts": {
+    "8b7c8697709d238f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08ba2-698a-7bfc-9c1a-6a440ca8d3cf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 151,
+      "total_deletions": 9,
+      "accepted_lines": 151,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_50d496a781bd23": {
+      "author": "tybot02"
+    }
+  }
+}
