@@ -1,0 +1,74 @@
+etc/kaas.toml
+  4f139137e8d9587f 120-123
+py/src/kb_ai/commands/derive.py
+  4f139137e8d9587f 41-43,93,97-98
+py/tests/test_derive_filter.py
+  4f139137e8d9587f 324-412
+cmd/kaas/main.go
+  4f139137e8d9587f 313-318
+py/src/kb_ai/derive/__init__.py
+  4f139137e8d9587f 133,181-182
+internal/bridge/api.go
+  4f139137e8d9587f 173-176
+internal/derive/runner.go
+  4f139137e8d9587f 34-35,139-143,158-161
+internal/config/config_test.go
+  4f139137e8d9587f 1148-1274
+py/src/kb_ai/derive/_filter.py
+  4f139137e8d9587f 100-101,117-122
+internal/config/config.go
+  8b7c8697709d238f 255-267
+  4f139137e8d9587f 40-43,347-353
+py/src/kb_ai/server_daemon.py
+  4f139137e8d9587f 389,393-394
+internal/derive/runner_test.go
+  4f139137e8d9587f 298-372
+internal/bridge/daemon_client_test.go
+  4f139137e8d9587f 23-25,1005-1037
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2-bit.10+672fbf0",
+  "base_commit_sha": "37d4ee590fc967a135809fb9d7094e6ea7c6da50",
+  "prompts": {
+    "4f139137e8d9587f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08b9b-f9d6-7e53-a5a4-196fa29ed188",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 766,
+      "total_deletions": 30,
+      "accepted_lines": 383,
+      "overriden_lines": 0
+    },
+    "8b7c8697709d238f": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08ba2-698a-7bfc-9c1a-6a440ca8d3cf",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 26,
+      "total_deletions": 0,
+      "accepted_lines": 13,
+      "overriden_lines": 0
+    },
+    "f89c4b7f730e05fd": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a08b8f-ab2f-79de-aa32-949218268e36",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "tybot02",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 133,
+      "overriden_lines": 0
+    }
+  }
+}
