@@ -10,6 +10,10 @@ unioning, never a global ranking.
 """
 from __future__ import annotations
 
+import math
+import os
+import sys
+
 from kb_ai._errors import DeriveError, TopicTooLargeError
 from kb_ai.derive._types import (
     MODE_PRECISION,
@@ -19,6 +23,8 @@ from kb_ai.derive._types import (
 )
 from kb_ai.llm import MAX_PROMPT_CHARS, completion_json
 from kb_ai.storage.store import ArticleMeta, render_catalog_line
+
+_FILTER_DEBUG = os.environ.get("KAAS_FILTER_DEBUG") == "1"
 
 # Headroom over the measured skeleton, mirroring core/merge.py's _SAFETY_MARGIN
 # habit: the skeleton is measured, not guessed, and this absorbs the difference
@@ -90,7 +96,8 @@ def pack_batches(catalog: list[ArticleMeta],
 
 
 def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
-                    *, model: str) -> SelectionResult:
+                    *, model: str,
+                    filter_rounds: int = 3) -> SelectionResult:
     """Every catalog path the model judged part of the topic (A1-A8).
 
     Uncapped, filtered to catalog membership, de-duplicated preserving first-seen
@@ -98,8 +105,16 @@ def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
     response-shape failure raises DeriveError (A3): unlike retrieval, this cannot
     degrade to [] -- an empty selection would silently build an empty KB.
     """
+    if filter_rounds < 1:
+        raise ValueError(
+            f"filter_rounds must be \u2265 1, got {filter_rounds}"
+        )
+
     if not catalog:
         return SelectionResult(paths=[], batches=0, dropped_invented=0, skipped=[])
+
+    # supermajority: at least ⌈2N/3⌉ rounds must select a path
+    threshold = math.ceil(filter_rounds * 2 / 3)
 
     valid = {a.path for a in catalog}
     budget = MAX_PROMPT_CHARS - len(build_prompt(topic, mode, "")) - _SAFETY_MARGIN
@@ -115,33 +130,69 @@ def select_by_topic(catalog: list[ArticleMeta], topic: str, mode: str,
         )
     batches, skipped = pack_batches(catalog, budget)
 
+    if filter_rounds > 1:
+        print(
+            f"[filter] voting: {filter_rounds} rounds, "
+            f"threshold \u2265{threshold}/{filter_rounds}",
+            file=sys.stderr,
+        )
+
     paths: list[str] = []
     seen: set[str] = set()
     dropped = 0
 
-    for batch in batches:
+    for i, batch in enumerate(batches):
         listing = "\n".join(render_catalog_line(a) for a in batch)
         prompt = build_prompt(topic, mode, listing)
-        try:
-            result = completion_json(model=model,
-                                     messages=[{"role": "user", "content": prompt}])
-        except Exception as e:  # noqa: BLE001 -- re-raised as a typed domain error
-            raise DeriveError(f"topic filter failed: {e}") from e
+        batch_valid = {a.path for a in batch}
+        vote_counts: dict[str, int] = {}
+        invented: set[str] = set()
 
-        raw = result.get("paths") if isinstance(result, dict) else None
-        if not isinstance(raw, list):
-            raise DeriveError(
-                "topic filter returned no paths list; refusing to treat that as "
-                "'nothing matches'"
+        for _round in range(filter_rounds):
+            try:
+                result = completion_json(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+            except Exception as e:  # noqa: BLE001 -- re-raised as typed domain error
+                raise DeriveError(f"topic filter failed: {e}") from e
+
+            raw = result.get("paths") if isinstance(result, dict) else None
+            if not isinstance(raw, list):
+                raise DeriveError(
+                    "topic filter returned no paths list; refusing to treat "
+                    "that as 'nothing matches'"
+                )
+            for p in raw:
+                if not isinstance(p, str) or p not in valid:
+                    invented.add(repr(p))
+                    continue
+                if p in batch_valid:
+                    vote_counts[p] = vote_counts.get(p, 0) + 1
+
+        dropped += len(invented)
+
+        survivors: list[str] = []
+        for p, v in vote_counts.items():
+            if _FILTER_DEBUG:
+                mark = "\u2713" if v >= threshold else "\u2717"
+                print(
+                    f"[filter]   {p}: {v}/{filter_rounds} votes {mark}",
+                    file=sys.stderr,
+                )
+            if v >= threshold and p not in seen:
+                seen.add(p)
+                survivors.append(p)
+                paths.append(p)
+
+        if filter_rounds > 1:
+            candidates = len(batch_valid)
+            print(
+                f"[filter] batch {i + 1}/{len(batches)}: "
+                f"{len(survivors)} of {candidates} paths passed voting "
+                f"({filter_rounds} rounds)",
+                file=sys.stderr,
             )
-        for p in raw:
-            if not isinstance(p, str) or p not in valid:
-                dropped += 1
-                continue
-            if p in seen:
-                continue
-            seen.add(p)
-            paths.append(p)
 
     return SelectionResult(paths=paths, batches=len(batches),
                            dropped_invented=dropped, skipped=skipped)

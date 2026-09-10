@@ -94,7 +94,8 @@ def test_batches_when_the_listing_exceeds_the_budget(monkeypatch):
         return {"paths": [a.path for a in catalog if f"- {a.path} " in content]}
 
     monkeypatch.setattr(_filter, "completion_json", capture)
-    result = _filter.select_by_topic(catalog, "pricing", MODE_RECALL, model="m")
+    result = _filter.select_by_topic(catalog, "pricing", MODE_RECALL, model="m",
+                                     filter_rounds=1)
 
     assert result.batches > 1
     assert result.batches == len(calls)
