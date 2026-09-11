@@ -25,7 +25,7 @@ def test_distill_reports_a_path_that_does_not_exist(monkeypatch, tmp_path):
     the one that resolved -- and silently distilled the wrong corpus.
     """
     real = tmp_path / "kept.md"
-    real.write_text("real content")
+    real.write_text("real content", encoding="utf-8")
 
     payload = _run_distill(monkeypatch, [
         str(real), str(tmp_path / "gone.md"), str(tmp_path / "also-gone"),
@@ -49,7 +49,7 @@ def test_compile_kb_empty_kb_returns_nothing_to_compile(tmp_path: Path):
 def test_write_raw_creates_file_under_base(tmp_path):
     store = KBStore(str(tmp_path))
     store.write_raw("raw/sub/note.md", "hello")
-    assert (tmp_path / "raw" / "sub" / "note.md").read_text() == "hello"
+    assert (tmp_path / "raw" / "sub" / "note.md").read_text(encoding="utf-8") == "hello"
 
 
 def test_write_raw_blocked_when_read_only(tmp_path):
@@ -61,8 +61,8 @@ def test_write_raw_blocked_when_read_only(tmp_path):
 def test_ingest_paths_wraps_text_skips_binary(tmp_path):
     src = tmp_path / "src"
     src.mkdir()
-    (src / "a.md").write_text("# Alpha")
-    (src / "b.py").write_text("print('x')")
+    (src / "a.md").write_text("# Alpha", encoding="utf-8")
+    (src / "b.py").write_text("print('x')", encoding="utf-8")
     (src / "c.pdf").write_bytes(b"%PDF-1.4 binary")
     kb = tmp_path / "kb"
 
@@ -74,12 +74,12 @@ def test_ingest_paths_wraps_text_skips_binary(tmp_path):
     assert len(report.ingested) == 2
     assert any(s.endswith("c.pdf") for s in report.skipped)
     # source marker preserved
-    assert any("<!-- source:" in p.read_text() for p in (kb / "raw").rglob("*.md"))
+    assert any("<!-- source:" in p.read_text(encoding="utf-8") for p in (kb / "raw").rglob("*.md"))
 
 
 def test_ingest_paths_single_file(tmp_path):
     f = tmp_path / "solo.txt"
-    f.write_text("solo content")
+    f.write_text("solo content", encoding="utf-8")
     kb = tmp_path / "kb"
     report = ingest_paths([str(f)], str(kb))
     assert len(report.ingested) == 1
@@ -92,7 +92,7 @@ import kb_ai.distill as distill_mod
 def test_run_distill_ingests_and_compiles(tmp_path, monkeypatch, capsys):
     src = tmp_path / "docs"
     src.mkdir()
-    (src / "note.md").write_text("# Note\nbody")
+    (src / "note.md").write_text("# Note\nbody", encoding="utf-8")
     kb = tmp_path / "kb"
 
     calls = {}
@@ -126,7 +126,7 @@ def test_run_distill_errors_when_no_readable_files(tmp_path, monkeypatch, capsys
 
 def test_run_distill_passes_llm_model_env(tmp_path, monkeypatch, capsys):
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     kb = tmp_path / "kb"
     captured = {}
     def fake_compile_kb(data_dir, **kwargs):
@@ -141,7 +141,7 @@ def test_run_distill_passes_llm_model_env(tmp_path, monkeypatch, capsys):
 
 def test_run_distill_defaults_model_when_env_absent(tmp_path, monkeypatch):
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     kb = tmp_path / "kb"
     captured = {}
     monkeypatch.setattr(distill_mod, "compile_kb", lambda data_dir, **kw: captured.update(kw) or {"compiled": 1})
@@ -153,10 +153,10 @@ def test_run_distill_defaults_model_when_env_absent(tmp_path, monkeypatch):
 def test_ingest_paths_prunes_ignored_dirs(tmp_path):
     from kb_ai.distill import ingest_paths
     src = tmp_path / "proj"; src.mkdir()
-    (src / "keep.md").write_text("# keep")
-    (src / ".git").mkdir(); (src / ".git" / "config").write_text("[core]")
-    (src / "node_modules").mkdir(); (src / "node_modules" / "dep.js").write_text("x")
-    (src / ".venv").mkdir(); (src / ".venv" / "lib.py").write_text("y")
+    (src / "keep.md").write_text("# keep", encoding="utf-8")
+    (src / ".git").mkdir(); (src / ".git" / "config").write_text("[core]", encoding="utf-8")
+    (src / "node_modules").mkdir(); (src / "node_modules" / "dep.js").write_text("x", encoding="utf-8")
+    (src / ".venv").mkdir(); (src / ".venv" / "lib.py").write_text("y", encoding="utf-8")
     kb = tmp_path / "kb"
     report = ingest_paths([str(src)], str(kb))
     assert len(report.ingested) == 1
@@ -176,7 +176,7 @@ def test_distill_end_to_end_produces_article(tmp_path):
     src.mkdir()
     (src / "topic.md").write_text(
         "# Project Zephyr\n\nZephyr is a caching layer. "
-        "Decision: use LRU eviction. Owner: Dana."
+        "Decision: use LRU eviction. Owner: Dana.", encoding="utf-8"
     )
     kb = tmp_path / "kb"
 
@@ -201,7 +201,7 @@ def test_run_distill_passes_no_categories_by_default(tmp_path, monkeypatch):
     """Omitting the flag must mean "whatever the KB already froze", not the
     defaults -- otherwise distill would override every custom KB's taxonomy."""
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     captured = _capture_compile(monkeypatch)
 
     distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb")])
@@ -211,7 +211,7 @@ def test_run_distill_passes_no_categories_by_default(tmp_path, monkeypatch):
 
 def test_run_distill_forwards_a_category_list(tmp_path, monkeypatch):
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     captured = _capture_compile(monkeypatch)
 
     distill_mod.run_distill([
@@ -223,7 +223,7 @@ def test_run_distill_forwards_a_category_list(tmp_path, monkeypatch):
 
 def test_run_distill_tolerates_spaces_and_trailing_commas(tmp_path, monkeypatch):
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     captured = _capture_compile(monkeypatch)
 
     distill_mod.run_distill([
@@ -237,7 +237,7 @@ def test_run_distill_rejects_an_empty_category_list(tmp_path, monkeypatch, capsy
     """`--categories ,,` must not silently fall back to the defaults: the caller
     clearly meant to set something."""
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     _capture_compile(monkeypatch)
 
     distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb"), "--categories", " , "])
@@ -251,7 +251,7 @@ def test_run_distill_defaults_the_extract_strategy_to_chunked(tmp_path, monkeypa
     """The CLI has to pass a strategy at all: the gate compares against it, and
     the value it compares must be the deployment's rather than a literal."""
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     captured = {}
     monkeypatch.setattr(distill_mod, "compile_kb",
                         lambda data_dir, **kw: captured.update(kw) or {"compiled": 1})
@@ -267,7 +267,7 @@ def test_run_distill_takes_the_extract_strategy_from_the_environment(tmp_path,
     """Mirrors LLM_EXTRACT_STRATEGY on the Go side, so one deployment variable
     configures both routes."""
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     captured = {}
     monkeypatch.setattr(distill_mod, "compile_kb",
                         lambda data_dir, **kw: captured.update(kw) or {"compiled": 1})
@@ -280,7 +280,7 @@ def test_run_distill_takes_the_extract_strategy_from_the_environment(tmp_path,
 
 def test_run_distill_rejects_an_unknown_extract_strategy(tmp_path, monkeypatch):
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
 
     with pytest.raises(SystemExit):
         distill_mod.run_distill([str(src), "--kb", str(tmp_path / "kb"),
@@ -292,7 +292,7 @@ def test_run_distill_rejects_a_bad_extract_strategy_from_the_environment(
     """argparse does not check a default against choices, so the env value needs
     the type= conversion to be validated at all."""
     src = tmp_path / "docs"; src.mkdir()
-    (src / "n.md").write_text("# N\nbody")
+    (src / "n.md").write_text("# N\nbody", encoding="utf-8")
     monkeypatch.setenv("LLM_EXTRACT_STRATEGY", "Chunked")
 
     with pytest.raises(SystemExit):
@@ -309,7 +309,7 @@ def test_ingested_document_date_reaches_the_document_index(tmp_path):
     src = tmp_path / "docs"
     src.mkdir()
     (src / "note.md").write_text(
-        "---\ntitle: Capacity Standard\ndate: 2026-06-01\nsource: docs\n---\n\nbody\n")
+        "---\ntitle: Capacity Standard\ndate: 2026-06-01\nsource: docs\n---\n\nbody\n", encoding="utf-8")
     kb = tmp_path / "kb"
 
     ingest_paths([str(src)], str(kb))

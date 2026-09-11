@@ -224,7 +224,7 @@ def test_file_path_writes_md_file_atomically(capsys, kb, pdf_file, stub_extract)
 
     md_path = pdf_file.with_suffix(".md")
     assert md_path.exists()
-    assert md_path.read_text() == "# Doc"
+    assert md_path.read_text(encoding="utf-8") == "# Doc"
 
 
 def test_file_path_normalises_newlines(capsys, kb, pdf_file, stub_extract):
@@ -238,7 +238,7 @@ def test_file_path_normalises_newlines(capsys, kb, pdf_file, stub_extract):
     assert resp["ok"] is True
 
     md_path = pdf_file.with_suffix(".md")
-    assert md_path.read_text() == "Line1\nLine2\nLine3"
+    assert md_path.read_text(encoding="utf-8") == "Line1\nLine2\nLine3"
     # Extraction also receives normalised content
     assert stub_extract["content"] == "Line1\nLine2\nLine3"
 

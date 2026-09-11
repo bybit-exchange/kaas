@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,18 +37,21 @@ type derivedKBSummary struct {
 	ArticleCount int    `json:"article_count"`
 }
 
-// deriveJobResponse is the GET /api/derive/{id} body. Result is the raw JSON the
-// engine returned, forwarded as an object rather than a quoted string.
+// deriveJobResponse is the GET /api/derive/{id} and GET /api/derive/jobs body.
+// Result is the raw JSON the engine returned, forwarded as an object rather than
+// a quoted string.
 type deriveJobResponse struct {
-	ID        string          `json:"id"`
-	Slug      string          `json:"slug"`
-	Topic     string          `json:"topic"`
-	Status    string          `json:"status"`
-	Stage     string          `json:"stage"`
-	Error     string          `json:"error,omitempty"`
-	Result    json.RawMessage `json:"result,omitempty"`
-	CreatedAt int64           `json:"created_at"`
-	UpdatedAt int64           `json:"updated_at"`
+	ID         string          `json:"id"`
+	Slug       string          `json:"slug"`
+	Topic      string          `json:"topic"`
+	Model      string          `json:"model"`
+	SelectFrom string          `json:"select_from"`
+	Status     string          `json:"status"`
+	Stage      string          `json:"stage"`
+	Error      string          `json:"error,omitempty"`
+	Result     json.RawMessage `json:"result,omitempty"`
+	CreatedAt  int64           `json:"created_at"`
+	UpdatedAt  int64           `json:"updated_at"`
 }
 
 // slugFillerRe collapses runs of non-slug characters, mirroring normalise_slug in
@@ -63,13 +67,22 @@ const slugMaxLen = 40
 const topicMaxLen = 500
 
 // slugFromTopic derives a slug from a topic string (spec C2).
+// When the topic contains only non-ASCII characters (e.g. CJK), the regex
+// normalization yields an empty string. In that case a deterministic hash-based
+// slug "t-{sha256[:10]}" is produced so the request is not rejected.
+// The same fallback exists in normalise_slug (py/src/kb_ai/derive/_layout.py).
 func slugFromTopic(topic string) string {
 	flat := slugFillerRe.ReplaceAllString(strings.ToLower(topic), "-")
 	flat = strings.Trim(flat, "-")
 	if len(flat) > slugMaxLen {
 		flat = flat[:slugMaxLen]
 	}
-	return strings.Trim(flat, "-")
+	flat = strings.Trim(flat, "-")
+	if flat == "" && strings.TrimSpace(topic) != "" {
+		h := sha256.Sum256([]byte(topic))
+		flat = fmt.Sprintf("t-%x", h[:5])
+	}
+	return flat
 }
 
 // handleDerive serves POST /api/derive: it records the job and returns
@@ -113,6 +126,7 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slug := req.Slug
+	userSlug := slug != ""
 	if slug == "" {
 		slug = slugFromTopic(req.Topic)
 	}
@@ -121,6 +135,13 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 			"invalid slug: expected 1-40 lower-case alphanumeric characters or dashes; "+
 				"pass an explicit slug for a topic that does not produce one")
 		return
+	}
+
+	// Auto-deduplicate when the slug was derived from the topic (not user-provided).
+	// Append -2, -3, … until we find a free slug, mirroring _deduplicate_slug in
+	// py/src/kb_ai/derive/_layout.py.
+	if !userSlug {
+		slug = deduplicateSlug(s.cfg.KBDir, slug)
 	}
 
 	// Refuse a slug whose directory already holds a finished KB. The HTTP path has
@@ -174,6 +195,27 @@ func (s *Server) handleDerive(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, map[string]string{"job_id": job.ID, "slug": slug})
 }
 
+// toDeriveDTO projects a store.DerivedJob to its API view. The stored Result is
+// a JSON string blob; it is surfaced as raw JSON (or dropped if empty/invalid).
+func toDeriveDTO(job *store.DerivedJob) deriveJobResponse {
+	resp := deriveJobResponse{
+		ID:         job.ID,
+		Slug:       job.Slug,
+		Topic:      job.Topic,
+		Model:      job.Model,
+		SelectFrom: job.SelectFrom,
+		Status:     job.Status,
+		Stage:      job.Stage,
+		Error:      job.Error,
+		CreatedAt:  job.CreatedAt,
+		UpdatedAt:  job.UpdatedAt,
+	}
+	if job.Result != "" && json.Valid([]byte(job.Result)) {
+		resp.Result = json.RawMessage(job.Result)
+	}
+	return resp
+}
+
 // handleGetDeriveJob serves GET /api/derive/{id}.
 func (s *Server) handleGetDeriveJob(w http.ResponseWriter, r *http.Request) {
 	if s.js == nil {
@@ -189,29 +231,84 @@ func (s *Server) handleGetDeriveJob(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "get derive job: "+err.Error())
 		return
 	}
-	resp := deriveJobResponse{
-		ID:        job.ID,
-		Slug:      job.Slug,
-		Topic:     job.Topic,
-		Status:    job.Status,
-		Stage:     job.Stage,
-		Error:     job.Error,
-		CreatedAt: job.CreatedAt,
-		UpdatedAt: job.UpdatedAt,
-	}
-	// The stored blob is the engine's own JSON; forward it as an object. A blob
-	// that is not valid JSON is dropped rather than breaking the response — but
-	// say so, or a truncated result is indistinguishable from a job that produced
-	// none.
-	if job.Result != "" {
-		if json.Valid([]byte(job.Result)) {
-			resp.Result = json.RawMessage(job.Result)
-		} else {
-			s.logger.Warn("derive: dropping a result blob that is not valid JSON",
-				"id", job.ID, "bytes", len(job.Result))
-		}
+	resp := toDeriveDTO(job)
+	// A blob that is not valid JSON was already dropped by toDeriveDTO, but log
+	// it so a truncated result is not silently lost.
+	if job.Result != "" && resp.Result == nil {
+		s.logger.Warn("derive: dropping a result blob that is not valid JSON",
+			"id", job.ID, "bytes", len(job.Result))
 	}
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// handleListDeriveJobs serves GET /api/derive/jobs.
+// Checks only s.js == nil (not DeriveEnabled) — intentional for historical job
+// access even when the derive runner is disabled.
+func (s *Server) handleListDeriveJobs(w http.ResponseWriter, r *http.Request) {
+	if s.js == nil {
+		writeErr(w, http.StatusNotImplemented, "derive is not available on this backend")
+		return
+	}
+	f := store.DerivedJobListFilter{
+		Status:  r.URL.Query().Get("status"),
+		Query:   r.URL.Query().Get("q"),
+		SortBy:  r.URL.Query().Get("sort"),
+		SortDir: r.URL.Query().Get("order"),
+		Limit:   queryInt(r, "limit", 20),
+		Offset:  queryInt(r, "offset", 0),
+	}
+	result, err := s.js.ListDerivedJobsPaged(r.Context(), f)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "list derive jobs: "+err.Error())
+		return
+	}
+	dtos := make([]deriveJobResponse, 0, len(result.Jobs))
+	for _, j := range result.Jobs {
+		dtos = append(dtos, toDeriveDTO(j))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"jobs": dtos, "total": result.Total})
+}
+
+// derivedTerminalStatuses lists statuses from which a derive job may be deleted.
+// Derive jobs have no "cancelled" status, and pending jobs hold a slug
+// reservation so they are not deletable.
+var derivedTerminalStatuses = map[string]bool{
+	store.DerivedStatusSucceeded: true,
+	store.DerivedStatusFailed:    true,
+}
+
+// handleDeleteDeriveJob serves DELETE /api/derive/jobs/{id}.
+// Checks only s.js == nil (not DeriveEnabled) — intentional for historical job
+// cleanup even when the derive runner is disabled.
+func (s *Server) handleDeleteDeriveJob(w http.ResponseWriter, r *http.Request) {
+	if s.js == nil {
+		writeErr(w, http.StatusNotImplemented, "derive is not available on this backend")
+		return
+	}
+	id := r.PathValue("id")
+	job, err := s.js.GetDerivedJob(r.Context(), id)
+	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "derive job not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "get derive job: "+err.Error())
+		return
+	}
+	if !derivedTerminalStatuses[job.Status] {
+		writeErr(w, http.StatusConflict, "derive job is not in a terminal status")
+		return
+	}
+	if err := s.js.DeleteDerivedJob(r.Context(), id); errors.Is(err, store.ErrNotFound) {
+		// TOCTOU: job was deleted concurrently between GetDerivedJob and DeleteDerivedJob.
+		// 404 is correct — the job is gone, not in a conflicting state.
+		writeErr(w, http.StatusNotFound, "derive job not found")
+		return
+	} else if err != nil {
+		writeErr(w, http.StatusInternalServerError, "delete derive job: "+err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleListDerived serves GET /api/derived, reading each derived KB's manifest.
@@ -250,6 +347,35 @@ func (s *Server) handleListDerived(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"kbs": out})
+}
+
+// deduplicateSlug appends -2, -3, … to slug until the derived directory does
+// not exist on disk. Mirrors _deduplicate_slug in
+// py/src/kb_ai/derive/_layout.py. Only filesystem presence is checked; an
+// active job holding the same slug is caught later by CreateDerivedJob's unique
+// index.
+func deduplicateSlug(kbDir, slug string) string {
+	if _, err := kbpath.Resolve(kbDir, slug); err != nil {
+		return slug // no existing KB on disk
+	}
+	const limit = 100
+	for n := 2; n < limit+2; n++ {
+		suffix := fmt.Sprintf("-%d", n)
+		maxBase := slugMaxLen - len(suffix)
+		base := slug
+		if len(base) > maxBase {
+			base = base[:maxBase]
+		}
+		base = strings.TrimRight(base, "-")
+		candidate := base + suffix
+		if !kbpath.ValidSlug(candidate) {
+			continue
+		}
+		if _, err := kbpath.Resolve(kbDir, candidate); err != nil {
+			return candidate
+		}
+	}
+	return slug // exhaust attempts, let downstream conflict check report the error
 }
 
 // countWikiArticles counts *.md files under dir/wiki. _offtopic/ lives outside

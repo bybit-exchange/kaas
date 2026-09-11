@@ -31,6 +31,7 @@ const (
 	StatusSucceeded = "succeeded"
 	StatusFailed    = "failed"
 	StatusCancelled = "cancelled"
+	StatusPartial   = "partial"
 )
 
 // Task stage values (progress reported on the Status page).
@@ -60,8 +61,9 @@ type Task struct {
 	LeaseOwner  string // worker id currently holding the lease ("" if none)
 	// LeaseExpiresAt is a unix-ms deadline; 0 means no active lease.
 	LeaseExpiresAt int64
-	CreatedAt      int64 // unix ms
-	UpdatedAt      int64 // unix ms
+	CreatedAt      int64  // unix ms
+	UpdatedAt      int64  // unix ms
+	BuildJobID     string // FK to build_jobs.id; "" for legacy tasks
 }
 
 // ListFilter narrows ListTasks results. Zero value lists everything (newest first).
@@ -106,6 +108,8 @@ type Store interface {
 	// DeleteTask removes a terminal task (succeeded/failed/cancelled). Returns
 	// ErrNotFound if the task does not exist or is not in a terminal status.
 	DeleteTask(ctx context.Context, id string) error
+	// ListTasksByBuildJob returns all tasks belonging to a build job, ordered by created_at ASC.
+	ListTasksByBuildJob(ctx context.Context, buildJobID string) ([]*Task, error)
 
 	// ClaimNext atomically picks the oldest pending task, marks it running, and
 	// assigns it to owner with the given lease deadline. Returns (nil, nil) when
@@ -193,6 +197,73 @@ type DerivedJob struct {
 	UpdatedAt  int64  // unix ms
 }
 
+// DerivedJobListFilter narrows ListDerivedJobsPaged results with LIKE search
+// and pagination.
+type DerivedJobListFilter struct {
+	Status  string // optional exact status match
+	Query   string // LIKE match on topic or slug
+	SortBy  string // column to sort by (empty = created_at)
+	SortDir string // "asc" or "desc" (empty = desc)
+	Limit   int
+	Offset  int
+}
+
+// DerivedJobListResult holds a page of derive jobs plus the total count
+// matching the filter.
+type DerivedJobListResult struct {
+	Jobs  []*DerivedJob
+	Total int
+}
+
+// BuildJob groups one or more tasks from a single submission.
+type BuildJob struct {
+	ID        string // UUID
+	Source    string // "paste" | "file" | "url"
+	Title     string // for paste/url: user title; for files: ZIP filename or first filename
+	FileCount int    // number of tasks in this job
+	Status    string // pending | running | succeeded | failed | partial
+	Error     string // aggregated error summary (empty if no failures)
+	CreatedAt int64  // unix ms
+	UpdatedAt int64  // unix ms
+}
+
+// BuildJobListFilter narrows ListBuildJobsPaged results with LIKE search and
+// pagination.
+type BuildJobListFilter struct {
+	Status  string // optional exact status match
+	Query   string // LIKE match on title
+	SortBy  string // column to sort by (empty = created_at)
+	SortDir string // "asc" or "desc" (empty = desc)
+	Limit   int
+	Offset  int
+}
+
+// BuildJobListResult holds a page of build jobs plus the total count matching
+// the filter.
+type BuildJobListResult struct {
+	Jobs  []*BuildJob
+	Total int
+}
+
+// BuildJobStore persists build jobs.
+type BuildJobStore interface {
+	// CreateBuildJob inserts a new build job.
+	CreateBuildJob(ctx context.Context, j *BuildJob) error
+	// GetBuildJob returns the build job by id, or ErrNotFound.
+	GetBuildJob(ctx context.Context, id string) (*BuildJob, error)
+	// ListBuildJobsPaged returns a page of build jobs matching the filter.
+	ListBuildJobsPaged(ctx context.Context, f BuildJobListFilter) (*BuildJobListResult, error)
+	// DeleteBuildJob removes a build job by id.
+	DeleteBuildJob(ctx context.Context, id string) error
+	// UpdateBuildJobFileCount sets the file_count and updated_at for a build job.
+	UpdateBuildJobFileCount(ctx context.Context, id string, count int, now int64) error
+	// RefreshBuildJobStatuses recomputes status for all non-terminal build jobs
+	// from their child tasks using a single CTE-based UPDATE.
+	RefreshBuildJobStatuses(ctx context.Context, now int64) error
+	// RefreshBuildJobStatus recomputes status for a single build job.
+	RefreshBuildJobStatus(ctx context.Context, id string, now int64) error
+}
+
 // DerivedJobStore persists derive jobs. Kept separate from Store so the compile
 // queue's interface is unchanged; sqlite.Store implements both.
 type DerivedJobStore interface {
@@ -201,6 +272,11 @@ type DerivedJobStore interface {
 	CreateDerivedJob(ctx context.Context, j *DerivedJob) error
 	// GetDerivedJob returns the job by id, or ErrNotFound.
 	GetDerivedJob(ctx context.Context, id string) (*DerivedJob, error)
+	// ListDerivedJobsPaged returns a page of derive jobs matching the filter.
+	ListDerivedJobsPaged(ctx context.Context, f DerivedJobListFilter) (*DerivedJobListResult, error)
+	// DeleteDerivedJob removes a terminal derive job. Returns ErrNotFound if
+	// the job does not exist or is not in a terminal status.
+	DeleteDerivedJob(ctx context.Context, id string) error
 	// ClaimNextDerivedJob marks the oldest pending job running and returns it.
 	// Returns (nil, nil) when nothing is pending OR when a job is already
 	// running: a derive spends real money and rewrites a directory, so the

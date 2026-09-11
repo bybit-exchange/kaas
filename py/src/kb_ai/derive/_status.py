@@ -93,7 +93,7 @@ def check_extractions(kb_dir: str) -> ExtractionCheck:
         return ExtractionCheck()
 
     for path in store._iter_raw_paths():
-        rel_path = str(path.relative_to(store.base_dir))
+        rel_path = path.relative_to(store.base_dir).as_posix()
         header, reason = extraction.load_header(store, rel_path)
         if header is None:
             missing.append((rel_path, reason))

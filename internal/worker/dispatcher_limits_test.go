@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bybit-exchange/kaas/internal/circuit"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -96,6 +97,77 @@ func runDispatcher(t *testing.T, d *Dispatcher) func() {
 		case <-time.After(5 * time.Second):
 			t.Fatal("Run did not return after cancellation")
 		}
+	}
+}
+
+// TestDispatcherLimitsClaimingWhenHalfOpen asserts that in half-open state the
+// dispatcher claims at most one task, so the single recovery probe is not
+// accompanied by other tasks that would be instantly rejected by the breaker
+// and burn their retry attempts.
+func TestDispatcherLimitsClaimingWhenHalfOpen(t *testing.T) {
+	// A controllable clock lets us move the breaker past cooldown without sleeping.
+	nowMu := sync.Mutex{}
+	nowVal := time.Unix(1000, 0)
+	clock := func() time.Time { nowMu.Lock(); defer nowMu.Unlock(); return nowVal }
+	advance := func(d time.Duration) { nowMu.Lock(); nowVal = nowVal.Add(d); nowMu.Unlock() }
+
+	// Trip the breaker with FailureThreshold=1 and a short cooldown.
+	brk := circuit.New(circuit.Options{FailureThreshold: 1, Cooldown: 50 * time.Millisecond, Clock: clock})
+	_ = brk.Do(func() error { return errors.New("trip") })
+	if brk.State() != circuit.StateOpen {
+		t.Fatalf("breaker should be open")
+	}
+	advance(100 * time.Millisecond) // past cooldown → half-open
+	if brk.State() != circuit.StateHalfOpen {
+		t.Fatalf("breaker should be half-open after cooldown, got %s", brk.State())
+	}
+
+	// stubClaimer with an infinite task supply so we can observe how many
+	// Claims drain issues per tick.
+	template := taskWithRaw(t, "body")
+	c := newStubClaimer()
+	c.newTask = func(n int) *store.Task {
+		task := *template
+		return &task
+	}
+	// Use a fakeEngine whose Extract blocks, so the claimed slot stays occupied.
+	started := make(chan struct{}, 64)
+	release := make(chan struct{})
+	eng := &fakeEngine{onExtract: func(ctx context.Context) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		select {
+		case <-release:
+		case <-ctx.Done():
+		}
+	}}
+	w := NewWorker(&stubQueue{}, eng, brk, "w1", wcfg())
+	d := NewDispatcher(c, w, brk, "w1", time.Millisecond, 8) // high maxConc
+
+	stop := runDispatcher(t, d)
+	// Wait for at least one task to start processing.
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("no task started")
+	}
+	// Let a few more poll ticks pass to see if more claims happen.
+	c.waitTicks(t, 5)
+	close(release)
+	stop()
+
+	claimN, _ := c.counts()
+	// In half-open state the dispatcher must claim exactly 1 task per tick
+	// (the recovery probe), not maxConc. Because the probe holds its slot
+	// while blocked in Extract, subsequent ticks each claim 1 more — but
+	// those are abandoned without burning retries (fix #2). The key
+	// assertion: Claims << ticks × maxConc.
+	// With maxConc=8 and ≥5 ticks, uncapped drain would claim ≥40.
+	// With the limit, each tick claims at most 1.
+	if claimN > 8 {
+		t.Errorf("Claim calls = %d during half-open state, want ≤8 (1 per tick), not maxConc×ticks", claimN)
 	}
 }
 

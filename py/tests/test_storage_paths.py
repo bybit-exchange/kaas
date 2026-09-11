@@ -10,7 +10,27 @@ from pathlib import Path
 
 import pytest
 
-from kb_ai.storage.store import KBStore, _compute_checksum
+from kb_ai.storage.store import KBStore, _compute_checksum, _strip_verbatim
+
+
+# ── _strip_verbatim ────────────────────────────────────────────────
+
+def test_strip_verbatim_removes_extended_length_prefix():
+    """Path.resolve() on Windows can return \\?\-prefixed verbatim paths when
+    a parent directory appears while another thread resolves through it —
+    reproducible with a parallel-extract workload. Left alone, such a path
+    fails is_relative_to(base) and the store misreports 'path escapes kb_dir'
+    for a file that is inside the KB."""
+    assert _strip_verbatim("\\\\?\\C:\\kb\\extraction\\a.md") == "C:\\kb\\extraction\\a.md"
+
+
+def test_strip_verbatim_maps_unc_prefix_back_to_double_slash():
+    assert _strip_verbatim("\\\\?\\UNC\\server\\share\\kb") == "\\\\server\\share\\kb"
+
+
+def test_strip_verbatim_leaves_ordinary_paths_alone():
+    assert _strip_verbatim("C:\\kb\\a.md") == "C:\\kb\\a.md"
+    assert _strip_verbatim("/kb/a.md") == "/kb/a.md"
 
 
 def _write_bytes(base: Path, rel: str, data: bytes) -> Path:

@@ -15,9 +15,9 @@ def _derived(tmp_path: Path, articles: dict[str, str]) -> Path:
     for rel, title in articles.items():
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(f"---\ntitle: {title}\ntags: [t]\n---\n\n# {title}\n\nProse.\n")
+        p.write_text(f"---\ntitle: {title}\ntags: [t]\n---\n\n# {title}\n\nProse.\n", encoding="utf-8")
         lines.append(f"- [{title}]({rel}) — Prose.")
-    (tmp_path / "index" / "master-index.md").write_text("\n".join(lines) + "\n")
+    (tmp_path / "index" / "master-index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return tmp_path
 
 
@@ -51,7 +51,7 @@ def test_moved_article_leaves_the_derived_catalog(tmp_path: Path):
 
     _offtopic.prune(d, "pricing", select)
 
-    catalog = (d / "index" / "master-index.md").read_text()
+    catalog = (d / "index" / "master-index.md").read_text(encoding="utf-8")
     assert "wiki/a.md" in catalog
     assert "wiki/b.md" not in catalog
     # D4: assert against parsed entries (not raw text) so a future glob widening
@@ -99,12 +99,12 @@ def test_empty_derived_catalog_warns_without_calling_the_selector(tmp_path: Path
 def test_documents_behind_moved_articles_stay_in_raw(tmp_path: Path):
     d = _derived(tmp_path, {"wiki/a.md": "A", "wiki/b.md": "B"})
     (d / "raw").mkdir(parents=True, exist_ok=True)
-    (d / "raw" / "src.md").write_text("body")
+    (d / "raw" / "src.md").write_text("body", encoding="utf-8")
     select, _ = _selector(["wiki/a.md"])
 
     _offtopic.prune(d, "pricing", select)
 
-    assert (d / "raw" / "src.md").read_text() == "body"
+    assert (d / "raw" / "src.md").read_text(encoding="utf-8") == "body"
 
 
 def test_traversing_catalog_entry_is_rejected(tmp_path: Path):
@@ -116,11 +116,11 @@ def test_traversing_catalog_entry_is_rejected(tmp_path: Path):
     (derived / "wiki").mkdir()
     # A valid article so the catalog is non-empty and the selector has something to keep.
     (derived / "wiki" / "keep.md").write_text(
-        "---\ntitle: Keep\ntags: [t]\n---\n\n# Keep\n\nProse.\n"
+        "---\ntitle: Keep\ntags: [t]\n---\n\n# Keep\n\nProse.\n", encoding="utf-8"
     )
     # A file outside derived_dir; the traversal entry below resolves src to this path.
     victim = tmp_path / "victim.md"
-    victim.write_text("secret")
+    victim.write_text("secret", encoding="utf-8")
     # "wiki/../../victim.md" passes the startswith("wiki/") guard but resolves
     # src to tmp_path/victim.md, which is outside derived/.
     index_text = (
@@ -128,7 +128,7 @@ def test_traversing_catalog_entry_is_rejected(tmp_path: Path):
         "- [Keep](wiki/keep.md) — Prose.\n"
         "- [Victim](wiki/../../victim.md) — Prose.\n"
     )
-    (derived / "index" / "master-index.md").write_text(index_text)
+    (derived / "index" / "master-index.md").write_text(index_text, encoding="utf-8")
     # Selector keeps only the legitimate article; the traversal entry would be moved.
     select, _ = _selector(["wiki/keep.md"])
 
@@ -137,6 +137,6 @@ def test_traversing_catalog_entry_is_rejected(tmp_path: Path):
     # The traversal entry must not appear in moved.
     assert "wiki/../../victim.md" not in moved
     # The outside file must survive untouched.
-    assert victim.read_text() == "secret"
+    assert victim.read_text(encoding="utf-8") == "secret"
     # A warning must document the rejected entry.
     assert any("path_escapes_derived_dir" in w for w in warnings)

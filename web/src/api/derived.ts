@@ -35,12 +35,28 @@ export interface DeriveJob {
   id: string
   slug: string
   topic: string
+  model: string
+  select_from: string
   status: DeriveStatus
   stage: string
   error?: string
   result?: DeriveResult
   created_at: number
   updated_at: number
+}
+
+export interface ListDeriveJobsParams {
+  status?: string
+  q?: string
+  sort?: string
+  order?: string
+  limit?: number
+  offset?: number
+}
+
+export interface ListDeriveJobsResponse {
+  jobs: DeriveJob[]
+  total: number
 }
 
 export interface StartDeriveRequest {
@@ -66,4 +82,22 @@ export async function startDerive(
 export async function getDeriveJob(id: string): Promise<DeriveJob> {
   const res = await apiFetch(`/derive/${encodeURIComponent(id)}`)
   return res.json() as Promise<DeriveJob>
+}
+
+export async function listDeriveJobs(p?: ListDeriveJobsParams): Promise<ListDeriveJobsResponse> {
+  const qs = new URLSearchParams()
+  if (p?.status !== undefined) qs.set('status', p.status)
+  if (p?.q !== undefined) qs.set('q', p.q)
+  if (p?.sort) qs.set('sort', p.sort)
+  if (p?.order) qs.set('order', p.order)
+  qs.set('limit', String(p?.limit ?? 20))
+  if (p?.offset !== undefined) qs.set('offset', String(p.offset))
+  const str = qs.toString()
+  const path = str ? `/derive/jobs?${str}` : '/derive/jobs'
+  const res = await apiFetch(path)
+  return res.json() as Promise<ListDeriveJobsResponse>
+}
+
+export async function deleteDeriveJob(id: string): Promise<void> {
+  await apiFetch(`/derive/jobs/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }

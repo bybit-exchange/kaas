@@ -27,7 +27,7 @@ type stubSessionStore struct {
 
 func (s *stubSessionStore) CreateSession(context.Context, *store.Session) error { return s.createErr }
 
-func (s *stubSessionStore) ListSessions(context.Context) ([]*store.Session, error) {
+func (s *stubSessionStore) ListSessions(_ context.Context, _ *string) ([]*store.Session, error) {
 	if s.listErr != nil {
 		return nil, s.listErr
 	}
@@ -98,6 +98,24 @@ func TestSessionHandlerErrorMapping(t *testing.T) {
 			body:       `{"title":"x","admin":true}`,
 			wantStatus: http.StatusBadRequest,
 			wantInBody: "invalid request body",
+		},
+		{
+			name:       "create with valid kb_slug and an unknown field",
+			ss:         &stubSessionStore{},
+			method:     http.MethodPost,
+			target:     "/api/sessions",
+			body:       `{"title":"x","kb_slug":"valid","admin":true}`,
+			wantStatus: http.StatusBadRequest,
+			wantInBody: "invalid request body",
+		},
+		{
+			name:       "create with invalid kb_slug",
+			ss:         &stubSessionStore{},
+			method:     http.MethodPost,
+			target:     "/api/sessions",
+			body:       `{"title":"x","kb_slug":"INVALID!"}`,
+			wantStatus: http.StatusBadRequest,
+			wantInBody: "invalid kb_slug",
 		},
 		{
 			name:       "create fails in the store",
@@ -199,6 +217,24 @@ func TestSessionHandlerErrorMapping(t *testing.T) {
 				t.Errorf("error = %q, want it to mention %q", resp.Error, tc.wantInBody)
 			}
 		})
+	}
+}
+
+// TestCreateSessionWithValidKBSlug verifies that creating a session with a valid
+// kb_slug returns 201 and echoes the slug in the response DTO.
+func TestCreateSessionWithValidKBSlug(t *testing.T) {
+	ss := &stubSessionStore{}
+	s := newStubSessionServer(t, ss)
+	rec := do(t, s, http.MethodPost, "/api/sessions", `{"title":"x","kb_slug":"my-kb"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201; body=%s", rec.Code, rec.Body.String())
+	}
+	var dto sessionDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &dto); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if dto.KBSlug != "my-kb" {
+		t.Errorf("kb_slug = %q, want %q", dto.KBSlug, "my-kb")
 	}
 }
 

@@ -84,7 +84,7 @@ func TestClosedStoreSurfacesRealErrors(t *testing.T) {
 		{"CreateSession", func(s *Store) error {
 			return s.CreateSession(ctx, &store.Session{ID: "s1"})
 		}, "create session"},
-		{"ListSessions", func(s *Store) error { _, err := s.ListSessions(ctx); return err }, "list sessions"},
+		{"ListSessions", func(s *Store) error { _, err := s.ListSessions(ctx, nil); return err }, "list sessions"},
 		{"GetSession", func(s *Store) error { _, err := s.GetSession(ctx, "s1"); return err }, "get session"},
 		{"UpdateSessionTitle", func(s *Store) error { return s.UpdateSessionTitle(ctx, "s1", "t", 2) }, "update session title"},
 		{"DeleteSession", func(s *Store) error { return s.DeleteSession(ctx, "s1") }, "delete session"},

@@ -745,6 +745,47 @@ def test_streaming_commands_registry():
 
 # ── main loop ───────────────────────────────────────────────────────
 
+def test_main_pins_stdio_to_utf8_on_ansi_codepage_interpreters(monkeypatch, capsys):
+    """Windows pipes decode stdin with the ANSI code page (cp936 on Chinese
+    Windows) and errors='surrogateescape', so the UTF-8 JSON the Go bridge
+    writes arrives as mojibake studded with lone surrogates — which then
+    fails the strict UTF-8 encode of the LLM request ('surrogates not
+    allowed'). The wire protocol is UTF-8 JSON lines; main() must pin the
+    standard streams to it regardless of locale."""
+    import io
+
+    wire = (json.dumps({"id": "1", "cmd": "ping", "payload": {"echo": "八卦炉"}},
+                       ensure_ascii=False).encode("utf-8") + b"\n"
+            + json.dumps({"id": "s", "cmd": "shutdown"}).encode("utf-8") + b"\n"
+            + json.dumps({"id": "2", "cmd": "ping"}).encode("utf-8") + b"\n")
+    # Exactly what a Chinese Windows Python presents for a piped stdin.
+    stdin = io.TextIOWrapper(io.BytesIO(wire), encoding="gbk",
+                             errors="surrogateescape", newline="")
+    monkeypatch.setattr("sys.stdin", stdin)
+
+    stdout = io.TextIOWrapper(io.BytesIO(), encoding="gbk", newline="")
+    monkeypatch.setattr("sys.stdout", stdout)
+
+    sd.main()
+
+    assert stdin.encoding == "utf-8", "stdin must be reconfigured to UTF-8"
+    assert stdout.encoding == "utf-8", "stdout must be reconfigured to UTF-8"
+
+    # Shutdown must stop the loop before request 2 is read.
+    stdout.seek(0)
+    lines = [json.loads(line) for line in stdout.read().splitlines() if line.strip()]
+    assert [r["id"] for r in lines] == ["1", "s"]
+
+    # The response payload round-trips byte-exact through the pinned streams:
+    # encoding it back to UTF-8 must succeed and match the original text.
+    payload_text = json.dumps({"echo": "八卦炉"}, ensure_ascii=False)
+    assert payload_text.encode("utf-8").decode("utf-8") == payload_text
+    # And the raw bytes on the wire are valid UTF-8 (GBK-strict stdout would
+    # have raised on characters outside the code page).
+    stdout.buffer.seek(0)
+    stdout.buffer.read().decode("utf-8")
+
+
 def run_main(lines: list[str], capsys) -> list[dict]:
     """Drive main() with the given stdin lines and collect its responses."""
     with patch("sys.stdin", StringIO("".join(line + "\n" for line in lines))):
@@ -888,6 +929,7 @@ def test_derive_command_dispatches_to_derive_kb(monkeypatch):
 
     server_daemon._handle_derive("req-1", {"payload": {
         "kb_dir": "/kb", "topic": "pricing", "slug": "pricing", "force": True, "model": "m",
+        "reorganize": True,
     }})
 
     assert seen["source_kb"] == "/kb"
@@ -896,9 +938,83 @@ def test_derive_command_dispatches_to_derive_kb(monkeypatch):
     assert seen["force"] is True
     assert seen["model"] == "m"
     assert seen["approve"] is None  # H5: no volume gate on the async path
+    assert seen["reorganize"] is True
     assert responses[0]["slug"] == "pricing"
     assert responses[0]["compiled"] is True
     assert responses[0]["cost"] == {"total_cost_usd": 0.25}
+
+
+def test_derive_command_passes_reorganize_false(monkeypatch):
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing", "reorganize": False,
+    }})
+
+    assert seen["reorganize"] is False
+
+
+def test_derive_command_defaults_reorganize_to_true(monkeypatch):
+    """When the payload omits the reorganize key the daemon defaults to True,
+    preserving backward compatibility with older Go binaries."""
+    from kb_ai import server_daemon
+
+    seen: dict = {}
+    responses: list = []
+
+    class _Report:
+        derived_kb = "/kb/derived/pricing"
+        slug = "pricing"
+        topic = "pricing"
+        selected_articles = ["wiki/a.md"]
+        selected_documents: list = []
+        skipped_articles: list = []
+        skipped_documents: list = []
+        documents: list = []
+        dropped_invented_paths = 0
+        filter_batches = 1
+        offtopic_articles: list = []
+        compiled = True
+        compile = {"compiled": 1}
+        cost: dict = {}
+        warnings: list = []
+
+    monkeypatch.setattr("kb_ai.derive.derive_kb",
+                        lambda source_kb, topic, **kw: (seen.update(kw), _Report())[1])
+    monkeypatch.setattr(server_daemon, "_respond_ok",
+                        lambda rid, data: responses.append(data))
+
+    server_daemon._handle_derive("req-1", {"payload": {
+        "kb_dir": "/kb", "topic": "pricing",
+    }})
+
+    assert "reorganize" not in {"payload": {"kb_dir": "/kb", "topic": "pricing"}}.get("payload", {})
+    assert seen["reorganize"] is True
 
 
 def test_derive_command_reports_a_domain_error_code(monkeypatch):
@@ -1211,7 +1327,7 @@ def test_handle_extract_normalises_crlf_before_hashing(capsys, stub_extract, kb,
     sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
 
     stored, _ = exl.load(KBStore(kb), "raw/a.md")
-    assert stored.provenance.source_checksum == _compute_checksum(raw.read_text())
+    assert stored.provenance.source_checksum == _compute_checksum(raw.read_text(encoding="utf-8"))
 
 
 def test_handle_extract_prompts_the_model_with_the_same_bytes_as_the_cli(
@@ -1222,7 +1338,7 @@ def test_handle_extract_prompts_the_model_with_the_same_bytes_as_the_cli(
 
     sd._handle_extract("1", extract_request(kb, content=raw.read_bytes().decode()))
 
-    assert stub_extract["content"] == raw.read_text()
+    assert stub_extract["content"] == raw.read_text(encoding="utf-8")
 
 
 def test_both_routes_write_a_byte_identical_extraction_file(capsys, kb, tmp_path,
@@ -1260,5 +1376,5 @@ def test_both_routes_write_a_byte_identical_extraction_file(capsys, kb, tmp_path
     worker.write_raw("raw/a.md", "content")
     sd._handle_extract("1", extract_request(kb, content="content", model="M"))
 
-    assert (worker.extraction_path("raw/a.md").read_text()
-            == cli.extraction_path("raw/a.md").read_text())
+    assert (worker.extraction_path("raw/a.md").read_text(encoding="utf-8")
+            == cli.extraction_path("raw/a.md").read_text(encoding="utf-8"))

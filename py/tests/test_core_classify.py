@@ -29,7 +29,8 @@ def test_title_words():
     """_title_words extracts lowercase word set from a title."""
     words = _title_words("Hello World-Test")
     assert "hello" in words
-    assert "worldtest" in words
+    assert "world" in words
+    assert "test" in words
 
 
 def test_default_categories_hold_the_measured_six():

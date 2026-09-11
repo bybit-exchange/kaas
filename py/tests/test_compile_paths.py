@@ -90,7 +90,7 @@ def merges(*paths) -> dict:
 
 
 def log_of(store: KBStore) -> str:
-    return (store.base_dir / ".compile.log").read_text()
+    return (store.base_dir / ".compile.log").read_text(encoding="utf-8")
 
 
 # ── single merge into an existing article ───────────────────────────
@@ -105,7 +105,7 @@ def test_compile_single_merge_updates_the_existing_article(kb_one, fakes):
 
     assert fakes["merged"] == [("wiki/concept/target.md", "raw/only.md")]
     assert fakes["created"] == [], "an existing article must not be recreated"
-    body = (kb_one.base_dir / "wiki/concept/target.md").read_text()
+    body = (kb_one.base_dir / "wiki/concept/target.md").read_text(encoding="utf-8")
     assert "prior body" in body and "merged raw/only.md" in body
     assert out["compiled"] == 1
     assert out["errors"] == []
@@ -127,7 +127,7 @@ def test_compile_records_single_merge_failure(kb_one, fakes):
     assert out["errors"] == [{"file": "raw/only.md",
                               "error": "merge failed for wiki/concept/target.md",
                               "article": "wiki/concept/target.md"}]
-    assert (kb_one.base_dir / "wiki/concept/target.md").read_text() == "prior body\n"
+    assert (kb_one.base_dir / "wiki/concept/target.md").read_text(encoding="utf-8") == "prior body\n"
     assert "raw/only.md" not in kb_one.load_compile_state()
     assert "[merge-error] wiki/concept/target.md ← raw/only.md" in log_of(kb_one)
 
@@ -209,7 +209,7 @@ def test_compile_still_merges_when_a_create_failed_but_the_article_exists(
     out = cm.compile_kb(str(kb_two.base_dir))
 
     assert calls == ["raw/a.md", "raw/b.md"], "the surviving source must still merge"
-    assert "merged raw/b.md" in (kb_two.base_dir / "wiki/concept/target.md").read_text()
+    assert "merged raw/b.md" in (kb_two.base_dir / "wiki/concept/target.md").read_text(encoding="utf-8")
     assert out["compiled"] == 1
     assert {e["file"] for e in out["errors"]} == {"raw/a.md"}
     log = log_of(kb_two)
@@ -244,7 +244,7 @@ def test_compile_records_merge_batch_failure_for_every_source(kb_two, fakes):
     assert out["compiled"] == 0
     assert {e["file"] for e in out["errors"]} == {"raw/a.md", "raw/b.md"}
     assert all(e["article"] == "wiki/concept/target.md" for e in out["errors"])
-    assert (kb_two.base_dir / "wiki/concept/target.md").read_text() == "prior body\n"
+    assert (kb_two.base_dir / "wiki/concept/target.md").read_text(encoding="utf-8") == "prior body\n"
     assert kb_two.load_compile_state() == {}, "nothing succeeded, so no op is recorded"
     assert "[merge-batch-error] wiki/concept/target.md ← 2 sources" in log_of(kb_two)
 

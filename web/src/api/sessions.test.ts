@@ -15,6 +15,7 @@ global.fetch = mockFetch
 const sampleSession: Session = {
   id: 's1',
   title: 'First chat',
+  kb_slug: '',
   created_at: '2026-07-30T10:00:00Z',
   updated_at: '2026-07-31T10:00:00Z',
 }
@@ -72,6 +73,22 @@ describe('listSessions', () => {
     await expect(listSessions()).rejects.toThrow(ApiError)
     await expect(listSessions()).rejects.toThrow('store unavailable')
   })
+
+  it('appends ?kb= when filtering for root KB sessions', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { sessions: [] }))
+
+    await listSessions('')
+
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/sessions?kb=')
+  })
+
+  it('appends ?kb=<slug> when filtering for a derived KB', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { sessions: [sampleSession] }))
+
+    await listSessions('pricing')
+
+    expect(mockFetch.mock.calls[0][0]).toBe('/api/sessions?kb=pricing')
+  })
 })
 
 describe('createSession', () => {
@@ -83,7 +100,7 @@ describe('createSession', () => {
     expect(created).toEqual(sampleSession)
     expect(mockFetch.mock.calls[0][0]).toBe('/api/sessions')
     expect(lastInit().method).toBe('POST')
-    expect(JSON.parse(lastInit().body as string)).toEqual({ title: 'First chat' })
+    expect(JSON.parse(lastInit().body as string)).toEqual({ title: 'First chat', kb_slug: '' })
   })
 
   it('sends a JSON content type', async () => {
@@ -100,7 +117,16 @@ describe('createSession', () => {
 
     await createSession('')
 
-    expect(JSON.parse(lastInit().body as string)).toEqual({ title: '' })
+    expect(JSON.parse(lastInit().body as string)).toEqual({ title: '', kb_slug: '' })
+  })
+
+  it('sends kb_slug when a derived KB is specified', async () => {
+    mockFetch.mockResolvedValue(makeResponse(200, { ...sampleSession, kb_slug: 'pricing' }))
+
+    const created = await createSession('Pricing questions', 'pricing')
+
+    expect(JSON.parse(lastInit().body as string)).toEqual({ title: 'Pricing questions', kb_slug: 'pricing' })
+    expect(created.kb_slug).toBe('pricing')
   })
 })
 

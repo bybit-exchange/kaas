@@ -36,7 +36,7 @@ describe('AppLayout nav links', () => {
     expect(screen.getByRole('link', { name: STRINGS.en['layout.chat'] })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: STRINGS.en['layout.submit'] })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: STRINGS.en['layout.wiki'] })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: STRINGS.en['layout.tasks'] })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: STRINGS.en['layout.builds'] })).toBeInTheDocument()
   })
 
   it('nav links point to the correct hrefs', () => {
@@ -44,7 +44,7 @@ describe('AppLayout nav links', () => {
     expect(screen.getByRole('link', { name: STRINGS.en['layout.chat'] })).toHaveAttribute('href', '/chat')
     expect(screen.getByRole('link', { name: STRINGS.en['layout.submit'] })).toHaveAttribute('href', '/submit')
     expect(screen.getByRole('link', { name: STRINGS.en['layout.wiki'] })).toHaveAttribute('href', '/wiki')
-    expect(screen.getByRole('link', { name: STRINGS.en['layout.tasks'] })).toHaveAttribute('href', '/tasks')
+    expect(screen.getByRole('link', { name: STRINGS.en['layout.builds'] })).toHaveAttribute('href', '/builds')
   })
 })
 

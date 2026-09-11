@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, AlertTriangle } from 'lucide-react'
 import { useT } from '@/i18n'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { getTaskContent } from '@/api/tasks'
 
 interface FilePreviewSheetProps {
@@ -65,14 +65,17 @@ export function FilePreviewSheet({ open, onOpenChange, taskId, displayTitle }: F
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[50vw] min-w-[400px] flex flex-col">
+      <SheetContent className="w-[80vw] min-w-[400px] flex flex-col">
         <SheetHeader>
           <SheetTitle className="truncate">
             {displayTitle || t('tasks.filePreviewTitle')}
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            {t('tasks.filePreviewDesc')}
+          </SheetDescription>
           {content != null && (
             <p className="text-sm text-muted-foreground">
-              {t('tasks.filePreviewLines').replace('{count}', String(lines.length))}
+              {t('tasks.filePreviewLines', { count: lines.length })}
             </p>
           )}
         </SheetHeader>

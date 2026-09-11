@@ -148,6 +148,13 @@ func (w *Worker) Process(parent context.Context, task *store.Task) {
 		ext, e = w.eng.Extract(ctx, req)
 		return e
 	})
+	if errors.Is(err, circuit.ErrOpen) {
+		// The breaker rejected without issuing the call: abandon without
+		// Ack/Nack so attempts are not burned; RecoverExpired requeues
+		// the task after the lease TTL.
+		log.Printf("worker: %s extract abandoned: breaker open", task.ID)
+		return
+	}
 	if err != nil {
 		w.fail(ctx, task, fmt.Sprintf("extract: %v", err))
 		return

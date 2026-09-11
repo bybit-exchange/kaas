@@ -110,7 +110,7 @@ def test_is_stub_rejects_non_stubs(content):
 
 def test_existing_created_reads_frontmatter(tmp_path):
     p = tmp_path / "x.md"
-    p.write_text("---\ncreated: 2025-01-01\nupdated: 2026-01-01\n---\nbody")
+    p.write_text("---\ncreated: 2025-01-01\nupdated: 2026-01-01\n---\nbody", encoding="utf-8")
     assert people._existing_created(p) == "2025-01-01"
 
 
@@ -122,7 +122,7 @@ def test_existing_created_reads_frontmatter(tmp_path):
 ])
 def test_existing_created_returns_none(tmp_path, content):
     p = tmp_path / "x.md"
-    p.write_text(content)
+    p.write_text(content, encoding="utf-8")
     assert people._existing_created(p) is None
 
 
@@ -141,7 +141,7 @@ def test_update_people_stubs_generates_stub(tmp_path):
 
     stub = _stub_path(store, "grace-hopper")
     assert stub.exists()
-    content = stub.read_text()
+    content = stub.read_text(encoding="utf-8")
     assert people.STUB_SENTINEL in content
     assert 'title: "Grace Hopper"' in content
     assert "type: person" in content
@@ -160,7 +160,7 @@ def test_update_people_stubs_matches_aliases_case_insensitively(tmp_path):
         {"canonical": "Grace Hopper", "aliases": ["Grace Hopper", "Grace"]},
     ])
 
-    content = _stub_path(store, "grace-hopper").read_text()
+    content = _stub_path(store, "grace-hopper").read_text(encoding="utf-8")
     assert "mentions: 3" in content
     # Aliases are recorded with the casing from config, not from the article.
     assert 'aliases: ["Grace", "Grace Hopper"]' in content
@@ -174,7 +174,7 @@ def test_update_people_stubs_counts_every_mention_but_dedupes_sources(tmp_path):
 
     people.update_people_stubs(store, [{"canonical": "Grace Hopper", "aliases": ["Grace"]}])
 
-    content = _stub_path(store, "grace-hopper").read_text()
+    content = _stub_path(store, "grace-hopper").read_text(encoding="utf-8")
     assert "mentions: 3" in content
     assert content.count("wiki/a.md") == 2   # once under sources, once in the list
     assert content.count("wiki/b.md") == 2
@@ -218,7 +218,7 @@ def test_update_people_stubs_does_not_scan_the_people_dir(tmp_path):
 
     people.update_people_stubs(store, [{"canonical": "Grace Hopper", "aliases": ["Grace"]}])
 
-    content = _stub_path(store, "grace-hopper").read_text()
+    content = _stub_path(store, "grace-hopper").read_text(encoding="utf-8")
     assert "mentions: 1" in content
 
 
@@ -227,11 +227,11 @@ def test_update_people_stubs_preserves_handwritten_bio(tmp_path):
     stub = _stub_path(store, "grace-hopper")
     stub.parent.mkdir(parents=True, exist_ok=True)
     handwritten = "---\ntitle: Grace Hopper\n---\nA carefully written biography."
-    stub.write_text(handwritten)
+    stub.write_text(handwritten, encoding="utf-8")
 
     people.update_people_stubs(store, [{"canonical": "Grace Hopper", "aliases": ["Grace"]}])
 
-    assert stub.read_text() == handwritten
+    assert stub.read_text(encoding="utf-8") == handwritten
 
 
 def test_update_people_stubs_regenerates_existing_stub_preserving_created(tmp_path):
@@ -240,12 +240,12 @@ def test_update_people_stubs_regenerates_existing_stub_preserving_created(tmp_pa
     stub.parent.mkdir(parents=True, exist_ok=True)
     stub.write_text(
         f"---\ntitle: \"Grace Hopper\"\nmentions: 1\ncreated: 2024-03-01\n"
-        f"updated: 2024-03-01\n---\n{people.STUB_SENTINEL}\n\nold body\n"
+        f"updated: 2024-03-01\n---\n{people.STUB_SENTINEL}\n\nold body\n", encoding="utf-8"
     )
 
     people.update_people_stubs(store, [{"canonical": "Grace Hopper", "aliases": ["Grace"]}])
 
-    content = stub.read_text()
+    content = stub.read_text(encoding="utf-8")
     assert "created: 2024-03-01" in content     # original creation date kept
     assert f"updated: {TODAY}" in content        # refreshed
     assert "mentions: 2" in content              # recounted
@@ -287,7 +287,7 @@ def test_update_people_stubs_sorts_sources_by_title(tmp_path):
 
     people.update_people_stubs(store, [{"canonical": "Grace Hopper", "aliases": ["Grace"]}])
 
-    content = _stub_path(store, "grace-hopper").read_text()
+    content = _stub_path(store, "grace-hopper").read_text(encoding="utf-8")
     assert content.index("[Alpha]") < content.index("[Zulu]")
 
 

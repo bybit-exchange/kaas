@@ -42,7 +42,7 @@ vi.mock('mermaid', () => ({
 
 // Import after mocking
 import { listWiki, fetchWikiArticle } from '@/api/wiki'
-import { listDerived, startDerive, getDeriveJob } from '@/api/derived'
+import { listDerived, startDerive } from '@/api/derived'
 import { Wiki } from './Wiki'
 
 function renderWiki(entry: string) {
@@ -121,21 +121,9 @@ describe('Wiki page', () => {
     await waitFor(() => expect(listWiki).toHaveBeenCalledWith('pricing'))
   })
 
-  it('reloads the knowledge-base list once a derive succeeds', async () => {
+  it('shows a link to builds after starting a derive', async () => {
     const user = userEvent.setup()
     vi.mocked(startDerive).mockResolvedValue({ job_id: 'j1', slug: 'compliance' })
-    vi.mocked(getDeriveJob).mockResolvedValue({
-      id: 'j1',
-      slug: 'compliance',
-      topic: 'compliance',
-      status: 'succeeded',
-      stage: 'done',
-      result: {
-        selected: 3, documents: 2, bytes: 10, filter_batches: 1, compiled: true,
-      },
-      created_at: 1,
-      updated_at: 2,
-    })
 
     renderWiki('/wiki')
     await waitFor(() => expect(listDerived).toHaveBeenCalledTimes(1))
@@ -144,8 +132,11 @@ describe('Wiki page', () => {
     await user.type(await screen.findByLabelText('Topic'), 'compliance')
     await user.click(screen.getByRole('button', { name: /^start$/i }))
 
-    // The new KB must reach the selector without a page reload.
-    await waitFor(() => expect(listDerived).toHaveBeenCalledTimes(2))
+    // The simplified DeriveDialog shows a link to the Builds page instead of
+    // polling and reloading the KB list.
+    expect(await screen.findByText(/View in Builds/)).toBeInTheDocument()
+    // KB list should NOT be reloaded — only the initial call on mount
+    expect(listDerived).toHaveBeenCalledTimes(1)
   })
 
   it('scopes the article fetch to the selected knowledge base', async () => {

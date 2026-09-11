@@ -53,6 +53,9 @@ func TestSessionCreate(t *testing.T) {
 	if dto.Title != "My Session" {
 		t.Errorf("title = %q, want %q", dto.Title, "My Session")
 	}
+	if dto.KBSlug != "" {
+		t.Errorf("kb_slug = %q, want empty for root KB", dto.KBSlug)
+	}
 	if dto.CreatedAt == "" || dto.UpdatedAt == "" {
 		t.Errorf("timestamps empty: created=%q updated=%q", dto.CreatedAt, dto.UpdatedAt)
 	}
@@ -95,6 +98,88 @@ func TestSessionList(t *testing.T) {
 	}
 	if out.Sessions[1].Title != "First" {
 		t.Errorf("second session title = %q, want %q", out.Sessions[1].Title, "First")
+	}
+}
+
+// TestSessionListKBFilter verifies the ?kb query parameter:
+// - absent → returns all sessions regardless of kb_slug
+// - ?kb= (empty) → returns only root KB sessions (kb_slug='')
+// - ?kb=slug → returns only sessions for that derived KB
+func TestSessionListKBFilter(t *testing.T) {
+	s := newSessionTestServer(t, &fakeBridge{})
+
+	// Create sessions: two root KB, one derived KB.
+	rec := doSession(t, s, "POST", "/api/sessions", `{"title":"Root1"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create Root1: %d", rec.Code)
+	}
+	rec = doSession(t, s, "POST", "/api/sessions", `{"title":"Root2"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create Root2: %d", rec.Code)
+	}
+	rec = doSession(t, s, "POST", "/api/sessions", `{"title":"Derived","kb_slug":"my-kb"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("create Derived: %d", rec.Code)
+	}
+
+	// No kb param → all sessions.
+	rec = doSession(t, s, "GET", "/api/sessions", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list all: status=%d", rec.Code)
+	}
+	var all struct {
+		Sessions []sessionDTO `json:"sessions"`
+	}
+	mustJSON(t, rec, &all)
+	if len(all.Sessions) != 3 {
+		t.Errorf("no filter: got %d sessions, want 3", len(all.Sessions))
+	}
+
+	// ?kb= (empty) → root KB only.
+	rec = doSession(t, s, "GET", "/api/sessions?kb=", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list root: status=%d", rec.Code)
+	}
+	var root struct {
+		Sessions []sessionDTO `json:"sessions"`
+	}
+	mustJSON(t, rec, &root)
+	if len(root.Sessions) != 2 {
+		t.Errorf("kb= (root filter): got %d sessions, want 2", len(root.Sessions))
+	}
+	for _, sess := range root.Sessions {
+		if sess.KBSlug != "" {
+			t.Errorf("root filter returned session with kb_slug=%q", sess.KBSlug)
+		}
+	}
+
+	// ?kb=my-kb → derived KB only.
+	rec = doSession(t, s, "GET", "/api/sessions?kb=my-kb", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list derived: status=%d", rec.Code)
+	}
+	var derived struct {
+		Sessions []sessionDTO `json:"sessions"`
+	}
+	mustJSON(t, rec, &derived)
+	if len(derived.Sessions) != 1 {
+		t.Errorf("kb=my-kb: got %d sessions, want 1", len(derived.Sessions))
+	}
+	if len(derived.Sessions) > 0 && derived.Sessions[0].KBSlug != "my-kb" {
+		t.Errorf("derived filter: kb_slug = %q, want %q", derived.Sessions[0].KBSlug, "my-kb")
+	}
+
+	// ?kb=nonexistent → zero results.
+	rec = doSession(t, s, "GET", "/api/sessions?kb=nonexistent", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("list nonexistent: status=%d", rec.Code)
+	}
+	var none struct {
+		Sessions []sessionDTO `json:"sessions"`
+	}
+	mustJSON(t, rec, &none)
+	if len(none.Sessions) != 0 {
+		t.Errorf("kb=nonexistent: got %d sessions, want 0", len(none.Sessions))
 	}
 }
 

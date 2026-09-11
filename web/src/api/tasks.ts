@@ -2,6 +2,7 @@ import { apiFetch } from './client'
 
 export interface TaskDTO {
   id: string
+  build_job_id?: string
   source: string
   title: string
   file_title?: string
@@ -38,8 +39,8 @@ export async function listTasks(p?: ListTasksParams): Promise<{ tasks: TaskDTO[]
   return res.json() as Promise<{ tasks: TaskDTO[]; total: number }>
 }
 
-export async function getTask(id: string): Promise<TaskDTO> {
-  const res = await apiFetch(`/tasks/${id}`)
+export async function getTask(id: string, signal?: AbortSignal): Promise<TaskDTO> {
+  const res = await apiFetch(`/tasks/${id}`, { signal })
   return res.json() as Promise<TaskDTO>
 }
 

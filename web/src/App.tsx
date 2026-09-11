@@ -6,7 +6,7 @@ import { PageSpinner } from '@/components/ui/page-spinner'
 
 const Wiki = lazy(() => import('@/pages/Wiki').then(m => ({ default: m.Wiki })))
 const Submit = lazy(() => import('@/pages/Submit').then(m => ({ default: m.Submit })))
-const Tasks = lazy(() => import('@/pages/Tasks').then(m => ({ default: m.Tasks })))
+const Builds = lazy(() => import('@/pages/Builds').then(m => ({ default: m.Builds })))
 
 export default function App() {
   return (
@@ -16,8 +16,9 @@ export default function App() {
         <Route path="chat/:sessionId?" element={<Chat />} />
         <Route path="submit" element={<Suspense fallback={<PageSpinner />}><Submit /></Suspense>} />
         <Route path="wiki/*" element={<Suspense fallback={<PageSpinner />}><Wiki /></Suspense>} />
-        <Route path="tasks" element={<Suspense fallback={<PageSpinner />}><Tasks /></Suspense>} />
-        <Route path="status" element={<Navigate to="/tasks" replace />} />
+        <Route path="builds/:tab?" element={<Suspense fallback={<PageSpinner />}><Builds /></Suspense>} />
+        <Route path="tasks" element={<Navigate to="/builds/tasks" replace />} />
+        <Route path="status" element={<Navigate to="/builds/tasks" replace />} />
         <Route path="*" element={<Navigate to="/chat" replace />} />
       </Route>
     </Routes>

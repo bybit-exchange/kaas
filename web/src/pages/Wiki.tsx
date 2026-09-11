@@ -30,8 +30,6 @@ export function Wiki() {
   const [articleError, setArticleError] = useState<string | null>(null)
   const [showAllTags, setShowAllTags] = useState(false)
   const [showSources, setShowSources] = useState(false)
-  // Bumped when a derive finishes, so the selector picks up the new KB.
-  const [kbListVersion, setKBListVersion] = useState(0)
 
   // Load index list
   useEffect(() => {
@@ -78,7 +76,7 @@ export function Wiki() {
         <div className="flex h-14 items-center gap-2 px-4">
           <h2 className="shrink-0 text-sm font-semibold">{t('wiki.indexTitle')}</h2>
           <div className="min-w-0 flex-1">
-            <KBSelector reloadKey={kbListVersion} />
+            <KBSelector />
           </div>
         </div>
         <Separator />
@@ -103,7 +101,7 @@ export function Wiki() {
           </div>
         </div>
         <div className="px-3 pb-2">
-          <DeriveDialog onDerived={() => setKBListVersion((v) => v + 1)} />
+          <DeriveDialog />
         </div>
         {/* Everything above: header (h-14 = 3.5rem) + separator (1px) + search
             row (p-3 + h-9 input = 3.75rem) + derive row (h-8 button + pb-2 =
@@ -203,8 +201,8 @@ export function Wiki() {
 
         {/* TOC sidebar */}
         {article && !articleLoading && (
-          <aside className="hidden w-80 shrink-0 border-l xl:block">
-            <div className="sticky top-0 p-4">
+          <aside className="hidden w-80 shrink-0 overflow-y-auto border-l xl:block">
+            <div className="p-4">
               <TableOfContents content={article.content} />
             </div>
           </aside>

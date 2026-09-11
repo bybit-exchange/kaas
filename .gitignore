@@ -47,5 +47,4 @@ build/
 .coverage
 coverage/
 coverage.out
-
-.bench/
+.ph

@@ -386,6 +386,13 @@ def _handle_derive(request_id: str, payload: dict) -> None:
 
     select_from = inner.get("select_from") or "articles"
 
+    # Pass only when explicitly provided; let derive_kb() apply its defaults.
+    derive_kw: dict = {}
+    if inner.get("filter_rounds") is not None:
+        derive_kw["filter_rounds"] = inner["filter_rounds"]
+    if inner.get("filter_threshold") is not None:
+        derive_kw["filter_threshold"] = inner["filter_threshold"]
+
     req_tracker = CostTracker()
     set_request_tracker(req_tracker)
     try:
@@ -406,6 +413,8 @@ def _handle_derive(request_id: str, payload: dict) -> None:
                              or os.environ.get("LLM_SUMMARIZE_MODEL")
                              or os.environ.get("LLM_MODEL", "")),
             approve=None,
+            reorganize=inner.get("reorganize", True),
+            **derive_kw,
         )
     except KBError as e:
         _respond_error(request_id, e.code, str(e))
@@ -576,12 +585,30 @@ def _dispatch(
 # Main entry point
 # ---------------------------------------------------------------------------
 
+def _force_utf8_stdio() -> None:
+    """Pin the standard streams to UTF-8.
+
+    The wire protocol is UTF-8 JSON lines, but on Windows a piped Python
+    process decodes stdin with the ANSI code page (e.g. cp936) and
+    errors='surrogateescape' — the UTF-8 bytes the Go bridge writes then
+    become mojibake laced with lone surrogates that fail the strict UTF-8
+    encode of the LLM request. Streams without reconfigure() (StringIO in
+    tests) are left alone.
+    """
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
+
 def main() -> None:
     """Entry point for the kb-ai daemon command.
 
     Signals readiness, then processes JSON commands from stdin.
     Requests are dispatched to a ThreadPoolExecutor for concurrent processing.
     """
+    _force_utf8_stdio()
+
     # Signal readiness to the parent process
     print("__READY__", file=sys.stderr, flush=True)
 

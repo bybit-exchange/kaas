@@ -310,9 +310,12 @@ func run(configFile string) error {
 	if js, ok := st.(store.DerivedJobStore); ok {
 		if dc, ok := chatBr.(*bridge.DaemonClient); ok {
 			deriveRunner = derive.NewRunner(js, dc, derive.Config{
-				KBDir:        cfg.Storage.KBDir,
-				Model:        cfg.LLM.Model,
-				PollInterval: time.Duration(cfg.Worker.PollIntervalMS) * time.Millisecond,
+				KBDir:           cfg.Storage.KBDir,
+				Model:           cfg.LLM.Model,
+				PollInterval:    time.Duration(cfg.Worker.PollIntervalMS) * time.Millisecond,
+				Reorganize:      cfg.Derive.Reorganize,
+				FilterRounds:    cfg.Derive.FilterRounds,
+				FilterThreshold: cfg.Derive.FilterThreshold,
 			}, logger)
 		} else {
 			logger.Warn("derive: HTTP bridge not a DaemonClient; derive runner disabled")

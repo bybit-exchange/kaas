@@ -85,6 +85,14 @@ func (f *fakeJobStore) RecoverRunningDerivedJobs(context.Context, int64) (int, e
 	return 0, nil
 }
 
+func (f *fakeJobStore) ListDerivedJobsPaged(context.Context, store.DerivedJobListFilter) (*store.DerivedJobListResult, error) {
+	return &store.DerivedJobListResult{}, nil
+}
+
+func (f *fakeJobStore) DeleteDerivedJob(context.Context, string) error {
+	return store.ErrNotFound
+}
+
 func (f *fakeJobStore) job(id string) store.DerivedJob {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -169,6 +177,196 @@ func TestRunnerLeavesAnUnsetSelectFromEmpty(t *testing.T) {
 
 	if br.req.SelectFrom != "" {
 		t.Errorf("req.SelectFrom = %q, want empty", br.req.SelectFrom)
+	}
+}
+
+// TestRunnerForwardsReorganizeFalse pins that Config.Reorganize=false reaches
+// the bridge as an explicit *bool pointing to false, rather than being dropped.
+func TestRunnerForwardsReorganizeFalse(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	// Explicit Reorganize: false in the config.
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		Reorganize: false,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.Reorganize == nil {
+		t.Fatal("req.Reorganize is nil, want ptr to false")
+	}
+	if *br.req.Reorganize != false {
+		t.Errorf("req.Reorganize = %v, want false", *br.req.Reorganize)
+	}
+}
+
+// TestRunnerForwardsFilterRounds pins that Config.FilterRounds=5 reaches the
+// bridge as an explicit *int pointing to 5.
+func TestRunnerForwardsFilterRounds(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterRounds: 5,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterRounds == nil {
+		t.Fatal("req.FilterRounds is nil, want ptr to 5")
+	}
+	if *br.req.FilterRounds != 5 {
+		t.Errorf("req.FilterRounds = %d, want 5", *br.req.FilterRounds)
+	}
+}
+
+// TestRunnerOmitsFilterRoundsZero pins that Config.FilterRounds=0 (engine
+// default) reaches the bridge as nil, so the key is absent from JSON.
+func TestRunnerOmitsFilterRoundsZero(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterRounds: 0,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterRounds != nil {
+		t.Errorf("req.FilterRounds = %v, want nil for engine default", br.req.FilterRounds)
+	}
+}
+
+// TestRunnerForwardsFilterThreshold pins that Config.FilterThreshold=0.5 reaches
+// the bridge as an explicit *float64 pointing to 0.5.
+func TestRunnerForwardsFilterThreshold(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterThreshold: 0.5,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterThreshold == nil {
+		t.Fatal("req.FilterThreshold is nil, want ptr to 0.5")
+	}
+	if *br.req.FilterThreshold != 0.5 {
+		t.Errorf("req.FilterThreshold = %g, want 0.5", *br.req.FilterThreshold)
+	}
+}
+
+// TestRunnerOmitsFilterThresholdZero pins that Config.FilterThreshold=0 (engine
+// default) reaches the bridge as nil, so the key is absent from JSON.
+func TestRunnerOmitsFilterThresholdZero(t *testing.T) {
+	js := newFakeJobStore(&store.DerivedJob{
+		ID: "j1", Slug: "pricing", Topic: "t",
+		Status: store.DerivedStatusPending, Stage: store.DerivedStageQueued,
+	})
+	br := &fakeBridge{resp: &bridge.DeriveResponse{Slug: "pricing", Compiled: true}}
+
+	r := NewRunner(js, br, Config{
+		KBDir: "/kb", Model: "default-model",
+		PollInterval: time.Millisecond, Timeout: time.Minute,
+		FilterThreshold: 0,
+	}, testLogger())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	runDone := make(chan struct{})
+	go func() {
+		_ = r.Run(ctx)
+		close(runDone)
+	}()
+
+	select {
+	case <-js.done:
+		cancel()
+	case <-ctx.Done():
+		t.Error("safety deadline exceeded before job finished")
+	}
+	<-runDone
+
+	if br.req.FilterThreshold != nil {
+		t.Errorf("req.FilterThreshold = %v, want nil for engine default", br.req.FilterThreshold)
 	}
 }
 

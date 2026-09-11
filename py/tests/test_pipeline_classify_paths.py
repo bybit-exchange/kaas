@@ -46,7 +46,7 @@ def store_with_index(tmp_path) -> KBStore:
     store = KBStore(str(tmp_path))
     store.index_dir.mkdir(parents=True, exist_ok=True)
     (store.index_dir / "master-index.md").write_text(
-        "# Index\n- [Existing](wiki/concept/existing.md) — an existing article\n"
+        "# Index\n- [Existing](wiki/concept/existing.md) — an existing article\n", encoding="utf-8"
     )
     return store
 

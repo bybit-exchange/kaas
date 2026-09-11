@@ -1,14 +1,18 @@
+import functools
 import os
+import re
 import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 from kb_ai.core.classify import (
     classify_article,
+    classify_article_topical,
     classify_cache_key,
     classify_inputs_hash,
     dedup_create_new,
@@ -36,7 +40,12 @@ from kb_ai.core.people import update_people_stubs
 from kb_ai._context import adopt_context, get_context
 from kb_ai.llm import CostTracker, tracker, get_request_tracker, set_request_tracker
 from kb_ai.core.merge import (
+    _MAX_BATCH_BUDGET,
+    _SUB_ARTICLE_BUDGET_THRESHOLD,
+    _estimate_full_extraction_size,
     create_new_article,
+    estimate_create_budget,
+    estimate_merge_budget,
     merge_into_article,
     write_prompt_version,
 )
@@ -44,6 +53,289 @@ from kb_ai.storage.lag import wiki_lag
 from kb_ai.storage.store import ArticleMeta, KBStore, _compute_checksum
 
 _DEFAULT_WORKERS = 16
+
+
+@dataclass
+class _ChainResult:
+    """Result of one independent batch chain within _merge_batch_split."""
+    articles: list[tuple[str, str]]
+    # (path, content) pairs; paths use chain-local part numbers, re-numbered by caller.
+    all_rels: list[str]
+    # Source rel_paths processed by this chain, in insertion order.
+    n_batches: int
+    # Count of LLM calls (create + merge) made by this chain.
+
+
+# ── Batch-parallel concurrency control ────────────────────────────────
+
+_BATCH_PARALLEL_MAX_CONCURRENT: int = 4
+_BATCH_PARALLEL_ENV: str = "KB_BATCH_PARALLEL_MAX_CONCURRENT"
+
+_BATCH_PARALLEL_THRESHOLD: int = 4
+_BATCH_PARALLEL_THRESHOLD_ENV: str = "KB_BATCH_PARALLEL_THRESHOLD"
+
+_BATCH_PARALLEL_BATCH_LIMIT: int = 3
+_BATCH_PARALLEL_BATCH_LIMIT_ENV: str = "KB_BATCH_PARALLEL_BATCH_LIMIT"
+
+_batch_parallel_sem: threading.Semaphore | None = None
+_batch_parallel_sem_bound: int = 0
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel(raw: str) -> None:
+    """Report an ignored concurrency override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_ENV}={raw!r}: expected a positive "
+          f"integer \u2014 using {_BATCH_PARALLEL_MAX_CONCURRENT}", file=sys.stderr, flush=True)
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel_threshold(raw: str) -> None:
+    """Report an ignored threshold override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_THRESHOLD_ENV}={raw!r}: expected a "
+          f"non-negative integer \u2014 using {_BATCH_PARALLEL_THRESHOLD}",
+          file=sys.stderr, flush=True)
+
+
+@functools.lru_cache(maxsize=1)
+def _warn_invalid_batch_parallel_batch_limit(raw: str) -> None:
+    """Report an ignored batch-limit override once, not once per read."""
+    print(f"[compile] invalid {_BATCH_PARALLEL_BATCH_LIMIT_ENV}={raw!r}: expected a positive "
+          f"integer \u2014 using {_BATCH_PARALLEL_BATCH_LIMIT}", file=sys.stderr, flush=True)
+
+
+def _get_batch_parallel_batch_limit() -> int:
+    """Read the batch-parallel batch limit from the environment.
+
+    Returns ``int(os.environ[_BATCH_PARALLEL_BATCH_LIMIT_ENV])`` when set,
+    parseable, and >= 1.  Falls back to ``_BATCH_PARALLEL_BATCH_LIMIT``
+    otherwise, warning once for invalid values.
+
+    A value of 0 is invalid (would cause immediate break on first iteration).
+    """
+    raw = os.environ.get(_BATCH_PARALLEL_BATCH_LIMIT_ENV, "")
+    if not raw:
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    try:
+        parsed = int(raw)
+    except ValueError:
+        _warn_invalid_batch_parallel_batch_limit(raw)
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    if parsed < 1:
+        _warn_invalid_batch_parallel_batch_limit(raw)
+        return _BATCH_PARALLEL_BATCH_LIMIT
+    return parsed
+
+
+def _get_batch_parallel_threshold() -> int:
+    """Read the batch-parallel threshold from the environment.
+
+    Returns ``int(os.environ[_BATCH_PARALLEL_THRESHOLD_ENV])`` when set,
+    parseable, and >= 0.  Falls back to ``_BATCH_PARALLEL_THRESHOLD``
+    otherwise, warning once for invalid values.
+
+    A value of 0 means "always parallelize" (backward-compatible).
+    """
+    raw = os.environ.get(_BATCH_PARALLEL_THRESHOLD_ENV, "")
+    if not raw:
+        return _BATCH_PARALLEL_THRESHOLD
+    try:
+        parsed = int(raw)
+    except ValueError:
+        _warn_invalid_batch_parallel_threshold(raw)
+        return _BATCH_PARALLEL_THRESHOLD
+    if parsed < 0:
+        _warn_invalid_batch_parallel_threshold(raw)
+        return _BATCH_PARALLEL_THRESHOLD
+    return parsed
+
+
+def _get_batch_parallel_sem() -> threading.Semaphore:
+    """Process-wide semaphore for batch-parallel LLM calls.
+
+    Reads _BATCH_PARALLEL_ENV per call (the _get_section_sem() pattern),
+    warns once per distinct invalid value -- a bound below 1 would deadlock
+    every chain call on the semaphore, so it is invalid and the default is
+    used -- and caches the Semaphore object keyed on the parsed bound, so a
+    changed value re-sizes the bound rather than being ignored.
+
+    Returns:
+        threading.Semaphore with the configured number of permits.
+    """
+    global _batch_parallel_sem, _batch_parallel_sem_bound
+    bound = _BATCH_PARALLEL_MAX_CONCURRENT
+    raw = os.environ.get(_BATCH_PARALLEL_ENV, "")
+    if raw:
+        try:
+            parsed = int(raw)
+        except ValueError:
+            parsed = 0
+        if parsed >= 1:
+            bound = parsed
+        else:
+            _warn_invalid_batch_parallel(raw)
+    if _batch_parallel_sem is None or _batch_parallel_sem_bound != bound:
+        _batch_parallel_sem = threading.Semaphore(bound)
+        _batch_parallel_sem_bound = bound
+    return _batch_parallel_sem
+
+
+@contextmanager
+def _sem_guard(sem: threading.Semaphore | None):
+    """Acquire/release a semaphore, or no-op if None."""
+    if sem is None:
+        yield
+    else:
+        sem.acquire()
+        try:
+            yield
+        finally:
+            sem.release()
+
+
+def _pre_split_chains(
+    items: list[tuple[str, ExtractionResult]],
+    article_type: str,
+    title: str,
+    target_batches_per_chain: int = 3,
+) -> list[list[tuple[str, ExtractionResult]]]:
+    """Split items into chunks for parallel chain execution.
+
+    Each chunk is sized to require approximately *target_batches_per_chain*
+    LLM batches, estimated from the create budget and average item size.
+
+    Args:
+        items: Non-empty list of (rel_path, ExtractionResult) pairs.
+        article_type: Article type string.
+        title: Base title (used for budget estimation).
+        target_batches_per_chain: Target number of batches per chain.
+            Lower = more parallelism + more sub-articles.
+            Higher = fewer sub-articles + less parallelism.
+            Default 3.
+
+    Returns:
+        List of item-lists (1 or more), each non-empty.  If items has
+        fewer items than one chunk, returns [items] (single chunk).
+    """
+    budget = estimate_create_budget(article_type, title, items)
+    budget = min(budget, _MAX_BATCH_BUDGET)
+    avg_size = sum(
+        _estimate_full_extraction_size(ext, rel) for rel, ext in items
+    ) / len(items)
+    items_per_batch = max(1, int(budget / avg_size))
+    chunk_size = max(1, items_per_batch * target_batches_per_chain)
+    return [items[i:i + chunk_size] for i in range(0, len(items), chunk_size)]
+
+
+def _run_chain(
+    art_path: str,
+    items: list[tuple[str, ExtractionResult]],
+    write_model: str,
+    *,
+    article_type: str,
+    title: str,
+    start_part_num: int,
+    parent_ctx,  # ThreadContext
+    sem: threading.Semaphore | None,
+) -> _ChainResult:
+    """Run one independent batch chain to completion in a child thread.
+
+    Called ONLY from Phase B child threads, never from Phase A (Chain 0).
+    Calls adopt_context(parent_ctx, ...) at entry to install context.
+
+    Args:
+        art_path: Base article path.
+        items: Source items for this chain (non-empty).
+        write_model: LLM model name.
+        article_type: Article type string.
+        title: Article title for this chain's sub-article(s).
+        start_part_num: Starting part number for local numbering.
+        parent_ctx: Context captured inside _measure_op_cost block;
+                    request_tracker points to the op_tracker.
+        sem: Process-wide semaphore; acquired before each LLM call.
+             None disables gating (for testing).
+
+    Returns:
+        _ChainResult with chain's articles, rels, and batch count.
+
+    Raises:
+        RuntimeError: if any LLM call fails (propagated from create/merge).
+    """
+    adopt_context(parent_ctx, phase=f"write-chain:{art_path}")
+
+    all_rels: list[str] = []
+    remaining = list(items)
+    current_content: str | None = None  # always fresh create for continuation chains
+    batch_num = 0
+    finalized_articles: list[tuple[str, str]] = []
+    part_num = start_part_num
+    current_source_count = 0
+
+    while remaining:
+        # Check sub-article threshold: after a merge completes and before
+        # packing the next batch, see if the current article is too large
+        # to continue receiving merges.
+        if current_content is not None:
+            budget = estimate_merge_budget(current_content)
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD or (
+                batch_num >= _get_batch_parallel_batch_limit()
+                and len(remaining) > _get_batch_parallel_threshold()
+            ):
+                # Finalize current article as a sub-article and start fresh
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+                print(f"  [merge-split] {art_path} \u2192 sub-article {sub_path} "
+                      f"({len(current_content)} chars, {current_source_count} sources)",
+                      file=sys.stderr, flush=True)
+                part_num += 1
+                current_content = None
+                current_source_count = 0
+
+        batch_num += 1
+
+        # Compute budget for batch packing
+        if current_content is None:
+            part_title = title if not finalized_articles else f"{title} (Part {part_num})"
+            budget = estimate_create_budget(article_type, part_title, remaining)
+
+        budget = min(budget, _MAX_BATCH_BUDGET)
+        batch, remaining = _pack_merge_batch(remaining, budget)
+        combined, batch_rels = _combine_extractions(batch)
+        all_rels.extend(batch_rels)
+        current_source_count += len(batch)
+
+        if current_content is None:
+            # Create a new (sub-)article
+            part_title = title if not finalized_articles else f"{title} (Part {part_num})"
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            with _sem_guard(sem):
+                current_content = create_new_article(
+                    article_type, part_title, combined,
+                    ", ".join(batch_rels), model=write_model)
+        else:
+            # Merge into existing/intermediate article
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            with _sem_guard(sem):
+                current_content = merge_into_article(
+                    art_path, current_content, combined,
+                    ", ".join(batch_rels), model=write_model)
+
+    # Finalize the last article
+    if current_content is not None:
+        if finalized_articles:
+            sub_path = _sub_article_path(art_path, part_num)
+            finalized_articles.append((sub_path, current_content))
+        else:
+            # Single sub-article for this chain; use start_part_num path
+            sub_path = _sub_article_path(art_path, start_part_num)
+            finalized_articles.append((sub_path, current_content))
+
+    return _ChainResult(
+        articles=finalized_articles,
+        all_rels=all_rels,
+        n_batches=batch_num,
+    )
 
 
 @contextmanager
@@ -57,7 +349,7 @@ def _compile_log(log_path: Path):
     long-lived daemon the same thread goes on to serve later requests.
     """
     lock = threading.Lock()
-    with open(log_path, "w") as log_file:
+    with open(log_path, "w", encoding="utf-8") as log_file:
         def log(msg: str, *, stderr: bool = True):
             with lock:
                 print(msg, file=log_file, flush=True)
@@ -112,6 +404,266 @@ def _under_wiki(store: KBStore, art_path: str) -> bool:
     return str((store.base_dir / art_path).resolve()).startswith(str(wiki_root) + os.sep)
 
 
+def _sub_article_path(base_path: str, part_num: int) -> str:
+    """Derive a sub-article path by appending '-part-N' before .md extension.
+
+    >>> _sub_article_path("wiki/concept/foo.md", 1)
+    'wiki/concept/foo-part-1.md'
+    >>> _sub_article_path("wiki/concept/foo-bar.md", 2)
+    'wiki/concept/foo-bar-part-2.md'
+    """
+    stem = base_path[:-3]  # strip ".md"; all wiki paths end in .md by construction
+    return f"{stem}-part-{part_num}.md"
+
+
+def _cleanup_stale_sub_articles(store: KBStore, art_path: str) -> list[str]:
+    """Remove existing -part-N.md files for the given base article path.
+
+    Called before writing new sub-articles (or a single merged article) to
+    prevent orphaned sub-article files from prior runs appearing in the index.
+
+    Returns list of removed file paths (relative to store.base_dir).
+    """
+    stem = Path(art_path).stem  # e.g. "foo" from "wiki/concept/foo.md"
+    parent = (store.base_dir / art_path).parent
+    if not parent.exists():
+        return []
+    removed: list[str] = []
+    pattern = re.compile(rf"^{re.escape(stem)}-part-\d+\.md$")
+    for p in sorted(parent.iterdir()):
+        if p.is_file() and pattern.match(p.name):
+            p.unlink()
+            removed.append(str(p.relative_to(store.base_dir)))
+    return removed
+
+
+def _pack_merge_batch(
+    items: list[tuple[str, ExtractionResult]],
+    budget: int,
+) -> tuple[list[tuple[str, ExtractionResult]], list[tuple[str, ExtractionResult]]]:
+    """Greedily pack (rel_path, extraction) pairs into one batch fitting budget.
+
+    Args:
+        items: Source items to pack, ordered. Each is (rel_path, ExtractionResult).
+        budget: Maximum total extraction chars for this batch.
+
+    Returns:
+        (batch, remaining): batch is the items that fit; remaining is the rest.
+        If a single item exceeds budget, it is taken alone (truncation happens
+        downstream in _fit_extraction_to_budget).
+        If items is empty, returns ([], []).
+    """
+    batch: list[tuple[str, ExtractionResult]] = []
+    batch_size = 0
+    remaining: list[tuple[str, ExtractionResult]] = []
+    for rel, ext in items:
+        cost = _estimate_full_extraction_size(ext, rel)
+        if batch and batch_size + cost > budget:
+            remaining.append((rel, ext))
+        else:
+            batch.append((rel, ext))
+            batch_size += cost
+    if not batch and remaining:
+        # Single extraction exceeds budget — take it anyway;
+        # _fit_extraction_to_budget will truncate it within the LLM call.
+        batch.append(remaining.pop(0))
+    return batch, remaining
+
+
+def _merge_batch_split(
+    art_path: str,
+    items: list[tuple[str, ExtractionResult]],
+    write_model: str,
+    *,
+    article_content: str | None,
+    article_type: str = "",
+    title: str = "",
+) -> tuple[list[tuple[str, str]], list[str], int]:
+    """Iteratively merge sources into an article in batches.
+
+    Three-phase architecture:
+
+    **Phase A** (serial, calling thread): runs the batch loop until either all
+    items are consumed (fast path) or a sub-article split is detected, at which
+    point it breaks.  Phase A does NOT call ``adopt_context`` -- the calling
+    thread already has the correct context from ``_process_article`` /
+    ``_measure_op_cost``.
+
+    **Fast path**: if Phase A drains all items, return immediately with zero
+    thread overhead -- identical to the previous serial implementation.
+
+    **Phase B** (parallel, child threads): pre-splits remaining items via
+    ``_pre_split_chains`` and dispatches each chunk to ``_run_chain`` through a
+    ``ThreadPoolExecutor``.  Uses ``_get_batch_parallel_sem()`` for LLM
+    concurrency control.
+
+    **Phase C** (collect + re-number): waits on futures in submission order,
+    merges results, and re-numbers all sub-articles sequentially (1, 2, 3, ...).
+
+    Args:
+        art_path: Target article path (e.g. "wiki/concept/foo.md").
+        items: The source list, each (rel_path, ExtractionResult). Extracted
+               from the merges list by the caller.
+        write_model: LLM model name.
+        article_content: Existing article text, or None if creating new.
+        article_type: Article type (used only when article_content is None).
+        title: Article title (used only when article_content is None).
+
+    Returns:
+        (articles, all_rel_paths, n_batches):
+            articles: List of (path, content) pairs. Single-element when no
+                sub-article split occurs (path == art_path); multi-element
+                with -part-N paths when a split is triggered.
+            all_rel_paths: All source rel_paths processed (same order as items).
+            n_batches: Total number of batches across all sub-articles.
+
+    Raises:
+        RuntimeError: if any batch's LLM call fails (propagated from
+        create_new_article / merge_into_article).
+    """
+    # -- Phase A: serial Chain 0 on calling thread -----------------
+    # NO adopt_context here: the calling thread already has the correct
+    # context with _measure_op_cost's op_tracker as request_tracker.
+    all_rels: list[str] = []
+    remaining = list(items)
+    current_content = article_content
+    batch_num = 0
+    finalized_articles: list[tuple[str, str]] = []
+    part_num = 0
+    current_source_count = 0
+
+    while remaining:
+        # Check sub-article threshold: after a merge completes and before
+        # packing the next batch, see if the current article is too large
+        # to continue receiving merges.
+        if current_content is not None:
+            budget = estimate_merge_budget(current_content)
+            if budget < _SUB_ARTICLE_BUDGET_THRESHOLD or (
+                batch_num >= _get_batch_parallel_batch_limit()
+                and len(remaining) > _get_batch_parallel_threshold()
+            ):
+                # Finalize current article as a sub-article and start fresh
+                part_num += 1
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+                print(f"  [merge-split] {art_path} \u2192 sub-article {sub_path} "
+                      f"({len(current_content)} chars, {current_source_count} sources)",
+                      file=sys.stderr, flush=True)
+                current_content = None
+                current_source_count = 0
+                # Phase A breaks on first split -- remaining items go to Phase B
+                break
+            # else: budget is valid, reuse it below for _pack_merge_batch
+
+        batch_num += 1
+
+        # Compute budget for batch packing
+        if current_content is None:
+            part_title = title if not finalized_articles else f"{title} (Part {part_num + 1})"
+            budget = estimate_create_budget(article_type, part_title, remaining)
+        # else: budget already set from the threshold check above (no redundant call)
+
+        budget = min(budget, _MAX_BATCH_BUDGET)
+        batch, remaining = _pack_merge_batch(remaining, budget)
+        combined, batch_rels = _combine_extractions(batch)
+        all_rels.extend(batch_rels)
+        current_source_count += len(batch)
+
+        if current_content is None:
+            # Create a new (sub-)article
+            part_title = title if not finalized_articles else f"{title} (Part {part_num + 1})"
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"create \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            current_content = create_new_article(
+                article_type, part_title, combined,
+                ", ".join(batch_rels), model=write_model)
+        else:
+            # Merge into existing/intermediate article
+            print(f"  [merge-split] {art_path} batch {batch_num}: "
+                  f"merge \u2190 {len(batch)} sources", file=sys.stderr, flush=True)
+            current_content = merge_into_article(
+                art_path, current_content, combined,
+                ", ".join(batch_rels), model=write_model)
+
+    # -- Fast path: no split, all items consumed -------------------
+    if not remaining:
+        if current_content is not None:
+            if finalized_articles:
+                part_num += 1
+                sub_path = _sub_article_path(art_path, part_num)
+                finalized_articles.append((sub_path, current_content))
+            else:
+                # No split occurred: single article at the original path
+                finalized_articles.append((art_path, current_content))
+        return finalized_articles, all_rels, batch_num
+
+    # -- Phase B: dispatch for remaining items ---------------------
+    # Context snapshot captures op_tracker as request_tracker so child
+    # threads inherit cost tracking via adopt_context.
+    chain_ctx = get_context()
+    threshold = _get_batch_parallel_threshold()
+
+    chain_articles: list[tuple[str, str]] = []
+
+    if threshold > 0 and len(remaining) <= threshold:
+        # Serial fallback: not enough items to justify thread pool overhead.
+        # _pre_split_chains is skipped -- _run_chain handles its own batching.
+        result = _run_chain(
+            art_path, remaining, write_model,
+            article_type=article_type,
+            title=f"{title} (Part {part_num + 1})",
+            start_part_num=part_num + 1,
+            parent_ctx=chain_ctx, sem=None,
+        )
+        all_rels.extend(result.all_rels)
+        batch_num += result.n_batches
+        chain_articles = result.articles
+    else:
+        # Parallel dispatch (existing logic)
+        sem = _get_batch_parallel_sem()
+        chunks = _pre_split_chains(remaining, article_type, title)
+
+        if len(chunks) == 1 and len(chunks[0]) <= 1:
+            # Single item or single tiny chunk -- run synchronously to
+            # avoid thread-pool overhead.
+            result = _run_chain(
+                art_path, chunks[0], write_model,
+                article_type=article_type,
+                title=f"{title} (Part {part_num + 1})",
+                start_part_num=part_num + 1,
+                parent_ctx=chain_ctx, sem=None,
+            )
+            all_rels.extend(result.all_rels)
+            batch_num += result.n_batches
+            chain_articles.extend(result.articles)
+        else:
+            with ThreadPoolExecutor(max_workers=len(chunks)) as pool:
+                futures = []
+                for i, chunk in enumerate(chunks):
+                    chunk_title = f"{title} (Part {part_num + 1 + i})"
+                    fut = pool.submit(
+                        _run_chain, art_path, chunk, write_model,
+                        article_type=article_type,
+                        title=chunk_title,
+                        start_part_num=part_num + 1 + i * 100,  # sparse numbering
+                        parent_ctx=chain_ctx,
+                        sem=sem,
+                    )
+                    futures.append(fut)
+                # Collect in submission order to preserve item ordering
+                for fut in futures:
+                    result = fut.result()  # re-raises on error
+                    all_rels.extend(result.all_rels)
+                    batch_num += result.n_batches
+                    chain_articles.extend(result.articles)
+
+    # -- Phase C: collect + re-number all sub-articles -------------
+    all_sub_articles = list(finalized_articles) + chain_articles
+    renumbered = []
+    for i, (_path, content) in enumerate(all_sub_articles, 1):
+        renumbered.append((_sub_article_path(art_path, i), content))
+    return renumbered, all_rels, batch_num
+
 def compile_kb(
     data_dir: str,
     *,
@@ -126,6 +678,8 @@ def compile_kb(
     extract_only: bool = False,
     extract_strategy: str = STRATEGY_CHUNKED,
     summarize_model: str = "",
+    aggregation_plan: list[dict] | None = None,
+    topic: str = "",
 ) -> dict:
     compile_t0 = time.monotonic()
 
@@ -345,6 +899,18 @@ def compile_kb(
         # Classify and write read the extraction off disk (D1), so extraction/ is
         # the only thing handing off between the two gates.
         existing_articles = store.existing_articles()
+
+        _planned_article_meta: dict[str, dict] = {}
+        if aggregation_plan is not None:
+            for planned in aggregation_plan:
+                p = planned.get("path", "")
+                t = planned.get("title", "")
+                tp = planned.get("type", "")
+                desc = planned.get("description", "")
+                if p and t:
+                    existing_articles.append(ArticleMeta(title=t, path=p, summary=desc))
+                    _planned_article_meta[p] = {"title": t, "type": tp}
+
         classify_snap = tracker.snapshot()
 
         extractions: dict[str, ExtractionResult] = {}
@@ -382,6 +948,25 @@ def compile_kb(
         if items_to_classify:
             log(f"Phase 2a: Classifying {len(items_to_classify)} files sequentially...")
         for rf, extraction in items_to_classify:
+            if aggregation_plan is not None:
+                # Skip classify cache: the topical prompt incorporates the
+                # aggregation plan which varies per derive run.
+                try:
+                    result = classify_article_topical(
+                        extraction, existing_articles, topic, aggregation_plan,
+                        model=compile_model, categories=categories)
+                    # No dedup_create_new — topical prompt handles routing
+                    classifications[rf.rel_path] = result
+                    log(f"  [classified-topical] {rf.rel_path}")
+                    for create in result.get("create_new", []):
+                        existing_articles.append(ArticleMeta(
+                            title=create.get("title", ""), path=create.get("path", ""), summary="",
+                        ))
+                except Exception as e:
+                    errors.append({"file": rf.rel_path, "error": str(e)})
+                    log(f"  [classify-error] {rf.rel_path}: {e}")
+                continue
+
             cache_key = classify_cache_key(rf.checksum, art_hash, cat_hash)
             cached = store.load_classify_cache(cache_key)
             if cached is not None:
@@ -488,7 +1073,7 @@ def compile_kb(
                         full = store.base_dir / details["path"]
                         full.parent.mkdir(parents=True, exist_ok=True)
                         if full.exists():
-                            old_content = full.read_text()
+                            old_content = full.read_text(encoding="utf-8")
                             new_content = merge_into_article(
                                 details["path"], old_content, extraction, rel, model=write_model)
                         else:
@@ -527,27 +1112,64 @@ def compile_kb(
                     log(f"  [merge-skipped] {art_path} ← {len(merges)} sources: create failed in this run")
                     return
                 full.parent.mkdir(parents=True, exist_ok=True)
-                path_parts = art_path.split("/")
-                article_type = path_parts[1] if len(path_parts) > 2 else "concept"
-                title = Path(art_path).stem.replace("-", " ").title()
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
-                try:
-                    with _measure_op_cost() as op_cost:
-                        new_content = create_new_article(
-                            article_type, title, combined, ", ".join(merge_rels), model=write_model)
-                        store.write_article(art_path, new_content)
-                    log(f"  [merge→create] {art_path} ← {len(merges)} sources "
-                        f"— ${op_cost.total_cost:.4f}")
-                    with _write_lock:
-                        for rel in merge_rels:
-                            _file_done_ops[rel] += 1
-                            _file_done_articles[rel].add(art_path)
-                except Exception as e:
-                    with _write_lock:
-                        for rel in merge_rels:
-                            errors.append({"file": rel, "error": str(e), "article": art_path})
-                    log(f"  [merge→create-error] {art_path} ← {len(merges)} sources: {e}")
+                planned = _planned_article_meta.get(art_path)
+                if planned:
+                    article_type = planned["type"]
+                    title = planned["title"]
+                else:
+                    path_parts = art_path.split("/")
+                    article_type = path_parts[1] if len(path_parts) > 2 else "concept"
+                    title = Path(art_path).stem.replace("-", " ").title()
+                items = [(rel, ext) for rel, _cs, ext, _det in merges]
+                total_size = sum(_estimate_full_extraction_size(ext, rel) for rel, ext in items)
+                budget = estimate_create_budget(article_type, title, items)
+                needs_split = total_size > budget and len(items) > 1
+                if needs_split:
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            articles, merge_rels, n_batches = _merge_batch_split(
+                                art_path, items, write_model,
+                                article_content=None, article_type=article_type, title=title)
+                            removed = _cleanup_stale_sub_articles(store, art_path)
+                            if removed:
+                                print(f"  [merge-split] {art_path}: cleaned up {len(removed)} stale sub-article(s)",
+                                      file=sys.stderr, flush=True)
+                            if len(articles) > 1:
+                                orig = store.base_dir / art_path
+                                if orig.exists():
+                                    orig.unlink()
+                            for sub_path, sub_content in articles:
+                                store.write_article(sub_path, sub_content)
+                        sub_info = f", {len(articles)} sub-articles" if len(articles) > 1 else ""
+                        log(f"  [merge→create-split] {art_path} ← {len(merges)} sources "
+                            f"({n_batches} batches{sub_info}) — ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge→create-split-error] {art_path} ← {len(merges)} sources: {e}")
+                else:
+                    combined, merge_rels = _combine_extractions(items)
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content = create_new_article(
+                                article_type, title, combined, ", ".join(merge_rels), model=write_model)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge→create] {art_path} ← {len(merges)} sources "
+                            f"— ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge→create-error] {art_path} ← {len(merges)} sources: {e}")
                 return
 
             if len(merges) == 1:
@@ -567,25 +1189,57 @@ def compile_kb(
                         errors.append({"file": rel, "error": str(e), "article": art_path})
                     log(f"  [merge-error] {art_path} ← {rel}: {e}")
             else:
-                combined, merge_rels = _combine_extractions(
-                    [(rel, ext) for rel, _cs, ext, _det in merges])
-                try:
-                    with _measure_op_cost() as op_cost:
-                        old_content = store.read_article(art_path)
-                        new_content = merge_into_article(
-                            art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
-                        store.write_article(art_path, new_content)
-                    log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
-                        f"— ${op_cost.total_cost:.4f}")
-                    with _write_lock:
-                        for rel in merge_rels:
-                            _file_done_ops[rel] += 1
-                            _file_done_articles[rel].add(art_path)
-                except Exception as e:
-                    with _write_lock:
-                        for rel in merge_rels:
-                            errors.append({"file": rel, "error": str(e), "article": art_path})
-                    log(f"  [merge-batch-error] {art_path} ← {len(merges)} sources: {e}")
+                items = [(rel, ext) for rel, _cs, ext, _det in merges]
+                old_content = store.read_article(art_path)
+                total_size = sum(_estimate_full_extraction_size(ext, rel) for rel, ext in items)
+                budget = estimate_merge_budget(old_content)
+                needs_split = total_size > budget and len(items) > 1
+                if needs_split:
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            articles, merge_rels, n_batches = _merge_batch_split(
+                                art_path, items, write_model,
+                                article_content=old_content)
+                            removed = _cleanup_stale_sub_articles(store, art_path)
+                            if removed:
+                                print(f"  [merge-split] {art_path}: cleaned up {len(removed)} stale sub-article(s)",
+                                      file=sys.stderr, flush=True)
+                            if len(articles) > 1:
+                                orig = store.base_dir / art_path
+                                if orig.exists():
+                                    orig.unlink()
+                            for sub_path, sub_content in articles:
+                                store.write_article(sub_path, sub_content)
+                        sub_info = f", {len(articles)} sub-articles" if len(articles) > 1 else ""
+                        log(f"  [merge-batch-split] {art_path} ← {len(merges)} sources "
+                            f"({n_batches} batches{sub_info}) — ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge-batch-split-error] {art_path} ← {len(merges)} sources: {e}")
+                else:
+                    combined, merge_rels = _combine_extractions(items)
+                    try:
+                        with _measure_op_cost() as op_cost:
+                            new_content = merge_into_article(
+                                art_path, old_content, combined, ", ".join(merge_rels), model=write_model)
+                            store.write_article(art_path, new_content)
+                        log(f"  [merge-batch] {art_path} ← {len(merges)} sources "
+                            f"— ${op_cost.total_cost:.4f}")
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                _file_done_ops[rel] += 1
+                                _file_done_articles[rel].add(art_path)
+                    except Exception as e:
+                        with _write_lock:
+                            for rel, _cs, _ext, _det in merges:
+                                errors.append({"file": rel, "error": str(e), "article": art_path})
+                        log(f"  [merge-batch-error] {art_path} ← {len(merges)} sources: {e}")
 
         try:
             if article_ops:

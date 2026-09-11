@@ -103,6 +103,8 @@ class DeriveReport:
     # the RECALL pass has already been paid for by then (F6, E3).
     cost: dict | None = None
     warnings: list[str] = field(default_factory=list)
+    # Present only when reorganize=True, None otherwise.
+    reorganize_plan: dict | None = None
 
 
 # (catalog, topic, mode) -> SelectionResult. The model is bound by the caller, so

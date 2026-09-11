@@ -60,17 +60,37 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			// Pause claiming only while fully open. Once the cooldown elapses,
 			// State() reports half-open, so we resume and the next claimed task
 			// acts as the breaker's single recovery probe via brk.Do.
-			if d.brk.State() == circuit.StateOpen {
+			bs := d.brk.State()
+			if bs == circuit.StateOpen {
 				continue
 			}
-			d.drain(ctx, sem, &wg)
+			// In half-open state, claim only one task as the recovery probe.
+			// Claiming more would have them instantly rejected by the breaker
+			// (only one in-flight call is allowed), burning their retry
+			// attempts for nothing.
+			if bs == circuit.StateHalfOpen {
+				d.drainN(ctx, sem, &wg, 1)
+			} else {
+				d.drain(ctx, sem, &wg)
+			}
 		}
 	}
 }
 
 // drain claims and dispatches tasks until the queue is empty or no slot is free.
 func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup) {
+	d.drainN(ctx, sem, wg, 0)
+}
+
+// drainN claims and dispatches up to limit tasks (0 = unlimited). It stops
+// early when the queue is empty, no semaphore slot is free, or the limit is
+// reached.
+func (d *Dispatcher) drainN(ctx context.Context, sem chan struct{}, wg *sync.WaitGroup, limit int) {
+	claimed := 0
 	for {
+		if limit > 0 && claimed >= limit {
+			return
+		}
 		select {
 		case sem <- struct{}{}: // acquire a slot
 		default:
@@ -86,6 +106,7 @@ func (d *Dispatcher) drain(ctx context.Context, sem chan struct{}, wg *sync.Wait
 			<-sem
 			return // queue empty
 		}
+		claimed++
 		wg.Add(1)
 		go func(t *store.Task) {
 			defer wg.Done()

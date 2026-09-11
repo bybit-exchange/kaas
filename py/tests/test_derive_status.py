@@ -76,7 +76,7 @@ def test_a_pre_change_kb_reports_every_document_as_missing(tmp_path):
     """F7: this is exactly what the seven pre-change derived KBs look like."""
     store = _kb(tmp_path, {"raw/a.md": "a", "raw/b.md": "b"})
     (store.base_dir / ".extract-cache").mkdir()
-    (store.base_dir / ".extract-cache" / "deadbeefdeadbeef.json").write_text("{}")
+    (store.base_dir / ".extract-cache" / "deadbeefdeadbeef.json").write_text("{}", encoding="utf-8")
 
     check = _status.check_extractions(str(store.base_dir))
 
@@ -101,7 +101,7 @@ def _derived(tmp_path: Path, parent: KBStore, docs: list[str],
             for rel in docs
         ],
     }
-    (derived / "manifest.json").write_text(json.dumps(manifest))
+    (derived / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     return derived
 
 
@@ -161,7 +161,7 @@ def test_no_manifest_is_unknown(tmp_path):
 
 
 def test_a_manifest_without_a_source_kb_is_unknown(tmp_path):
-    (tmp_path / "manifest.json").write_text(json.dumps({"slug": "x"}))
+    (tmp_path / "manifest.json").write_text(json.dumps({"slug": "x"}), encoding="utf-8")
     check = _status.check_parent(str(tmp_path))
     assert check.verdict == _status.UNKNOWN
     assert "no source_kb" in check.reason

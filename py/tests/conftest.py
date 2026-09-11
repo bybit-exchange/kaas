@@ -31,6 +31,7 @@ def _no_phase_timeout_overrides(monkeypatch):
     disable flag is the same kind of state: the first test whose mock answers 400
     would otherwise decide for every later test whether the param is ever sent.
     """
+    from kb_ai.commands.compile import _warn_invalid_batch_parallel
     from kb_ai.core.extract import _warn_unusable_extract_timeout
     from kb_ai.core.merge import _warn_unusable_write_timeout
     from kb_ai.llm import _completion as completion_module
@@ -40,8 +41,10 @@ def _no_phase_timeout_overrides(monkeypatch):
     monkeypatch.delenv("KB_AI_REASONING_EFFORT", raising=False)
     monkeypatch.delenv("KB_MERGE_SECTION_MODE", raising=False)
     monkeypatch.delenv("KB_MERGE_SECTION_MAX_CONCURRENT", raising=False)
+    monkeypatch.delenv("KB_BATCH_PARALLEL_MAX_CONCURRENT", raising=False)
     _warn_unusable_write_timeout.cache_clear()
     _warn_unusable_extract_timeout.cache_clear()
+    _warn_invalid_batch_parallel.cache_clear()
     monkeypatch.setattr(completion_module, "_reasoning_effort_disabled", False)
 
 

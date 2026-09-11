@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useShallow } from 'zustand/shallow'
@@ -20,8 +20,11 @@ export function Chat() {
   const navigate = useNavigate()
   const inputRef = useRef<MessageInputHandle>(null)
   const prevSessionIdRef = useRef<string | undefined>(sessionId)
-  // Answers come from the knowledge base the wiki view has selected.
-  const kb = useKB((s) => s.kb)
+  // Chat page has its own independent KB selection.
+  const chatKB = useKB((s) => s.chatKB)
+  const kbSlugForAPI = chatKB ?? ''
+
+  const [isSending, setIsSending] = useState(false)
 
   // --- Store selectors ---
   const sessions = useChatStore((state) => state.sessions)
@@ -49,14 +52,14 @@ export function Chat() {
     return id ? (state.sessionStates[id]?.inputDraft ?? '') : ''
   })
 
-  // --- Load session list on mount ---
+  // --- Load session list on mount and when KB changes ---
   useEffect(() => {
-    listSessions()
+    listSessions(kbSlugForAPI)
       .then((s) => useChatStore.getState().setSessions(s))
       .catch(() => {
         toast.error(t('chat.errorLoadSessions'))
       })
-  }, [t])
+  }, [t, kbSlugForAPI])
 
   // --- Sync activeSessionId + load messages when sessionId changes ---
   useEffect(() => {
@@ -106,6 +109,7 @@ export function Chat() {
   }, [])
 
   const handleStop = useCallback(() => {
+    setIsSending(false)
     if (!sessionId) return
     const store = useChatStore.getState()
     const ss = store.sessionStates[sessionId]
@@ -124,6 +128,13 @@ export function Chat() {
     handleStop()
     navigate('/chat')
   }, [handleStop, navigate])
+
+  const handleKBChange = useCallback(() => {
+    // Navigate away from any active session (it belongs to the previous KB)
+    if (sessionId) {
+      navigate('/chat')
+    }
+  }, [sessionId, navigate])
 
   const handleSelectSession = useCallback(
     (id: string) => {
@@ -161,13 +172,14 @@ export function Chat() {
 
   const handleSend = useCallback(
     async (query: string) => {
+      setIsSending(true)
       const store = useChatStore.getState()
 
       // Determine or create session
       let currentSessionId = sessionId
       if (!currentSessionId) {
         try {
-          const session = await createSession(query.slice(0, 100))
+          const session = await createSession(query.slice(0, 100), kbSlugForAPI)
           store.addSession(session)
           currentSessionId = session.id
           // Mark messages as loaded so we don't refetch on navigate
@@ -175,6 +187,7 @@ export function Chat() {
           store.setMessagesLoaded(currentSessionId, true)
           navigate('/chat/' + session.id)
         } catch {
+          setIsSending(false)
           toast.error(t('chat.errorCreateSession'))
           return
         }
@@ -195,6 +208,7 @@ export function Chat() {
       // Create new AbortController
       const controller = new AbortController()
       store.beginStream(targetSessionId, controller)
+      setIsSending(false)
 
       // Optimistic user message
       const userMsg: ChatMessage = { role: 'user', content: query }
@@ -216,7 +230,7 @@ export function Chat() {
         const res = await streamChat(
           { query, messages: history, include_sources: true, session_id: targetSessionId },
           controller.signal,
-          kb,
+          chatKB,
         )
 
         await readChatStream(res, (event) => {
@@ -271,7 +285,7 @@ export function Chat() {
               s.resetStreamState(targetSessionId)
               s.endStream(targetSessionId)
               // Refresh session list (title may have been updated by backend)
-              listSessions()
+              listSessions(kbSlugForAPI)
                 .then((sessions) => useChatStore.getState().setSessions(sessions))
                 .catch(() => {})
               break
@@ -296,7 +310,7 @@ export function Chat() {
         s.endStream(targetSessionId)
       }
     },
-    [sessionId, navigate, t, kb],
+    [sessionId, navigate, t, kbSlugForAPI, chatKB],
   )
 
   return (
@@ -304,6 +318,7 @@ export function Chat() {
       <SessionList
         sessions={sessions}
         activeSessionId={sessionId}
+        onKBChange={handleKBChange}
         onNewChat={handleNewChat}
         onSelect={handleSelectSession}
         onDelete={handleDeleteSession}
@@ -340,14 +355,15 @@ export function Chat() {
           streamingStatusEntries={streamState.streaming ? streamState.statusEntries : undefined}
           streamingPhase={streamState.phase}
           isStreaming={streamState.streaming}
+          isSending={isSending}
         />
 
         <MessageInput
           ref={inputRef}
           onSend={handleSend}
           onStop={handleStop}
-          streaming={streamState.streaming}
-          disabled={streamState.streaming}
+          streaming={streamState.streaming || isSending}
+          disabled={streamState.streaming || isSending}
           draft={inputDraft}
           onDraftChange={(v) => {
             if (sessionId) {

@@ -375,3 +375,6 @@ func (f *failingTaskStore) ListTasksPaged(context.Context, store.PagedListFilter
 	return nil, f.err
 }
 func (f *failingTaskStore) DeleteTask(context.Context, string) error { return f.err }
+func (f *failingTaskStore) ListTasksByBuildJob(context.Context, string) ([]*store.Task, error) {
+	return nil, f.err
+}

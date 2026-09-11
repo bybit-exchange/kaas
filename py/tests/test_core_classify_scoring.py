@@ -24,11 +24,16 @@ def article(title: str, path: str = "", summary: str = "") -> ArticleMeta:
 
 @pytest.mark.parametrize("title,expected", [
     ("Hello World", {"hello", "world"}),
-    ("Cost-Review Report!", {"costreview", "report"}),
+    ("Cost-Review Report!", {"cost", "review", "report"}),
     ("", set()),
     ("...", set()),
     ("MiXeD CaSe", {"mixed", "case"}),
     ("API v2 Design", {"api", "v2", "design"}),
+    # CJK: bigrams for multi-char runs, unigram for single char
+    ("孙悟空大闹天宫", {"孙悟", "悟空", "空大", "大闹", "闹天", "天宫"}),
+    ("金", {"金"}),
+    # Mixed Latin + CJK
+    ("API网关设计", {"api", "网关", "关设", "设计"}),
 ])
 def test_title_words(title, expected):
     assert cl._title_words(title) == expected
@@ -70,6 +75,22 @@ def test_relevance_score_normalises_by_the_smaller_set():
     """A one-word title fully matched scores 1.0 even against many topics, so
     short titles are not penalised."""
     assert cl._relevance_score(article("Pricing"), ["pricing", "a", "b", "c"]) == 1.0
+
+
+def test_relevance_score_cjk_title_vs_cjk_topics():
+    """CJK titles and topics must produce non-zero overlap."""
+    score = cl._relevance_score(article("孙悟空大闹天宫"), ["孙悟空", "天宫"])
+    assert score > 0
+
+
+def test_relevance_score_cjk_no_overlap():
+    assert cl._relevance_score(article("孙悟空大闹天宫"), ["女儿国"]) == 0.0
+
+
+def test_relevance_score_hyphenated_topic_matches_title():
+    """Hyphenated topic tags like 'sun-wukong' must match a title 'Sun Wukong'."""
+    score = cl._relevance_score(article("Sun Wukong"), ["sun-wukong"])
+    assert score == 1.0
 
 
 # ── _fit_articles_to_budget ─────────────────────────────────────────
@@ -330,3 +351,31 @@ def test_dedup_handles_several_creates():
     assert len(out.create_new) == 1
     assert out.create_new[0].title == "Something Entirely Novel"
     assert len(out.merge_into) == 1
+
+
+def test_dedup_cjk_near_duplicate_becomes_merge():
+    """CJK titles with high bigram overlap are deduplicated."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/concept/a.md",
+                                 type="concept", title="孙悟空的修行")],
+    )
+    existing = [article("孙悟空修行", "wiki/concept/wukong.md")]
+
+    out = cl.dedup_create_new(classification, existing)
+
+    assert out.create_new == []
+    assert len(out.merge_into) == 1
+    assert out.merge_into[0].path == "wiki/concept/wukong.md"
+
+
+def test_dedup_cjk_distinct_titles_stay_separate():
+    """CJK titles about different subjects stay as separate creates."""
+    classification = ClassificationResult(
+        create_new=[CreateTarget(path="wiki/a.md", title="女儿国遇难")],
+    )
+    existing = [article("孙悟空大闹天宫", "wiki/concept/wukong.md")]
+
+    out = cl.dedup_create_new(classification, existing)
+
+    assert len(out.create_new) == 1
+    assert out.merge_into == []

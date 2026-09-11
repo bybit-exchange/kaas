@@ -89,7 +89,7 @@ def test_store_existing_articles_parses_master_index(tmp_path: Path):
     store.index_dir.mkdir(parents=True, exist_ok=True)
     (store.index_dir / "master-index.md").write_text(
         "# Index\n- [Title One](wiki/concept/one.md) — a summary\n"
-        "- [Title Two](wiki/project/two.md) — another\n"
+        "- [Title Two](wiki/project/two.md) — another\n", encoding="utf-8"
     )
     arts = store.existing_articles()
     assert {a.title for a in arts} == {"Title One", "Title Two"}

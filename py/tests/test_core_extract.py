@@ -202,9 +202,14 @@ def test_extract_prompt_version_golden_hash():
     content="", 3/3 reproduction), so the prompt now forbids reasoning-only
     replies and the LLM layer retries empty bodies (EmptyCompletionError).
     Hash a258de954493 -> 371105e209ca.
+
+    p13-feat-004 added a language directive ("Write all extracted field values
+    in the same language as the source document") to both extract.md and
+    extract-types.md so that extraction output matches the source document's
+    language. Hash 371105e209ca -> 93b09eb55646.
     """
     ex.extract_prompt_version.cache_clear()
-    assert ex.extract_prompt_version() == "371105e209ca"
+    assert ex.extract_prompt_version() == "93b09eb55646"
 
 
 @pytest.mark.parametrize("k", [0, 1, 4, 5, -1])

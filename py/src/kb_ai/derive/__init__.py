@@ -33,6 +33,7 @@ from kb_ai._errors import (  # noqa: F401 -- re-exported for callers
 from kb_ai.core.extract import STRATEGY_CHUNKED
 from kb_ai.derive._filter import select_by_topic
 from kb_ai.derive._layout import (  # noqa: F401 -- re-exported for callers
+    _deduplicate_slug,
     assert_not_nested,
     check_slug_available,
     copy_documents,
@@ -75,17 +76,19 @@ MANIFEST_SCHEMA_VERSION = 1
 
 
 def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
+                      filter_rounds: int,
                       created_at: str, sources_by_article: dict[str, list[str]],
                       titles_by_path: dict[str, str],
                       select_from: str) -> dict:
     """Serialise a report into the manifest shape (spec E2, E3)."""
-    return {
+    payload = {
         "schema_version": MANIFEST_SCHEMA_VERSION,
         "source_kb": str(source_kb),
         "topic": report.topic,
         "slug": report.slug,
         "created_at": created_at,
         "filter_model": model,
+        "filter_rounds": filter_rounds,
         # Which catalog the run filtered over. Additive, so schema_version stays
         # at 1: a reader that predates it sees the same keys it already knew, and
         # selected_articles is still empty exactly when no article was selected.
@@ -110,6 +113,9 @@ def _manifest_payload(report: DeriveReport, *, source_kb: Path, model: str,
         "cost": report.cost,
         "warnings": report.warnings,
     }
+    if report.reorganize_plan is not None:
+        payload["reorganize_plan"] = report.reorganize_plan
+    return payload
 
 
 def derive_kb(
@@ -123,9 +129,12 @@ def derive_kb(
     model: str,
     extract_strategy: str = STRATEGY_CHUNKED,
     summarize_model: str = "",
+    filter_rounds: int = 3,
+    filter_threshold: float = 0.0,
     select: Selector | None = None,
     compile_fn: Callable[..., dict] | None = None,
     approve: Callable[[DeriveReport], bool] | None = None,
+    reorganize: bool = False,
 ) -> DeriveReport:
     """Build <source_kb>/derived/<slug>/ from the articles matching topic.
 
@@ -159,13 +168,18 @@ def derive_kb(
     source = Path(source_kb).expanduser().resolve()
     assert_not_nested(source)
 
+    user_provided_slug = slug is not None
     slug = slug or normalise_slug(topic)
+    if not user_provided_slug and not force:
+        slug = _deduplicate_slug(source, slug)
     validate_slug(slug)
     check_slug_available(source, slug, force)
 
     if select is None:
         def select(catalog, topic_, mode):  # noqa: F811 -- late default
-            return select_by_topic(catalog, topic_, mode, model=model)
+            return select_by_topic(catalog, topic_, mode, model=model,
+                                   filter_rounds=filter_rounds,
+                                   filter_threshold=filter_threshold)
     if compile_fn is None:
         from kb_ai.commands.compile import compile_kb as compile_fn  # noqa: F811
 
@@ -238,7 +252,9 @@ def derive_kb(
 
     def flush() -> None:
         write_manifest(derived_dir, _manifest_payload(
-            report, source_kb=source, model=model, created_at=created_at,
+            report, source_kb=source, model=model,
+            filter_rounds=filter_rounds,
+            created_at=created_at,
             sources_by_article=sources_by_article, titles_by_path=titles_by_path,
             select_from=select_from))
 
@@ -273,6 +289,22 @@ def derive_kb(
         flush()
         return report
 
+    # When reorganize=True, run the reorganize phase before compile to produce
+    # an aggregation plan that the topical classify will use.
+    reorg_plan = None
+    if reorganize:
+        from kb_ai.derive._reorganize import reorganize as run_reorganize
+
+        derived_store = KBStore(str(derived_dir), read_only=True)
+        reorg_plan = run_reorganize(
+            derived_store,
+            topic,
+            categories=source_store.load_config().get("categories") or [],
+            model=model,
+        )
+        report.reorganize_plan = reorg_plan.to_dict()
+        flush()
+
     # A derived KB inherits its source's frozen category set. Falling back to
     # DEFAULT_CATEGORIES would file the derived articles under categories the
     # source deliberately excluded -- the silent re-partition that freezing the
@@ -282,11 +314,20 @@ def derive_kb(
     # left on the default would find every one of them stale under a non-chunked
     # deployment, re-extract the whole copy at full price, and record chunked --
     # which the next compile of the source then finds stale in turn.
-    compile_result = compile_fn(str(derived_dir), extract_model=model,
-                                compile_model=model, write_model=model,
-                                extract_strategy=extract_strategy,
-                                summarize_model=summarize_model,
-                                categories=source_store.load_config().get("categories"))
+    compile_kwargs: dict = dict(
+        extract_model=model,
+        compile_model=model,
+        write_model=model,
+        extract_strategy=extract_strategy,
+        summarize_model=summarize_model,
+        categories=source_store.load_config().get("categories"),
+    )
+    if reorg_plan is not None:
+        compile_kwargs["aggregation_plan"] = [
+            a.to_dict() for a in reorg_plan.articles
+        ]
+        compile_kwargs["topic"] = topic
+    compile_result = compile_fn(str(derived_dir), **compile_kwargs)
     # compile_kb returns the PROCESS-WIDE tracker summary, which here would be the
     # RECALL pass plus, in the long-lived daemon, every earlier request's spend.
     # report.cost is the authoritative per-request figure, so the misleading key

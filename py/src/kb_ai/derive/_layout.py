@@ -22,7 +22,7 @@ from kb_ai._errors import (
 )
 from kb_ai.derive._types import DocumentRef
 from kb_ai.storage import extraction
-from kb_ai.storage.store import KBStore
+from kb_ai.storage.store import KBStore, _strip_verbatim
 
 # One lower-case path segment, dash-separated, at most 40 chars. Validated
 # lexically BEFORE any path is built, so a hostile slug never reaches the
@@ -41,15 +41,47 @@ _SLUG_MAX = 40
 _CHECKSUM_RE = re.compile(r"^[0-9a-f]{16}$")
 
 
+def _deduplicate_slug(source_kb: Path, slug: str, *, limit: int = 100) -> str:
+    """Append -2, -3, … until derived_dir(source_kb, slug) does not exist.
+
+    Only called for auto-generated slugs (not user-provided ones).  The suffixed
+    slug must still pass ``validate_slug``, so if appending would exceed 40 chars
+    the base is truncated first.  Returns the original slug when no conflict.
+    """
+    if not derived_dir(source_kb, slug).exists():
+        return slug
+    for n in range(2, limit + 2):
+        suffix = f"-{n}"
+        max_base = _SLUG_MAX - len(suffix)
+        candidate = slug[:max_base].rstrip("-") + suffix
+        if not derived_dir(source_kb, candidate).exists():
+            return candidate
+    raise DeriveError(
+        f"could not find an available slug after {limit} attempts "
+        f"(tried {slug}-2 through {slug}-{limit + 1})"
+    )
+
+
 def normalise_slug(topic: str) -> str:
     """Derive a slug from a topic string (C2).
 
     Lower-cased, non-alphanumeric runs collapsed to '-', trimmed, truncated to 40
     characters, then trimmed again -- truncation can land on a dash, which
     validate_slug rejects.
+
+    When the topic contains only non-ASCII characters (e.g. CJK), the regex
+    normalization yields an empty string.  In that case a deterministic
+    hash-based slug ``t-{sha256[:10]}`` is produced so the caller does not have
+    to provide ``--slug`` manually.  The same fallback exists in slugFromTopic
+    (internal/api/derive.go).
     """
     flat = re.sub(r"[^a-z0-9]+", "-", topic.lower())
-    return flat.strip("-")[:_SLUG_MAX].strip("-")
+    slug = flat.strip("-")[:_SLUG_MAX].strip("-")
+    if not slug and topic.strip():
+        import hashlib
+        h = hashlib.sha256(topic.encode()).hexdigest()[:10]
+        slug = f"t-{h}"
+    return slug
 
 
 def validate_slug(slug: str) -> None:
@@ -179,8 +211,12 @@ def copy_documents(source_store: KBStore, derived_dir: Path,
     warnings: list[str] = []
     for doc in docs:
         # Reject absolute rel_path (pathlib would discard derived_dir entirely)
-        # and any path that escapes via '..' (spec E4).
-        if Path(doc.rel_path).is_absolute() or ".." in Path(doc.rel_path).parts:
+        # and any path that escapes via '..' (spec E4). The startswith covers
+        # POSIX-style absolute paths, which Windows pathlib does not classify
+        # as absolute (no drive letter).
+        if (doc.rel_path.startswith(("/", "\\"))
+                or Path(doc.rel_path).is_absolute()
+                or ".." in Path(doc.rel_path).parts):
             raise DeriveError(
                 f"rel_path {doc.rel_path!r} is absolute or contains '..'; "
                 "refusing to copy"
@@ -226,7 +262,8 @@ def write_manifest(derived_dir: Path, payload: dict) -> None:
     """
     target = Path(derived_dir) / MANIFEST_NAME
     tmp = target.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
+    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2),
+                   encoding="utf-8")
     os.replace(str(tmp), str(target))
 
 
@@ -236,7 +273,7 @@ def read_manifest(derived_dir: Path) -> dict:
     if not path.exists():
         return {}
     try:
-        data = json.loads(path.read_text())
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         # ValueError catches json.JSONDecodeError and UnicodeDecodeError (invalid
         # UTF-8), both of which indicate an unreadable manifest.
@@ -292,12 +329,12 @@ def resolve_kb_dir(root_kb: str, slug: str | None) -> str:
     and retrieval would span every derived KB at once. _safe_create_target refuses
     the same layout on the write path; the read path must not be more permissive.
     """
-    root = Path(root_kb).expanduser().resolve()
+    root = Path(_strip_verbatim(str(Path(root_kb).expanduser().resolve())))
     if not slug:
         return str(root)
     validate_slug(slug)
     base = root / DERIVED_DIRNAME
-    target = (base / slug).resolve()
+    target = Path(_strip_verbatim(str((base / slug).resolve())))
     if (target == base or not target.is_relative_to(base)
             or not (target / MANIFEST_NAME).exists()):
         raise UnknownDerivedKBError(f"no derived knowledge base named {slug!r}")

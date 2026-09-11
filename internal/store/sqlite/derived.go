@@ -171,3 +171,70 @@ func (s *Store) RecoverRunningDerivedJobs(ctx context.Context, now int64) (int, 
 	n, _ := res.RowsAffected()
 	return int(n), nil
 }
+
+// ListDerivedJobsPaged returns a page of derive jobs matching the filter.
+// Mirrors ListTasksPaged: status filter, LIKE search on topic+slug, sort
+// whitelist, pagination.
+func (s *Store) ListDerivedJobsPaged(ctx context.Context, f store.DerivedJobListFilter) (*store.DerivedJobListResult, error) {
+	var where []string
+	var args []any
+
+	if f.Status != "" {
+		where = append(where, `status = ?`)
+		args = append(args, f.Status)
+	}
+	if f.Query != "" {
+		pattern := "%" + f.Query + "%"
+		where = append(where, `(topic LIKE ? OR slug LIKE ?)`)
+		args = append(args, pattern, pattern)
+	}
+
+	pq, err := buildPagedQuery(ctx, s.db, pagedQueryConfig{
+		Table:   "derived_jobs",
+		Columns: derivedJobColumns,
+		Where:   where,
+		Args:    args,
+		AllowedSort: map[string]string{
+			"topic": "topic", "slug": "slug", "status": "status",
+			"stage": "stage", "created_at": "created_at", "updated_at": "updated_at",
+		},
+		DefaultSort: "created_at",
+		SortBy:      f.SortBy,
+		SortDir:     f.SortDir,
+		Limit:       f.Limit,
+		Offset:      f.Offset,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("list derived jobs paged: %w", err)
+	}
+
+	rows, err := s.db.QueryContext(ctx, pq.RowsSQL, pq.RowsArgs...)
+	if err != nil {
+		return nil, fmt.Errorf("list derived jobs paged: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*store.DerivedJob
+	for rows.Next() {
+		j, err := scanDerivedJob(rows)
+		if err != nil {
+			return nil, fmt.Errorf("list derived jobs paged scan: %w", err)
+		}
+		jobs = append(jobs, j)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list derived jobs paged rows: %w", err)
+	}
+	return &store.DerivedJobListResult{Jobs: jobs, Total: pq.Total}, nil
+}
+
+// DeleteDerivedJob removes a terminal derive job (succeeded or failed).
+// Returns ErrNotFound if the job does not exist or is not in a terminal status.
+func (s *Store) DeleteDerivedJob(ctx context.Context, id string) error {
+	const q = `DELETE FROM derived_jobs WHERE id = ? AND status IN ('succeeded', 'failed')`
+	res, err := s.db.ExecContext(ctx, q, id)
+	if err != nil {
+		return fmt.Errorf("delete derived job: %w", err)
+	}
+	return requireOneRow(res, "delete derived job")
+}

@@ -23,8 +23,24 @@ type Config struct {
 	Worker  WorkerConf  `json:"worker"`
 	AI      AIConf      `json:"ai"`
 	LLM     LLMConf     `json:"llm"`
+	Derive  DeriveConf  `json:"derive"`
 	Upload  UploadConf  `json:"upload"`
 	Log     LogConf     `json:"log"`
+}
+
+// DeriveConf configures knowledge-base derive behavior.
+type DeriveConf struct {
+	// Reorganize controls whether the reorganize phase runs before compile in
+	// derive jobs. When true, the engine produces an aggregation plan that
+	// groups related extractions. Defaults to true.
+	Reorganize bool `json:"reorganize,default=true"`
+	// FilterRounds is the number of LLM voting rounds for the topic filter.
+	// 1 = no voting, 3 = default. 0 means "use engine default" (currently 3).
+	FilterRounds int `json:"filter_rounds,default=3"`
+	// FilterThreshold is the fraction of rounds a path must be selected in to
+	// pass the topic filter. Range (0, 1]. 0 means "use engine default"
+	// (currently 2/3 ≈ 0.67). Override with KAAS_DERIVE_FILTER_THRESHOLD.
+	FilterThreshold float64 `json:"filter_threshold,default=0"`
 }
 
 // LogConf configures structured logging output.
@@ -236,6 +252,19 @@ func envInt(name string) (int, bool) {
 	return n, true
 }
 
+func envFloat64(name string) (float64, bool) {
+	v := os.Getenv(name)
+	if v == "" {
+		return 0, false
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		log.Printf("[config] invalid %s=%q, ignoring (must be a number)", name, v)
+		return 0, false
+	}
+	return f, true
+}
+
 // applyEnvOverrides lets a few environment variables override file values, so
 // the same kaas.toml works in a container without baking deployment topology,
 // secrets, or tuning knobs into it. A set-but-empty var is treated as unset
@@ -297,6 +326,30 @@ func applyEnvOverrides(c *Config) error {
 	}
 	if n, ok := envInt("KAAS_WORKER_INDEX_MAX_STALE_SEC"); ok {
 		c.Worker.IndexMaxStaleSec = n
+	}
+	if v := os.Getenv("KAAS_DERIVE_REORGANIZE"); v != "" {
+		switch strings.ToLower(v) {
+		case "true", "1":
+			c.Derive.Reorganize = true
+		case "false", "0":
+			c.Derive.Reorganize = false
+		default:
+			log.Printf("[config] invalid KAAS_DERIVE_REORGANIZE=%q, ignoring (must be true/false/1/0)", v)
+		}
+	}
+	if n, ok := envInt("KAAS_DERIVE_FILTER_ROUNDS"); ok {
+		if n >= 0 {
+			c.Derive.FilterRounds = n
+		} else {
+			log.Printf("[config] invalid KAAS_DERIVE_FILTER_ROUNDS=%d, ignoring (must be >= 0)", n)
+		}
+	}
+	if f, ok := envFloat64("KAAS_DERIVE_FILTER_THRESHOLD"); ok {
+		if f >= 0 && f <= 1 {
+			c.Derive.FilterThreshold = f
+		} else {
+			log.Printf("[config] invalid KAAS_DERIVE_FILTER_THRESHOLD=%g, ignoring (must be in [0, 1])", f)
+		}
 	}
 	return nil
 }

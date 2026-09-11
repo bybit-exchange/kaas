@@ -43,6 +43,9 @@ mcp_url = "http://ai-mcp:8082"
 api_key = "sk-test"
 base_url = "https://example.com/v1"
 model = "gpt-4o"
+
+[derive]
+reorganize = false
 `)
 	c, err := Load(p)
 	if err != nil {
@@ -62,6 +65,12 @@ model = "gpt-4o"
 	}
 	if c.LLM.APIKey != "sk-test" || c.LLM.Model != "gpt-4o" {
 		t.Fatalf("llm: %+v", c.LLM)
+	}
+	if c.Derive.Reorganize != false {
+		t.Fatalf("derive.reorganize = %v, want false", c.Derive.Reorganize)
+	}
+	if c.Derive.FilterRounds != 3 {
+		t.Fatalf("derive.filter_rounds = %d, want default 3", c.Derive.FilterRounds)
 	}
 }
 
@@ -101,6 +110,12 @@ api_key = "sk"
 	if c.LLM.BaseURL != "https://api.openai.com/v1" || c.LLM.Model != "gpt-4o-mini" {
 		t.Fatalf("llm defaults not applied: %+v", c.LLM)
 	}
+	if !c.Derive.Reorganize {
+		t.Fatalf("derive.reorganize default = %v, want true", c.Derive.Reorganize)
+	}
+	if c.Derive.FilterRounds != 3 {
+		t.Fatalf("derive.filter_rounds default = %d, want 3", c.Derive.FilterRounds)
+	}
 }
 
 func TestLoadRepoConfig(t *testing.T) {
@@ -128,6 +143,13 @@ func TestLoadRepoConfig(t *testing.T) {
 	if c.Worker.IndexDebounceSec != 30 || c.Worker.IndexMaxStaleSec != 300 {
 		t.Errorf("index refresh keys = %d/%d, want 30/300",
 			c.Worker.IndexDebounceSec, c.Worker.IndexMaxStaleSec)
+	}
+	if !c.Derive.Reorganize {
+		t.Errorf("derive.reorganize = %v, want true", c.Derive.Reorganize)
+	}
+	// filter_rounds is commented out in etc/kaas.toml, so the default=3 tag applies.
+	if c.Derive.FilterRounds != 3 {
+		t.Errorf("derive.filter_rounds = %d, want 3 (default, since commented out)", c.Derive.FilterRounds)
 	}
 }
 
@@ -839,4 +861,414 @@ func TestIndexRefreshValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDeriveReorganizeDefaultTrue confirms the default=true tag fires when the
+// [derive] section is absent from the TOML entirely.
+func TestDeriveReorganizeDefaultTrue(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !c.Derive.Reorganize {
+		t.Errorf("derive.reorganize = %v, want true when [derive] is absent", c.Derive.Reorganize)
+	}
+}
+
+// TestDeriveReorganizeEnvOverride confirms KAAS_DERIVE_REORGANIZE overrides the
+// file value in both directions, and that an invalid value warns and falls back.
+func TestDeriveReorganizeEnvOverride(t *testing.T) {
+	t.Run("env true overrides file false", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "true")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true from env override", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env false overrides file true", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "false")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false from env override", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env 1 treated as true", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "1")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true from env=1", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("env 0 treated as false", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "0")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false from env=0", c.Derive.Reorganize)
+		}
+	})
+
+	t.Run("invalid env falls back to file value", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = true
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "yes")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if !c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want true (file value) when env is invalid", c.Derive.Reorganize)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_REORGANIZE") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_REORGANIZE; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("empty env does not override", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+reorganize = false
+`)
+		t.Setenv("KAAS_DERIVE_REORGANIZE", "")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.Reorganize {
+			t.Errorf("derive.reorganize = %v, want false (empty env must not clobber)", c.Derive.Reorganize)
+		}
+	})
+}
+
+// TestDeriveFilterRoundsDefaultThree confirms the default=3 tag fires when the
+// [derive] section is absent from the TOML entirely.
+func TestDeriveFilterRoundsDefaultThree(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterRounds != 3 {
+		t.Errorf("derive.filter_rounds = %d, want 3 when [derive] is absent", c.Derive.FilterRounds)
+	}
+}
+
+// TestDeriveFilterRoundsFromFile confirms an explicit TOML value overrides the default.
+func TestDeriveFilterRoundsFromFile(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 5
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterRounds != 5 {
+		t.Errorf("derive.filter_rounds = %d, want 5", c.Derive.FilterRounds)
+	}
+}
+
+// TestDeriveFilterRoundsEnvOverride confirms KAAS_DERIVE_FILTER_ROUNDS overrides
+// the file value, and that invalid values warn and fall back.
+func TestDeriveFilterRoundsEnvOverride(t *testing.T) {
+	t.Run("env overrides file", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 3
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_ROUNDS", "7")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterRounds != 7 {
+			t.Errorf("derive.filter_rounds = %d, want 7 from env override", c.Derive.FilterRounds)
+		}
+	})
+
+	t.Run("env 0 means engine default", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_ROUNDS", "0")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterRounds != 0 {
+			t.Errorf("derive.filter_rounds = %d, want 0 from env override", c.Derive.FilterRounds)
+		}
+	})
+
+	t.Run("negative env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_ROUNDS", "-1")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterRounds != 5 {
+			t.Errorf("derive.filter_rounds = %d, want 5 (file value) when env is negative", c.Derive.FilterRounds)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_ROUNDS") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_ROUNDS; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("non-integer env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_ROUNDS", "three")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterRounds != 5 {
+			t.Errorf("derive.filter_rounds = %d, want 5 (file value) when env is invalid", c.Derive.FilterRounds)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_ROUNDS") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_ROUNDS; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("empty env does not override", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_rounds = 5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_ROUNDS", "")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterRounds != 5 {
+			t.Errorf("derive.filter_rounds = %d, want 5 (empty env must not clobber)", c.Derive.FilterRounds)
+		}
+	})
+}
+
+// TestDeriveFilterThresholdDefaultZero confirms the default=0 tag fires when
+// the [derive] section is absent.
+func TestDeriveFilterThresholdDefaultZero(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[llm]
+api_key = "sk"
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterThreshold != 0 {
+		t.Errorf("derive.filter_threshold = %g, want 0 when [derive] is absent", c.Derive.FilterThreshold)
+	}
+}
+
+// TestDeriveFilterThresholdFromFile confirms an explicit TOML value overrides the default.
+func TestDeriveFilterThresholdFromFile(t *testing.T) {
+	p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+	c, err := Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Derive.FilterThreshold != 0.5 {
+		t.Errorf("derive.filter_threshold = %g, want 0.5", c.Derive.FilterThreshold)
+	}
+}
+
+// TestDeriveFilterThresholdEnvOverride confirms KAAS_DERIVE_FILTER_THRESHOLD
+// overrides the file value, and that invalid values warn and fall back.
+func TestDeriveFilterThresholdEnvOverride(t *testing.T) {
+	t.Run("env overrides file", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "0.8")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.8 {
+			t.Errorf("derive.filter_threshold = %g, want 0.8 from env override", c.Derive.FilterThreshold)
+		}
+	})
+
+	t.Run("out-of-range env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "1.5")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (file value) when env is out of range", c.Derive.FilterThreshold)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_THRESHOLD") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_THRESHOLD; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("non-numeric env ignored with warning", func(t *testing.T) {
+		var logs bytes.Buffer
+		log.SetOutput(&logs)
+		defer log.SetOutput(os.Stderr)
+
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "half")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (file value) when env is invalid", c.Derive.FilterThreshold)
+		}
+		if !strings.Contains(logs.String(), "KAAS_DERIVE_FILTER_THRESHOLD") {
+			t.Errorf("expected a warning about invalid KAAS_DERIVE_FILTER_THRESHOLD; logs: %q", logs.String())
+		}
+	})
+
+	t.Run("empty env does not override", func(t *testing.T) {
+		p := writeTOML(t, `
+[storage]
+driver = "sqlite"
+
+[derive]
+filter_threshold = 0.5
+`)
+		t.Setenv("KAAS_DERIVE_FILTER_THRESHOLD", "")
+		c, err := Load(p)
+		if err != nil {
+			t.Fatalf("Load: %v", err)
+		}
+		if c.Derive.FilterThreshold != 0.5 {
+			t.Errorf("derive.filter_threshold = %g, want 0.5 (empty env must not clobber)", c.Derive.FilterThreshold)
+		}
+	})
 }

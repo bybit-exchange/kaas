@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/bybit-exchange/kaas/internal/kbpath"
 	"github.com/bybit-exchange/kaas/internal/store"
 )
 
@@ -16,7 +18,7 @@ import (
 // polluting queue/worker consumers that don't care about sessions.
 type SessionStore interface {
 	CreateSession(ctx context.Context, s *store.Session) error
-	ListSessions(ctx context.Context) ([]*store.Session, error)
+	ListSessions(ctx context.Context, kbSlug *string) ([]*store.Session, error)
 	GetSession(ctx context.Context, id string) (*store.Session, error)
 	UpdateSessionTitle(ctx context.Context, id, title string, now int64) error
 	DeleteSession(ctx context.Context, id string) error
@@ -29,6 +31,7 @@ type SessionStore interface {
 type sessionDTO struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
+	KBSlug    string `json:"kb_slug"`
 	CreatedAt string `json:"created_at"` // ISO 8601 (RFC3339)
 	UpdatedAt string `json:"updated_at"` // ISO 8601 (RFC3339)
 }
@@ -49,6 +52,7 @@ func toSessionDTO(s *store.Session) sessionDTO {
 	return sessionDTO{
 		ID:        s.ID,
 		Title:     s.Title,
+		KBSlug:    s.KBSlug,
 		CreatedAt: time.UnixMilli(s.CreatedAt).UTC().Format(time.RFC3339),
 		UpdatedAt: time.UnixMilli(s.UpdatedAt).UTC().Format(time.RFC3339),
 	}
@@ -78,10 +82,15 @@ func toMessageDTO(m *store.Message) messageDTO {
 func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	var req struct {
-		Title string `json:"title"`
+		Title  string `json:"title"`
+		KBSlug string `json:"kb_slug"`
 	}
 	if err := decodeJSON(r, &req); err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid request body: "+err.Error())
+		return
+	}
+	if req.KBSlug != "" && !kbpath.ValidSlug(req.KBSlug) {
+		writeErr(w, http.StatusBadRequest, "invalid kb_slug")
 		return
 	}
 
@@ -89,6 +98,7 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 	sess := &store.Session{
 		ID:        uuid.NewString(),
 		Title:     req.Title,
+		KBSlug:    req.KBSlug,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -101,7 +111,12 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 
 // handleListSessions serves GET /api/sessions.
 func (s *Server) handleListSessions(w http.ResponseWriter, r *http.Request) {
-	sessions, err := s.ss.ListSessions(r.Context())
+	var kbFilter *string
+	if r.URL.Query().Has("kb") {
+		v := r.URL.Query().Get("kb")
+		kbFilter = &v
+	}
+	sessions, err := s.ss.ListSessions(r.Context(), kbFilter)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "list sessions: "+err.Error())
 		return

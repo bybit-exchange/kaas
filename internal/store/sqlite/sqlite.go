@@ -23,7 +23,7 @@ type Store struct {
 // taskColumns is the canonical column order for SELECT/RETURNING + scanTask.
 const taskColumns = `id, source, title, raw_path, file_title, content_hash, status, stage,
 	attempts, max_attempts, error, result, lease_owner, lease_expires_at,
-	created_at, updated_at`
+	created_at, updated_at, build_job_id`
 
 // Open opens (creating if needed) a SQLite database at path with WAL mode and a
 // busy timeout so concurrent claims retry instead of failing with SQLITE_BUSY.
@@ -78,7 +78,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 	lease_owner      TEXT NOT NULL DEFAULT '',
 	lease_expires_at INTEGER NOT NULL DEFAULT 0,
 	created_at       INTEGER NOT NULL,
-	updated_at       INTEGER NOT NULL
+	updated_at       INTEGER NOT NULL,
+	build_job_id     TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_content_hash ON tasks(content_hash);
 CREATE INDEX IF NOT EXISTS idx_tasks_status_created ON tasks(status, created_at);
@@ -104,6 +105,12 @@ func (s *Store) Migrate(ctx context.Context) error {
 	// After derivedSchema, which is what creates the table this alters.
 	if err := s.migrateDeriveSelectFrom(ctx); err != nil {
 		return err
+	}
+	if err := s.migrateBuildJobID(ctx); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, buildJobSchema); err != nil {
+		return fmt.Errorf("migrate build_jobs schema: %w", err)
 	}
 	return nil
 }
@@ -170,14 +177,28 @@ func (s *Store) migrateDeriveSelectFrom(ctx context.Context) error {
 		`TEXT NOT NULL DEFAULT ''`)
 }
 
+// migrateBuildJobID idempotently adds tasks.build_job_id for existing databases.
+// New databases already have the column in the CREATE TABLE schema.
+func (s *Store) migrateBuildJobID(ctx context.Context) error {
+	if err := s.addColumnIfMissing(ctx, "build_job_id", "tasks", "build_job_id",
+		`TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	_, err := s.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_tasks_build_job_id ON tasks(build_job_id)`)
+	if err != nil {
+		return fmt.Errorf("migrate build_job_id: create index: %w", err)
+	}
+	return nil
+}
+
 // CreateTask inserts a task, mapping the unique-index violation to ErrDuplicate.
 func (s *Store) CreateTask(ctx context.Context, t *store.Task) error {
 	const q = `INSERT INTO tasks (` + taskColumns + `)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
 	_, err := s.db.ExecContext(ctx, q,
 		t.ID, t.Source, t.Title, t.RawPath, t.FileTitle, t.ContentHash, t.Status, t.Stage,
 		t.Attempts, t.MaxAttempts, t.Error, t.Result, t.LeaseOwner,
-		t.LeaseExpiresAt, t.CreatedAt, t.UpdatedAt,
+		t.LeaseExpiresAt, t.CreatedAt, t.UpdatedAt, t.BuildJobID,
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -327,6 +348,29 @@ func (s *Store) DeleteTask(ctx context.Context, id string) error {
 	return requireOneRow(res, "delete task")
 }
 
+// ListTasksByBuildJob returns all tasks belonging to a build job, ordered by created_at ASC.
+func (s *Store) ListTasksByBuildJob(ctx context.Context, buildJobID string) ([]*store.Task, error) {
+	const q = `SELECT ` + taskColumns + ` FROM tasks WHERE build_job_id = ? ORDER BY created_at ASC`
+	rows, err := s.db.QueryContext(ctx, q, buildJobID)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks by build job: %w", err)
+	}
+	defer rows.Close()
+
+	var tasks []*store.Task
+	for rows.Next() {
+		t, err := scanTask(rows)
+		if err != nil {
+			return nil, fmt.Errorf("list tasks by build job scan: %w", err)
+		}
+		tasks = append(tasks, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list tasks by build job rows: %w", err)
+	}
+	return tasks, nil
+}
+
 // ClaimNext atomically claims the oldest pending task for owner.
 //
 // The single UPDATE...RETURNING with a LIMIT-1 subquery is atomic under
@@ -471,7 +515,7 @@ func scanTask(row rowScanner) (*store.Task, error) {
 	err := row.Scan(
 		&t.ID, &t.Source, &t.Title, &t.RawPath, &t.FileTitle, &t.ContentHash, &t.Status, &t.Stage,
 		&t.Attempts, &t.MaxAttempts, &t.Error, &t.Result, &t.LeaseOwner,
-		&t.LeaseExpiresAt, &t.CreatedAt, &t.UpdatedAt,
+		&t.LeaseExpiresAt, &t.CreatedAt, &t.UpdatedAt, &t.BuildJobID,
 	)
 	if err != nil {
 		return nil, err

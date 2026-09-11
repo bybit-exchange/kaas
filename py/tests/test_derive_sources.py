@@ -16,14 +16,14 @@ def _kb(tmp_path: Path) -> KBStore:
 def _article(tmp_path: Path, name: str, frontmatter: str) -> str:
     path = f"wiki/{name}"
     (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
-    (tmp_path / path).write_text(f"---\n{frontmatter}\n---\n\n# Body\n")
+    (tmp_path / path).write_text(f"---\n{frontmatter}\n---\n\n# Body\n", encoding="utf-8")
     return path
 
 
 def _raw(tmp_path: Path, name: str, content: str) -> None:
     p = tmp_path / "raw" / name
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(content)
+    p.write_text(content, encoding="utf-8")
 
 
 def test_resolves_and_dedupes_across_articles(tmp_path: Path):
@@ -74,7 +74,7 @@ def test_empty_sources_list(tmp_path: Path):
 def test_unparseable_frontmatter(tmp_path: Path):
     p = "wiki/bad.md"
     (tmp_path / p).parent.mkdir(parents=True, exist_ok=True)
-    (tmp_path / p).write_text("no frontmatter here\n")
+    (tmp_path / p).write_text("no frontmatter here\n", encoding="utf-8")
     _, skipped_articles, _ = _sources.resolve_documents(_kb(tmp_path), [p])
     assert skipped_articles[0].reason == "unparseable_frontmatter"
 
@@ -92,7 +92,7 @@ def test_article_unreadable(tmp_path: Path):
 
 def test_escaping_source_entry_is_recorded_not_fatal(tmp_path: Path):
     outside = tmp_path.parent / "secret.md"
-    outside.write_text("secret")
+    outside.write_text("secret", encoding="utf-8")
     _raw(tmp_path, "ok.md", "fine")
     p = _article(tmp_path, "one.md",
                  'title: One\nsources:\n  - ../secret.md\n  - raw/ok.md')
@@ -142,7 +142,7 @@ def test_an_entry_outside_raw_is_skipped_not_copied(tmp_path: Path):
     _raw(tmp_path, "ok.md", "fine")
     p = _article(tmp_path, "one.md",
                  'title: One\nsources:\n  - wiki/pricing.md\n  - raw/ok.md')
-    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n")
+    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n", encoding="utf-8")
 
     docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
     assert [d.rel_path for d in docs] == ["raw/ok.md"]
@@ -152,7 +152,7 @@ def test_an_entry_outside_raw_is_skipped_not_copied(tmp_path: Path):
 
 def test_the_compile_state_file_is_not_a_source_document(tmp_path: Path):
     """Copying .compile-state.json in would make the derived compile a no-op."""
-    (tmp_path / ".compile-state.json").write_text('{"files": {}}')
+    (tmp_path / ".compile-state.json").write_text('{"files": {}}', encoding="utf-8")
     p = _article(tmp_path, "one.md", 'title: One\nsources:\n  - .compile-state.json')
 
     docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
@@ -165,7 +165,7 @@ def test_an_entry_climbing_out_of_raw_is_skipped(tmp_path: Path):
     """'raw/../wiki/x.md' starts with raw/ lexically but names a wiki article."""
     p = _article(tmp_path, "one.md",
                  'title: One\nsources:\n  - raw/../wiki/pricing.md')
-    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n")
+    (tmp_path / "wiki" / "pricing.md").write_text("---\ntitle: Pricing\n---\n", encoding="utf-8")
 
     docs, _, skipped_docs = _sources.resolve_documents(_kb(tmp_path), [p])
     assert docs == []

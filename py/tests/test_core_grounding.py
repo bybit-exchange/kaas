@@ -458,7 +458,7 @@ def test_no_wiki_directory_yields_an_empty_check(tmp_path):
 def test_dotfiles_under_wiki_are_ignored(tmp_path):
     store = _kb(tmp_path, extractions={"raw/a.md": ExtractionResult()}, articles={})
     (store.wiki_dir).mkdir(parents=True, exist_ok=True)
-    (store.wiki_dir / ".draft.md").write_text(_article("| `Auth` | bool |\n"))
+    (store.wiki_dir / ".draft.md").write_text(_article("| `Auth` | bool |\n"), encoding="utf-8")
 
     check = grounding.check_grounding(str(tmp_path))
 

@@ -51,6 +51,7 @@ Rules:
 - Of the emphases below, apply only the ones covering a field assigned to you
 - For meeting transcripts: focus on Q3 (decisions) and Q2 (entities)
 - For documents: focus on Q1 (concepts), Q4 (claims) and Q5 (enumerations)
+- Write all extracted field values in the same language as the source document
 - Output ONLY the assigned fields above. Do not include any unassigned fields.
 
 Return ONLY valid JSON, no markdown fencing.

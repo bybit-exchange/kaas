@@ -6,5 +6,6 @@ Rules:
 - Do not compress, reorder, or drop existing content to make room
 - Maintain the section's existing tone and formatting
 - Add [[wikilinks]] for related concepts mentioned in the new material
+- Write in the same language as the existing section content
 
 Output only the section body — no heading, no markdown fencing.

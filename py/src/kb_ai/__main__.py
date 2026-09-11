@@ -4,7 +4,10 @@ import traceback
 
 from kb_ai._protocol import respond_error, respond_ok
 
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+# Die silently on a broken stdout pipe instead of raising BrokenPipeError.
+# Windows has no SIGPIPE, so the default behaviour there is already fine.
+if hasattr(signal, "SIGPIPE"):
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
 # Legacy helper kept for backward-compat (some modules import `respond` from here).

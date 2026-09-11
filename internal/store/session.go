@@ -4,8 +4,9 @@ package store
 type Session struct {
 	ID        string // UUID
 	Title     string
-	CreatedAt int64 // unix ms
-	UpdatedAt int64 // unix ms
+	KBSlug    string // "" = root KB, non-empty = derived KB slug
+	CreatedAt int64  // unix ms
+	UpdatedAt int64  // unix ms
 }
 
 // Message represents a single chat message within a session.

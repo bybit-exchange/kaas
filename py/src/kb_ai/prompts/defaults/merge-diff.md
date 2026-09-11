@@ -25,5 +25,6 @@ Rules:
 - If ALL information is already in the article, return: {"patches": []}
 - Use [[wikilinks]] in content
 - Keep patches focused and concise
+- Write all patch content values in the same language as the source documents and the existing article
 
 Return ONLY valid JSON, no markdown fencing.

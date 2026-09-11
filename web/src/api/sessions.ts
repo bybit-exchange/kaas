@@ -4,6 +4,7 @@ import type { ChatSource, ChatUsage } from '../features/chat/StreamHandler'
 export interface Session {
   id: string
   title: string
+  kb_slug: string
   created_at: string
   updated_at: string
 }
@@ -19,16 +20,17 @@ export interface Message {
   created_at: string
 }
 
-export async function listSessions(): Promise<Session[]> {
-  const res = await apiFetch('/sessions')
+export async function listSessions(kb?: string): Promise<Session[]> {
+  const params = kb !== undefined ? `?kb=${encodeURIComponent(kb)}` : ''
+  const res = await apiFetch(`/sessions${params}`)
   const data = (await res.json()) as { sessions: Session[] }
   return data.sessions
 }
 
-export async function createSession(title: string): Promise<Session> {
+export async function createSession(title: string, kbSlug: string = ''): Promise<Session> {
   const res = await apiFetch('/sessions', {
     method: 'POST',
-    body: JSON.stringify({ title }),
+    body: JSON.stringify({ title, kb_slug: kbSlug }),
   })
   return res.json() as Promise<Session>
 }

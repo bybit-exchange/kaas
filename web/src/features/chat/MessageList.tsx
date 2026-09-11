@@ -26,6 +26,7 @@ interface MessageListProps {
   streamingStatusEntries?: string[]
   streamingPhase?: StreamPhase
   isStreaming?: boolean
+  isSending?: boolean
   onCitationClick?: (index: number) => void
 }
 
@@ -39,6 +40,7 @@ export function MessageList({
   streamingStatusEntries,
   streamingPhase,
   isStreaming,
+  isSending,
   onCitationClick,
 }: MessageListProps) {
   const t = useT()
@@ -57,7 +59,7 @@ export function MessageList({
     if (isAtBottomRef.current && typeof bottomRef.current?.scrollIntoView === 'function') {
       bottomRef.current.scrollIntoView({ behavior: 'smooth' })
     }
-  }, [messages.length, streamingContent, streamingStatus, streamingReasoning, streamingStatusEntries])
+  }, [messages.length, streamingContent, streamingStatus, streamingReasoning, streamingStatusEntries, isSending])
 
   const handleCitationClick = useCallback(
     (index: number) => {
@@ -72,7 +74,7 @@ export function MessageList({
     [onCitationClick],
   )
 
-  if (messages.length === 0 && !streamingContent && !streamingStatus && !isStreaming) {
+  if (messages.length === 0 && !streamingContent && !streamingStatus && !isStreaming && !isSending) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-4 text-muted-foreground">
         <p className="text-lg font-medium text-foreground">{t('chat.welcome')}</p>
@@ -140,7 +142,7 @@ export function MessageList({
           </div>
         ))}
 
-        {(streamingContent || streamingStatus || isStreaming) && (
+        {(streamingContent || streamingStatus || isStreaming || isSending) && (
           <div className="flex justify-start" aria-live="polite" aria-atomic="false">
             <div className="max-w-[100%] px-1">
               {/* Upper: ThinkingBlock */}

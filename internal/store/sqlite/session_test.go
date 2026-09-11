@@ -59,7 +59,7 @@ func TestSessionListOrder(t *testing.T) {
 	_ = s.CreateSession(ctx, &store.Session{ID: "new", Title: "new", CreatedAt: 200, UpdatedAt: 300})
 	_ = s.CreateSession(ctx, &store.Session{ID: "mid", Title: "mid", CreatedAt: 150, UpdatedAt: 200})
 
-	list, err := s.ListSessions(ctx)
+	list, err := s.ListSessions(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListSessions: %v", err)
 	}
@@ -70,6 +70,70 @@ func TestSessionListOrder(t *testing.T) {
 	if list[0].ID != "new" || list[1].ID != "mid" || list[2].ID != "old" {
 		t.Fatalf("order wrong: %s, %s, %s", list[0].ID, list[1].ID, list[2].ID)
 	}
+}
+
+func TestSessionListFilterByKBSlug(t *testing.T) {
+	s := newMemoryStore(t)
+	ctx := context.Background()
+
+	// Create sessions with different kb_slugs.
+	_ = s.CreateSession(ctx, &store.Session{ID: "root-1", Title: "root chat 1", KBSlug: "", CreatedAt: 100, UpdatedAt: 100})
+	_ = s.CreateSession(ctx, &store.Session{ID: "root-2", Title: "root chat 2", KBSlug: "", CreatedAt: 200, UpdatedAt: 200})
+	_ = s.CreateSession(ctx, &store.Session{ID: "kb-a-1", Title: "kb-a chat", KBSlug: "my-kb", CreatedAt: 300, UpdatedAt: 300})
+	_ = s.CreateSession(ctx, &store.Session{ID: "kb-b-1", Title: "kb-b chat", KBSlug: "other-kb", CreatedAt: 400, UpdatedAt: 400})
+
+	ptr := func(s string) *string { return &s }
+
+	t.Run("nil returns all sessions", func(t *testing.T) {
+		list, err := s.ListSessions(ctx, nil)
+		if err != nil {
+			t.Fatalf("ListSessions(nil): %v", err)
+		}
+		if len(list) != 4 {
+			t.Fatalf("expected 4 sessions, got %d", len(list))
+		}
+	})
+
+	t.Run("empty string returns root-only sessions", func(t *testing.T) {
+		list, err := s.ListSessions(ctx, ptr(""))
+		if err != nil {
+			t.Fatalf("ListSessions(''): %v", err)
+		}
+		if len(list) != 2 {
+			t.Fatalf("expected 2 root sessions, got %d", len(list))
+		}
+		for _, sess := range list {
+			if sess.KBSlug != "" {
+				t.Errorf("expected root session, got kb_slug=%q", sess.KBSlug)
+			}
+		}
+	})
+
+	t.Run("specific slug returns only that KB", func(t *testing.T) {
+		list, err := s.ListSessions(ctx, ptr("my-kb"))
+		if err != nil {
+			t.Fatalf("ListSessions('my-kb'): %v", err)
+		}
+		if len(list) != 1 {
+			t.Fatalf("expected 1 session, got %d", len(list))
+		}
+		if list[0].ID != "kb-a-1" {
+			t.Errorf("expected session kb-a-1, got %s", list[0].ID)
+		}
+		if list[0].KBSlug != "my-kb" {
+			t.Errorf("expected kb_slug=my-kb, got %q", list[0].KBSlug)
+		}
+	})
+
+	t.Run("non-existent slug returns empty", func(t *testing.T) {
+		list, err := s.ListSessions(ctx, ptr("no-such-kb"))
+		if err != nil {
+			t.Fatalf("ListSessions('no-such-kb'): %v", err)
+		}
+		if len(list) != 0 {
+			t.Fatalf("expected 0 sessions, got %d", len(list))
+		}
+	})
 }
 
 func TestSessionUpdateTitle(t *testing.T) {

@@ -14,6 +14,15 @@ import (
 )
 
 // --- scripted transport ---------------------------------------------------
+
+// boolPtr returns a pointer to the given bool, useful for *bool struct fields.
+func boolPtr(b bool) *bool { return &b }
+
+// intPtr returns a pointer to the given int, useful for *int struct fields.
+func intPtr(n int) *int { return &n }
+
+// float64Ptr returns a pointer to the given float64, useful for *float64 struct fields.
+func float64Ptr(f float64) *float64 { return &f }
 //
 // The DaemonClient methods are thin wrappers over daemon.call / daemon.stream.
 // To exercise them without spawning Python, a scriptedDaemon replaces the
@@ -824,6 +833,7 @@ func newFakeDaemonClient(t *testing.T) (*DaemonClient, *fakeDaemon) {
 
 // --- Derive ------------------------------------------------------------------
 
+// TestDeriveMarshalsTheRequestAndDecodesTheResponse tests the full roundtrip.
 func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	c, fake := newFakeDaemonClient(t)
 	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{
@@ -840,6 +850,7 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 
 	got, err := c.Derive(context.Background(), DeriveRequest{
 		KBDir: "/kb", Topic: "pricing", Slug: "pricing", Force: true, Model: "m",
+		Reorganize: boolPtr(true), FilterRounds: intPtr(5),
 	})
 	if err != nil {
 		t.Fatalf("Derive: %v", err)
@@ -853,6 +864,12 @@ func TestDeriveMarshalsTheRequestAndDecodesTheResponse(t *testing.T) {
 	}
 	if sent.KBDir != "/kb" || sent.Topic != "pricing" || !sent.Force || sent.Model != "m" {
 		t.Errorf("sent = %+v", sent)
+	}
+	if sent.Reorganize == nil || *sent.Reorganize != true {
+		t.Errorf("sent.Reorganize = %v, want ptr to true", sent.Reorganize)
+	}
+	if sent.FilterRounds == nil || *sent.FilterRounds != 5 {
+		t.Errorf("sent.FilterRounds = %v, want ptr to 5", sent.FilterRounds)
 	}
 	if got.Slug != "pricing" || got.Documents != 3 || !got.Compiled {
 		t.Errorf("got = %+v", got)
@@ -916,5 +933,105 @@ func TestDeriveSurfacesAnEngineError(t *testing.T) {
 	var apiErr *APIError
 	if !errors.As(err, &apiErr) || apiErr.Code != "SLUG_EXISTS" {
 		t.Fatalf("err = %v, want an APIError with SLUG_EXISTS", err)
+	}
+}
+
+// TestDeriveCarriesExplicitFalseReorganize pins the *bool + omitempty behavior:
+// an explicit false must appear on the wire, not be dropped by omitempty.
+func TestDeriveCarriesExplicitFalseReorganize(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", Reorganize: boolPtr(false),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.Reorganize == nil || *sent.Reorganize != false {
+		t.Errorf("sent.Reorganize = %v, want ptr to false", sent.Reorganize)
+	}
+}
+
+// TestDeriveOmitsNilReorganize asserts that a nil Reorganize is absent from the
+// JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilReorganize(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("reorganize")) {
+		t.Errorf("payload = %s, want no reorganize key when Reorganize is nil", fake.lastPayload)
+	}
+}
+
+// TestDeriveCarriesExplicitFilterRounds pins that *int(5) is serialized correctly.
+func TestDeriveCarriesExplicitFilterRounds(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", FilterRounds: intPtr(5),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.FilterRounds == nil || *sent.FilterRounds != 5 {
+		t.Errorf("sent.FilterRounds = %v, want ptr to 5", sent.FilterRounds)
+	}
+}
+
+// TestDeriveOmitsNilFilterRounds asserts that a nil FilterRounds is absent from
+// the JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilFilterRounds(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("filter_rounds")) {
+		t.Errorf("payload = %s, want no filter_rounds key when FilterRounds is nil", fake.lastPayload)
+	}
+}
+
+// TestDeriveCarriesExplicitFilterThreshold pins that *float64(0.5) is serialized correctly.
+func TestDeriveCarriesExplicitFilterThreshold(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{
+		KBDir: "/kb", Topic: "t", FilterThreshold: float64Ptr(0.5),
+	}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	var sent DeriveRequest
+	if err := json.Unmarshal(fake.lastPayload, &sent); err != nil {
+		t.Fatalf("unmarshal payload: %v", err)
+	}
+	if sent.FilterThreshold == nil || *sent.FilterThreshold != 0.5 {
+		t.Errorf("sent.FilterThreshold = %v, want ptr to 0.5", sent.FilterThreshold)
+	}
+}
+
+// TestDeriveOmitsNilFilterThreshold asserts that a nil FilterThreshold is absent
+// from the JSON, so the Python side falls back to its own default.
+func TestDeriveOmitsNilFilterThreshold(t *testing.T) {
+	c, fake := newFakeDaemonClient(t)
+	fake.reply = daemonResponse{OK: true, Data: json.RawMessage(`{"slug": "pricing"}`)}
+
+	if _, err := c.Derive(context.Background(), DeriveRequest{KBDir: "/kb", Topic: "t"}); err != nil {
+		t.Fatalf("Derive: %v", err)
+	}
+	if bytes.Contains(fake.lastPayload, []byte("filter_threshold")) {
+		t.Errorf("payload = %s, want no filter_threshold key when FilterThreshold is nil", fake.lastPayload)
 	}
 }
